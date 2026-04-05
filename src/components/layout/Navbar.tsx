@@ -28,12 +28,6 @@ function getNavLinks(role: Role, gymSlug: string, studentType?: StudentType) {
   if (role === "TEACHER") {
     return [{ href: gymPath(gymSlug, "/dashboard/teacher"), label: "Mis WODs" }];
   }
-  // GENERAL students only see RMs
-  if (studentType === "GENERAL") {
-    return [
-      { href: gymPath(gymSlug, "/dashboard/athlete/rms"), label: "Mis RMs" },
-    ];
-  }
   return [
     { href: gymPath(gymSlug, "/dashboard/athlete"), label: "Mi WOD" },
     { href: gymPath(gymSlug, "/dashboard/athlete/rms"), label: "Mis RMs" },

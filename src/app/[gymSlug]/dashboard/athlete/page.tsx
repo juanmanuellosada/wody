@@ -19,11 +19,7 @@ export default async function StudentDashboardPage({ params }: Props) {
     redirect(gymPath(gymSlug, "/login"));
   }
 
-  // GENERAL students don't see WODs — redirect to RMs
-  if (session.user.studentType === "GENERAL") {
-    redirect(gymPath(gymSlug, "/dashboard/athlete/rms"));
-  }
-
+  const isGeneral = session.user.studentType === "GENERAL";
   const studentId = session.user.id;
   const todayStr = toInputDate(getTodayArgentina());
 
@@ -62,58 +58,103 @@ export default async function StudentDashboardPage({ params }: Props) {
 
   return (
     <div className="flex flex-col gap-10">
-      {/* Today's WOD */}
-      <section>
-        <div className="flex items-center justify-between mb-5">
-          <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white">
-            WOD de Hoy
-          </h1>
-          {todayWod && (
-            <Link
-              href={wodPath}
-              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-[#E31414] hover:text-white transition-colors duration-200 cursor-pointer"
-            >
-              Ver en grande
-            </Link>
-          )}
-        </div>
-        {todayWod ? (
-          <Link href={wodPath} className="block cursor-pointer group">
-            <WodCard wod={todayWod} highlight />
-          </Link>
-        ) : (
-          <div className="border border-[#2A2A2A] p-8 text-center">
-            <p className="text-gray-500 text-sm font-heading font-bold uppercase tracking-[0.15em]">
-              No hay WOD para hoy
-            </p>
-            <p className="text-gray-700 text-xs mt-2 font-body">
-              Habla con tu profe
-            </p>
+      {/* General student paywall overlay */}
+      {isGeneral && (
+        <div className="relative">
+          {/* Blurred fake content behind */}
+          <div className="blur-md pointer-events-none select-none" aria-hidden="true">
+            <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white mb-5">
+              WOD de Hoy
+            </h1>
+            <div className="border border-[#2A2A2A] bg-[#1A1A1A] p-6">
+              <p className="text-white font-heading font-bold uppercase text-sm">WARM UP</p>
+              <p className="text-gray-400 text-sm mt-2">3 rondas — Movilidad general</p>
+              <p className="text-gray-400 text-sm">5 cossack squat / 5 ohs con disco</p>
+              <p className="text-white font-heading font-bold uppercase text-sm mt-4">OLY</p>
+              <p className="text-gray-400 text-sm mt-2">Clean — 1 rep — 50/55/60/65/70%</p>
+              <p className="text-white font-heading font-bold uppercase text-sm mt-4">AMRAP 12&apos;</p>
+              <p className="text-gray-400 text-sm mt-2">T2B / BBJO / Power Clean 60%</p>
+            </div>
           </div>
-        )}
-      </section>
 
-      {/* History */}
-      <section>
-        <div className="flex items-center gap-4 mb-5">
-          <h2 className="text-lg font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
-            Historial
-          </h2>
-          <div className="flex-1 h-px bg-[#1A1A1A]" aria-hidden="true" />
+          {/* Overlay CTA */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="bg-black/80 border border-[#E31414]/30 p-8 text-center max-w-sm mx-4">
+              <p className="text-lg font-heading font-black uppercase tracking-[0.1em] text-white mb-3">
+                Contenido exclusivo
+              </p>
+              <p className="text-sm text-gray-400 font-body mb-4 leading-relaxed">
+                Los WODs personalizados son para alumnos del plan personalizado.
+                Habla con tu profe para acceder.
+              </p>
+              <Link
+                href={gymPath(gymSlug, "/dashboard/athlete/rms")}
+                className="inline-block px-6 py-3 font-heading font-bold uppercase tracking-[0.15em] text-white text-xs bg-[#E31414] hover:bg-[#B00F0F] transition-colors duration-200"
+              >
+                Ir a mis RMs
+              </Link>
+            </div>
+          </div>
         </div>
-        <WodList
-          wods={historyWods}
-          renderActions={(wod) => (
-            <Link
-              href={`${wodPath}?id=${wod.id}`}
-              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-[#E31414] transition-colors duration-200 cursor-pointer"
-            >
-              Ver
-            </Link>
-          )}
-          emptyMessage="No hay WODs anteriores."
-        />
-      </section>
+      )}
+
+      {/* Actual WOD content — only for PERSONALIZED */}
+      {!isGeneral && (
+        <>
+          {/* Today's WOD */}
+          <section>
+            <div className="flex items-center justify-between mb-5">
+              <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white">
+                WOD de Hoy
+              </h1>
+              {todayWod && (
+                <Link
+                  href={wodPath}
+                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-[#E31414] hover:text-white transition-colors duration-200 cursor-pointer"
+                >
+                  Ver en grande
+                </Link>
+              )}
+            </div>
+            {todayWod ? (
+              <Link href={wodPath} className="block cursor-pointer group">
+                <WodCard wod={todayWod} highlight />
+              </Link>
+            ) : (
+              <div className="border border-[#2A2A2A] p-8 text-center">
+                <p className="text-gray-500 text-sm font-heading font-bold uppercase tracking-[0.15em]">
+                  No hay WOD para hoy
+                </p>
+                <p className="text-gray-700 text-xs mt-2 font-body">
+                  Habla con tu profe
+                </p>
+              </div>
+            )}
+          </section>
+
+          {/* History */}
+          <section>
+            <div className="flex items-center gap-4 mb-5">
+              <h2 className="text-lg font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+                Historial
+              </h2>
+              <div className="flex-1 h-px bg-[#1A1A1A]" aria-hidden="true" />
+            </div>
+            <WodList
+              wods={historyWods}
+              renderActions={(wod) => (
+                <Link
+                  href={`${wodPath}?id=${wod.id}`}
+                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-[#E31414] transition-colors duration-200 cursor-pointer"
+                >
+                  Ver
+                </Link>
+              )}
+              emptyMessage="No hay WODs anteriores."
+            />
+          </section>
+        </>
+      )}
     </div>
   );
 }
