@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+model Gym {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  logo         String?
+  primaryColor String?
+  createdAt    DateTime @default(now())
+  users        User[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String
+  password  String
+  name      String
+  role      Role
+  gymId     String
+  createdAt DateTime @default(now())
+
+  gym   Gym @relation(fields: [gymId], references: [id])
+
+  wodsAsStudent  Wod[]            @relation("StudentWods")
+  wodsAsTeacher  Wod[]            @relation("TeacherWods")
+  rms            RM[]
+  teacherOf      TeacherStudent[] @relation("TeacherRel")
+  studentOf      TeacherStudent[] @relation("StudentRel")
+
+  @@unique([email, gymId])
+}
+
+model Wod {
+  id        String   @id @default(cuid())
+  content   String
+  date      DateTime @db.Date
+  studentId String
+  teacherId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student User @relation("StudentWods", fields: [studentId], references: [id], onDelete: Cascade)
+  teacher User @relation("TeacherWods", fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, date])
+  @@index([studentId, date(sort: Desc)])
+  @@index([teacherId])
+}
+
+model RM {
+  id        String   @id @default(cuid())
+  exercise  String
+  weight    Float
+  date      DateTime @db.Date
+  studentId String
+  createdAt DateTime @default(now())
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@map("PR")
+}
+
+model TeacherStudent {
+  teacherId String
+  studentId String
+
+  teacher User @relation("TeacherRel", fields: [teacherId], references: [id], onDelete: Cascade)
+  student User @relation("StudentRel", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, studentId])
+}

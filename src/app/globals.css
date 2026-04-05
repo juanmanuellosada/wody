@@ -1,26 +1,230 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-black: #000000;
+  --color-red: #E31414;
+  --color-white: #FFFFFF;
+  --color-grey: #1A1A1A;
+  --color-grey-mid: #2A2A2A;
+  --color-grey-light: #444444;
+  --color-red-dark: #B00F0F;
+  --color-red-hover: #FF1A1A;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-brand-black: var(--color-black);
+  --color-brand-red: var(--color-red);
+  --color-brand-white: var(--color-white);
+  --color-brand-grey: var(--color-grey);
+  --color-brand-grey-mid: var(--color-grey-mid);
+  --color-brand-grey-light: var(--color-grey-light);
+  --color-brand-red-dark: var(--color-red-dark);
+  --color-brand-red-hover: var(--color-red-hover);
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: #000000;
+  color: #FFFFFF;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #000000;
+  color: #FFFFFF;
+  min-height: 100vh;
+}
+
+/* Headings always use Barlow Condensed */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), system-ui, sans-serif;
+}
+
+/* Accessibility: respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus ring for keyboard navigation */
+:focus-visible {
+  outline: 2px solid #E31414;
+  outline-offset: 2px;
+}
+
+/* Selection color */
+::selection {
+  background-color: #E31414;
+  color: #FFFFFF;
+}
+
+/* WYSIWYG Tiptap editor — Unidos Garage theme */
+.wody-tiptap .tiptap {
+  color: #E0E0E0;
+  font-size: 14px;
+  line-height: 1.7;
+  caret-color: #E31414;
+}
+
+.wody-tiptap .tiptap p {
+  margin-bottom: 0.25rem;
+}
+
+.wody-tiptap .tiptap h1,
+.wody-tiptap .tiptap h2 {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #FFFFFF;
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.wody-tiptap .tiptap h1 { font-size: 1.25rem; }
+.wody-tiptap .tiptap h2 { font-size: 1.1rem; }
+
+.wody-tiptap .tiptap strong {
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+.wody-tiptap .tiptap em {
+  color: #D0D0D0;
+}
+
+.wody-tiptap .tiptap ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+
+.wody-tiptap .tiptap ol {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+
+.wody-tiptap .tiptap li {
+  margin: 0.1rem 0;
+}
+
+.wody-tiptap .tiptap li::marker {
+  color: #E31414;
+}
+
+.wody-tiptap .tiptap:focus-visible,
+.wody-tiptap .tiptap:focus,
+.wody-tiptap .ProseMirror:focus-visible,
+.wody-tiptap .ProseMirror:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.wody-tiptap .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #444;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* WODY SaaS landing — floating orb animations */
+@keyframes orb-float {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.15); }
+}
+
+@keyframes orb-float-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.1; }
+  50% { transform: translate(-20px, 15px) scale(1.1); opacity: 0.15; }
+}
+
+.wody-orb-float {
+  animation: orb-float 8s ease-in-out infinite;
+}
+
+.wody-orb-float-slow {
+  animation: orb-float-slow 12s ease-in-out infinite;
+}
+
+/* Diagonal stripe pattern for decorative backgrounds */
+.stripe-pattern {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 10px,
+    rgba(227, 20, 20, 0.03) 10px,
+    rgba(227, 20, 20, 0.03) 20px
+  );
+}
+
+/* Animated red line accent */
+@keyframes line-expand {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.line-expand {
+  animation: line-expand 0.6s ease-out forwards;
+  transform-origin: left;
+}
+
+/* Fade in up animation */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
+.fade-in-up-delay-1 { animation: fade-in-up 0.5s ease-out 0.1s both; }
+.fade-in-up-delay-2 { animation: fade-in-up 0.5s ease-out 0.2s both; }
+.fade-in-up-delay-3 { animation: fade-in-up 0.5s ease-out 0.3s both; }
+.fade-in-up-delay-4 { animation: fade-in-up 0.5s ease-out 0.4s both; }
+
+/* Ensure elements are visible when animations are disabled */
+@media (prefers-reduced-motion: reduce) {
+  .fade-in-up,
+  .fade-in-up-delay-1,
+  .fade-in-up-delay-2,
+  .fade-in-up-delay-3,
+  .fade-in-up-delay-4 {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}
+
+/* Pulse glow for CTA */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(227, 20, 20, 0.4); }
+  50% { box-shadow: 0 0 20px 4px rgba(227, 20, 20, 0.2); }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
 }
