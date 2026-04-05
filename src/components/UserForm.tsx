@@ -9,6 +9,7 @@ export function UserForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [selectedRole, setSelectedRole] = useState("");
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -67,6 +68,7 @@ export function UserForm() {
           required
           disabled={isPending}
           defaultValue=""
+          onChange={(e) => setSelectedRole(e.target.value)}
           className="bg-[#1A1A1A] text-white font-body border border-[#2A2A2A] px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-[#E31414] focus:ring-1 focus:ring-[#E31414]/20 transition-all duration-200 disabled:opacity-50"
         >
           <option value="" disabled>
@@ -77,6 +79,7 @@ export function UserForm() {
         </select>
       </div>
 
+      {selectedRole === "STUDENT" && (
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
           Tipo de alumno
@@ -91,6 +94,7 @@ export function UserForm() {
           <option value="GENERAL">General (solo RMs)</option>
         </select>
       </div>
+      )}
 
       {error && (
         <p className="text-xs font-heading font-bold text-[#E31414] uppercase tracking-wide" role="alert">
