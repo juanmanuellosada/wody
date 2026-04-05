@@ -107,8 +107,8 @@ export default function LandingPage() {
             ¿Para quién es WODY?
           </h2>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {["CrossFit", "Gimnasio", "Funcional", "GAP", "Pilates"].map((tipo) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {["CrossFit", "Gimnasio", "Funcional", "GAP", "Pilates", "Entrenamientos personalizados"].map((tipo) => (
               <div key={tipo} className="bg-white/[0.03] border border-white/[0.06] py-5 px-4 text-center hover:border-[#E31414]/30 transition-all duration-300">
                 <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white">{tipo}</p>
               </div>
