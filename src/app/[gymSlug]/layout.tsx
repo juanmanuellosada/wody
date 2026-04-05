@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "@/components/layout/Navbar";
+import { InstallPwaButton } from "@/components/InstallPwaButton";
 import { gymPath } from "@/lib/gym";
 
 interface GymLayoutProps {
@@ -38,6 +39,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         onSignOut={handleSignOut}
       />
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-10">
+        <InstallPwaButton />
         {children}
       </main>
     </div>

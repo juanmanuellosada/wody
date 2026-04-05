@@ -8,6 +8,7 @@ import type { Role } from "@prisma/client";
 import "@/types/index";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   session: { strategy: "jwt" },
   providers: [
     Credentials({
