@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { toInputDate } from "@/lib/dates";
 
+const PERCENTAGES = [
+  30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95,
+];
+
 interface RmData {
   id: string;
   exercise: string;
@@ -33,6 +37,7 @@ function formatDate(iso: string): string {
 
 export function RmsClient({ rms, athleteName }: RmsClientProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-10">
@@ -82,6 +87,15 @@ export function RmsClient({ rms, athleteName }: RmsClientProps) {
                       </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setExpandedId(expandedId === rm.id ? null : rm.id)
+                        }
+                      >
+                        {expandedId === rm.id ? "Ocultar %" : "Ver %"}
+                      </Button>
                       <ShareRmButton
                         exercise={rm.exercise}
                         weight={rm.weight}
@@ -98,6 +112,29 @@ export function RmsClient({ rms, athleteName }: RmsClientProps) {
                       <DeleteRmButton rmId={rm.id} />
                     </div>
                   </div>
+
+                  {expandedId === rm.id && (
+                    <div className="mt-4 pt-4 border-t border-[#2A2A2A]">
+                      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                        {PERCENTAGES.map((pct) => {
+                          const value = Math.round(rm.weight * pct) / 100;
+                          return (
+                            <div
+                              key={pct}
+                              className="bg-[#0A0A0A] border border-[#2A2A2A] py-2 px-1 text-center"
+                            >
+                              <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-gray-500">
+                                {pct}%
+                              </p>
+                              <p className="text-sm font-heading font-black text-white leading-tight">
+                                {value}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </Card>
               )
             )}
