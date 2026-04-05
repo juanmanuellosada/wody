@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -10,10 +10,10 @@ interface BeforeInstallPromptEvent extends Event {
 
 export function InstallPwaButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(true); // default true to avoid flash
+  const [isInstalled, setIsInstalled] = useState(true);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   useEffect(() => {
-    // Check if already running as PWA (standalone mode)
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
@@ -44,37 +44,63 @@ export function InstallPwaButton() {
     };
   }, []);
 
-  async function handleInstall() {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setIsInstalled(true);
+  const handleInstall = useCallback(async () => {
+    if (deferredPrompt) {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        setIsInstalled(true);
+      }
+      setDeferredPrompt(null);
+    } else {
+      setShowInstructions(true);
     }
-    setDeferredPrompt(null);
-  }
+  }, [deferredPrompt]);
 
-  // Don't show if already installed or no prompt available
   if (isInstalled) return null;
 
   return (
-    <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-4 flex items-center justify-between gap-4 flex-wrap">
-      <div className="flex flex-col gap-1 min-w-0">
-        <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white">
-          Instalar WODY
-        </p>
-        <p className="text-xs text-gray-500 font-body">
-          Accede mas rapido desde tu pantalla de inicio
-        </p>
-      </div>
-      {deferredPrompt ? (
+    <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-4 mb-6 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex flex-col gap-1 min-w-0">
+          <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white">
+            Instalar WODY
+          </p>
+          <p className="text-xs text-gray-500 font-body">
+            Accede mas rapido desde tu pantalla de inicio
+          </p>
+        </div>
         <Button variant="primary" size="sm" onClick={handleInstall}>
           Instalar
         </Button>
-      ) : (
-        <p className="text-xs text-gray-600 font-body">
-          Usa &quot;Agregar a inicio&quot; en tu navegador
-        </p>
+      </div>
+
+      {showInstructions && !deferredPrompt && (
+        <div className="border-t border-[#1A1A1A] pt-3 flex flex-col gap-2">
+          <p className="text-xs font-heading font-bold uppercase tracking-[0.1em] text-gray-400">
+            Como instalar
+          </p>
+          <ul className="flex flex-col gap-1.5 text-xs text-gray-500 font-body">
+            <li>
+              <span className="text-white font-semibold">Chrome / Edge:</span>{" "}
+              Toca el icono de instalar en la barra de direcciones, o Menu → Instalar app
+            </li>
+            <li>
+              <span className="text-white font-semibold">Safari (iPhone):</span>{" "}
+              Toca el boton Compartir → Agregar a pantalla de inicio
+            </li>
+            <li>
+              <span className="text-white font-semibold">Android:</span>{" "}
+              Menu (3 puntos) → Agregar a pantalla de inicio
+            </li>
+          </ul>
+          <button
+            onClick={() => setShowInstructions(false)}
+            className="self-start text-xs text-gray-600 hover:text-gray-400 font-heading uppercase tracking-[0.1em] mt-1 cursor-pointer transition-colors duration-200"
+          >
+            Cerrar
+          </button>
+        </div>
       )}
     </div>
   );
