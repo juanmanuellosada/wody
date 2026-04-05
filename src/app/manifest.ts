@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "WODY — Gestion de WODs",
+    name: "WODY — Gestión de WODs",
     short_name: "WODY",
     description:
-      "Plataforma de gestion de entrenamientos y records personales para boxes de CrossFit.",
+      "Plataforma de gestión de entrenamientos y records personales para boxes de CrossFit.",
     start_url: "/",
     display: "standalone",
     background_color: "#000000",

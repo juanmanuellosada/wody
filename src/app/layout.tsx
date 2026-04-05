@@ -19,7 +19,7 @@ const barlow = Barlow({
 
 export const metadata: Metadata = {
   title: "WODY",
-  description: "Plataforma de gestion de WODs para boxes de CrossFit.",
+  description: "Plataforma de gestión de WODs para boxes de CrossFit.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
