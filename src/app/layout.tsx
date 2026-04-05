@@ -48,6 +48,9 @@ export default function RootLayout({
     >
       <head>
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-icon-167x167.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180x180.png" />
       </head>
       <body className="min-h-full flex flex-col bg-black text-white antialiased font-body">
         {children}
