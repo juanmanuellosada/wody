@@ -79,7 +79,7 @@ export function RmForm({
           name="weight"
           label="Peso (kg)"
           type="number"
-          step="0.5"
+          step="any"
           min="0.1"
           placeholder="Ej: 100"
           defaultValue={defaultWeight}
