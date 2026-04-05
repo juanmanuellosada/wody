@@ -23,7 +23,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
     return <>{children}</>;
   }
 
-  const { name, role } = session.user;
+  const { name, role, studentType } = session.user;
 
   async function handleSignOut() {
     "use server";
@@ -35,6 +35,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
       <Navbar
         userName={name ?? "Usuario"}
         role={role}
+        studentType={studentType}
         gymSlug={gymSlug}
         onSignOut={handleSignOut}
       />

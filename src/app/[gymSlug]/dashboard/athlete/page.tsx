@@ -19,6 +19,11 @@ export default async function StudentDashboardPage({ params }: Props) {
     redirect(gymPath(gymSlug, "/login"));
   }
 
+  // GENERAL students don't see WODs — redirect to RMs
+  if (session.user.studentType === "GENERAL") {
+    redirect(gymPath(gymSlug, "/dashboard/athlete/rms"));
+  }
+
   const studentId = session.user.id;
   const todayStr = toInputDate(getTodayArgentina());
 

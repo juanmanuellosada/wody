@@ -1,4 +1,4 @@
-import type { Role } from "@prisma/client";
+import type { Role, StudentType } from "@prisma/client";
 import type { DefaultSession } from "next-auth";
 
 declare module "next-auth" {
@@ -6,6 +6,7 @@ declare module "next-auth" {
     user: {
       id: string;
       role: Role;
+      studentType: StudentType;
       gymId: string;
       gymSlug: string;
     } & DefaultSession["user"];
@@ -13,6 +14,7 @@ declare module "next-auth" {
 
   interface User {
     role: Role;
+    studentType: StudentType;
     gymId: string;
     gymSlug: string;
   }
@@ -22,6 +24,7 @@ declare module "next-auth" {
 declare module "@auth/core/types" {
   interface User {
     role: Role;
+    studentType: StudentType;
     gymId: string;
     gymSlug: string;
   }

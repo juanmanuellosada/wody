@@ -33,11 +33,14 @@ export function LoginForm({ gymSlug }: LoginFormProps) {
         const role = session?.user?.role;
         const slug = session?.user?.gymSlug ?? gymSlug;
 
+        const studentType = session?.user?.studentType;
         let destination: string;
         if (role === "ADMIN") {
           destination = gymPath(slug, "/admin");
         } else if (role === "TEACHER") {
           destination = gymPath(slug, "/dashboard/teacher");
+        } else if (studentType === "GENERAL") {
+          destination = gymPath(slug, "/dashboard/athlete/rms");
         } else {
           destination = gymPath(slug, "/dashboard/athlete");
         }

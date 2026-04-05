@@ -16,6 +16,11 @@ enum Role {
   STUDENT
 }
 
+enum StudentType {
+  GENERAL
+  PERSONALIZED
+}
+
 model Gym {
   id           String   @id @default(cuid())
   name         String
@@ -30,9 +35,10 @@ model User {
   id        String   @id @default(cuid())
   email     String
   password  String
-  name      String
-  role      Role
-  gymId     String
+  name        String
+  role        Role
+  studentType StudentType @default(PERSONALIZED)
+  gymId       String
   createdAt DateTime @default(now())
 
   gym   Gym @relation(fields: [gymId], references: [id])

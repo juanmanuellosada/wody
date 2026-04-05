@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import type { Role } from "@prisma/client";
+import type { Role, StudentType } from "@prisma/client";
 
 // Apply type augmentations
 import "@/types/index";
@@ -52,6 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role as Role,
+          studentType: user.studentType as StudentType,
           gymId: gym.id,
           gymSlug: gym.slug,
         };
@@ -63,6 +64,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.sub = user.id as string;
         (token as Record<string, unknown>).role = user.role as Role;
+        (token as Record<string, unknown>).studentType = user.studentType as StudentType;
         (token as Record<string, unknown>).gymId = user.gymId;
         (token as Record<string, unknown>).gymSlug = user.gymSlug;
       }
@@ -72,6 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token) {
         session.user.id = token.sub as string;
         session.user.role = (token as Record<string, unknown>).role as Role;
+        session.user.studentType = (token as Record<string, unknown>).studentType as StudentType;
         session.user.gymId = (token as Record<string, unknown>).gymId as string;
         session.user.gymSlug = (token as Record<string, unknown>).gymSlug as string;
       }

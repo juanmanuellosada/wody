@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { hash } from "bcryptjs";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Prisma, Role } from "@prisma/client";
+import { Prisma, Role, StudentType } from "@prisma/client";
 import { gymPath } from "@/lib/gym";
 
 export type UserResult =
@@ -25,6 +25,7 @@ export async function createUser(formData: FormData): Promise<UserResult> {
   const email = (formData.get("email") as string | null)?.trim().toLowerCase();
   const password = (formData.get("password") as string | null)?.trim();
   const role = formData.get("role") as string | null;
+  const studentType = (formData.get("studentType") as string | null) || "PERSONALIZED";
 
   if (!name) return { success: false, error: "El nombre es obligatorio." };
   if (!email) return { success: false, error: "El email es obligatorio." };
@@ -33,6 +34,9 @@ export async function createUser(formData: FormData): Promise<UserResult> {
   }
   if (role !== "TEACHER" && role !== "STUDENT") {
     return { success: false, error: "El rol debe ser Profe o Alumno." };
+  }
+  if (studentType !== "GENERAL" && studentType !== "PERSONALIZED") {
+    return { success: false, error: "Tipo de alumno invalido." };
   }
 
   const hashedPassword = await hash(password, 10);
@@ -44,6 +48,7 @@ export async function createUser(formData: FormData): Promise<UserResult> {
         email,
         password: hashedPassword,
         role: role as Role,
+        studentType: (role === "STUDENT" ? studentType : "PERSONALIZED") as StudentType,
         gymId,
       },
     });

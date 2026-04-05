@@ -171,27 +171,16 @@ async function main() {
 
   const day = (daysAgo: number) => new Date(Date.UTC(y, m, d - daysAgo));
 
-  // Martin — 7 WODs (today + 6 days of history)
+  // Teacher WODs — one per day, shared by all students
   await prisma.wod.createMany({
     data: [
-      { content: WOD_AMRAP, date: day(0), studentId: student1.id, teacherId: teacher.id },
-      { content: WOD_STRENGTH, date: day(1), studentId: student1.id, teacherId: teacher.id },
-      { content: WOD_HERO, date: day(2), studentId: student1.id, teacherId: teacher.id },
-      { content: WOD_EMOM, date: day(3), studentId: student1.id, teacherId: teacher.id },
-      { content: WOD_CHIPPER, date: day(4), studentId: student1.id, teacherId: teacher.id },
-      { content: WOD_TABATA, date: day(5), studentId: student1.id, teacherId: teacher.id },
-      { content: WOD_OLYMPIC, date: day(6), studentId: student1.id, teacherId: teacher.id },
-    ],
-  });
-
-  // Valeria — 5 WODs
-  await prisma.wod.createMany({
-    data: [
-      { content: WOD_STRENGTH, date: day(0), studentId: student2.id, teacherId: teacher.id },
-      { content: WOD_EMOM, date: day(1), studentId: student2.id, teacherId: teacher.id },
-      { content: WOD_AMRAP, date: day(2), studentId: student2.id, teacherId: teacher.id },
-      { content: WOD_CHIPPER, date: day(3), studentId: student2.id, teacherId: teacher.id },
-      { content: WOD_OLYMPIC, date: day(5), studentId: student2.id, teacherId: teacher.id },
+      { content: WOD_AMRAP, date: day(0), teacherId: teacher.id },
+      { content: WOD_STRENGTH, date: day(1), teacherId: teacher.id },
+      { content: WOD_HERO, date: day(2), teacherId: teacher.id },
+      { content: WOD_EMOM, date: day(3), teacherId: teacher.id },
+      { content: WOD_CHIPPER, date: day(4), teacherId: teacher.id },
+      { content: WOD_TABATA, date: day(5), teacherId: teacher.id },
+      { content: WOD_OLYMPIC, date: day(6), teacherId: teacher.id },
     ],
   });
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import type { Role } from "@prisma/client";
+import type { Role, StudentType } from "@prisma/client";
 import { gymPath } from "@/lib/gym";
 
 import wodyBlanco from "@/logos/wody-blanco.png";
@@ -13,11 +13,12 @@ import unidosTexto from "@/logos/unidos-texto.png";
 interface NavbarProps {
   userName: string;
   role: Role;
+  studentType?: StudentType;
   gymSlug: string;
   onSignOut: () => void;
 }
 
-function getNavLinks(role: Role, gymSlug: string) {
+function getNavLinks(role: Role, gymSlug: string, studentType?: StudentType) {
   if (role === "ADMIN") {
     return [
       { href: gymPath(gymSlug, "/admin"), label: "Panel Admin" },
@@ -27,16 +28,22 @@ function getNavLinks(role: Role, gymSlug: string) {
   if (role === "TEACHER") {
     return [{ href: gymPath(gymSlug, "/dashboard/teacher"), label: "Mis WODs" }];
   }
+  // GENERAL students only see RMs
+  if (studentType === "GENERAL") {
+    return [
+      { href: gymPath(gymSlug, "/dashboard/athlete/rms"), label: "Mis RMs" },
+    ];
+  }
   return [
     { href: gymPath(gymSlug, "/dashboard/athlete"), label: "Mi WOD" },
     { href: gymPath(gymSlug, "/dashboard/athlete/rms"), label: "Mis RMs" },
   ];
 }
 
-export function Navbar({ userName, role, gymSlug, onSignOut }: NavbarProps) {
+export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
-  const links = getNavLinks(role, gymSlug);
+  const links = getNavLinks(role, gymSlug, studentType);
 
   const roleLabel =
     role === "ADMIN" ? "Admin" : role === "TEACHER" ? "Profe" : "Atleta";
