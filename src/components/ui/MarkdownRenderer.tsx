@@ -43,17 +43,23 @@ function markdownToHtml(md: string): string {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Headings
-    const headingMatch = line.match(/^(#{1,3})\s+(.+)$/);
+    // Headings — allow empty headings (just # with no text)
+    const headingMatch = line.match(/^(#{1,3})\s*(.*)$/);
     if (headingMatch) {
       closeList();
       const level = headingMatch[1].length;
-      html.push(`<h${level}>${parseInline(headingMatch[2])}</h${level}>`);
+      const text = headingMatch[2].trim();
+      if (text) {
+        html.push(`<h${level}>${parseInline(text)}</h${level}>`);
+      } else {
+        // Empty heading = visual spacing (from Enter after a heading in editor)
+        html.push("<br />");
+      }
       continue;
     }
 
-    // Unordered list
-    const ulMatch = line.match(/^[-*]\s+(.+)$/);
+    // Unordered list — tolerate leading whitespace and +/-/* markers
+    const ulMatch = line.match(/^\s*[-*+]\s+(.+)$/);
     if (ulMatch) {
       if (inOl) { html.push("</ol>"); inOl = false; }
       if (!inUl) { html.push("<ul>"); inUl = true; }
@@ -61,8 +67,8 @@ function markdownToHtml(md: string): string {
       continue;
     }
 
-    // Ordered list
-    const olMatch = line.match(/^\d+[.)]\s+(.+)$/);
+    // Ordered list — tolerate leading whitespace
+    const olMatch = line.match(/^\s*\d+[.)]\s+(.+)$/);
     if (olMatch) {
       if (inUl) { html.push("</ul>"); inUl = false; }
       if (!inOl) { html.push("<ol>"); inOl = true; }
