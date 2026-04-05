@@ -22,15 +22,15 @@ export function getTodayArgentina(): Date {
 
 /**
  * Formats a date for display in Spanish (dd/mm/yyyy).
+ * Uses UTC date components — @db.Date values have no time, so timezone
+ * conversion would shift the displayed date by ±1 day.
  */
 export function formatDateArg(date: Date): string {
   const d = new Date(date);
-  return d.toLocaleDateString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "America/Argentina/Buenos_Aires",
-  });
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const year = d.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 /**
@@ -42,4 +42,23 @@ export function toInputDate(date: Date): string {
   const month = String(d.getUTCMonth() + 1).padStart(2, "0");
   const day = String(d.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+/**
+ * Returns a date range covering the full day for a given date string (YYYY-MM-DD).
+ * Covers any timezone interpretation that node-postgres / Prisma might apply
+ * to @db.Date columns (midnight UTC through midnight+23:59:59 UTC, plus margin
+ * for local timezone offsets up to ±14h).
+ *
+ * Use with Prisma: { date: { gte: range.start, lte: range.end } }
+ */
+export function todayDateRange(): { start: Date; end: Date } {
+  const today = getTodayArgentina();
+  const todayStr = toInputDate(today);
+  // Cover the full calendar day regardless of how pg interprets the DATE
+  // @db.Date can be returned as midnight UTC or midnight local — this range catches both
+  return {
+    start: new Date(todayStr + "T00:00:00.000Z"),
+    end: new Date(todayStr + "T23:59:59.999Z"),
+  };
 }

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getTodayArgentina } from "@/lib/dates";
+import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import { WodCard } from "@/components/wod/WodCard";
 import { WodList } from "@/components/wod/WodList";
 import { gymPath } from "@/lib/gym";
@@ -20,26 +20,16 @@ export default async function StudentDashboardPage({ params }: Props) {
   }
 
   const studentId = session.user.id;
-  const today = getTodayArgentina();
+  const todayStr = toInputDate(getTodayArgentina());
 
-  const todayWod = await prisma.wod.findUnique({
-    where: {
-      studentId_date: {
-        studentId,
-        date: today,
-      },
-    },
-    select: { id: true, content: true, date: true },
-  });
-
-  const historyWods = await prisma.wod.findMany({
-    where: {
-      studentId,
-      date: { not: today },
-    },
+  const allWods = await prisma.wod.findMany({
+    where: { studentId },
     orderBy: { date: "desc" },
     select: { id: true, content: true, date: true },
   });
+
+  const todayWod = allWods.find((w) => toInputDate(w.date) === todayStr) ?? null;
+  const historyWods = allWods.filter((w) => toInputDate(w.date) !== todayStr);
 
   const wodPath = gymPath(gymSlug, "/dashboard/athlete/wod");
 

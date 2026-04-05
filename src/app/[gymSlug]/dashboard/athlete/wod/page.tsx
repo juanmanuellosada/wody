@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getTodayArgentina, formatDateArg } from "@/lib/dates";
+import { getTodayArgentina, toInputDate, formatDateArg } from "@/lib/dates";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { gymPath } from "@/lib/gym";
 import Link from "next/link";
@@ -36,12 +36,14 @@ export default async function WodFullPage({ params, searchParams }: Props) {
       redirect(athletePath);
     }
   } else {
-    // Default: today's WOD
-    const today = getTodayArgentina();
-    wod = await prisma.wod.findUnique({
-      where: { studentId_date: { studentId, date: today } },
+    // Default: today's WOD — fetch and compare date strings to bypass
+    // Prisma/pg timezone ambiguity with @db.Date columns
+    const todayStr = toInputDate(getTodayArgentina());
+    const studentWods = await prisma.wod.findMany({
+      where: { studentId },
       select: { id: true, content: true, date: true, studentId: true },
     });
+    wod = studentWods.find((w) => toInputDate(w.date) === todayStr) ?? null;
   }
 
   if (!wod) {
@@ -61,8 +63,7 @@ export default async function WodFullPage({ params, searchParams }: Props) {
   }
 
   const dateLabel = formatDateArg(wod.date);
-  const today = getTodayArgentina();
-  const isToday = wod.date.getTime() === today.getTime();
+  const isToday = toInputDate(wod.date) === toInputDate(getTodayArgentina());
 
   return (
     <div className="min-h-[80vh] flex flex-col">
