@@ -22,16 +22,38 @@ export default async function StudentDashboardPage({ params }: Props) {
   const studentId = session.user.id;
   const todayStr = toInputDate(getTodayArgentina());
 
-  const allWods = await prisma.wod.findMany({
+  const teacherLink = await prisma.teacherStudent.findFirst({
     where: { studentId },
+  });
+
+  const wodPath = gymPath(gymSlug, "/dashboard/athlete/wod");
+
+  if (!teacherLink) {
+    return (
+      <div className="flex flex-col gap-10">
+        <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white">
+          WOD de Hoy
+        </h1>
+        <div className="border border-[#2A2A2A] p-8 text-center">
+          <p className="text-gray-500 text-sm font-heading font-bold uppercase tracking-[0.15em]">
+            No tenes profe asignado
+          </p>
+          <p className="text-gray-700 text-xs mt-2 font-body">
+            Pedile al admin que te asigne un profe.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const allWods = await prisma.wod.findMany({
+    where: { teacherId: teacherLink.teacherId },
     orderBy: { date: "desc" },
     select: { id: true, content: true, date: true },
   });
 
   const todayWod = allWods.find((w) => toInputDate(w.date) === todayStr) ?? null;
   const historyWods = allWods.filter((w) => toInputDate(w.date) !== todayStr);
-
-  const wodPath = gymPath(gymSlug, "/dashboard/athlete/wod");
 
   return (
     <div className="flex flex-col gap-10">

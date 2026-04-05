@@ -10,27 +10,7 @@ export type WodResult =
   | { success: true; wodId?: string }
   | { success: false; error: string };
 
-async function teacherOwnsStudent(
-  teacherId: string,
-  studentId: string,
-  gymId: string
-): Promise<boolean> {
-  const link = await prisma.teacherStudent.findUnique({
-    where: { teacherId_studentId: { teacherId, studentId } },
-    include: {
-      teacher: { select: { gymId: true } },
-      student: { select: { gymId: true } },
-    },
-  });
-  return (
-    link !== null &&
-    link.teacher.gymId === gymId &&
-    link.student.gymId === gymId
-  );
-}
-
 export async function createWod(
-  studentId: string,
   date: string,
   content: string
 ): Promise<WodResult> {
@@ -44,11 +24,7 @@ export async function createWod(
   }
 
   const teacherId = session.user.id;
-  const { gymId, gymSlug } = session.user;
-
-  if (!(await teacherOwnsStudent(teacherId, studentId, gymId))) {
-    return { success: false, error: "Este alumno no esta asignado a vos." };
-  }
+  const { gymSlug } = session.user;
 
   if (!content.trim()) {
     return { success: false, error: "El contenido del WOD no puede estar vacio." };
@@ -61,12 +37,11 @@ export async function createWod(
       data: {
         content,
         date: wodDate,
-        studentId,
         teacherId,
       },
     });
 
-    revalidatePath(gymPath(gymSlug, `/dashboard/teacher/${studentId}`));
+    revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
     revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
     return { success: true, wodId: wod.id };
   } catch (error) {
@@ -76,7 +51,7 @@ export async function createWod(
     ) {
       return {
         success: false,
-        error: "Ya existe un WOD para ese alumno en esa fecha.",
+        error: "Ya existe un WOD para esa fecha.",
       };
     }
     throw error;
@@ -97,19 +72,14 @@ export async function updateWod(
   }
 
   const teacherId = session.user.id;
-  const { gymId, gymSlug } = session.user;
+  const { gymSlug } = session.user;
 
   const wod = await prisma.wod.findUnique({
     where: { id: wodId },
-    include: { student: { select: { gymId: true } } },
   });
 
-  if (!wod || wod.student.gymId !== gymId) {
+  if (!wod || wod.teacherId !== teacherId) {
     return { success: false, error: "WOD no encontrado." };
-  }
-
-  if (!(await teacherOwnsStudent(teacherId, wod.studentId, gymId))) {
-    return { success: false, error: "No tenes permiso para editar este WOD." };
   }
 
   if (!content.trim()) {
@@ -121,14 +91,13 @@ export async function updateWod(
     data: { content },
   });
 
-  revalidatePath(gymPath(gymSlug, `/dashboard/teacher/${wod.studentId}`));
+  revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
   revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
   return { success: true };
 }
 
 export async function copyWod(
   sourceWodId: string,
-  targetStudentId: string,
   targetDate: string
 ): Promise<WodResult> {
   const session = await auth();
@@ -141,23 +110,14 @@ export async function copyWod(
   }
 
   const teacherId = session.user.id;
-  const { gymId, gymSlug } = session.user;
+  const { gymSlug } = session.user;
 
   const sourceWod = await prisma.wod.findUnique({
     where: { id: sourceWodId },
-    include: { student: { select: { gymId: true } } },
   });
 
-  if (!sourceWod || sourceWod.student.gymId !== gymId) {
+  if (!sourceWod || sourceWod.teacherId !== teacherId) {
     return { success: false, error: "WOD origen no encontrado." };
-  }
-
-  if (!(await teacherOwnsStudent(teacherId, sourceWod.studentId, gymId))) {
-    return { success: false, error: "No tenes permiso sobre el WOD origen." };
-  }
-
-  if (!(await teacherOwnsStudent(teacherId, targetStudentId, gymId))) {
-    return { success: false, error: "El alumno destino no esta asignado a vos." };
   }
 
   const wodDate = new Date(targetDate + "T00:00:00.000Z");
@@ -167,12 +127,11 @@ export async function copyWod(
       data: {
         content: sourceWod.content,
         date: wodDate,
-        studentId: targetStudentId,
         teacherId,
       },
     });
 
-    revalidatePath(gymPath(gymSlug, `/dashboard/teacher/${targetStudentId}`));
+    revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
     revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
     return { success: true, wodId: newWod.id };
   } catch (error) {
@@ -182,7 +141,7 @@ export async function copyWod(
     ) {
       return {
         success: false,
-        error: "Ya existe un WOD para ese alumno en esa fecha.",
+        error: "Ya existe un WOD para esa fecha.",
       };
     }
     throw error;
@@ -200,24 +159,19 @@ export async function deleteWod(wodId: string): Promise<WodResult> {
   }
 
   const teacherId = session.user.id;
-  const { gymId, gymSlug } = session.user;
+  const { gymSlug } = session.user;
 
   const wod = await prisma.wod.findUnique({
     where: { id: wodId },
-    include: { student: { select: { gymId: true } } },
   });
 
-  if (!wod || wod.student.gymId !== gymId) {
+  if (!wod || wod.teacherId !== teacherId) {
     return { success: false, error: "WOD no encontrado." };
-  }
-
-  if (!(await teacherOwnsStudent(teacherId, wod.studentId, gymId))) {
-    return { success: false, error: "No tenes permiso para eliminar este WOD." };
   }
 
   await prisma.wod.delete({ where: { id: wodId } });
 
-  revalidatePath(gymPath(gymSlug, `/dashboard/teacher/${wod.studentId}`));
+  revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
   revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
   return { success: true };
 }

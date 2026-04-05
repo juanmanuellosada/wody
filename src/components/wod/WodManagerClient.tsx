@@ -15,26 +15,15 @@ import { createWod, updateWod, deleteWod } from "@/actions/wod";
 import { toInputDate, getTodayArgentina, formatDateArg } from "@/lib/dates";
 import type { Wod } from "@prisma/client";
 
-interface Student {
-  id: string;
-  name: string;
-}
-
 interface WodForManager extends Pick<Wod, "id" | "content" | "date"> {}
 
 interface WodManagerClientProps {
-  studentId: string;
   wods: WodForManager[];
-  allStudents: Student[];
 }
 
 type Mode = "view" | "create" | "edit";
 
-export function WodManagerClient({
-  studentId,
-  wods,
-  allStudents,
-}: WodManagerClientProps) {
+export function WodManagerClient({ wods }: WodManagerClientProps) {
   const todayStr = toInputDate(getTodayArgentina());
 
   const [mode, setMode] = useState<Mode>("view");
@@ -68,7 +57,7 @@ export function WodManagerClient({
   function handleCreate() {
     setFormError(null);
     startTransition(async () => {
-      const result = await createWod(studentId, newDate, editorContent);
+      const result = await createWod(newDate, editorContent);
       if (result.success) {
         setMode("view");
       } else {
@@ -159,7 +148,7 @@ export function WodManagerClient({
 
       {wods.length === 0 ? (
         <p className="text-gray-600 text-sm font-heading font-bold uppercase tracking-[0.15em]">
-          Este alumno no tiene WODs todavia.
+          No hay WODs cargados todavia.
         </p>
       ) : (
         <div className="flex flex-col gap-4">
@@ -179,8 +168,6 @@ export function WodManagerClient({
       {copyWodId && (
         <CopyWodDialog
           wodId={copyWodId}
-          currentStudentId={studentId}
-          students={allStudents}
           onClose={() => setCopyWodId(null)}
         />
       )}

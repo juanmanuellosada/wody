@@ -6,28 +6,15 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { copyWod } from "@/actions/wod";
 import { toInputDate } from "@/lib/dates";
 
-interface Student {
-  id: string;
-  name: string;
-}
-
 interface CopyWodDialogProps {
   wodId: string;
-  currentStudentId: string;
-  students: Student[];
   onClose: () => void;
 }
 
-export function CopyWodDialog({
-  wodId,
-  currentStudentId,
-  students,
-  onClose,
-}: CopyWodDialogProps) {
+export function CopyWodDialog({ wodId, onClose }: CopyWodDialogProps) {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const [targetStudentId, setTargetStudentId] = useState(currentStudentId);
   const [targetDate, setTargetDate] = useState(toInputDate(tomorrow));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -50,7 +37,7 @@ export function CopyWodDialog({
     }
 
     startTransition(async () => {
-      const result = await copyWod(wodId, targetStudentId, targetDate);
+      const result = await copyWod(wodId, targetDate);
       if (result.success) {
         onClose();
       } else {
@@ -85,32 +72,12 @@ export function CopyWodDialog({
           </button>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
-              Alumno destino
-            </label>
-            <select
-              value={targetStudentId}
-              onChange={(e) => setTargetStudentId(e.target.value)}
-              disabled={isPending}
-              className="bg-[#1A1A1A] text-white font-body border border-[#2A2A2A] px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-[#E31414] focus:ring-1 focus:ring-[#E31414]/20 transition-all duration-200 disabled:opacity-50"
-            >
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <DatePicker
-            label="Fecha destino"
-            value={targetDate}
-            onChange={setTargetDate}
-            disabled={isPending}
-          />
-        </div>
+        <DatePicker
+          label="Fecha destino"
+          value={targetDate}
+          onChange={setTargetDate}
+          disabled={isPending}
+        />
 
         {error && (
           <p className="text-xs font-heading font-bold text-[#E31414] uppercase tracking-wide" role="alert">

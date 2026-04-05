@@ -25,7 +25,7 @@ function getNavLinks(role: Role, gymSlug: string) {
     ];
   }
   if (role === "TEACHER") {
-    return [{ href: gymPath(gymSlug, "/dashboard/teacher"), label: "Mis Alumnos" }];
+    return [{ href: gymPath(gymSlug, "/dashboard/teacher"), label: "Mis WODs" }];
   }
   return [
     { href: gymPath(gymSlug, "/dashboard/athlete"), label: "Mi WOD" },
