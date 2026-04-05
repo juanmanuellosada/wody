@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { login } from "@/actions/auth";
@@ -12,7 +11,6 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ gymSlug }: LoginFormProps) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -35,15 +33,19 @@ export function LoginForm({ gymSlug }: LoginFormProps) {
         const role = session?.user?.role;
         const slug = session?.user?.gymSlug ?? gymSlug;
 
+        let destination: string;
         if (role === "ADMIN") {
-          router.push(gymPath(slug, "/admin"));
+          destination = gymPath(slug, "/admin");
         } else if (role === "TEACHER") {
-          router.push(gymPath(slug, "/dashboard/teacher"));
+          destination = gymPath(slug, "/dashboard/teacher");
         } else {
-          router.push(gymPath(slug, "/dashboard/athlete"));
+          destination = gymPath(slug, "/dashboard/athlete");
         }
+        // Hard navigation — forces full server re-render so the layout
+        // picks up the new session and renders the Navbar correctly.
+        window.location.href = destination;
       } catch {
-        router.push(gymPath(gymSlug, "/dashboard/athlete"));
+        window.location.href = gymPath(gymSlug, "/dashboard/athlete");
       }
     });
   }
