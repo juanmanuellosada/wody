@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@tailwindcss/typography": "^0.5.19",
     "@tiptap/extension-history": "^3.22.1",
     "@tiptap/extension-placeholder": "^3.22.2",
     "@tiptap/html": "^3.22.1",
