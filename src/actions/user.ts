@@ -134,3 +134,31 @@ export async function assignStudent(
     throw error;
   }
 }
+
+export async function toggleStudentType(userId: string): Promise<UserResult> {
+  const session = await auth();
+
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const gymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+
+  if (!user || user.gymId !== gymId || user.role !== "STUDENT") {
+    return { success: false, error: "Alumno no encontrado." };
+  }
+
+  const newType: StudentType =
+    user.studentType === "GENERAL" ? "PERSONALIZED" : "GENERAL";
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { studentType: newType },
+  });
+
+  revalidatePath(gymPath(gymSlug, "/admin"));
+  return { success: true };
+}

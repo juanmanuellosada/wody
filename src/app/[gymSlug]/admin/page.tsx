@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserForm } from "@/components/UserForm";
 import { DeleteUserButton } from "@/components/DeleteUserButton";
+import { ToggleStudentTypeButton } from "@/components/ToggleStudentTypeButton";
 import { AssignStudentForm } from "@/components/AssignStudentForm";
 import { Card } from "@/components/ui/Card";
 import { formatDateArg } from "@/lib/dates";
@@ -32,7 +33,7 @@ export default async function AdminPage({ params }: Props) {
   const users = await prisma.user.findMany({
     where: { gymId },
     orderBy: [{ role: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    select: { id: true, name: true, email: true, role: true, studentType: true, createdAt: true },
   });
 
   const teachers = users.filter(
@@ -128,7 +129,7 @@ export default async function AdminPage({ params }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#0A0A0A]">
-                {["Nombre", "Email", "Rol", "Alta", ""].map((h) => (
+                {["Nombre", "Email", "Rol", "Tipo", "Alta", ""].map((h) => (
                   <th
                     key={h}
                     className="text-left text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 px-4 py-3 border-b border-[#1A1A1A]"
@@ -174,6 +175,16 @@ export default async function AdminPage({ params }: Props) {
                       {ROLE_LABEL[user.role] ?? user.role}
                     </span>
                   </td>
+                  <td className="px-4 py-3.5">
+                    {user.role === "STUDENT" ? (
+                      <ToggleStudentTypeButton
+                        userId={user.id}
+                        currentType={user.studentType}
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-700 font-heading">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3.5 text-gray-600 text-xs font-heading">
                     {formatDateArg(user.createdAt)}
                   </td>
@@ -208,18 +219,26 @@ export default async function AdminPage({ params }: Props) {
                       )}
                     </p>
                     <p className="text-gray-500 text-xs font-body truncate">{user.email}</p>
-                    <span
-                      className={[
-                        "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 self-start mt-1",
-                        user.role === "ADMIN"
-                          ? "bg-[#E31414]/15 text-[#E31414] border border-[#E31414]/20"
-                          : user.role === "TEACHER"
-                          ? "bg-white/5 text-white border border-white/10"
-                          : "bg-[#1A1A1A] text-gray-400 border border-[#2A2A2A]",
-                      ].join(" ")}
-                    >
-                      {ROLE_LABEL[user.role] ?? user.role}
-                    </span>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span
+                        className={[
+                          "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5",
+                          user.role === "ADMIN"
+                            ? "bg-[#E31414]/15 text-[#E31414] border border-[#E31414]/20"
+                            : user.role === "TEACHER"
+                            ? "bg-white/5 text-white border border-white/10"
+                            : "bg-[#1A1A1A] text-gray-400 border border-[#2A2A2A]",
+                        ].join(" ")}
+                      >
+                        {ROLE_LABEL[user.role] ?? user.role}
+                      </span>
+                      {user.role === "STUDENT" && (
+                        <ToggleStudentTypeButton
+                          userId={user.id}
+                          currentType={user.studentType}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
                 <DeleteUserButton
