@@ -15,6 +15,8 @@ import {
 
 import wodyTexto from "@/logos/wody-texto.png";
 import unidosLogo from "@/logos/unidos-logo-completo.png";
+import rompiendoLogo from "@/logos/rompiendo-limites.png";
+import agustinLogo from "@/logos/agustin-coach.png";
 
 export const metadata: Metadata = {
   title: "WODY — Gestión de rutinas para centros de entrenamiento",
@@ -245,6 +247,48 @@ export default function LandingPage() {
                 CrossFit — Los Polvorines, BA
               </span>
             </Link>
+
+            <div
+              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] opacity-60 w-64"
+            >
+              <Image
+                src={rompiendoLogo}
+                alt="Rompiendo Limites"
+                width={80}
+                height={80}
+                className="w-20 h-auto opacity-80"
+              />
+              <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+                Rompiendo Limites
+              </span>
+              <span className="text-xs text-gray-600 font-body">
+                CrossFit — Boulogne, BA
+              </span>
+              <span className="text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-gray-700">
+                Proximamente
+              </span>
+            </div>
+
+            <div
+              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] opacity-60 w-64"
+            >
+              <Image
+                src={agustinLogo}
+                alt="Agustin Coach"
+                width={80}
+                height={80}
+                className="w-20 h-auto opacity-80"
+              />
+              <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+                Agustin Coach
+              </span>
+              <span className="text-xs text-gray-600 font-body">
+                Entrenamiento personalizado
+              </span>
+              <span className="text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-gray-700">
+                Proximamente
+              </span>
+            </div>
           </div>
 
           <p className="mt-8 text-xs text-gray-700 font-body">
