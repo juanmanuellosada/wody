@@ -274,13 +274,13 @@ export default function LandingPage() {
             >
               <Image
                 src={agustinLogo}
-                alt="Agustin Coach"
+                alt="Agustin Diurno"
                 width={80}
                 height={80}
                 className="w-20 h-auto opacity-80"
               />
               <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
-                Agustin Coach
+                Agustin Diurno
               </span>
               <span className="text-xs text-gray-600 font-body">
                 Entrenamiento personalizado
