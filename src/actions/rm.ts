@@ -39,11 +39,11 @@ function validateRmFields(formData: FormData): RmValidation {
 export async function createRm(formData: FormData): Promise<RmResult> {
   const session = await auth();
 
-  if (!session?.user || session.user.role !== "STUDENT") {
+  if (!session?.user) {
     return { success: false, error: "No autorizado." };
   }
 
-  const { gymId, gymSlug } = session.user;
+  const { gymSlug } = session.user;
 
   const parsed = validateRmFields(formData);
   if (!parsed.ok) {
@@ -66,18 +66,17 @@ export async function createRm(formData: FormData): Promise<RmResult> {
 export async function updateRm(rmId: string, formData: FormData): Promise<RmResult> {
   const session = await auth();
 
-  if (!session?.user || session.user.role !== "STUDENT") {
+  if (!session?.user) {
     return { success: false, error: "No autorizado." };
   }
 
-  const { gymId, gymSlug } = session.user;
+  const { gymSlug } = session.user;
 
   const rm = await prisma.rM.findUnique({
     where: { id: rmId },
-    include: { student: { select: { gymId: true } } },
   });
 
-  if (!rm || rm.studentId !== session.user.id || rm.student.gymId !== gymId) {
+  if (!rm || rm.studentId !== session.user.id) {
     return { success: false, error: "RM no encontrado." };
   }
 
@@ -102,18 +101,17 @@ export async function updateRm(rmId: string, formData: FormData): Promise<RmResu
 export async function deleteRm(rmId: string): Promise<RmResult> {
   const session = await auth();
 
-  if (!session?.user || session.user.role !== "STUDENT") {
+  if (!session?.user) {
     return { success: false, error: "No autorizado." };
   }
 
-  const { gymId, gymSlug } = session.user;
+  const { gymSlug } = session.user;
 
   const rm = await prisma.rM.findUnique({
     where: { id: rmId },
-    include: { student: { select: { gymId: true } } },
   });
 
-  if (!rm || rm.studentId !== session.user.id || rm.student.gymId !== gymId) {
+  if (!rm || rm.studentId !== session.user.id) {
     return { success: false, error: "RM no encontrado." };
   }
 

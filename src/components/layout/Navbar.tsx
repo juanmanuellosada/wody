@@ -23,10 +23,14 @@ function getNavLinks(role: Role, gymSlug: string, studentType?: StudentType) {
     return [
       { href: gymPath(gymSlug, "/admin"), label: "Panel Admin" },
       { href: gymPath(gymSlug, "/dashboard/teacher"), label: "Dashboard Profe" },
+      { href: gymPath(gymSlug, "/dashboard/athlete/rms"), label: "Mis RMs" },
     ];
   }
   if (role === "TEACHER") {
-    return [{ href: gymPath(gymSlug, "/dashboard/teacher"), label: "Mis WODs" }];
+    return [
+      { href: gymPath(gymSlug, "/dashboard/teacher"), label: "Mis WODs" },
+      { href: gymPath(gymSlug, "/dashboard/athlete/rms"), label: "Mis RMs" },
+    ];
   }
   return [
     { href: gymPath(gymSlug, "/dashboard/athlete"), label: "Mi WOD" },
