@@ -3,6 +3,7 @@ import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "@/components/layout/Navbar";
 import { InstallPwaButton } from "@/components/InstallPwaButton";
+import { WhatsAppFab } from "@/components/WhatsAppFab";
 import { gymPath } from "@/lib/gym";
 
 interface GymLayoutProps {
@@ -43,6 +44,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         <InstallPwaButton />
         {children}
       </main>
+      {role === "STUDENT" && <WhatsAppFab studentType={studentType} />}
     </div>
   );
 }
