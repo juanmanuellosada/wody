@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getTodayArgentina, toInputDate, formatDateArg } from "@/lib/dates";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { ShareWodButton } from "@/components/wod/ShareWodButton";
 import { gymPath } from "@/lib/gym";
 import Link from "next/link";
 
@@ -87,6 +88,7 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     );
   }
 
+  const gym = await prisma.gym.findUnique({ where: { slug: gymSlug }, select: { name: true } });
   const dateLabel = formatDateArg(wod.date);
   const isToday = toInputDate(wod.date) === toInputDate(getTodayArgentina());
 
@@ -100,6 +102,12 @@ export default async function WodFullPage({ params, searchParams }: Props) {
         >
           <span aria-hidden="true">&#8592;</span> Volver
         </Link>
+        <ShareWodButton
+          title={wod.title}
+          content={wod.content}
+          dateLabel={dateLabel}
+          gymName={gym?.name}
+        />
       </div>
 
       {/* Full WOD */}
