@@ -11,13 +11,8 @@ interface GymLayoutProps {
   params: Promise<{ gymSlug: string }>;
 }
 
-// Static routes that should NOT be handled by [gymSlug]
-const RESERVED_SLUGS = new Set(["demo", "api", "icon.png", "manifest.webmanifest"]);
-
 export default async function GymLayout({ children, params }: GymLayoutProps) {
   const { gymSlug } = await params;
-
-  if (RESERVED_SLUGS.has(gymSlug)) notFound();
 
   const gym = await prisma.gym.findUnique({ where: { slug: gymSlug } });
   if (!gym) notFound();
