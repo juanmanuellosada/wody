@@ -20,6 +20,7 @@ const roleLinks = {
   student: [
     { href: "/demo/student", label: "Mi WOD" },
     { href: "/demo/student/rms", label: "Mis RMs" },
+    { href: "/demo/student/timers", label: "Cronómetros" },
   ],
 };
 
