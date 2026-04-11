@@ -70,8 +70,22 @@ export default async function StudentDashboardPage({ params }: Props) {
     );
   }
 
+  const student = await prisma.user.findUnique({
+    where: { id: studentId },
+    select: { groupId: true },
+  });
+
   const allWods = await prisma.wod.findMany({
-    where: { teacherId: teacherLink.teacherId },
+    where: {
+      teacherId: teacherLink.teacherId,
+      OR: [
+        { targetType: "ALL" },
+        ...(student?.groupId
+          ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
+          : []),
+        { targetType: "STUDENT", targetStudentId: studentId },
+      ],
+    },
     orderBy: { date: "desc" },
     select: { id: true, content: true, date: true },
   });

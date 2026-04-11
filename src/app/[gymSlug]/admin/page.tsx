@@ -5,6 +5,8 @@ import { UserForm } from "@/components/UserForm";
 import { DeleteUserButton } from "@/components/DeleteUserButton";
 import { ToggleStudentTypeButton } from "@/components/ToggleStudentTypeButton";
 import { AssignStudentForm } from "@/components/AssignStudentForm";
+import { EditStudentButton } from "@/components/EditStudentButton";
+import { GroupManager } from "@/components/group/GroupManager";
 import { Card } from "@/components/ui/Card";
 import { formatDateArg } from "@/lib/dates";
 import { gymPath } from "@/lib/gym";
@@ -30,11 +32,28 @@ export default async function AdminPage({ params }: Props) {
   const gymId = session.user.gymId;
   const currentUserId = session.user.id;
 
-  const users = await prisma.user.findMany({
-    where: { gymId },
-    orderBy: [{ role: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, email: true, role: true, studentType: true, createdAt: true },
-  });
+  const [users, allGroups, teacherStudentLinks] = await Promise.all([
+    prisma.user.findMany({
+      where: { gymId },
+      orderBy: [{ role: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, email: true, role: true, studentType: true, createdAt: true, groupId: true },
+    }),
+    prisma.group.findMany({
+      where: { teacher: { gymId } },
+      orderBy: [{ teacher: { name: "asc" } }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        teacherId: true,
+        teacher: { select: { name: true } },
+        students: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.teacherStudent.findMany({
+      where: { teacher: { gymId } },
+      select: { teacherId: true, studentId: true },
+    }),
+  ]);
 
   const teachers = users.filter(
     (u) => u.role === "TEACHER" || u.role === "ADMIN"
@@ -111,6 +130,40 @@ export default async function AdminPage({ params }: Props) {
           </div>
         </section>
       </div>
+
+      {/* Groups by teacher */}
+      {teachers.map((teacher) => {
+        const teacherGroups = allGroups.filter((g) => g.teacherId === teacher.id);
+        const assignedStudentIds = teacherStudentLinks
+          .filter((l) => l.teacherId === teacher.id)
+          .map((l) => l.studentId);
+        const teacherStudents = students.filter(
+          (s) => s.studentType === "PERSONALIZED" && assignedStudentIds.includes(s.id)
+        );
+        const ungrouped = teacherStudents.filter((s) => !s.groupId);
+
+        if (teacherGroups.length === 0 && ungrouped.length === 0) return null;
+
+        return (
+          <section key={teacher.id}>
+            <div className="flex items-center gap-4 mb-3">
+              <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+                Grupos de {teacher.name}
+              </h2>
+              <div className="flex-1 h-px bg-[#1A1A1A]" aria-hidden="true" />
+            </div>
+            <GroupManager
+              groups={teacherGroups.map((g) => ({
+                id: g.id,
+                name: g.name,
+                students: g.students,
+              }))}
+              ungroupedStudents={ungrouped.map((s) => ({ id: s.id, name: s.name }))}
+              hideCreate
+            />
+          </section>
+        );
+      })}
 
       {/* User list */}
       <section>
@@ -189,10 +242,19 @@ export default async function AdminPage({ params }: Props) {
                     {formatDateArg(user.createdAt)}
                   </td>
                   <td className="px-4 py-3.5">
-                    <DeleteUserButton
-                      userId={user.id}
-                      currentUserId={currentUserId}
-                    />
+                    <div className="flex gap-1">
+                      {user.role === "STUDENT" && (
+                        <EditStudentButton
+                          studentId={user.id}
+                          name={user.name}
+                          email={user.email}
+                        />
+                      )}
+                      <DeleteUserButton
+                        userId={user.id}
+                        currentUserId={currentUserId}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -241,10 +303,19 @@ export default async function AdminPage({ params }: Props) {
                     </div>
                   </div>
                 </div>
-                <DeleteUserButton
-                  userId={user.id}
-                  currentUserId={currentUserId}
-                />
+                <div className="flex gap-1 flex-shrink-0">
+                  {user.role === "STUDENT" && (
+                    <EditStudentButton
+                      studentId={user.id}
+                      name={user.name}
+                      email={user.email}
+                    />
+                  )}
+                  <DeleteUserButton
+                    userId={user.id}
+                    currentUserId={currentUserId}
+                  />
+                </div>
               </div>
             </Card>
           ))}

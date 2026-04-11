@@ -11,19 +11,39 @@ const MarkdownEditor = dynamic(
   { ssr: false, loading: () => <div className="h-[220px] bg-[#1A1A1A] border border-[#2A2A2A] animate-pulse" /> }
 );
 import { CopyWodDialog } from "@/components/wod/CopyWodDialog";
+import { TargetSelector, TargetBadge } from "@/components/wod/TargetSelector";
 import { createWod, updateWod, deleteWod } from "@/actions/wod";
+import type { WodTarget } from "@/actions/wod";
 import { toInputDate, getTodayArgentina, formatDateArg } from "@/lib/dates";
-import type { Wod } from "@prisma/client";
+import type { Wod, WodTargetType } from "@prisma/client";
 
-interface WodForManager extends Pick<Wod, "id" | "content" | "date"> {}
+interface WodForManager extends Pick<Wod, "id" | "content" | "date"> {
+  targetType: WodTargetType;
+  targetGroupId?: string | null;
+  targetStudentId?: string | null;
+  targetGroupName?: string | null;
+  targetStudentName?: string | null;
+}
+
+interface GroupOption {
+  id: string;
+  name: string;
+}
+
+interface StudentOption {
+  id: string;
+  name: string;
+}
 
 interface WodManagerClientProps {
   wods: WodForManager[];
+  groups: GroupOption[];
+  students: StudentOption[];
 }
 
 type Mode = "view" | "create" | "edit";
 
-export function WodManagerClient({ wods }: WodManagerClientProps) {
+export function WodManagerClient({ wods, groups, students }: WodManagerClientProps) {
   const todayStr = toInputDate(getTodayArgentina());
 
   const [mode, setMode] = useState<Mode>("view");
@@ -31,6 +51,7 @@ export function WodManagerClient({ wods }: WodManagerClientProps) {
   const [newDate, setNewDate] = useState(todayStr);
   const [editorContent, setEditorContent] = useState("");
   const [copyWodId, setCopyWodId] = useState<string | null>(null);
+  const [target, setTarget] = useState<WodTarget>({ type: "ALL" });
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -38,6 +59,7 @@ export function WodManagerClient({ wods }: WodManagerClientProps) {
     setMode("create");
     setNewDate(todayStr);
     setEditorContent("");
+    setTarget({ type: "ALL" });
     setFormError(null);
   }
 
@@ -57,7 +79,7 @@ export function WodManagerClient({ wods }: WodManagerClientProps) {
   function handleCreate() {
     setFormError(null);
     startTransition(async () => {
-      const result = await createWod(newDate, editorContent);
+      const result = await createWod(newDate, editorContent, target);
       if (result.success) {
         setMode("view");
       } else {
@@ -108,6 +130,16 @@ export function WodManagerClient({ wods }: WodManagerClientProps) {
 
           {/* Editor area */}
           <div className="p-5 flex flex-col gap-4">
+            {mode === "create" && (
+              <TargetSelector
+                groups={groups}
+                students={students}
+                value={target}
+                onChange={setTarget}
+                disabled={isPending}
+              />
+            )}
+
             <MarkdownEditor
               value={editorContent}
               onChange={setEditorContent}
@@ -176,7 +208,7 @@ export function WodManagerClient({ wods }: WodManagerClientProps) {
 }
 
 interface WodManagerCardProps {
-  wod: Pick<Wod, "id" | "content" | "date">;
+  wod: WodForManager;
   onEdit: () => void;
   onDelete: () => void;
   onCopy: () => void;
@@ -195,9 +227,16 @@ function WodManagerCard({
   return (
     <div className="bg-[#1A1A1A] border border-[#2A2A2A] p-4 flex flex-col gap-3 transition-colors duration-200">
       <div className="flex items-center justify-between gap-2 flex-wrap border-b border-[#2A2A2A] pb-3">
-        <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-[#E31414]">
-          {formatDateArg(wod.date)}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-[#E31414]">
+            {formatDateArg(wod.date)}
+          </span>
+          <TargetBadge
+            targetType={wod.targetType}
+            targetGroupName={wod.targetGroupName}
+            targetStudentName={wod.targetStudentName}
+          />
+        </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="ghost" size="sm" onClick={onCopy} disabled={disabled}>
             Copiar
