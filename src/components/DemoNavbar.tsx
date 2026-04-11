@@ -3,25 +3,48 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-
-import wodyBlanco from "@/logos/wody-blanco.png";
 import { useState } from "react";
 
-const links = [
-  { href: "/demo/admin", label: "Admin" },
-  { href: "/demo/teacher", label: "Profe" },
-  { href: "/demo/student", label: "Alumno" },
-];
+import wodyBlanco from "@/logos/wody-blanco.png";
+
+const roleLinks = {
+  admin: [
+    { href: "/demo/admin", label: "Panel Admin" },
+    { href: "/demo/teacher", label: "Dashboard Profe" },
+    { href: "/demo/teacher/rms", label: "Mis RMs" },
+  ],
+  teacher: [
+    { href: "/demo/teacher", label: "Mis WODs" },
+    { href: "/demo/teacher/rms", label: "Mis RMs" },
+  ],
+  student: [
+    { href: "/demo/student", label: "Mi WOD" },
+    { href: "/demo/student/rms", label: "Mis RMs" },
+  ],
+};
+
+const roleLabels: Record<string, string> = {
+  admin: "Admin",
+  teacher: "Profe",
+  student: "Alumno",
+};
+
+function detectRole(pathname: string): string {
+  if (pathname.startsWith("/demo/admin")) return "admin";
+  if (pathname.startsWith("/demo/teacher")) return "teacher";
+  return "student";
+}
 
 export function DemoNavbar() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const currentRole = links.find((l) => pathname.startsWith(l.href));
-  const roleLabel = currentRole?.label ?? "Demo";
+  const currentRole = detectRole(pathname);
+  const links = roleLinks[currentRole as keyof typeof roleLinks];
+  const roleLabel = roleLabels[currentRole];
 
   function isActive(href: string) {
-    return pathname.startsWith(href);
+    return pathname === href;
   }
 
   return (
@@ -40,7 +63,7 @@ export function DemoNavbar() {
           </span>
         </Link>
 
-        {/* Desktop nav */}
+        {/* Desktop nav — role sections */}
         <div className="hidden sm:flex items-center gap-6">
           {links.map((link) => (
             <Link
@@ -64,15 +87,25 @@ export function DemoNavbar() {
           ))}
         </div>
 
-        {/* User info — desktop */}
-        <div className="hidden sm:flex items-center gap-4">
-          <span className="text-xs text-gray-500 font-heading uppercase tracking-[0.1em]">
-            Usuario Demo{" "}
-            <span className="text-[#E31414]">({roleLabel})</span>
-          </span>
+        {/* Desktop — role switcher + exit */}
+        <div className="hidden sm:flex items-center gap-3">
+          {Object.entries(roleLabels).map(([role, label]) => (
+            <Link
+              key={role}
+              href={`/demo/${role}`}
+              className={[
+                "text-xs font-heading font-bold uppercase tracking-[0.1em] px-2 py-1 border transition-colors duration-200",
+                currentRole === role
+                  ? "border-[#E31414] text-[#E31414] bg-[#E31414]/10"
+                  : "border-[#2A2A2A] text-gray-500 hover:border-gray-500 hover:text-white",
+              ].join(" ")}
+            >
+              {label}
+            </Link>
+          ))}
           <Link
             href="/"
-            className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-[#E31414] transition-colors duration-200 min-h-[44px] flex items-center"
+            className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-[#E31414] transition-colors duration-200 ml-2 min-h-[44px] flex items-center"
           >
             Salir
           </Link>
@@ -94,8 +127,9 @@ export function DemoNavbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="sm:hidden bg-black border-t border-[#1A1A1A] px-4 py-5 flex flex-col gap-4" role="menu">
+          {/* Current role sections */}
           <p className="text-xs text-gray-500 font-heading uppercase tracking-[0.1em]">
-            Usuario Demo <span className="text-[#E31414]">({roleLabel})</span>
+            Secciones — <span className="text-[#E31414]">{roleLabel}</span>
           </p>
           {links.map((link) => (
             <Link
@@ -114,6 +148,31 @@ export function DemoNavbar() {
               {link.label}
             </Link>
           ))}
+
+          {/* Role switcher */}
+          <div className="border-t border-[#1A1A1A] pt-4 mt-1">
+            <p className="text-xs text-gray-500 font-heading uppercase tracking-[0.1em] mb-3">
+              Cambiar rol
+            </p>
+            <div className="flex gap-2">
+              {Object.entries(roleLabels).map(([role, label]) => (
+                <Link
+                  key={role}
+                  href={`/demo/${role}`}
+                  onClick={() => setMenuOpen(false)}
+                  className={[
+                    "text-xs font-heading font-bold uppercase tracking-[0.1em] px-3 py-2 border transition-colors duration-200",
+                    currentRole === role
+                      ? "border-[#E31414] text-[#E31414] bg-[#E31414]/10"
+                      : "border-[#2A2A2A] text-gray-400",
+                  ].join(" ")}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
           <Link
             href="/"
             onClick={() => setMenuOpen(false)}
