@@ -130,6 +130,6 @@ export const config = {
      * - _next/image (image optimization)
      * - favicon.ico, icon.png, and other static assets
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.png|.*\\.svg$|.*\\.png$|.*\\.js$|.*\\.webmanifest$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.png|sounds/|.*\\.svg$|.*\\.png$|.*\\.js$|.*\\.webmanifest$|.*\\.wav$).*)",
   ],
 };
