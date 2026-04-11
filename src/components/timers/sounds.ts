@@ -1,8 +1,9 @@
 let audioCtx: AudioContext | null = null;
+let unlocked = false;
 
 function getAudioContext(): AudioContext {
   if (!audioCtx) {
-    audioCtx = new AudioContext();
+    audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
   }
   return audioCtx;
 }
@@ -10,6 +11,12 @@ function getAudioContext(): AudioContext {
 function playTone(frequency: number, duration: number, volume = 0.5) {
   try {
     const ctx = getAudioContext();
+
+    // Resume if suspended (mobile browsers)
+    if (ctx.state === "suspended") {
+      ctx.resume();
+    }
+
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
 
@@ -27,24 +34,39 @@ function playTone(frequency: number, duration: number, volume = 0.5) {
     oscillator.start(ctx.currentTime);
     oscillator.stop(ctx.currentTime + duration);
   } catch {
-    // Audio not available
+    // Audio not available — try vibration
+    vibrate(100);
+  }
+}
+
+function vibrate(ms: number) {
+  try {
+    if (navigator.vibrate) {
+      navigator.vibrate(ms);
+    }
+  } catch {
+    // Vibration not available
   }
 }
 
 /** Short beep for countdown ticks (3, 2, 1) */
 export function beepTick() {
   playTone(800, 0.15, 0.4);
+  vibrate(50);
 }
 
 /** Medium beep for phase change (work → rest, rest → work) */
 export function beepPhaseChange() {
   playTone(1000, 0.3, 0.6);
+  vibrate(200);
 }
 
 /** Long ascending beep for GO / start work */
 export function beepGo() {
   try {
     const ctx = getAudioContext();
+    if (ctx.state === "suspended") ctx.resume();
+
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
@@ -57,7 +79,7 @@ export function beepGo() {
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.5);
   } catch {
-    // Audio not available
+    vibrate(150);
   }
 }
 
@@ -66,15 +88,27 @@ export function beepComplete() {
   playTone(1200, 0.2, 0.7);
   setTimeout(() => playTone(1200, 0.2, 0.7), 250);
   setTimeout(() => playTone(1600, 0.4, 0.7), 500);
+  vibrate(500);
 }
 
-/** Warm up the audio context (must be called from user gesture) */
+/**
+ * Unlock audio on mobile — MUST be called from a direct user gesture (click/tap).
+ * Plays a silent buffer to unblock the AudioContext for future programmatic playback.
+ */
 export function initAudio() {
+  if (unlocked) return;
   try {
     const ctx = getAudioContext();
     if (ctx.state === "suspended") {
       ctx.resume();
     }
+    // Play a silent buffer to unlock audio on iOS
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+    unlocked = true;
   } catch {
     // Audio not available
   }
