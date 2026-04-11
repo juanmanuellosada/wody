@@ -44,13 +44,8 @@ export async function proxy(request: NextRequest) {
   const { nextUrl } = request;
   const segments = nextUrl.pathname.split("/").filter(Boolean);
 
-  // Pass through: root "/", static assets, and non-gym routes
-  if (
-    segments.length === 0 ||
-    segments[0] === "api" ||
-    segments[0] === "demo" ||
-    segments[0] === "manifest.webmanifest"
-  ) {
+  // Pass through: root "/", API, and non-gym routes
+  if (segments.length === 0 || segments[0] === "api" || segments[0] === "demo") {
     return NextResponse.next();
   }
 
@@ -135,6 +130,6 @@ export const config = {
      * - _next/image (image optimization)
      * - favicon.ico, icon.png, and other static assets
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.png|.*\\.svg$|.*\\.png$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.png|.*\\.svg$|.*\\.png$|.*\\.js$|.*\\.webmanifest$).*)",
   ],
 };
