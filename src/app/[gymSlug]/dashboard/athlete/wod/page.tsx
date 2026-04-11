@@ -55,7 +55,7 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     // Specific WOD by ID — verify it belongs to the student's teacher and target matches
     wod = await prisma.wod.findFirst({
       where: { id: wodId, teacherId, ...targetFilter },
-      select: { id: true, content: true, date: true, teacherId: true },
+      select: { id: true, title: true, content: true, date: true, teacherId: true },
     });
     if (!wod) {
       redirect(athletePath);
@@ -66,7 +66,7 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     const todayStr = toInputDate(getTodayArgentina());
     const teacherWods = await prisma.wod.findMany({
       where: { teacherId, ...targetFilter },
-      select: { id: true, content: true, date: true, teacherId: true },
+      select: { id: true, title: true, content: true, date: true, teacherId: true },
     });
     wod = teacherWods.find((w) => toInputDate(w.date) === todayStr) ?? null;
   }
@@ -111,13 +111,17 @@ export default async function WodFullPage({ params, searchParams }: Props) {
               <span className="inline-block w-2.5 h-2.5 bg-[#E31414] flex-shrink-0 animate-pulse" aria-hidden="true" />
             )}
             <h1 className="text-2xl sm:text-4xl font-heading font-black uppercase tracking-[0.1em] text-white">
-              {isToday ? "WOD de Hoy" : dateLabel}
+              {isToday ? wod.title : dateLabel}
             </h1>
           </div>
 
-          {isToday && (
-            <p className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-[#E31414] mb-6">
+          {isToday ? (
+            <p className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-[#E31414] mb-2">
               {dateLabel}
+            </p>
+          ) : (
+            <p className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400 mb-2">
+              {wod.title}
             </p>
           )}
 

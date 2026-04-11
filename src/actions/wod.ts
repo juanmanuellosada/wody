@@ -45,6 +45,7 @@ function targetToData(target: WodTarget) {
 
 export async function createWod(
   date: string,
+  title: string,
   content: string,
   target: WodTarget = { type: "ALL" }
 ): Promise<WodResult> {
@@ -60,6 +61,8 @@ export async function createWod(
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
 
+  const trimmedTitle = title.trim() || "WOD";
+
   if (!content.trim()) {
     return { success: false, error: "El contenido del WOD no puede estar vacio." };
   }
@@ -71,6 +74,7 @@ export async function createWod(
 
   const wod = await prisma.wod.create({
     data: {
+      title: trimmedTitle,
       content,
       date: wodDate,
       teacherId,
@@ -85,6 +89,7 @@ export async function createWod(
 
 export async function updateWod(
   wodId: string,
+  title: string,
   content: string
 ): Promise<WodResult> {
   const session = await auth();
@@ -107,13 +112,15 @@ export async function updateWod(
     return { success: false, error: "WOD no encontrado." };
   }
 
+  const trimmedTitle = title.trim() || "WOD";
+
   if (!content.trim()) {
     return { success: false, error: "El contenido del WOD no puede estar vacio." };
   }
 
   await prisma.wod.update({
     where: { id: wodId },
-    data: { content },
+    data: { title: trimmedTitle, content },
   });
 
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
@@ -140,7 +147,7 @@ export async function copyWod(
 
   const sourceWod = await prisma.wod.findUnique({
     where: { id: sourceWodId },
-    select: { content: true, teacherId: true, targetType: true, targetGroupId: true, targetStudentId: true },
+    select: { title: true, content: true, teacherId: true, targetType: true, targetGroupId: true, targetStudentId: true },
   });
 
   if (!sourceWod || sourceWod.teacherId !== teacherId) {
@@ -165,6 +172,7 @@ export async function copyWod(
 
   const newWod = await prisma.wod.create({
     data: {
+      title: sourceWod.title,
       content: sourceWod.content,
       date: wodDate,
       teacherId,

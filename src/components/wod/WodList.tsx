@@ -2,8 +2,8 @@ import { WodCard } from "@/components/wod/WodCard";
 import type { Wod } from "@prisma/client";
 
 interface WodListProps {
-  wods: Pick<Wod, "id" | "content" | "date">[];
-  renderActions?: (wod: Pick<Wod, "id" | "content" | "date">) => React.ReactNode;
+  wods: Pick<Wod, "id" | "title" | "content" | "date">[];
+  renderActions?: (wod: Pick<Wod, "id" | "title" | "content" | "date">) => React.ReactNode;
   emptyMessage?: string;
 }
 

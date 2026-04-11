@@ -28,6 +28,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
       orderBy: { date: "desc" },
       select: {
         id: true,
+        title: true,
         content: true,
         date: true,
         targetType: true,

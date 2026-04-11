@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import { WodCard } from "@/components/wod/WodCard";
-import { WodList } from "@/components/wod/WodList";
+import { WodHistory } from "@/components/wod/WodHistory";
 import { gymPath } from "@/lib/gym";
 
 interface Props {
@@ -87,7 +87,7 @@ export default async function StudentDashboardPage({ params }: Props) {
       ],
     },
     orderBy: { date: "desc" },
-    select: { id: true, content: true, date: true },
+    select: { id: true, title: true, content: true, date: true },
   });
 
   const todayWod = allWods.find((w) => toInputDate(w.date) === todayStr) ?? null;
@@ -134,18 +134,7 @@ export default async function StudentDashboardPage({ params }: Props) {
           </h2>
           <div className="flex-1 h-px bg-[#1A1A1A]" aria-hidden="true" />
         </div>
-        <WodList
-          wods={historyWods}
-          renderActions={(wod) => (
-            <Link
-              href={`${wodPath}?id=${wod.id}`}
-              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-[#E31414] transition-colors duration-200 cursor-pointer"
-            >
-              Ver
-            </Link>
-          )}
-          emptyMessage="No hay WODs anteriores."
-        />
+        <WodHistory wods={historyWods} wodPath={wodPath} />
       </section>
     </div>
   );

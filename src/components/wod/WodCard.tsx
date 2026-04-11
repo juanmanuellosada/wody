@@ -4,7 +4,7 @@ import { formatDateArg } from "@/lib/dates";
 import type { Wod } from "@prisma/client";
 
 interface WodCardProps {
-  wod: Pick<Wod, "id" | "content" | "date">;
+  wod: Pick<Wod, "id" | "title" | "content" | "date">;
   actions?: React.ReactNode;
   highlight?: boolean;
 }
@@ -23,6 +23,9 @@ export function WodCard({ wod, actions, highlight = false }: WodCardProps) {
             <CardTitle className={highlight ? "text-[#E31414]" : ""}>
               {highlight ? "HOY — " : ""}{dateLabel}
             </CardTitle>
+            <span className="text-sm font-heading font-bold text-gray-400">
+              {wod.title}
+            </span>
           </div>
           {actions && (
             <div className="flex items-center gap-2">{actions}</div>

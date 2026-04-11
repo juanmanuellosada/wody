@@ -76,6 +76,7 @@ model Group {
 
 model Wod {
   id              String        @id @default(cuid())
+  title           String        @default("WOD")
   content         String
   date            DateTime      @db.Date
   teacherId       String
