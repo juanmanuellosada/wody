@@ -16,54 +16,62 @@ export function ShareWodButton({ title, content, dateLabel, gymName }: ShareWodB
   const [generating, setGenerating] = useState(false);
   const hiddenRef = useRef<HTMLDivElement>(null);
 
-  async function handleShare() {
-    if (!hiddenRef.current) return;
-    setGenerating(true);
-
+  async function generateImage(): Promise<string | null> {
+    if (!hiddenRef.current) return null;
+    const el = hiddenRef.current;
+    el.style.display = "block";
     try {
-      // Make the hidden element visible for capture
-      const el = hiddenRef.current;
-      el.style.display = "block";
-
       const dataUrl = await toPng(el, {
         quality: 1,
         pixelRatio: 2,
         backgroundColor: "#0A0A0A",
       });
-
+      return dataUrl;
+    } finally {
       el.style.display = "none";
+    }
+  }
 
-      // Convert to blob
+  async function handleShare() {
+    setGenerating(true);
+    try {
+      const dataUrl = await generateImage();
+      if (!dataUrl) return;
+
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], `${title}-${dateLabel}.png`, { type: "image/png" });
 
-      // Try Web Share API (mobile)
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          title: `${title} — ${dateLabel}`,
-          files: [file],
-        });
-      } else {
-        // Fallback: download
-        const link = document.createElement("a");
-        link.href = dataUrl;
-        link.download = `${title}-${dateLabel}.png`;
-        link.click();
+        await navigator.share({ title: `${title} — ${dateLabel}`, files: [file] });
       }
-    } catch (err) {
-      // User cancelled share or error
-      if (hiddenRef.current) hiddenRef.current.style.display = "none";
-    } finally {
-      setGenerating(false);
-    }
+    } catch { /* user cancelled */ }
+    finally { setGenerating(false); }
+  }
+
+  async function handleDownload() {
+    setGenerating(true);
+    try {
+      const dataUrl = await generateImage();
+      if (!dataUrl) return;
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `${title}-${dateLabel}.png`;
+      link.click();
+    } catch { /* error */ }
+    finally { setGenerating(false); }
   }
 
   return (
     <>
-      <Button variant="secondary" size="sm" onClick={handleShare} loading={generating}>
-        {generating ? "Generando..." : "Compartir"}
-      </Button>
+      <div className="flex gap-2">
+        <Button variant="secondary" size="sm" onClick={handleShare} loading={generating}>
+          Compartir
+        </Button>
+        <Button variant="ghost" size="sm" onClick={handleDownload} disabled={generating}>
+          Descargar
+        </Button>
+      </div>
 
       {/* Hidden render target for image capture */}
       <div
