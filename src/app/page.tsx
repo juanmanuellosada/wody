@@ -88,14 +88,22 @@ export default function LandingPage() {
             CrossFit, gimnasios, funcional, GAP y más.
           </p>
 
-          <a
-            href="https://www.instagram.com/wody.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-gray-300 text-sm border border-gray-700 hover:border-[#E31414] hover:text-white transition-all duration-200 cursor-pointer"
-          >
-            Contactanos
-          </a>
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <Link
+              href="/demo"
+              className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-white text-sm bg-[#E31414] hover:bg-[#B00F0F] transition-colors duration-200 cursor-pointer"
+            >
+              Ver Demo
+            </Link>
+            <a
+              href="https://www.instagram.com/wody.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-gray-300 text-sm border border-gray-700 hover:border-[#E31414] hover:text-white transition-all duration-200 cursor-pointer"
+            >
+              Contactanos
+            </a>
+          </div>
         </div>
       </section>
 

@@ -25,14 +25,16 @@ interface GroupManagerProps {
   groups: Group[];
   ungroupedStudents: Student[];
   hideCreate?: boolean;
+  demo?: boolean;
 }
 
-export function GroupManager({ groups, ungroupedStudents, hideCreate }: GroupManagerProps) {
+export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: GroupManagerProps) {
   const [newGroupName, setNewGroupName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [isTransitioning, startTransition] = useTransition();
+  const isPending = isTransitioning || !!demo;
 
   function handleCreate() {
     if (!newGroupName.trim()) return;

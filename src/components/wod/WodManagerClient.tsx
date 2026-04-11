@@ -39,11 +39,12 @@ interface WodManagerClientProps {
   wods: WodForManager[];
   groups: GroupOption[];
   students: StudentOption[];
+  demo?: boolean;
 }
 
 type Mode = "view" | "create" | "edit";
 
-export function WodManagerClient({ wods, groups, students }: WodManagerClientProps) {
+export function WodManagerClient({ wods, groups, students, demo }: WodManagerClientProps) {
   const todayStr = toInputDate(getTodayArgentina());
 
   const [mode, setMode] = useState<Mode>("view");
@@ -198,7 +199,7 @@ export function WodManagerClient({ wods, groups, students }: WodManagerClientPro
         </div>
       ) : (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <Button variant="primary" size="sm" onClick={startCreate} className="self-start">
+          <Button variant="primary" size="sm" onClick={startCreate} className="self-start" disabled={demo}>
             + Nuevo WOD
           </Button>
           {wods.length > 0 && (
@@ -230,7 +231,7 @@ export function WodManagerClient({ wods, groups, students }: WodManagerClientPro
               onEdit={() => startEdit(wod)}
               onDelete={() => handleDelete(wod.id)}
               onCopy={() => setCopyWodId(wod.id)}
-              disabled={isPending || mode !== "view"}
+              disabled={isPending || mode !== "view" || !!demo}
             />
           ))}
         </div>
