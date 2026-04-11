@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DemoNavbar } from "@/components/DemoNavbar";
 import { WodManagerClient } from "@/components/wod/WodManagerClient";
 import { GroupManager } from "@/components/group/GroupManager";
 import type { WodTargetType } from "@prisma/client";
@@ -111,6 +112,7 @@ const mockGroupOptions = [
 export default function DemoTeacherPage() {
   return (
     <main className="min-h-screen bg-[#0A0A0F] text-white">
+      <DemoNavbar />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-8">
         {/* Welcome header */}
         <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-6 sm:p-8">

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DemoNavbar } from "@/components/DemoNavbar";
 import { GroupManager } from "@/components/group/GroupManager";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -65,6 +66,7 @@ export default function DemoAdminPage() {
 
   return (
     <main className="min-h-screen bg-[#0A0A0F] text-white">
+      <DemoNavbar />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-10">
         {/* Welcome banner */}
         <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-6 sm:p-8">
