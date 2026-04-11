@@ -50,9 +50,9 @@ const historyWods = [
 
 export default function DemoStudentPage() {
   return (
-    <main className="min-h-screen bg-[#0A0A0F] text-white">
+    <>
       <DemoNavbar />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-10">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-10 flex flex-col gap-10">
         {/* Today's WOD */}
         <section>
           <div className="flex items-center justify-between mb-5">
@@ -81,7 +81,7 @@ export default function DemoStudentPage() {
           </div>
           <WodHistory wods={historyWods} wodPath="/demo/student/wod" />
         </section>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }

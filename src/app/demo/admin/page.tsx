@@ -67,9 +67,9 @@ export default function DemoAdminPage() {
   const totalStudents = mockUsers.filter((u) => u.role === "STUDENT").length;
 
   return (
-    <main className="min-h-screen bg-[#0A0A0F] text-white">
+    <>
       <DemoNavbar />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-10">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-10 flex flex-col gap-10">
         {/* Welcome banner */}
         <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -298,7 +298,7 @@ export default function DemoAdminPage() {
             ))}
           </div>
         </section>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }

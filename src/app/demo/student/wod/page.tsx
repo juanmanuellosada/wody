@@ -45,9 +45,9 @@ export default async function DemoWodFullPage({ searchParams }: Props) {
   const isToday = !id || id === "w1";
 
   return (
-    <main className="min-h-screen bg-[#0A0A0F] text-white">
+    <>
       <DemoNavbar />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-10">
         <div className="min-h-[80vh] flex flex-col">
           {/* Top bar */}
           <div className="flex items-center justify-between gap-4 mb-6">
@@ -93,7 +93,7 @@ export default async function DemoWodFullPage({ searchParams }: Props) {
             </div>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }
