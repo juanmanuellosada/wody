@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { DemoNavbar } from "@/components/DemoNavbar";
 import { GroupManager } from "@/components/group/GroupManager";
+import { EditStudentButton } from "@/components/EditStudentButton";
+import { ToggleStudentTypeButton } from "@/components/ToggleStudentTypeButton";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -222,16 +224,11 @@ export default function DemoAdminPage() {
                     </td>
                     <td className="px-4 py-3.5">
                       {user.role === "STUDENT" ? (
-                        <span
-                          className={[
-                            "text-xs font-heading font-bold uppercase tracking-[0.1em] px-2 py-0.5",
-                            user.studentType === "PERSONALIZED"
-                              ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                              : "bg-gray-500/10 text-gray-500 border border-gray-500/20",
-                          ].join(" ")}
-                        >
-                          {user.studentType === "PERSONALIZED" ? "Personal" : "General"}
-                        </span>
+                        <ToggleStudentTypeButton
+                          userId={user.id}
+                          currentType={user.studentType as "GENERAL" | "PERSONALIZED"}
+                          demo
+                        />
                       ) : (
                         <span className="text-xs text-gray-700 font-heading">—</span>
                       )}
@@ -242,7 +239,12 @@ export default function DemoAdminPage() {
                     <td className="px-4 py-3.5">
                       <div className="flex gap-1">
                         {user.role === "STUDENT" && (
-                          <Button variant="ghost" size="sm" disabled>Editar</Button>
+                          <EditStudentButton
+                            studentId={user.id}
+                            name={user.name}
+                            email={user.email}
+                            demo
+                          />
                         )}
                         <Button variant="danger" size="sm" disabled>Eliminar</Button>
                       </div>
@@ -285,7 +287,12 @@ export default function DemoAdminPage() {
                       </div>
                     </div>
                   </div>
-                  <Button variant="danger" size="sm" disabled>Eliminar</Button>
+                  <div className="flex gap-1 flex-shrink-0">
+                    {user.role === "STUDENT" && (
+                      <EditStudentButton studentId={user.id} name={user.name} email={user.email} demo />
+                    )}
+                    <Button variant="danger" size="sm" disabled>Eliminar</Button>
+                  </div>
                 </div>
               </Card>
             ))}

@@ -8,9 +8,10 @@ import type { StudentType } from "@prisma/client";
 interface Props {
   userId: string;
   currentType: StudentType;
+  demo?: boolean;
 }
 
-export function ToggleStudentTypeButton({ userId, currentType }: Props) {
+export function ToggleStudentTypeButton({ userId, currentType, demo }: Props) {
   const [isPending, startTransition] = useTransition();
   const [showModal, setShowModal] = useState(false);
 
@@ -19,6 +20,7 @@ export function ToggleStudentTypeButton({ userId, currentType }: Props) {
   const newTypeLabel = isPersonalized ? "General" : "Personalizado";
 
   function handleConfirm() {
+    if (demo) { setShowModal(false); return; }
     startTransition(async () => {
       await toggleStudentType(userId);
       setShowModal(false);

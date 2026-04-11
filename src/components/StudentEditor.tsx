@@ -9,6 +9,7 @@ interface StudentEditorProps {
   currentName: string;
   currentEmail: string;
   onClose: () => void;
+  demo?: boolean;
 }
 
 export function StudentEditor({
@@ -16,6 +17,7 @@ export function StudentEditor({
   currentName,
   currentEmail,
   onClose,
+  demo,
 }: StudentEditorProps) {
   const [name, setName] = useState(currentName);
   const [email, setEmail] = useState(currentEmail);
@@ -30,7 +32,7 @@ export function StudentEditor({
     if (email.trim() !== currentEmail) data.email = email;
     if (password.trim()) data.password = password;
 
-    if (Object.keys(data).length === 0) {
+    if (Object.keys(data).length === 0 || demo) {
       onClose();
       return;
     }

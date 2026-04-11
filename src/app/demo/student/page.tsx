@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DemoNavbar } from "@/components/DemoNavbar";
 import { WodCard } from "@/components/wod/WodCard";
 import { WodHistory } from "@/components/wod/WodHistory";
@@ -58,11 +59,16 @@ export default function DemoStudentPage() {
             <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white">
               WOD de Hoy
             </h1>
-            <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-[#E31414]">
+            <Link
+              href="/demo/student/wod"
+              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-[#E31414] hover:text-white transition-colors duration-200 cursor-pointer"
+            >
               Ver en grande
-            </span>
+            </Link>
           </div>
-          <WodCard wod={todayWod} highlight />
+          <Link href="/demo/student/wod" className="block cursor-pointer group">
+            <WodCard wod={todayWod} highlight />
+          </Link>
         </section>
 
         {/* History */}
@@ -73,7 +79,7 @@ export default function DemoStudentPage() {
             </h2>
             <div className="flex-1 h-px bg-[#1A1A1A]" aria-hidden="true" />
           </div>
-          <WodHistory wods={historyWods} wodPath="/demo/student" />
+          <WodHistory wods={historyWods} wodPath="/demo/student/wod" />
         </section>
       </div>
     </main>

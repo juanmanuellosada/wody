@@ -8,9 +8,10 @@ interface EditStudentButtonProps {
   studentId: string;
   name: string;
   email: string;
+  demo?: boolean;
 }
 
-export function EditStudentButton({ studentId, name, email }: EditStudentButtonProps) {
+export function EditStudentButton({ studentId, name, email, demo }: EditStudentButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -24,6 +25,7 @@ export function EditStudentButton({ studentId, name, email }: EditStudentButtonP
           currentName={name}
           currentEmail={email}
           onClose={() => setOpen(false)}
+          demo={demo}
         />
       )}
     </>

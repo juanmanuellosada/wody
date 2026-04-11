@@ -9,9 +9,10 @@ import { toInputDate } from "@/lib/dates";
 interface CopyWodDialogProps {
   wodId: string;
   onClose: () => void;
+  demo?: boolean;
 }
 
-export function CopyWodDialog({ wodId, onClose }: CopyWodDialogProps) {
+export function CopyWodDialog({ wodId, onClose, demo }: CopyWodDialogProps) {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
 
@@ -29,6 +30,8 @@ export function CopyWodDialog({ wodId, onClose }: CopyWodDialogProps) {
   }, [onClose]);
 
   function handleConfirm() {
+    if (demo) { onClose(); return; }
+
     setError(null);
 
     if (!targetDate) {

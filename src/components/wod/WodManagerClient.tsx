@@ -93,6 +93,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
   }
 
   function handleCreate() {
+    if (demo) { setMode("view"); return; }
     setFormError(null);
     startTransition(async () => {
       const result = await createWod(newDate, editorTitle, editorContent, target);
@@ -105,6 +106,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
   }
 
   function handleUpdate() {
+    if (demo) { setMode("view"); setEditingWodId(null); return; }
     if (!editingWodId) return;
     setFormError(null);
     startTransition(async () => {
@@ -119,6 +121,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
   }
 
   function handleDelete(wodId: string) {
+    if (demo) return;
     startTransition(async () => {
       await deleteWod(wodId);
     });
@@ -199,7 +202,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
         </div>
       ) : (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <Button variant="primary" size="sm" onClick={startCreate} className="self-start" disabled={demo}>
+          <Button variant="primary" size="sm" onClick={startCreate} className="self-start">
             + Nuevo WOD
           </Button>
           {wods.length > 0 && (
@@ -231,7 +234,8 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
               onEdit={() => startEdit(wod)}
               onDelete={() => handleDelete(wod.id)}
               onCopy={() => setCopyWodId(wod.id)}
-              disabled={isPending || mode !== "view" || !!demo}
+              disabled={isPending || mode !== "view"}
+              demoMode={demo}
             />
           ))}
         </div>
@@ -241,6 +245,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
         <CopyWodDialog
           wodId={copyWodId}
           onClose={() => setCopyWodId(null)}
+          demo={demo}
         />
       )}
     </div>
@@ -253,6 +258,7 @@ interface WodManagerCardProps {
   onDelete: () => void;
   onCopy: () => void;
   disabled: boolean;
+  demoMode?: boolean;
 }
 
 function WodManagerCard({
@@ -261,6 +267,7 @@ function WodManagerCard({
   onDelete,
   onCopy,
   disabled,
+  demoMode,
 }: WodManagerCardProps) {
   const preview = getContentPreview(wod.content);
 
@@ -287,7 +294,7 @@ function WodManagerCard({
           <Button variant="secondary" size="sm" onClick={onEdit} disabled={disabled}>
             Editar
           </Button>
-          <Button variant="danger" size="sm" onClick={onDelete} disabled={disabled}>
+          <Button variant="danger" size="sm" onClick={onDelete} disabled={disabled || !!demoMode}>
             Eliminar
           </Button>
         </div>

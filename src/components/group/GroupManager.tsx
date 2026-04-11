@@ -33,11 +33,11 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isTransitioning, startTransition] = useTransition();
-  const isPending = isTransitioning || !!demo;
+  const [isPending, startTransition] = useTransition();
 
   function handleCreate() {
     if (!newGroupName.trim()) return;
+    if (demo) { setNewGroupName(""); return; }
     setError(null);
     startTransition(async () => {
       const result = await createGroup(newGroupName.trim());
@@ -50,6 +50,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
   }
 
   function handleDelete(groupId: string) {
+    if (demo) return;
     setError(null);
     startTransition(async () => {
       const result = await deleteGroup(groupId);
@@ -59,6 +60,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
 
   function handleRename(groupId: string) {
     if (!renameValue.trim()) return;
+    if (demo) { setRenamingId(null); return; }
     setError(null);
     startTransition(async () => {
       const result = await renameGroup(groupId, renameValue.trim());
@@ -71,6 +73,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
   }
 
   function handleAssign(studentId: string, groupId: string) {
+    if (demo) return;
     setError(null);
     startTransition(async () => {
       const result = await assignStudentToGroup(studentId, groupId);
@@ -79,6 +82,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
   }
 
   function handleRemove(studentId: string) {
+    if (demo) return;
     setError(null);
     startTransition(async () => {
       const result = await removeStudentFromGroup(studentId);
