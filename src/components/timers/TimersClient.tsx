@@ -6,8 +6,13 @@ import { TimerDisplay, formatTime } from "./TimerDisplay";
 import { beepTick, beepPhaseChange, beepGo, beepComplete, initAudio } from "./sounds";
 
 type TimerMode = "stopwatch" | "countdown" | "interval" | "tabata" | "amrap" | "fortime";
+type TimerState = "idle" | "countdown-prep" | "running" | "paused" | "complete";
 
-type TimerState = "idle" | "running" | "paused" | "complete";
+const TICK_MS = 50;
+const PREP_SECONDS = 10;
+
+// Modes that get a "Preparate!" countdown before starting
+const PREP_MODES = new Set<TimerMode>(["tabata", "amrap", "fortime", "interval"]);
 
 interface IntervalConfig {
   workSeconds: number;
@@ -15,32 +20,14 @@ interface IntervalConfig {
   rounds: number;
 }
 
-const PRESETS: Record<string, { label: string; description: string; mode: TimerMode; config?: Partial<IntervalConfig & { totalSeconds: number; timeCap: number }> }> = {
-  tabata: {
-    label: "TABATA",
-    description: "20s trabajo / 10s descanso × 8 rondas",
-    mode: "tabata",
-    config: { workSeconds: 20, restSeconds: 10, rounds: 8 },
-  },
-  amrap: {
-    label: "AMRAP",
-    description: "Cuenta regresiva — tantas rondas como puedas",
-    mode: "amrap",
-    config: { totalSeconds: 720 },
-  },
-  fortime: {
-    label: "FOR TIME",
-    description: "Cronómetro progresivo con time cap opcional",
-    mode: "fortime",
-    config: { timeCap: 600 },
-  },
-};
-
 export function TimersClient() {
   const [mode, setMode] = useState<TimerMode | null>(null);
   const [state, setState] = useState<TimerState>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [remaining, setRemaining] = useState(0);
+
+  // Prep countdown
+  const [prepRemaining, setPrepRemaining] = useState(PREP_SECONDS);
 
   // Interval timer state
   const [intervalConfig, setIntervalConfig] = useState<IntervalConfig>({ workSeconds: 20, restSeconds: 10, rounds: 8 });
@@ -62,13 +49,15 @@ export function TimersClient() {
   const [customRounds, setCustomRounds] = useState(8);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastTickRef = useRef(0);
+  const lastSoundSecRef = useRef(-1);
+  const pendingStartRef = useRef<(() => void) | null>(null);
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    lastSoundSecRef.current = -1;
   }, []);
 
   useEffect(() => () => clearTimer(), [clearTimer]);
@@ -81,6 +70,8 @@ export function TimersClient() {
     setCurrentRound(1);
     setIsWork(true);
     setPhaseRemaining(0);
+    setPrepRemaining(PREP_SECONDS);
+    pendingStartRef.current = null;
   }
 
   function selectMode(m: TimerMode) {
@@ -96,6 +87,45 @@ export function TimersClient() {
     setMode(null);
   }
 
+  // ─── Sound helper: play tick/beep at exact second boundaries ───
+  function triggerSoundAtSecond(sec: number, soundFn: () => void) {
+    if (sec !== lastSoundSecRef.current && sec >= 0) {
+      lastSoundSecRef.current = sec;
+      soundFn();
+    }
+  }
+
+  // ─── Prep Countdown (10s "Preparate!") ───
+  function startPrep(afterPrep: () => void) {
+    initAudio();
+    pendingStartRef.current = afterPrep;
+    setState("countdown-prep");
+    setPrepRemaining(PREP_SECONDS);
+    lastSoundSecRef.current = -1;
+
+    const start = Date.now();
+    intervalRef.current = setInterval(() => {
+      const passed = (Date.now() - start) / 1000;
+      const left = Math.max(0, PREP_SECONDS - passed);
+      const leftInt = Math.ceil(left);
+      setPrepRemaining(leftInt);
+
+      // Tick at 3, 2, 1
+      if (leftInt <= 3 && leftInt > 0) {
+        triggerSoundAtSecond(leftInt, beepTick);
+      }
+
+      if (left <= 0) {
+        clearTimer();
+        lastSoundSecRef.current = -1;
+        // Start the actual timer
+        const fn = pendingStartRef.current;
+        pendingStartRef.current = null;
+        if (fn) fn();
+      }
+    }, TICK_MS);
+  }
+
   // ─── Stopwatch (count up) ───
   function startStopwatch() {
     initAudio();
@@ -103,74 +133,97 @@ export function TimersClient() {
     beepGo();
     const start = Date.now() - elapsed * 1000;
     intervalRef.current = setInterval(() => {
-      const now = Math.floor((Date.now() - start) / 1000);
-      setElapsed(now);
-    }, 100);
+      setElapsed(Math.floor((Date.now() - start) / 1000));
+    }, TICK_MS);
   }
 
   // ─── FOR TIME (count up + optional time cap) ───
-  function startForTime() {
-    initAudio();
+  function _startForTime() {
     setState("running");
     beepGo();
     const capSecs = timeCapEnabled ? timeCapMinutes * 60 : Infinity;
-    const start = Date.now() - elapsed * 1000;
+    const start = Date.now();
+    lastSoundSecRef.current = -1;
+
     intervalRef.current = setInterval(() => {
-      const now = Math.floor((Date.now() - start) / 1000);
-      setElapsed(now);
+      const now = Date.now();
+      const secs = Math.floor((now - start) / 1000);
+      setElapsed(secs);
       if (timeCapEnabled) {
-        setRemaining(Math.max(0, capSecs - now));
+        const left = Math.max(0, capSecs - secs);
+        setRemaining(left);
+        if (left <= 3 && left > 0) triggerSoundAtSecond(left, beepTick);
       }
-      if (now >= capSecs) {
+      if (secs >= capSecs) {
         clearTimer();
         setState("complete");
         beepComplete();
       }
-      // Tick at last 3 seconds
-      if (capSecs - now <= 3 && capSecs - now > 0 && capSecs - now !== lastTickRef.current) {
-        lastTickRef.current = capSecs - now;
-        beepTick();
-      }
-    }, 100);
+    }, TICK_MS);
+  }
+
+  function startForTime() {
+    initAudio();
+    startPrep(_startForTime);
   }
 
   // ─── Countdown ───
-  function startCountdown() {
-    initAudio();
+  function _startCountdown() {
     const total = countdownMinutes * 60 + countdownSeconds;
     if (total <= 0) return;
-    const resumeFrom = state === "paused" ? remaining : total;
-    setRemaining(resumeFrom);
     setState("running");
     beepGo();
     const start = Date.now();
+    lastSoundSecRef.current = -1;
+
     intervalRef.current = setInterval(() => {
       const passed = Math.floor((Date.now() - start) / 1000);
-      const left = Math.max(0, resumeFrom - passed);
+      const left = Math.max(0, total - passed);
       setRemaining(left);
       setElapsed(total - left);
-      // Tick at last 3
-      if (left <= 3 && left > 0 && left !== lastTickRef.current) {
-        lastTickRef.current = left;
-        beepTick();
-      }
+      if (left <= 3 && left > 0) triggerSoundAtSecond(left, beepTick);
       if (left <= 0) {
         clearTimer();
         setState("complete");
         beepComplete();
       }
-    }, 100);
+    }, TICK_MS);
   }
 
-  // ─── AMRAP (countdown) ───
+  function startCountdownDirect() {
+    initAudio();
+    _startCountdown();
+  }
+
+  function startCountdownResume() {
+    initAudio();
+    const resumeFrom = remaining;
+    if (resumeFrom <= 0) return;
+    setState("running");
+    const start = Date.now();
+    lastSoundSecRef.current = -1;
+
+    intervalRef.current = setInterval(() => {
+      const passed = Math.floor((Date.now() - start) / 1000);
+      const left = Math.max(0, resumeFrom - passed);
+      setRemaining(left);
+      if (left <= 3 && left > 0) triggerSoundAtSecond(left, beepTick);
+      if (left <= 0) {
+        clearTimer();
+        setState("complete");
+        beepComplete();
+      }
+    }, TICK_MS);
+  }
+
+  // ─── AMRAP (countdown with prep) ───
   function startAmrap() {
-    startCountdown();
+    initAudio();
+    startPrep(_startCountdown);
   }
 
   // ─── Interval / TABATA ───
-  function startInterval(config?: IntervalConfig) {
-    initAudio();
-    const cfg = config ?? intervalConfig;
+  function _startInterval(cfg: IntervalConfig) {
     setIntervalConfig(cfg);
     setCurrentRound(1);
     setIsWork(true);
@@ -180,33 +233,31 @@ export function TimersClient() {
 
     let round = 1;
     let work = true;
-    let phase = cfg.workSeconds;
+    let phaseDuration = cfg.workSeconds;
     const start = Date.now();
-    let lastPhaseStart = start;
+    let phaseStart = Date.now();
+    lastSoundSecRef.current = -1;
 
     intervalRef.current = setInterval(() => {
       const now = Date.now();
-      const passedInPhase = Math.floor((now - lastPhaseStart) / 1000);
-      const left = Math.max(0, phase - passedInPhase);
-      setPhaseRemaining(left);
+      const passedInPhase = (now - phaseStart) / 1000;
+      const left = Math.max(0, phaseDuration - passedInPhase);
+      const leftInt = Math.ceil(left);
+      setPhaseRemaining(leftInt);
 
       // Tick last 3
-      if (left <= 3 && left > 0 && left !== lastTickRef.current) {
-        lastTickRef.current = left;
-        beepTick();
-      }
+      if (leftInt <= 3 && leftInt > 0) triggerSoundAtSecond(leftInt, beepTick);
 
       if (left <= 0) {
+        lastSoundSecRef.current = -1;
         if (work) {
-          // Switch to rest
           work = false;
-          phase = cfg.restSeconds;
-          lastPhaseStart = now;
+          phaseDuration = cfg.restSeconds;
+          phaseStart = now;
           setIsWork(false);
           setPhaseRemaining(cfg.restSeconds);
           beepPhaseChange();
         } else {
-          // Rest done — next round or complete
           round++;
           if (round > cfg.rounds) {
             clearTimer();
@@ -216,8 +267,8 @@ export function TimersClient() {
             return;
           }
           work = true;
-          phase = cfg.workSeconds;
-          lastPhaseStart = now;
+          phaseDuration = cfg.workSeconds;
+          phaseStart = now;
           setCurrentRound(round);
           setIsWork(true);
           setPhaseRemaining(cfg.workSeconds);
@@ -225,9 +276,20 @@ export function TimersClient() {
         }
       }
 
-      // Total elapsed
       setElapsed(Math.floor((now - start) / 1000));
-    }, 100);
+    }, TICK_MS);
+  }
+
+  function startTabata() {
+    initAudio();
+    const cfg = { workSeconds: 20, restSeconds: 10, rounds: 8 };
+    startPrep(() => _startInterval(cfg));
+  }
+
+  function startCustomInterval() {
+    initAudio();
+    const cfg = { workSeconds: customWork, restSeconds: customRest, rounds: customRounds };
+    startPrep(() => _startInterval(cfg));
   }
 
   function pause() {
@@ -237,18 +299,45 @@ export function TimersClient() {
 
   function resume() {
     if (mode === "stopwatch") startStopwatch();
-    else if (mode === "countdown" || mode === "amrap") startCountdown();
-    else if (mode === "fortime") startForTime();
-    // Interval resume not supported for simplicity — reset instead
+    else if (mode === "countdown") {
+      initAudio();
+      startCountdownResume();
+    }
+    else if (mode === "amrap") {
+      initAudio();
+      startCountdownResume();
+    }
+    else if (mode === "fortime") {
+      // Resume FOR TIME from elapsed
+      initAudio();
+      setState("running");
+      const capSecs = timeCapEnabled ? timeCapMinutes * 60 : Infinity;
+      const start = Date.now() - elapsed * 1000;
+      lastSoundSecRef.current = -1;
+      intervalRef.current = setInterval(() => {
+        const secs = Math.floor((Date.now() - start) / 1000);
+        setElapsed(secs);
+        if (timeCapEnabled) {
+          const left = Math.max(0, capSecs - secs);
+          setRemaining(left);
+          if (left <= 3 && left > 0) triggerSoundAtSecond(left, beepTick);
+        }
+        if (secs >= capSecs) {
+          clearTimer();
+          setState("complete");
+          beepComplete();
+        }
+      }, TICK_MS);
+    }
   }
 
   function handleStart() {
     if (mode === "stopwatch") startStopwatch();
-    else if (mode === "countdown") startCountdown();
-    else if (mode === "amrap") startCountdown();
+    else if (mode === "countdown") startCountdownDirect();
+    else if (mode === "amrap") startAmrap();
     else if (mode === "fortime") startForTime();
-    else if (mode === "tabata") startInterval({ workSeconds: 20, restSeconds: 10, rounds: 8 });
-    else if (mode === "interval") startInterval({ workSeconds: customWork, restSeconds: customRest, rounds: customRounds });
+    else if (mode === "tabata") startTabata();
+    else if (mode === "interval") startCustomInterval();
   }
 
   // ─── Mode selector ───
@@ -259,45 +348,25 @@ export function TimersClient() {
           Cronómetros
         </h1>
 
-        {/* Basic timers */}
         <section>
           <h2 className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-3">
             Básicos
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <ModeCard
-              label="Cronómetro"
-              description="Cuenta progresiva simple"
-              onClick={() => selectMode("stopwatch")}
-            />
-            <ModeCard
-              label="Temporizador"
-              description="Cuenta regresiva configurable"
-              onClick={() => selectMode("countdown")}
-            />
-            <ModeCard
-              label="Intervalos"
-              description="Trabajo / descanso personalizable"
-              onClick={() => selectMode("interval")}
-            />
+            <ModeCard label="Cronómetro" description="Cuenta progresiva simple" onClick={() => selectMode("stopwatch")} />
+            <ModeCard label="Temporizador" description="Cuenta regresiva configurable" onClick={() => selectMode("countdown")} />
+            <ModeCard label="Intervalos" description="Trabajo / descanso personalizable" onClick={() => selectMode("interval")} />
           </div>
         </section>
 
-        {/* Presets */}
         <section>
           <h2 className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-3">
             Presets de entrenamiento
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {Object.entries(PRESETS).map(([key, preset]) => (
-              <ModeCard
-                key={key}
-                label={preset.label}
-                description={preset.description}
-                accent
-                onClick={() => selectMode(preset.mode)}
-              />
-            ))}
+            <ModeCard label="TABATA" description="20s trabajo / 10s descanso × 8 rondas" accent onClick={() => selectMode("tabata")} />
+            <ModeCard label="AMRAP" description="Cuenta regresiva — tantas rondas como puedas" accent onClick={() => selectMode("amrap")} />
+            <ModeCard label="FOR TIME" description="Cronómetro progresivo con time cap opcional" accent onClick={() => selectMode("fortime")} />
           </div>
         </section>
       </div>
@@ -311,6 +380,8 @@ export function TimersClient() {
     : mode === "tabata" ? "TABATA"
     : mode === "amrap" ? "AMRAP"
     : "FOR TIME";
+
+  const showPrep = state === "countdown-prep";
 
   return (
     <div className="flex flex-col gap-6">
@@ -378,57 +449,71 @@ export function TimersClient() {
         </div>
       )}
 
+      {/* Prep countdown */}
+      {showPrep && (
+        <div className="flex flex-col items-center gap-4 py-12">
+          <p className="text-2xl font-heading font-black uppercase tracking-[0.1em] text-[#E31414] animate-pulse">
+            Preparate!
+          </p>
+          <p className="text-8xl sm:text-9xl font-heading font-black tabular-nums text-white">
+            {prepRemaining}
+          </p>
+        </div>
+      )}
+
       {/* Display */}
-      <div className="flex flex-col items-center gap-4 py-8">
-        {(mode === "stopwatch" || mode === "fortime") && (
-          <>
+      {!showPrep && (
+        <div className="flex flex-col items-center gap-4 py-8">
+          {(mode === "stopwatch" || mode === "fortime") && (
+            <>
+              <TimerDisplay
+                seconds={elapsed}
+                large
+                label={state === "complete" ? "Tiempo!" : undefined}
+                accent={state === "complete"}
+              />
+              {mode === "fortime" && timeCapEnabled && state !== "idle" && (
+                <p className="text-xs font-heading font-bold uppercase tracking-[0.1em] text-gray-600">
+                  Cap: {formatTime(remaining)}
+                </p>
+              )}
+            </>
+          )}
+
+          {(mode === "countdown" || mode === "amrap") && (
             <TimerDisplay
-              seconds={elapsed}
+              seconds={state === "idle" ? countdownMinutes * 60 + countdownSeconds : remaining}
               large
-              label={state === "complete" ? "Tiempo!" : undefined}
-              accent={state === "complete"}
+              label={state === "complete" ? (mode === "amrap" ? "Tiempo!" : "Terminó!") : mode === "amrap" ? "AMRAP" : undefined}
+              accent={state === "complete" || (remaining <= 10 && state === "running")}
             />
-            {mode === "fortime" && timeCapEnabled && state !== "idle" && (
-              <p className="text-xs font-heading font-bold uppercase tracking-[0.1em] text-gray-600">
-                Cap: {formatTime(remaining)}
+          )}
+
+          {(mode === "tabata" || mode === "interval") && (
+            <>
+              <p className={[
+                "text-lg font-heading font-black uppercase tracking-[0.1em]",
+                state === "complete" ? "text-[#E31414]" : isWork ? "text-green-400" : "text-yellow-400",
+              ].join(" ")}>
+                {state === "complete" ? "Completado!" : state === "idle" ? "Listo?" : isWork ? "Trabajo" : "Descanso"}
               </p>
-            )}
-          </>
-        )}
-
-        {(mode === "countdown" || mode === "amrap") && (
-          <TimerDisplay
-            seconds={state === "idle" ? countdownMinutes * 60 + countdownSeconds : remaining}
-            large
-            label={state === "complete" ? (mode === "amrap" ? "Tiempo!" : "Terminó!") : mode === "amrap" ? "AMRAP" : undefined}
-            accent={state === "complete" || (remaining <= 10 && state === "running")}
-          />
-        )}
-
-        {(mode === "tabata" || mode === "interval") && (
-          <>
-            <p className={[
-              "text-lg font-heading font-black uppercase tracking-[0.1em]",
-              state === "complete" ? "text-[#E31414]" : isWork ? "text-green-400" : "text-yellow-400",
-            ].join(" ")}>
-              {state === "complete" ? "Completado!" : state === "idle" ? "Listo?" : isWork ? "Trabajo" : "Descanso"}
-            </p>
-            <TimerDisplay
-              seconds={state === "idle" ? (mode === "tabata" ? 20 : customWork) : phaseRemaining}
-              large
-              accent={!isWork && state === "running"}
-            />
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-heading font-bold text-gray-400">
-                Ronda {currentRound} / {intervalConfig.rounds}
-              </span>
-              <span className="text-xs font-heading text-gray-600">
-                Total: {formatTime(elapsed)}
-              </span>
-            </div>
-          </>
-        )}
-      </div>
+              <TimerDisplay
+                seconds={state === "idle" ? (mode === "tabata" ? 20 : customWork) : phaseRemaining}
+                large
+                accent={!isWork && state === "running"}
+              />
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-heading font-bold text-gray-400">
+                  Ronda {currentRound} / {intervalConfig.rounds}
+                </span>
+                <span className="text-xs font-heading text-gray-600">
+                  Total: {formatTime(elapsed)}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex gap-3 justify-center flex-wrap">
@@ -437,10 +522,20 @@ export function TimersClient() {
             Iniciar
           </Button>
         )}
-        {state === "running" && (
-          <Button variant="secondary" size="lg" onClick={pause}>
-            Pausar
+        {state === "countdown-prep" && (
+          <Button variant="danger" size="lg" onClick={reset}>
+            Cancelar
           </Button>
+        )}
+        {state === "running" && (
+          <>
+            <Button variant="secondary" size="lg" onClick={pause}>
+              Pausar
+            </Button>
+            <Button variant="danger" size="lg" onClick={reset}>
+              Reiniciar
+            </Button>
+          </>
         )}
         {state === "paused" && (
           <>
@@ -454,11 +549,6 @@ export function TimersClient() {
         )}
         {state === "complete" && (
           <Button variant="primary" size="lg" onClick={reset}>
-            Reiniciar
-          </Button>
-        )}
-        {state === "running" && (
-          <Button variant="danger" size="lg" onClick={reset}>
             Reiniciar
           </Button>
         )}
