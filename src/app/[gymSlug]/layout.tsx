@@ -44,7 +44,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         <InstallPwaButton />
         {children}
       </main>
-      {role === "STUDENT" && <WhatsAppFab studentType={studentType} />}
+      {role === "STUDENT" && <WhatsAppFab />}
     </div>
   );
 }
