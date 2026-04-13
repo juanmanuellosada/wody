@@ -87,6 +87,14 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
     setEditingWodId(wod.id);
     setEditorTitle(wod.title);
     setEditorContent(normalizeContent(wod.content));
+    setNewDate(toInputDate(wod.date));
+    if (wod.targetType === "GROUP" && wod.targetGroupId) {
+      setTarget({ type: "GROUP", groupId: wod.targetGroupId });
+    } else if (wod.targetType === "STUDENT" && wod.targetStudentId) {
+      setTarget({ type: "STUDENT", studentId: wod.targetStudentId });
+    } else {
+      setTarget({ type: "ALL" });
+    }
     setFormError(null);
   }
 
@@ -114,7 +122,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
     if (!editingWodId) return;
     setFormError(null);
     startTransition(async () => {
-      const result = await updateWod(editingWodId, editorTitle, editorContent);
+      const result = await updateWod(editingWodId, editorTitle, editorContent, newDate, target);
       if (result.success) {
         setMode("view");
         setEditingWodId(null);
@@ -140,28 +148,24 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
             <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
               {mode === "create" ? "Nuevo WOD" : "Editar WOD"}
             </h2>
-            {mode === "create" && (
-              <div className="w-44">
-                <DatePicker
-                  value={newDate}
-                  onChange={setNewDate}
-                  disabled={isPending}
-                />
-              </div>
-            )}
+            <div className="w-44">
+              <DatePicker
+                value={newDate}
+                onChange={setNewDate}
+                disabled={isPending}
+              />
+            </div>
           </div>
 
           {/* Editor area */}
           <div className="p-5 flex flex-col gap-4">
-            {mode === "create" && (
-              <TargetSelector
-                groups={groups}
-                students={students}
-                value={target}
-                onChange={setTarget}
-                disabled={isPending}
-              />
-            )}
+            <TargetSelector
+              groups={groups}
+              students={students}
+              value={target}
+              onChange={setTarget}
+              disabled={isPending}
+            />
 
             <input
               type="text"

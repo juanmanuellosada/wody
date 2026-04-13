@@ -90,7 +90,9 @@ export async function createWod(
 export async function updateWod(
   wodId: string,
   title: string,
-  content: string
+  content: string,
+  date?: string,
+  target?: WodTarget
 ): Promise<WodResult> {
   const session = await auth();
 
@@ -118,9 +120,19 @@ export async function updateWod(
     return { success: false, error: "El contenido del WOD no puede estar vacio." };
   }
 
+  if (target) {
+    const targetError = await validateTarget(target, teacherId);
+    if (targetError) return { success: false, error: targetError };
+  }
+
   await prisma.wod.update({
     where: { id: wodId },
-    data: { title: trimmedTitle, content },
+    data: {
+      title: trimmedTitle,
+      content,
+      ...(date ? { date: new Date(date + "T00:00:00.000Z") } : {}),
+      ...(target ? targetToData(target) : {}),
+    },
   });
 
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
