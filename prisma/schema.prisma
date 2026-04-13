@@ -23,6 +23,7 @@ enum StudentType {
 
 enum WodTargetType {
   ALL
+  PERSONALIZED
   GROUP
   STUDENT
 }

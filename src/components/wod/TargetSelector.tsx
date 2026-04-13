@@ -47,6 +47,20 @@ export function TargetSelector({
           Todos
         </button>
 
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange({ type: "PERSONALIZED" })}
+          className={[
+            "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200",
+            value.type === "PERSONALIZED"
+              ? "border-[#E31414] text-white bg-[#E31414]/10"
+              : "border-[#2A2A2A] text-gray-500 hover:border-gray-500",
+          ].join(" ")}
+        >
+          Personalizados
+        </button>
+
         {groups.length > 0 && (
           <button
             type="button"
@@ -131,7 +145,9 @@ export function TargetBadge({
   if (targetType === "ALL") return null;
 
   const label =
-    targetType === "GROUP"
+    targetType === "PERSONALIZED"
+      ? "Personalizados"
+      : targetType === "GROUP"
       ? targetGroupName ?? "Grupo"
       : targetStudentName ?? "Alumno";
 

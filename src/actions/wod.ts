@@ -8,6 +8,7 @@ import { Prisma, WodTargetType } from "@prisma/client";
 
 export type WodTarget =
   | { type: "ALL" }
+  | { type: "PERSONALIZED" }
   | { type: "GROUP"; groupId: string }
   | { type: "STUDENT"; studentId: string };
 

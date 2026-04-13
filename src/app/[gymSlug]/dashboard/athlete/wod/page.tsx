@@ -37,12 +37,15 @@ export default async function WodFullPage({ params, searchParams }: Props) {
 
   const student = await prisma.user.findUnique({
     where: { id: studentId },
-    select: { groupId: true },
+    select: { groupId: true, studentType: true },
   });
 
   const targetFilter = {
     OR: [
       { targetType: "ALL" as const },
+      ...(student?.studentType === "PERSONALIZED"
+        ? [{ targetType: "PERSONALIZED" as const }]
+        : []),
       ...(student?.groupId
         ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
         : []),

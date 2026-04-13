@@ -72,7 +72,7 @@ export default async function StudentDashboardPage({ params }: Props) {
 
   const student = await prisma.user.findUnique({
     where: { id: studentId },
-    select: { groupId: true },
+    select: { groupId: true, studentType: true },
   });
 
   const allWods = await prisma.wod.findMany({
@@ -80,6 +80,9 @@ export default async function StudentDashboardPage({ params }: Props) {
       teacherId: teacherLink.teacherId,
       OR: [
         { targetType: "ALL" },
+        ...(student?.studentType === "PERSONALIZED"
+          ? [{ targetType: "PERSONALIZED" as const }]
+          : []),
         ...(student?.groupId
           ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
           : []),
