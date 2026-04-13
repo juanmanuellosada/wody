@@ -40,16 +40,20 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     select: { groupId: true, studentType: true },
   });
 
+  const isPersonalized = student?.studentType === "PERSONALIZED";
+
   const targetFilter = {
     OR: [
       { targetType: "ALL" as const },
-      ...(student?.studentType === "PERSONALIZED"
-        ? [{ targetType: "PERSONALIZED" as const }]
+      ...(isPersonalized
+        ? [
+            { targetType: "PERSONALIZED" as const },
+            ...(student?.groupId
+              ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
+              : []),
+            { targetType: "STUDENT" as const, targetStudentId: studentId },
+          ]
         : []),
-      ...(student?.groupId
-        ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
-        : []),
-      { targetType: "STUDENT" as const, targetStudentId: studentId },
     ],
   };
 

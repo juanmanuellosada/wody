@@ -19,7 +19,6 @@ export default async function StudentDashboardPage({ params }: Props) {
     redirect(gymPath(gymSlug, "/login"));
   }
 
-  const isGeneral = session.user.studentType === "GENERAL";
   const studentId = session.user.id;
   const todayStr = toInputDate(getTodayArgentina());
 
@@ -29,8 +28,8 @@ export default async function StudentDashboardPage({ params }: Props) {
 
   const wodPath = gymPath(gymSlug, "/dashboard/athlete/wod");
 
-  // GENERAL students or students without a teacher: show blurred paywall
-  if (isGeneral || !teacherLink) {
+  // Students without a teacher: show blurred paywall
+  if (!teacherLink) {
     return (
       <div className="flex flex-col gap-10">
         <div className="relative">
@@ -75,18 +74,22 @@ export default async function StudentDashboardPage({ params }: Props) {
     select: { groupId: true, studentType: true },
   });
 
+  const isPersonalized = student?.studentType === "PERSONALIZED";
+
   const allWods = await prisma.wod.findMany({
     where: {
       teacherId: teacherLink.teacherId,
       OR: [
         { targetType: "ALL" },
-        ...(student?.studentType === "PERSONALIZED"
-          ? [{ targetType: "PERSONALIZED" as const }]
+        ...(isPersonalized
+          ? [
+              { targetType: "PERSONALIZED" as const },
+              ...(student?.groupId
+                ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
+                : []),
+              { targetType: "STUDENT" as const, targetStudentId: studentId },
+            ]
           : []),
-        ...(student?.groupId
-          ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
-          : []),
-        { targetType: "STUDENT", targetStudentId: studentId },
       ],
     },
     orderBy: { date: "desc" },
