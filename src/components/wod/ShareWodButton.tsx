@@ -19,17 +19,15 @@ export function ShareWodButton({ title, content, dateLabel, gymName }: ShareWodB
   async function generateImage(): Promise<string | null> {
     if (!hiddenRef.current) return null;
     const el = hiddenRef.current;
-    el.style.display = "block";
-    try {
-      const dataUrl = await toPng(el, {
-        quality: 1,
-        pixelRatio: 2,
-        backgroundColor: "#0A0A0A",
-      });
-      return dataUrl;
-    } finally {
-      el.style.display = "none";
+    if (document.fonts?.ready) {
+      await document.fonts.ready;
     }
+    const dataUrl = await toPng(el, {
+      quality: 1,
+      pixelRatio: 2,
+      backgroundColor: "#0A0A0A",
+    });
+    return dataUrl;
   }
 
   async function handleShare() {
@@ -73,10 +71,17 @@ export function ShareWodButton({ title, content, dateLabel, gymName }: ShareWodB
         </Button>
       </div>
 
-      {/* Hidden render target for image capture */}
+      {/* Hidden render target for image capture — stays in layout tree off-screen */}
       <div
         ref={hiddenRef}
-        style={{ display: "none", position: "fixed", left: "-9999px", top: 0, zIndex: -1 }}
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          left: "-10000px",
+          top: 0,
+          pointerEvents: "none",
+          zIndex: -1,
+        }}
       >
         <div
           style={{
