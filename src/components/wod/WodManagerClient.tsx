@@ -53,6 +53,10 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
   const [editorTitle, setEditorTitle] = useState("");
   const [editorContent, setEditorContent] = useState("");
   const [copyWodId, setCopyWodId] = useState<string | null>(null);
+  const copySourceWod = useMemo(
+    () => (copyWodId ? wods.find((w) => w.id === copyWodId) ?? null : null),
+    [copyWodId, wods]
+  );
   const [target, setTarget] = useState<WodTarget>({ type: "ALL" });
   const [formError, setFormError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -241,9 +245,11 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
         </div>
       )}
 
-      {copyWodId && (
+      {copySourceWod && (
         <CopyWodDialog
-          wodId={copyWodId}
+          sourceWod={copySourceWod}
+          groups={groups}
+          students={students}
           onClose={() => setCopyWodId(null)}
           demo={demo}
         />

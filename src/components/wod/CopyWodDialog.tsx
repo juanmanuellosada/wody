@@ -3,24 +3,70 @@
 import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { TargetSelector } from "@/components/wod/TargetSelector";
 import { copyWod } from "@/actions/wod";
+import type { WodTarget } from "@/actions/wod";
 import { toInputDate } from "@/lib/dates";
+import type { WodTargetType } from "@prisma/client";
+
+interface GroupOption {
+  id: string;
+  name: string;
+}
+
+interface StudentOption {
+  id: string;
+  name: string;
+}
+
+interface SourceWod {
+  id: string;
+  date: Date;
+  targetType: WodTargetType;
+  targetGroupId?: string | null;
+  targetStudentId?: string | null;
+}
 
 interface CopyWodDialogProps {
-  wodId: string;
+  sourceWod: SourceWod;
+  groups: GroupOption[];
+  students: StudentOption[];
   onClose: () => void;
   demo?: boolean;
 }
 
-export function CopyWodDialog({ wodId, onClose, demo }: CopyWodDialogProps) {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
+function sourceToTarget(wod: SourceWod): WodTarget {
+  if (wod.targetType === "GROUP" && wod.targetGroupId) {
+    return { type: "GROUP", groupId: wod.targetGroupId };
+  }
+  if (wod.targetType === "STUDENT" && wod.targetStudentId) {
+    return { type: "STUDENT", studentId: wod.targetStudentId };
+  }
+  return { type: "ALL" };
+}
 
-  const [targetDate, setTargetDate] = useState(toInputDate(tomorrow));
+function targetsEqual(a: WodTarget, b: WodTarget): boolean {
+  if (a.type !== b.type) return false;
+  if (a.type === "GROUP" && b.type === "GROUP") return a.groupId === b.groupId;
+  if (a.type === "STUDENT" && b.type === "STUDENT") return a.studentId === b.studentId;
+  return true;
+}
+
+export function CopyWodDialog({
+  sourceWod,
+  groups,
+  students,
+  onClose,
+  demo,
+}: CopyWodDialogProps) {
+  const sourceDateStr = toInputDate(sourceWod.date);
+  const sourceTarget = sourceToTarget(sourceWod);
+
+  const [targetDate, setTargetDate] = useState(sourceDateStr);
+  const [target, setTarget] = useState<WodTarget>(sourceTarget);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Close on Escape key
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -29,8 +75,14 @@ export function CopyWodDialog({ wodId, onClose, demo }: CopyWodDialogProps) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
+  const isSameAsSource =
+    targetDate === sourceDateStr && targetsEqual(target, sourceTarget);
+
   function handleConfirm() {
-    if (demo) { onClose(); return; }
+    if (demo) {
+      onClose();
+      return;
+    }
 
     setError(null);
 
@@ -39,8 +91,13 @@ export function CopyWodDialog({ wodId, onClose, demo }: CopyWodDialogProps) {
       return;
     }
 
+    if (isSameAsSource) {
+      setError("Cambia la fecha o el destinatario para copiar.");
+      return;
+    }
+
     startTransition(async () => {
-      const result = await copyWod(wodId, targetDate);
+      const result = await copyWod(sourceWod.id, targetDate, target);
       if (result.success) {
         onClose();
       } else {
@@ -82,6 +139,14 @@ export function CopyWodDialog({ wodId, onClose, demo }: CopyWodDialogProps) {
           disabled={isPending}
         />
 
+        <TargetSelector
+          groups={groups}
+          students={students}
+          value={target}
+          onChange={setTarget}
+          disabled={isPending}
+        />
+
         {error && (
           <p className="text-xs font-heading font-bold text-[#E31414] uppercase tracking-wide" role="alert">
             {error}
@@ -103,6 +168,7 @@ export function CopyWodDialog({ wodId, onClose, demo }: CopyWodDialogProps) {
             size="sm"
             loading={isPending}
             onClick={handleConfirm}
+            disabled={isSameAsSource}
             className="flex-1"
           >
             Confirmar
