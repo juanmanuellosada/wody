@@ -22,14 +22,16 @@ export default async function StudentDashboardPage({ params }: Props) {
   const studentId = session.user.id;
   const todayStr = toInputDate(getTodayArgentina());
 
-  const teacherLink = await prisma.teacherStudent.findFirst({
+  const teacherLinks = await prisma.teacherStudent.findMany({
     where: { studentId },
+    select: { teacherId: true },
   });
+  const teacherIds = teacherLinks.map((l) => l.teacherId);
 
   const wodPath = gymPath(gymSlug, "/dashboard/athlete/wod");
 
   // Students without a teacher: show blurred paywall
-  if (!teacherLink) {
+  if (teacherIds.length === 0) {
     return (
       <div className="flex flex-col gap-10">
         <div className="relative">
@@ -78,7 +80,7 @@ export default async function StudentDashboardPage({ params }: Props) {
 
   const allWods = await prisma.wod.findMany({
     where: {
-      teacherId: teacherLink.teacherId,
+      teacherId: { in: teacherIds },
       OR: [
         { targetType: "ALL" },
         ...(isPersonalized
@@ -96,30 +98,30 @@ export default async function StudentDashboardPage({ params }: Props) {
     select: { id: true, title: true, content: true, date: true },
   });
 
-  const todayWod = allWods.find((w) => toInputDate(w.date) === todayStr) ?? null;
+  const todayWods = allWods.filter((w) => toInputDate(w.date) === todayStr);
   const historyWods = allWods.filter((w) => toInputDate(w.date) !== todayStr);
 
   return (
     <div className="flex flex-col gap-10">
-      {/* Today's WOD */}
+      {/* Today's WODs */}
       <section>
         <div className="flex items-center justify-between mb-5">
           <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white">
-            WOD de Hoy
+            {todayWods.length > 1 ? "WODs de Hoy" : "WOD de Hoy"}
           </h1>
-          {todayWod && (
-            <Link
-              href={wodPath}
-              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-[#E31414] hover:text-white transition-colors duration-200 cursor-pointer"
-            >
-              Ver en grande
-            </Link>
-          )}
         </div>
-        {todayWod ? (
-          <Link href={wodPath} className="block cursor-pointer group">
-            <WodCard wod={todayWod} highlight />
-          </Link>
+        {todayWods.length > 0 ? (
+          <div className="flex flex-col gap-4">
+            {todayWods.map((wod) => (
+              <Link
+                key={wod.id}
+                href={`${wodPath}?id=${wod.id}`}
+                className="block cursor-pointer group"
+              >
+                <WodCard wod={wod} highlight />
+              </Link>
+            ))}
+          </div>
         ) : (
           <div className="border border-[#2A2A2A] p-8 text-center">
             <p className="text-gray-500 text-sm font-heading font-bold uppercase tracking-[0.15em]">

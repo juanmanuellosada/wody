@@ -2,12 +2,19 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
-import { updateStudent } from "@/actions/user";
+import { updateStudent, assignStudent, unassignStudent } from "@/actions/user";
+
+interface TeacherOption {
+  id: string;
+  name: string;
+}
 
 interface StudentEditorProps {
   studentId: string;
   currentName: string;
   currentEmail: string;
+  assignedTeachers: TeacherOption[];
+  allTeachers: TeacherOption[];
   onClose: () => void;
   demo?: boolean;
 }
@@ -16,6 +23,8 @@ export function StudentEditor({
   studentId,
   currentName,
   currentEmail,
+  assignedTeachers,
+  allTeachers,
   onClose,
   demo,
 }: StudentEditorProps) {
@@ -24,6 +33,11 @@ export function StudentEditor({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [addTeacherId, setAddTeacherId] = useState("");
+
+  const availableTeachers = allTeachers.filter(
+    (t) => !assignedTeachers.some((at) => at.id === t.id)
+  );
 
   function handleSave() {
     setError(null);
@@ -47,12 +61,34 @@ export function StudentEditor({
     });
   }
 
+  function handleAddTeacher() {
+    if (!addTeacherId || demo) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await assignStudent(addTeacherId, studentId);
+      if (result.success) {
+        setAddTeacherId("");
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  function handleRemoveTeacher(teacherId: string) {
+    if (demo) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await unassignStudent(teacherId, studentId);
+      if (!result.success) setError(result.error);
+    });
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-[#0A0A0A] border border-[#2A2A2A] p-6 w-full max-w-md mx-4 flex flex-col gap-4">
+      <div className="bg-[#0A0A0A] border border-[#2A2A2A] p-6 w-full max-w-md mx-4 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
         <h3 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
           Editar Alumno
         </h3>
@@ -95,6 +131,63 @@ export function StudentEditor({
               className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
             />
           </div>
+        </div>
+
+        {/* Teachers */}
+        <div className="flex flex-col gap-2 border-t border-[#1A1A1A] pt-4">
+          <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 block">
+            Profes asignados
+          </label>
+          {assignedTeachers.length === 0 ? (
+            <p className="text-xs text-gray-600 font-body italic">
+              Sin profes asignados
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {assignedTeachers.map((t) => (
+                <span
+                  key={t.id}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#1A1A1A] border border-[#2A2A2A] text-xs font-heading font-bold text-gray-300"
+                >
+                  {t.name}
+                  <button
+                    onClick={() => handleRemoveTeacher(t.id)}
+                    disabled={isPending}
+                    className="text-gray-600 hover:text-[#E31414] transition-colors duration-200 cursor-pointer"
+                    title="Quitar profe"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {availableTeachers.length > 0 && (
+            <div className="flex gap-2 items-center mt-1">
+              <select
+                value={addTeacherId}
+                onChange={(e) => setAddTeacherId(e.target.value)}
+                disabled={isPending}
+                className="flex-1 bg-[#1A1A1A] border border-[#2A2A2A] text-gray-300 text-xs font-body px-2 py-1.5 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
+              >
+                <option value="">Agregar profe...</option>
+                {availableTeachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleAddTeacher}
+                disabled={isPending || !addTeacherId}
+              >
+                Agregar
+              </Button>
+            </div>
+          )}
         </div>
 
         {error && (

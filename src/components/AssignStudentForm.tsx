@@ -15,23 +15,47 @@ interface AssignStudentFormProps {
 }
 
 export function AssignStudentForm({ teachers, students }: AssignStudentFormProps) {
-  const [teacherId, setTeacherId] = useState(teachers[0]?.id ?? "");
   const [studentId, setStudentId] = useState(students[0]?.id ?? "");
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  function toggleTeacher(id: string) {
+    setSelectedTeacherIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
+    setSuccessMsg(null);
+
+    if (selectedTeacherIds.length === 0) {
+      setError("Seleccioná al menos un profe.");
+      return;
+    }
 
     startTransition(async () => {
-      const result = await assignStudent(teacherId, studentId);
-      if (result.success) {
-        setSuccess(true);
+      const results = await Promise.all(
+        selectedTeacherIds.map((tid) => assignStudent(tid, studentId))
+      );
+      const failed = results.filter((r) => !r.success);
+      if (failed.length === results.length) {
+        setError(
+          failed[0] && !failed[0].success ? failed[0].error : "Error al asignar."
+        );
+      } else if (failed.length > 0) {
+        setSuccessMsg(
+          `${results.length - failed.length} asignados, ${failed.length} fallaron (ya existían).`
+        );
+        setSelectedTeacherIds([]);
       } else {
-        setError(result.error);
+        setSuccessMsg(
+          `${results.length} ${results.length === 1 ? "profe asignado" : "profes asignados"} correctamente.`
+        );
+        setSelectedTeacherIds([]);
       }
     });
   }
@@ -51,29 +75,16 @@ export function AssignStudentForm({ teachers, students }: AssignStudentFormProps
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
-            Profe
-          </label>
-          <select
-            value={teacherId}
-            onChange={(e) => setTeacherId(e.target.value)}
-            disabled={isPending}
-            className="bg-[#1A1A1A] text-white font-body border border-[#2A2A2A] px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-[#E31414] focus:ring-1 focus:ring-[#E31414]/20 transition-all duration-200 disabled:opacity-50"
-          >
-            {teachers.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
             Alumno
           </label>
           <select
             value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
+            onChange={(e) => {
+              setStudentId(e.target.value);
+              setSelectedTeacherIds([]);
+              setError(null);
+              setSuccessMsg(null);
+            }}
             disabled={isPending}
             className="bg-[#1A1A1A] text-white font-body border border-[#2A2A2A] px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-[#E31414] focus:ring-1 focus:ring-[#E31414]/20 transition-all duration-200 disabled:opacity-50"
           >
@@ -84,6 +95,33 @@ export function AssignStudentForm({ teachers, students }: AssignStudentFormProps
             ))}
           </select>
         </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+            Profes ({selectedTeacherIds.length})
+          </label>
+          <div className="flex flex-wrap gap-2 bg-[#1A1A1A] border border-[#2A2A2A] p-3 max-h-48 overflow-y-auto">
+            {teachers.map((t) => {
+              const selected = selectedTeacherIds.includes(t.id);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => toggleTeacher(t.id)}
+                  className={[
+                    "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200 cursor-pointer",
+                    selected
+                      ? "border-[#E31414] text-white bg-[#E31414]/10"
+                      : "border-[#2A2A2A] text-gray-400 hover:border-gray-500",
+                  ].join(" ")}
+                >
+                  {t.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -92,14 +130,19 @@ export function AssignStudentForm({ teachers, students }: AssignStudentFormProps
         </p>
       )}
 
-      {success && (
+      {successMsg && (
         <p className="text-xs font-heading font-bold text-green-500 uppercase tracking-wide" role="status">
-          Alumno asignado correctamente.
+          {successMsg}
         </p>
       )}
 
-      <Button type="submit" loading={isPending} size="md">
-        Asignar
+      <Button
+        type="submit"
+        loading={isPending}
+        size="md"
+        disabled={selectedTeacherIds.length === 0}
+      >
+        Asignar {selectedTeacherIds.length > 0 ? `(${selectedTeacherIds.length})` : ""}
       </Button>
     </form>
   );

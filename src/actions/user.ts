@@ -135,6 +135,37 @@ export async function assignStudent(
   }
 }
 
+export async function unassignStudent(
+  teacherId: string,
+  studentId: string
+): Promise<UserResult> {
+  const session = await auth();
+
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const gymSlug = session.user.gymSlug;
+
+  try {
+    await prisma.teacherStudent.delete({
+      where: { teacherId_studentId: { teacherId, studentId } },
+    });
+
+    revalidatePath(gymPath(gymSlug, "/admin"));
+    revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+    return { success: true };
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return { success: false, error: "La asignación no existe." };
+    }
+    throw error;
+  }
+}
+
 export async function updateStudent(
   studentId: string,
   data: { name?: string; email?: string; password?: string }

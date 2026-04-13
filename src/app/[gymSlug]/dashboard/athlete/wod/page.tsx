@@ -24,16 +24,16 @@ export default async function WodFullPage({ params, searchParams }: Props) {
   const studentId = session.user.id;
   const athletePath = gymPath(gymSlug, "/dashboard/athlete");
 
-  // Find the teacher assigned to this student
-  const teacherLink = await prisma.teacherStudent.findFirst({
+  // Find all teachers assigned to this student
+  const teacherLinks = await prisma.teacherStudent.findMany({
     where: { studentId },
+    select: { teacherId: true },
   });
+  const teacherIds = teacherLinks.map((l) => l.teacherId);
 
-  if (!teacherLink) {
+  if (teacherIds.length === 0) {
     redirect(athletePath);
   }
-
-  const teacherId = teacherLink.teacherId;
 
   const student = await prisma.user.findUnique({
     where: { id: studentId },
@@ -60,9 +60,9 @@ export default async function WodFullPage({ params, searchParams }: Props) {
   let wod;
 
   if (wodId) {
-    // Specific WOD by ID — verify it belongs to the student's teacher and target matches
+    // Specific WOD by ID — verify it belongs to one of the student's teachers and target matches
     wod = await prisma.wod.findFirst({
-      where: { id: wodId, teacherId, ...targetFilter },
+      where: { id: wodId, teacherId: { in: teacherIds }, ...targetFilter },
       select: { id: true, title: true, content: true, date: true, teacherId: true },
     });
     if (!wod) {
@@ -73,7 +73,7 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     // Prisma/pg timezone ambiguity with @db.Date columns
     const todayStr = toInputDate(getTodayArgentina());
     const teacherWods = await prisma.wod.findMany({
-      where: { teacherId, ...targetFilter },
+      where: { teacherId: { in: teacherIds }, ...targetFilter },
       select: { id: true, title: true, content: true, date: true, teacherId: true },
     });
     wod = teacherWods.find((w) => toInputDate(w.date) === todayStr) ?? null;

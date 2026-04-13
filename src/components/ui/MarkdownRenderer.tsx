@@ -29,7 +29,7 @@ function parseInline(text: string): string {
   return result;
 }
 
-function markdownToHtml(md: string): string {
+export function markdownToHtml(md: string): string {
   const lines = md.split("\n");
   const html: string[] = [];
   let inUl = false;

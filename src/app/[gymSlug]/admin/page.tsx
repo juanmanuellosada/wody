@@ -60,6 +60,17 @@ export default async function AdminPage({ params }: Props) {
   );
   const students = users.filter((u) => u.role === "STUDENT");
 
+  const teachersById = new Map(teachers.map((t) => [t.id, { id: t.id, name: t.name }]));
+  const teachersByStudentId = new Map<string, { id: string; name: string }[]>();
+  for (const link of teacherStudentLinks) {
+    const teacher = teachersById.get(link.teacherId);
+    if (!teacher) continue;
+    const list = teachersByStudentId.get(link.studentId) ?? [];
+    list.push(teacher);
+    teachersByStudentId.set(link.studentId, list);
+  }
+  const allTeacherOptions = teachers.map((t) => ({ id: t.id, name: t.name }));
+
   const totalTeachers = users.filter((u) => u.role === "TEACHER").length;
   const totalStudents = students.length;
 
@@ -182,7 +193,7 @@ export default async function AdminPage({ params }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#0A0A0A]">
-                {["Nombre", "Email", "Rol", "Tipo", "Alta", ""].map((h) => (
+                {["Nombre", "Email", "Rol", "Tipo", "Profes", "Alta", ""].map((h) => (
                   <th
                     key={h}
                     className="text-left text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 px-4 py-3 border-b border-[#1A1A1A]"
@@ -238,6 +249,30 @@ export default async function AdminPage({ params }: Props) {
                       <span className="text-xs text-gray-700 font-heading">—</span>
                     )}
                   </td>
+                  <td className="px-4 py-3.5">
+                    {user.role === "STUDENT" ? (
+                      (() => {
+                        const ts = teachersByStudentId.get(user.id) ?? [];
+                        if (ts.length === 0) {
+                          return <span className="text-xs text-gray-700 font-heading">—</span>;
+                        }
+                        return (
+                          <div className="flex flex-wrap gap-1">
+                            {ts.map((t) => (
+                              <span
+                                key={t.id}
+                                className="inline-block px-2 py-0.5 bg-[#1A1A1A] border border-[#2A2A2A] text-xs font-heading font-bold text-gray-300"
+                              >
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-xs text-gray-700 font-heading">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3.5 text-gray-600 text-xs font-heading">
                     {formatDateArg(user.createdAt)}
                   </td>
@@ -248,6 +283,8 @@ export default async function AdminPage({ params }: Props) {
                           studentId={user.id}
                           name={user.name}
                           email={user.email}
+                          assignedTeachers={teachersByStudentId.get(user.id) ?? []}
+                          allTeachers={allTeacherOptions}
                         />
                       )}
                       <DeleteUserButton
@@ -309,6 +346,8 @@ export default async function AdminPage({ params }: Props) {
                       studentId={user.id}
                       name={user.name}
                       email={user.email}
+                      assignedTeachers={teachersByStudentId.get(user.id) ?? []}
+                      allTeachers={allTeacherOptions}
                     />
                   )}
                   <DeleteUserButton

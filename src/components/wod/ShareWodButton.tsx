@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { toPng } from "html-to-image";
+import { useRef, useState } from "react";
+import { domToPng } from "modern-screenshot";
 import { Button } from "@/components/ui/Button";
-import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { markdownToHtml, normalizeContent } from "@/components/ui/MarkdownRenderer";
 
 interface ShareWodButtonProps {
   title: string;
@@ -12,9 +12,23 @@ interface ShareWodButtonProps {
   gymName?: string;
 }
 
+const CAPTURE_STYLES = `
+.wod-capture, .wod-capture * { box-sizing: border-box; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wod-capture p { margin: 6px 0; color: #D1D5DB; font-size: 14px; line-height: 1.6; }
+.wod-capture strong { color: #FFFFFF; font-weight: 700; }
+.wod-capture em { color: #D1D5DB; font-style: italic; }
+.wod-capture h1 { color: #FFFFFF; font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin: 12px 0 4px; }
+.wod-capture h2 { color: #FFFFFF; font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin: 10px 0 4px; }
+.wod-capture h3 { color: #FFFFFF; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin: 8px 0 4px; }
+.wod-capture ul { margin: 6px 0; padding-left: 20px; color: #D1D5DB; list-style: disc; }
+.wod-capture ol { margin: 6px 0; padding-left: 20px; color: #D1D5DB; list-style: decimal; }
+.wod-capture li { margin: 2px 0; font-size: 14px; line-height: 1.6; }
+`;
+
 export function ShareWodButton({ title, content, dateLabel, gymName }: ShareWodButtonProps) {
   const [generating, setGenerating] = useState(false);
   const hiddenRef = useRef<HTMLDivElement>(null);
+  const contentHtml = markdownToHtml(normalizeContent(content));
 
   async function generateImage(): Promise<string | null> {
     if (!hiddenRef.current) return null;
@@ -22,9 +36,9 @@ export function ShareWodButton({ title, content, dateLabel, gymName }: ShareWodB
     if (document.fonts?.ready) {
       await document.fonts.ready;
     }
-    const dataUrl = await toPng(el, {
+    const dataUrl = await domToPng(el, {
       quality: 1,
-      pixelRatio: 2,
+      scale: 2,
       backgroundColor: "#0A0A0A",
     });
     return dataUrl;
@@ -137,9 +151,12 @@ export function ShareWodButton({ title, content, dateLabel, gymName }: ShareWodB
           }} />
 
           {/* Content */}
-          <div style={{ fontSize: 14, lineHeight: 1.7 }}>
-            <MarkdownRenderer content={content} className="text-sm" />
-          </div>
+          <style dangerouslySetInnerHTML={{ __html: CAPTURE_STYLES }} />
+          <div
+            className="wod-capture"
+            style={{ fontSize: 14, lineHeight: 1.7 }}
+            dangerouslySetInnerHTML={{ __html: contentHtml }}
+          />
 
           {/* Footer */}
           <div style={{
