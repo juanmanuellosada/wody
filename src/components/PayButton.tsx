@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { markStudentAsPaid } from "@/actions/payment";
 
 interface Props {
@@ -12,18 +13,19 @@ interface Props {
 export function PayButton({ studentId, studentName }: Props) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   function handleClick() {
     if (isPending) return;
-    const ok = window.confirm(
-      `Registrar pago de ${studentName}? La fecha avanza 1 mes.`
-    );
-    if (!ok) return;
-
     setError(null);
+    setOpen(true);
+  }
+
+  function handleConfirm() {
     startTransition(async () => {
       const result = await markStudentAsPaid(studentId);
       if (!result.success) setError(result.error);
+      setOpen(false);
     });
   }
 
@@ -42,6 +44,15 @@ export function PayButton({ studentId, studentName }: Props) {
           {error}
         </p>
       )}
+      <ConfirmDialog
+        open={open}
+        title="Registrar pago"
+        message={`¿Registrar pago de ${studentName}? La fecha avanza 1 mes.`}
+        confirmLabel="Registrar"
+        loading={isPending}
+        onConfirm={handleConfirm}
+        onCancel={() => setOpen(false)}
+      />
     </div>
   );
 }
