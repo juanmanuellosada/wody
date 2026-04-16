@@ -25,7 +25,7 @@ export default async function AdminPage({ params }: Props) {
   const { gymSlug } = await params;
   const session = await auth();
 
-  if (!session?.user || session.user.gymSlug !== gymSlug || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== "ADMIN") {
     redirect(gymPath(gymSlug, "/login"));
   }
 

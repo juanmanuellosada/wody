@@ -16,7 +16,7 @@ export default async function WodFullPage({ params, searchParams }: Props) {
   const { gymSlug } = await params;
   const session = await auth();
 
-  if (!session?.user || session.user.gymSlug !== gymSlug || session.user.role !== "STUDENT") {
+  if (!session?.user || session.user.role !== "STUDENT") {
     redirect(gymPath(gymSlug, "/login"));
   }
 
