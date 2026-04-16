@@ -59,7 +59,7 @@ export default async function StudentDashboardPage({ params }: Props) {
                 Habla con tu profe para acceder.
               </p>
               <Link
-                href={gymPath(gymSlug, "/dashboard/athlete/rms")}
+                href={gymPath(gymSlug, "/dashboard/rms")}
                 className="inline-block px-6 py-3 font-heading font-bold uppercase tracking-[0.15em] text-white text-xs bg-brand-red hover:bg-brand-red-dark transition-colors duration-200"
               >
                 Ir a mis RMs

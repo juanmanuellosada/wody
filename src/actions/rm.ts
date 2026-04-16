@@ -59,7 +59,7 @@ export async function createRm(formData: FormData): Promise<RmResult> {
     },
   });
 
-  revalidatePath(gymPath(gymSlug, "/dashboard/athlete/rms"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/rms"));
   return { success: true };
 }
 
@@ -94,7 +94,7 @@ export async function updateRm(rmId: string, formData: FormData): Promise<RmResu
     },
   });
 
-  revalidatePath(gymPath(gymSlug, "/dashboard/athlete/rms"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/rms"));
   return { success: true };
 }
 
@@ -117,6 +117,6 @@ export async function deleteRm(rmId: string): Promise<RmResult> {
 
   await prisma.rM.delete({ where: { id: rmId } });
 
-  revalidatePath(gymPath(gymSlug, "/dashboard/athlete/rms"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/rms"));
   return { success: true };
 }
