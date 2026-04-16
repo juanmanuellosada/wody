@@ -7,6 +7,7 @@ import { gymPath } from "@/lib/gym";
 
 import wodyTexto from "@/logos/wody-texto.png";
 import unidosLogo from "@/logos/unidos-logo-completo.png";
+import rompiendoLogo from "@/logos/rompiendo-limites.png";
 
 interface GymLandingProps {
   params: Promise<{ gymSlug: string }>;
@@ -14,6 +15,7 @@ interface GymLandingProps {
 
 const GYM_LOGOS: Record<string, typeof unidosLogo> = {
   "unidos-garage": unidosLogo,
+  "rompiendo-limites": rompiendoLogo,
 };
 
 export default async function GymLandingPage({ params }: GymLandingProps) {

@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 
 import wodyTexto from "@/logos/wody-texto.png";
 import unidosLogo from "@/logos/unidos-logo-completo.png";
+import rompiendoLogo from "@/logos/rompiendo-limites.png";
 
 interface LoginPageProps {
   params: Promise<{ gymSlug: string }>;
@@ -23,6 +24,7 @@ export async function generateMetadata({ params }: LoginPageProps): Promise<Meta
 // Map gym slugs to their static logo imports
 const GYM_LOGOS: Record<string, typeof unidosLogo> = {
   "unidos-garage": unidosLogo,
+  "rompiendo-limites": rompiendoLogo,
 };
 
 export default async function LoginPage({ params }: LoginPageProps) {
