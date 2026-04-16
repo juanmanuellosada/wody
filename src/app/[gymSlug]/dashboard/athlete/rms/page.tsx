@@ -12,6 +12,15 @@ export default async function RmsPage({ params }: Props) {
   const { gymSlug } = await params;
   const session = await auth();
 
+  // DEBUG: log session to Vercel function logs
+  console.log("RMS_DEBUG", {
+    hasSession: !!session,
+    hasUser: !!session?.user,
+    role: session?.user?.role,
+    gymSlug: session?.user?.gymSlug,
+    urlGymSlug: gymSlug,
+  });
+
   if (!session?.user) {
     redirect(gymPath(gymSlug, "/login"));
   }
