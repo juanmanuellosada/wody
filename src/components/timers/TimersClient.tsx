@@ -505,7 +505,7 @@ export function TimersClient() {
             <>
               <p className={[
                 "text-lg font-heading font-black uppercase tracking-[0.1em]",
-                state === "complete" ? "text-brand-red" : isWork ? "text-green-400" : "text-yellow-400",
+                state === "complete" ? "text-brand-red" : state === "idle" && mode === "tabata" ? "text-brand-red" : isWork ? "text-green-400" : "text-yellow-400",
               ].join(" ")}>
                 {state === "complete" ? "Completado!" : state === "idle" ? "Listo?" : isWork ? "Trabajo" : "Descanso"}
               </p>
