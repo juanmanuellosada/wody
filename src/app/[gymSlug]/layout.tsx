@@ -26,8 +26,9 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
 
   const session = await auth();
 
-  // Not authenticated — render children bare (login page, gym landing handle their own layout)
-  if (!session?.user) {
+  // Not authenticated or session belongs to a different gym — render children bare
+  // (login page and gym landing handle their own layout)
+  if (!session?.user || session.user.gymSlug !== gymSlug) {
     return <div style={accentVars}>{children}</div>;
   }
 

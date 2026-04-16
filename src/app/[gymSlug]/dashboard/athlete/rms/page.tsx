@@ -12,7 +12,7 @@ export default async function RmsPage({ params }: Props) {
   const { gymSlug } = await params;
   const session = await auth();
 
-  if (!session?.user) {
+  if (!session?.user || session.user.gymSlug !== gymSlug) {
     redirect(gymPath(gymSlug, "/login"));
   }
 

@@ -15,6 +15,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
 
   if (
     !session?.user ||
+    session.user.gymSlug !== gymSlug ||
     (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")
   ) {
     redirect(gymPath(gymSlug, "/login"));

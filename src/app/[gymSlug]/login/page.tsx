@@ -34,7 +34,7 @@ export default async function LoginPage({ params }: LoginPageProps) {
   if (!gym) notFound();
 
   const session = await auth();
-  if (session?.user) {
+  if (session?.user && session.user.gymSlug === gymSlug) {
     const role = session.user.role;
     if (role === "ADMIN") redirect(gymPath(gymSlug, "/admin"));
     if (role === "TEACHER") redirect(gymPath(gymSlug, "/dashboard/teacher"));

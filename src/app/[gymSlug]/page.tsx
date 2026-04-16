@@ -24,9 +24,9 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
   const gym = await prisma.gym.findUnique({ where: { slug: gymSlug } });
   if (!gym) notFound();
 
-  // If already logged in, go to dashboard
+  // If already logged in to THIS gym, go to dashboard
   const session = await auth();
-  if (session?.user) {
+  if (session?.user && session.user.gymSlug === gymSlug) {
     const role = session.user.role;
     if (role === "ADMIN") redirect(gymPath(gymSlug, "/admin"));
     if (role === "TEACHER") redirect(gymPath(gymSlug, "/dashboard/teacher"));
