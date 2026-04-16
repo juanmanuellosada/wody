@@ -72,17 +72,39 @@ export async function listAvailableCoupons(): Promise<AvailableCoupon[]> {
 
   const globalConsumedSet = new Set(globalConsumed.map((r) => r.couponId));
 
-  return coupons.map((c) => buildAvailable(c, userRedemptions, globalConsumedSet));
+  // Slugs the current user has consumed — used to gate coupons with a
+  // `requiresConsumedSlug` prerequisite.
+  const consumedCouponIds = new Set(
+    userRedemptions.filter((r) => r.status === "CONSUMED").map((r) => r.couponId)
+  );
+  const userConsumedSlugs = new Set(
+    coupons.filter((c) => consumedCouponIds.has(c.id)).map((c) => c.slug)
+  );
+
+  return coupons
+    .map((c) => buildAvailable(c, userRedemptions, globalConsumedSet, userConsumedSlugs))
+    .filter((entry): entry is AvailableCoupon => entry !== null);
 }
 
 function buildAvailable(
   c: Coupon,
   userRedemptions: { couponId: string; status: "PENDING" | "CONSUMED"; code: string }[],
-  globalConsumed: Set<string>
-): AvailableCoupon {
+  globalConsumed: Set<string>,
+  userConsumedSlugs: Set<string>
+): AvailableCoupon | null {
   const userForCoupon = userRedemptions.filter((r) => r.couponId === c.id);
   const userPending = userForCoupon.find((r) => r.status === "PENDING");
   const userConsumed = userForCoupon.find((r) => r.status === "CONSUMED");
+
+  // Prerequisite: hide this coupon until the user has consumed the required one.
+  if (c.requiresConsumedSlug && !userConsumedSlugs.has(c.requiresConsumedSlug)) {
+    return null;
+  }
+
+  // Hide (instead of showing as blocked) once the user has consumed it.
+  if (c.hideWhenConsumed && userConsumed && !userPending) {
+    return null;
+  }
 
   let blocked = false;
   let blockedReason: string | null = null;
@@ -91,8 +113,6 @@ function buildAvailable(
     blocked = true;
     blockedReason = "Ya canjeaste este beneficio.";
   } else if (c.rule === "ONCE_GLOBAL" && globalConsumed.has(c.id)) {
-    // If the user has no pending code for this coupon, hide it entirely by
-    // blocking. If they had pending, it would still show (they may use it).
     if (!userPending) {
       blocked = true;
       blockedReason = "Beneficio agotado.";
@@ -130,6 +150,20 @@ export async function generateRedemption(
   const coupon = await prisma.coupon.findUnique({ where: { slug: couponSlug } });
   if (!coupon || !coupon.active) {
     return { success: false, error: "Beneficio no disponible." };
+  }
+
+  if (coupon.requiresConsumedSlug) {
+    const prereq = await prisma.coupon.findUnique({
+      where: { slug: coupon.requiresConsumedSlug },
+    });
+    const prereqConsumed = prereq
+      ? await prisma.couponRedemption.findFirst({
+          where: { userId, couponId: prereq.id, status: "CONSUMED" },
+        })
+      : null;
+    if (!prereqConsumed) {
+      return { success: false, error: "Beneficio no disponible todavía." };
+    }
   }
 
   // Reuse a PENDING code if one exists for this user+coupon.

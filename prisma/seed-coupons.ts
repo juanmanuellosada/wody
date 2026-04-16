@@ -11,6 +11,8 @@ const COUPONS: Array<{
   logoKey: string | null;
   rule: CouponRule;
   sortOrder: number;
+  requiresConsumedSlug?: string | null;
+  hideWhenConsumed?: boolean;
 }> = [
   {
     slug: "nutrite-con-lu",
@@ -46,14 +48,27 @@ const COUPONS: Array<{
   },
   {
     slug: "quinque",
-    name: "Quinque",
+    name: "Quinque · Primera compra",
     description:
-      "15% de descuento en productos integrales en compras de $10.000 o más. Pastelería saludable.",
+      "15% de descuento en tu primera compra. Productos integrales, monto mínimo $10.000. Pastelería saludable.",
+    instagramHandle: "quinque.pasteleria",
+    instagramUrl: "https://www.instagram.com/quinque.pasteleria",
+    logoKey: "quinque",
+    rule: CouponRule.ONCE_PER_USER,
+    sortOrder: 40,
+    hideWhenConsumed: true,
+  },
+  {
+    slug: "quinque-recurrente",
+    name: "Quinque · Clientes",
+    description:
+      "10% de descuento en compras posteriores. Productos integrales, monto mínimo $10.000.",
     instagramHandle: "quinque.pasteleria",
     instagramUrl: "https://www.instagram.com/quinque.pasteleria",
     logoKey: "quinque",
     rule: CouponRule.UNLIMITED,
-    sortOrder: 40,
+    sortOrder: 41,
+    requiresConsumedSlug: "quinque",
   },
   {
     slug: "atodoritmo-sm",
@@ -94,7 +109,12 @@ async function main() {
   for (const coupon of COUPONS) {
     await prisma.coupon.upsert({
       where: { slug: coupon.slug },
-      create: { ...coupon, active: true },
+      create: {
+        ...coupon,
+        requiresConsumedSlug: coupon.requiresConsumedSlug ?? null,
+        hideWhenConsumed: coupon.hideWhenConsumed ?? false,
+        active: true,
+      },
       update: {
         name: coupon.name,
         description: coupon.description,
@@ -103,6 +123,8 @@ async function main() {
         logoKey: coupon.logoKey,
         rule: coupon.rule,
         sortOrder: coupon.sortOrder,
+        requiresConsumedSlug: coupon.requiresConsumedSlug ?? null,
+        hideWhenConsumed: coupon.hideWhenConsumed ?? false,
       },
     });
     console.log(`  ✓ ${coupon.name}`);
