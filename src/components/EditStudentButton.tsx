@@ -13,6 +13,7 @@ interface EditStudentButtonProps {
   studentId: string;
   name: string;
   email: string;
+  nextPaymentDate?: Date;
   assignedTeachers: TeacherOption[];
   allTeachers: TeacherOption[];
   demo?: boolean;
@@ -22,6 +23,7 @@ export function EditStudentButton({
   studentId,
   name,
   email,
+  nextPaymentDate,
   assignedTeachers,
   allTeachers,
   demo,
@@ -38,6 +40,7 @@ export function EditStudentButton({
           studentId={studentId}
           currentName={name}
           currentEmail={email}
+          currentPaymentDate={nextPaymentDate}
           assignedTeachers={assignedTeachers}
           allTeachers={allTeachers}
           onClose={() => setOpen(false)}

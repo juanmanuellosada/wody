@@ -45,6 +45,18 @@ export function toInputDate(date: Date): string {
 }
 
 /**
+ * Adds one calendar month to a date, clamping the day to the last day of the
+ * target month when needed (e.g. Jan 31 → Feb 28). Returns UTC midnight.
+ */
+export function addOneMonth(date: Date): Date {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth();
+  const d = date.getUTCDate();
+  const daysInTarget = new Date(Date.UTC(y, m + 2, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m + 1, Math.min(d, daysInTarget)));
+}
+
+/**
  * Returns a date range covering the full day for a given date string (YYYY-MM-DD).
  * Covers any timezone interpretation that node-postgres / Prisma might apply
  * to @db.Date columns (midnight UTC through midnight+23:59:59 UTC, plus margin

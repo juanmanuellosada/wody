@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { updateStudent, assignStudent, unassignStudent } from "@/actions/user";
+import { setStudentPaymentDate } from "@/actions/payment";
+import { toInputDate } from "@/lib/dates";
 
 interface TeacherOption {
   id: string;
@@ -13,6 +16,7 @@ interface StudentEditorProps {
   studentId: string;
   currentName: string;
   currentEmail: string;
+  currentPaymentDate?: Date;
   assignedTeachers: TeacherOption[];
   allTeachers: TeacherOption[];
   onClose: () => void;
@@ -23,6 +27,7 @@ export function StudentEditor({
   studentId,
   currentName,
   currentEmail,
+  currentPaymentDate,
   assignedTeachers,
   allTeachers,
   onClose,
@@ -31,6 +36,10 @@ export function StudentEditor({
   const [name, setName] = useState(currentName);
   const [email, setEmail] = useState(currentEmail);
   const [password, setPassword] = useState("");
+  const currentPaymentDateStr = currentPaymentDate
+    ? toInputDate(currentPaymentDate)
+    : "";
+  const [paymentDate, setPaymentDate] = useState(currentPaymentDateStr);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [addTeacherId, setAddTeacherId] = useState("");
@@ -46,18 +55,35 @@ export function StudentEditor({
     if (email.trim() !== currentEmail) data.email = email;
     if (password.trim()) data.password = password;
 
-    if (Object.keys(data).length === 0 || demo) {
+    const paymentChanged =
+      currentPaymentDate !== undefined &&
+      paymentDate !== currentPaymentDateStr;
+
+    if (Object.keys(data).length === 0 && !paymentChanged) {
+      onClose();
+      return;
+    }
+    if (demo) {
       onClose();
       return;
     }
 
     startTransition(async () => {
-      const result = await updateStudent(studentId, data);
-      if (result.success) {
-        onClose();
-      } else {
-        setError(result.error);
+      if (Object.keys(data).length > 0) {
+        const result = await updateStudent(studentId, data);
+        if (!result.success) {
+          setError(result.error);
+          return;
+        }
       }
+      if (paymentChanged) {
+        const result = await setStudentPaymentDate(studentId, paymentDate);
+        if (!result.success) {
+          setError(result.error);
+          return;
+        }
+      }
+      onClose();
     });
   }
 
@@ -131,6 +157,14 @@ export function StudentEditor({
               className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
           </div>
+          {currentPaymentDate && (
+            <DatePicker
+              value={paymentDate}
+              onChange={setPaymentDate}
+              disabled={isPending}
+              label="Próximo pago"
+            />
+          )}
         </div>
 
         {/* Teachers */}

@@ -48,6 +48,7 @@ model User {
   gymId       String
   groupId     String?
   createdAt   DateTime    @default(now())
+  nextPaymentDate DateTime @db.Date @default(now())
 
   gym   Gym    @relation(fields: [gymId], references: [id])
   group Group? @relation("GroupStudents", fields: [groupId], references: [id], onDelete: SetNull)

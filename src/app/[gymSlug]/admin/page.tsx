@@ -36,7 +36,7 @@ export default async function AdminPage({ params }: Props) {
     prisma.user.findMany({
       where: { gymId },
       orderBy: [{ role: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, email: true, role: true, studentType: true, createdAt: true, groupId: true },
+      select: { id: true, name: true, email: true, role: true, studentType: true, createdAt: true, groupId: true, nextPaymentDate: true },
     }),
     prisma.group.findMany({
       where: { teacher: { gymId } },
@@ -283,6 +283,7 @@ export default async function AdminPage({ params }: Props) {
                           studentId={user.id}
                           name={user.name}
                           email={user.email}
+                          nextPaymentDate={user.nextPaymentDate}
                           assignedTeachers={teachersByStudentId.get(user.id) ?? []}
                           allTeachers={allTeacherOptions}
                         />
@@ -346,6 +347,7 @@ export default async function AdminPage({ params }: Props) {
                       studentId={user.id}
                       name={user.name}
                       email={user.email}
+                      nextPaymentDate={user.nextPaymentDate}
                       assignedTeachers={teachersByStudentId.get(user.id) ?? []}
                       allTeachers={allTeacherOptions}
                     />
