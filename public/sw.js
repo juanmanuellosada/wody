@@ -1,4 +1,4 @@
-const CACHE_NAME = "wody-v1";
+const CACHE_NAME = "wody-v2";
 const STATIC_ASSETS = [
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
@@ -27,31 +27,39 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Fetch — network first, fallback to cache
+// Fetch — only cache static assets, let Next.js handle navigation
 self.addEventListener("fetch", (event) => {
-  // Skip non-GET and API/auth requests
+  // Only handle GET requests for static assets we explicitly cache
   if (
     event.request.method !== "GET" ||
+    event.request.mode === "navigate" ||
+    event.request.headers.get("RSC") ||
+    event.request.headers.get("Next-Router-State-Tree") ||
     event.request.url.includes("/api/") ||
-    event.request.url.includes("/auth/")
+    event.request.url.includes("/auth/") ||
+    event.request.url.includes("/_next/")
   ) {
     return;
   }
 
+  // Only intercept requests for cached static assets
+  const isStaticAsset =
+    event.request.url.includes("/icons/") ||
+    event.request.url.includes("apple-touch-icon");
+
+  if (!isStaticAsset) return;
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache successful responses for static assets
-        if (
-          response.ok &&
-          (event.request.url.includes("/icons/") ||
-            event.request.url.includes("apple-touch-icon"))
-        ) {
+        if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() =>
+        caches.match(event.request).then((cached) => cached || fetch(event.request))
+      )
   );
 });
