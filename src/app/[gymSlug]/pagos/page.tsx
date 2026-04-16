@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -7,8 +8,18 @@ import { Card } from "@/components/ui/Card";
 import { PayButton } from "@/components/PayButton";
 import { EditStudentButton } from "@/components/EditStudentButton";
 
+type StatusFilter = "all" | "overdue" | "due-soon" | "ok";
+
 interface Props {
   params: Promise<{ gymSlug: string }>;
+  searchParams: Promise<{ status?: string }>;
+}
+
+function parseFilter(value: string | undefined): StatusFilter {
+  if (value === "overdue" || value === "due-soon" || value === "ok") {
+    return value;
+  }
+  return "all";
 }
 
 type PaymentRow = {
@@ -55,8 +66,10 @@ function statusClasses(s: Status): string {
   return "bg-green-500/10 text-green-400 border border-green-500/20";
 }
 
-export default async function PaymentsPage({ params }: Props) {
+export default async function PaymentsPage({ params, searchParams }: Props) {
   const { gymSlug } = await params;
+  const { status: statusParam } = await searchParams;
+  const activeFilter = parseFilter(statusParam);
   const session = await auth();
 
   if (
@@ -130,6 +143,17 @@ export default async function PaymentsPage({ params }: Props) {
   ).length;
   const okCount = rows.length - overdueCount - dueSoonCount;
 
+  const visibleRows =
+    activeFilter === "all"
+      ? rows
+      : rows.filter(
+          (r) => computeStatus(r.nextPaymentDate, today).kind === activeFilter
+        );
+
+  const basePath = gymPath(gymSlug, "/pagos");
+  const filterHref = (f: StatusFilter) =>
+    f === "all" ? basePath : `${basePath}?status=${f}`;
+
   return (
     <div className="flex flex-col gap-10">
       {/* Header */}
@@ -143,33 +167,63 @@ export default async function PaymentsPage({ params }: Props) {
               Pagos
             </h1>
           </div>
-          <div className="flex gap-6">
-            <div className="text-center">
-              <p className="text-2xl font-heading font-black text-brand-red">
-                {overdueCount}
-              </p>
-              <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
-                Atrasados
-              </p>
-            </div>
-            <div className="w-px bg-[#1A1A1A]" aria-hidden="true" />
-            <div className="text-center">
-              <p className="text-2xl font-heading font-black text-yellow-400">
-                {dueSoonCount}
-              </p>
-              <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
-                Por vencer
-              </p>
-            </div>
-            <div className="w-px bg-[#1A1A1A]" aria-hidden="true" />
-            <div className="text-center">
-              <p className="text-2xl font-heading font-black text-green-400">
-                {okCount}
-              </p>
-              <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
-                Al día
-              </p>
-            </div>
+          <div className="flex flex-wrap gap-2 sm:gap-3">
+            {(
+              [
+                {
+                  key: "all",
+                  label: "Todos",
+                  value: rows.length,
+                  valueClass: "text-white",
+                  activeClass: "border-white/60 bg-white/5",
+                },
+                {
+                  key: "overdue",
+                  label: "Atrasados",
+                  value: overdueCount,
+                  valueClass: "text-brand-red",
+                  activeClass: "border-brand-red/60 bg-brand-red/10",
+                },
+                {
+                  key: "due-soon",
+                  label: "Por vencer",
+                  value: dueSoonCount,
+                  valueClass: "text-yellow-400",
+                  activeClass: "border-yellow-500/60 bg-yellow-500/10",
+                },
+                {
+                  key: "ok",
+                  label: "Al día",
+                  value: okCount,
+                  valueClass: "text-green-400",
+                  activeClass: "border-green-500/60 bg-green-500/10",
+                },
+              ] as const
+            ).map((tile) => {
+              const isActive = activeFilter === tile.key;
+              return (
+                <Link
+                  key={tile.key}
+                  href={filterHref(tile.key)}
+                  aria-pressed={isActive}
+                  className={[
+                    "text-center px-4 py-2 border transition-colors duration-200",
+                    isActive
+                      ? tile.activeClass
+                      : "border-[#1A1A1A] hover:border-[#2A2A2A] hover:bg-white/[0.02]",
+                  ].join(" ")}
+                >
+                  <p
+                    className={`text-2xl font-heading font-black ${tile.valueClass}`}
+                  >
+                    {tile.value}
+                  </p>
+                  <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
+                    {tile.label}
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -179,6 +233,10 @@ export default async function PaymentsPage({ params }: Props) {
           {isAdmin
             ? "No hay alumnos cargados todavía."
             : "No tenés alumnos asignados."}
+        </p>
+      ) : visibleRows.length === 0 ? (
+        <p className="text-sm text-gray-500 font-body italic">
+          No hay alumnos en este estado.
         </p>
       ) : (
         <>
@@ -198,7 +256,7 @@ export default async function PaymentsPage({ params }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
+                {visibleRows.map((row) => {
                   const status = computeStatus(row.nextPaymentDate, today);
                   return (
                     <tr
@@ -253,7 +311,7 @@ export default async function PaymentsPage({ params }: Props) {
 
           {/* Mobile cards */}
           <div className="sm:hidden flex flex-col gap-3">
-            {rows.map((row) => {
+            {visibleRows.map((row) => {
               const status = computeStatus(row.nextPaymentDate, today);
               return (
                 <Card key={row.id}>
