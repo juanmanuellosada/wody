@@ -45,9 +45,10 @@ automáticamente a toda la UI del gym (botones, acentos, bordes, imágenes compa
 
 El logo cargado es src/logos/[NOMBRE-DEL-LOGO].png
 
-3. **Logo mapping:** Agregar el nuevo slug+logo en el diccionario `GYM_LOGOS` de:
-   - `src/app/[gymSlug]/page.tsx`
-   - `src/app/[gymSlug]/login/page.tsx`
+3. **Logo mapping:** Agregar el nuevo slug+logo en todos los diccionarios de logos:
+   - `GYM_LOGOS` en `src/app/[gymSlug]/page.tsx` (landing del gym)
+   - `GYM_LOGOS` en `src/app/[gymSlug]/login/page.tsx` (página de login)
+   - `GYM_NAV_LOGOS` en `src/components/layout/Navbar.tsx` (barra de navegación)
 
 4. **Verificar** que no se rompa nada: correr `npx prisma generate` y `npm run build` para asegurarte de que compila.
 
