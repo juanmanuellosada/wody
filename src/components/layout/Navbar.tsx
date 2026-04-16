@@ -9,6 +9,12 @@ import { gymPath } from "@/lib/gym";
 
 import wodyBlanco from "@/logos/wody-blanco.png";
 import unidosTexto from "@/logos/unidos-texto.png";
+import rompiendoLogo from "@/logos/rompiendo-limites.png";
+
+const GYM_NAV_LOGOS: Record<string, { src: typeof unidosTexto; alt: string }> = {
+  "unidos-garage": { src: unidosTexto, alt: "Unidos Garage" },
+  "rompiendo-limites": { src: rompiendoLogo, alt: "Rompiendo Limites" },
+};
 
 interface NavbarProps {
   userName: string;
@@ -53,6 +59,8 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
     return pathname === href;
   }
 
+  const gymLogo = GYM_NAV_LOGOS[gymSlug];
+
   return (
     <nav
       className="bg-black/95 backdrop-blur-sm border-b border-[#1A1A1A] sticky top-0 z-40"
@@ -60,14 +68,20 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
       aria-label="Navegacion principal"
     >
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-        {/* Logo: wody icon + unidos texto */}
+        {/* Logo: wody icon + gym logo */}
         <Link
           href={gymPath(gymSlug, "/dashboard/athlete")}
           className="flex items-center gap-2.5 group cursor-pointer"
         >
           <Image src={wodyBlanco} alt="WODY" width={22} height={22} className="opacity-90 group-hover:opacity-100 transition-opacity duration-200" />
           <span className="w-px h-5 bg-[#2A2A2A]" aria-hidden="true" />
-          <Image src={unidosTexto} alt="Unidos Garage" width={80} height={24} className="opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
+          {gymLogo ? (
+            <Image src={gymLogo.src} alt={gymLogo.alt} width={80} height={24} className="h-6 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
+          ) : (
+            <span className="text-xs font-heading font-bold uppercase tracking-[0.1em] text-gray-400 opacity-80 group-hover:opacity-100 transition-opacity duration-200">
+              {gymSlug.replace(/-/g, " ")}
+            </span>
+          )}
         </Link>
 
         {/* Desktop nav */}
