@@ -44,8 +44,13 @@ export async function proxy(request: NextRequest) {
   const { nextUrl } = request;
   const segments = nextUrl.pathname.split("/").filter(Boolean);
 
-  // Pass through: root "/", API, and non-gym routes
-  if (segments.length === 0 || segments[0] === "api" || segments[0] === "demo") {
+  // Pass through: root "/", API, demo, and global routes (validar)
+  if (
+    segments.length === 0 ||
+    segments[0] === "api" ||
+    segments[0] === "demo" ||
+    segments[0] === "validar"
+  ) {
     return NextResponse.next();
   }
 

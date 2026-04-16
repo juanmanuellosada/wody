@@ -18,15 +18,15 @@ export async function login(formData: FormData): Promise<LoginResult> {
   const password = formData.get("password") as string | null;
   const gymSlug = formData.get("gymSlug") as string | null;
 
-  if (!email?.trim() || !password?.trim() || !gymSlug?.trim()) {
-    return { success: false, error: "Completá todos los campos." };
+  if (!email?.trim() || !password?.trim()) {
+    return { success: false, error: "Completá email y contraseña." };
   }
 
   try {
     await signIn("credentials", {
       email,
       password,
-      gymSlug,
+      ...(gymSlug?.trim() ? { gymSlug } : {}),
       redirect: false,
     });
 

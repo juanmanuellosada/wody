@@ -19,43 +19,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         gymSlug: { label: "Gym Slug", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password || !credentials?.gymSlug) {
+        if (!credentials?.email || !credentials?.password) {
           return null;
         }
 
-        const gym = await prisma.gym.findUnique({
-          where: { slug: credentials.gymSlug as string },
+        const email = credentials.email as string;
+        const password = credentials.password as string;
+        const gymSlug =
+          typeof credentials.gymSlug === "string" && credentials.gymSlug.trim()
+            ? credentials.gymSlug
+            : null;
+
+        // Candidate users: filtered by gymSlug when provided, otherwise any gym.
+        const candidates = await prisma.user.findMany({
+          where: gymSlug
+            ? { email, gym: { slug: gymSlug } }
+            : { email },
+          include: { gym: true },
         });
 
-        if (!gym) return null;
+        if (candidates.length === 0) return null;
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email_gymId: {
-              email: credentials.email as string,
-              gymId: gym.id,
-            },
-          },
-        });
+        // Pick the first user whose password matches. With a gymSlug there's at
+        // most one candidate; without it, we scan across gyms (email+password
+        // collisions between gyms are vanishingly unlikely in practice).
+        for (const user of candidates) {
+          const passwordValid = await compare(password, user.password);
+          if (!passwordValid) continue;
 
-        if (!user) return null;
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role as Role,
+            studentType: user.studentType as StudentType,
+            gymId: user.gym.id,
+            gymSlug: user.gym.slug,
+          };
+        }
 
-        const passwordValid = await compare(
-          credentials.password as string,
-          user.password
-        );
-
-        if (!passwordValid) return null;
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role as Role,
-          studentType: user.studentType as StudentType,
-          gymId: gym.id,
-          gymSlug: gym.slug,
-        };
+        return null;
       },
     }),
   ],

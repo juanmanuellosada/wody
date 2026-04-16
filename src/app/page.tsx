@@ -17,6 +17,7 @@ import wodyTexto from "@/logos/wody-texto.png";
 import unidosLogo from "@/logos/unidos-logo-completo.png";
 import rompiendoLogo from "@/logos/rompiendo-limites.png";
 import agustinLogo from "@/logos/agustin-coach.png";
+import { BenefitsSection } from "@/components/benefits/BenefitsSection";
 
 export const metadata: Metadata = {
   title: "WODY — Gestión de rutinas para centros de entrenamiento",
@@ -225,6 +226,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Beneficios */}
+      <BenefitsSection />
 
       {/* Clientes / Ingreso */}
       <section className="border-t border-white/5 bg-[#08080D] px-6 py-20">
