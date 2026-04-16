@@ -11,7 +11,7 @@ const roles = [
     href: "/demo/admin",
     label: "Admin",
     description: "Gestión de usuarios, asignaciones y grupos de todos los profes.",
-    color: "border-[#E31414] hover:bg-[#E31414]/10",
+    color: "border-brand-red hover:bg-brand-red/10",
   },
   {
     href: "/demo/teacher",
@@ -32,7 +32,7 @@ export default function DemoSelectorPage() {
     <main className="min-h-screen bg-[#0A0A0F] text-white flex flex-col items-center justify-center px-6 py-20">
       <Link
         href="/"
-        className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600 hover:text-[#E31414] transition-colors duration-200 mb-10"
+        className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600 hover:text-brand-red transition-colors duration-200 mb-10"
       >
         &larr; Volver al inicio
       </Link>
@@ -54,7 +54,7 @@ export default function DemoSelectorPage() {
               role.color,
             ].join(" ")}
           >
-            <h2 className="text-lg font-heading font-black uppercase tracking-[0.1em] text-white group-hover:text-[#E31414] transition-colors duration-200">
+            <h2 className="text-lg font-heading font-black uppercase tracking-[0.1em] text-white group-hover:text-brand-red transition-colors duration-200">
               {role.label}
             </h2>
             <p className="text-xs text-gray-500 font-body leading-relaxed">

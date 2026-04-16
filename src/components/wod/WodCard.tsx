@@ -13,14 +13,14 @@ export function WodCard({ wod, actions, highlight = false }: WodCardProps) {
   const dateLabel = formatDateArg(wod.date);
 
   return (
-    <Card accent={highlight} className={highlight ? "border-[#E31414]" : ""}>
+    <Card accent={highlight} className={highlight ? "border-brand-red" : ""}>
       <CardHeader>
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-3">
             {highlight && (
-              <span className="inline-block w-2 h-2 bg-[#E31414] flex-shrink-0 animate-pulse" aria-hidden="true" />
+              <span className="inline-block w-2 h-2 bg-brand-red flex-shrink-0 animate-pulse" aria-hidden="true" />
             )}
-            <CardTitle className={highlight ? "text-[#E31414]" : ""}>
+            <CardTitle className={highlight ? "text-brand-red" : ""}>
               {highlight ? "HOY — " : ""}{dateLabel}
             </CardTitle>
             <span className="text-sm font-heading font-bold text-gray-400">

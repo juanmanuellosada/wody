@@ -9,7 +9,7 @@ function Card({ accent = false, className = "", children, ...props }: CardProps)
     <div
       className={[
         "bg-[#1A1A1A]",
-        accent ? "border-l-2 border-[#E31414]" : "border border-[#2A2A2A]",
+        accent ? "border-l-2 border-brand-red" : "border border-[#2A2A2A]",
         "p-4",
         "transition-colors duration-200",
         className,

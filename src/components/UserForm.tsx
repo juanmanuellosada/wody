@@ -69,7 +69,7 @@ export function UserForm() {
           disabled={isPending}
           defaultValue=""
           onChange={(e) => setSelectedRole(e.target.value)}
-          className="bg-[#1A1A1A] text-white font-body border border-[#2A2A2A] px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-[#E31414] focus:ring-1 focus:ring-[#E31414]/20 transition-all duration-200 disabled:opacity-50"
+          className="bg-[#1A1A1A] text-white font-body border border-[#2A2A2A] px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
         >
           <option value="" disabled>
             Selecciona un rol
@@ -88,7 +88,7 @@ export function UserForm() {
           name="studentType"
           disabled={isPending}
           defaultValue="PERSONALIZED"
-          className="bg-[#1A1A1A] text-white font-body border border-[#2A2A2A] px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-[#E31414] focus:ring-1 focus:ring-[#E31414]/20 transition-all duration-200 disabled:opacity-50"
+          className="bg-[#1A1A1A] text-white font-body border border-[#2A2A2A] px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
         >
           <option value="PERSONALIZED">Personalizado (WODs + RMs)</option>
           <option value="GENERAL">General (solo RMs)</option>
@@ -97,7 +97,7 @@ export function UserForm() {
       )}
 
       {error && (
-        <p className="text-xs font-heading font-bold text-[#E31414] uppercase tracking-wide" role="alert">
+        <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
           {error}
         </p>
       )}

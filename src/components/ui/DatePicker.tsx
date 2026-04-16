@@ -125,7 +125,7 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
           "transition-all duration-200 cursor-pointer text-left",
           "disabled:opacity-50 disabled:cursor-not-allowed",
           open
-            ? "border-[#E31414] ring-1 ring-[#E31414]/20"
+            ? "border-brand-red ring-1 ring-brand-red/20"
             : "border-[#2A2A2A] hover:border-[#444444]",
         ].join(" ")}
       >
@@ -142,7 +142,7 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
           strokeLinecap="square"
           className={[
             "text-gray-500 flex-shrink-0 transition-colors duration-200",
-            open ? "text-[#E31414]" : "",
+            open ? "text-brand-red" : "",
           ].join(" ")}
         >
           <rect x="3" y="4" width="18" height="18" rx="0" />
@@ -213,9 +213,9 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
                   className={[
                     "h-8 flex items-center justify-center text-xs font-heading font-bold cursor-pointer transition-all duration-150",
                     isSelected
-                      ? "bg-[#E31414] text-white"
+                      ? "bg-brand-red text-white"
                       : isToday
-                      ? "text-[#E31414] border border-[#E31414]/30"
+                      ? "text-brand-red border border-brand-red/30"
                       : "text-gray-300 hover:bg-[#1A1A1A] hover:text-white",
                   ].join(" ")}
                   aria-label={`${day} de ${MONTHS[viewMonth]} ${viewYear}`}
@@ -235,7 +235,7 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
                 onChange(todayStr);
                 setOpen(false);
               }}
-              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-[#E31414] transition-colors duration-200 cursor-pointer"
+              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-brand-red transition-colors duration-200 cursor-pointer"
             >
               Hoy
             </button>

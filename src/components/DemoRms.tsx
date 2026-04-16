@@ -51,7 +51,7 @@ export function DemoRms() {
                   <p className="text-white font-heading font-bold uppercase tracking-[0.1em] text-sm truncate">
                     {rm.exercise}
                   </p>
-                  <p className="text-[#E31414] font-heading font-black text-xl leading-none">
+                  <p className="text-brand-red font-heading font-black text-xl leading-none">
                     {rm.weight} <span className="text-sm text-gray-500">kg</span>
                   </p>
                   <p className="text-gray-600 text-xs font-heading uppercase tracking-[0.1em]">

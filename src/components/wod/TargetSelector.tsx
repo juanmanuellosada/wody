@@ -40,7 +40,7 @@ export function TargetSelector({
           className={[
             "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200",
             value.type === "ALL"
-              ? "border-[#E31414] text-white bg-[#E31414]/10"
+              ? "border-brand-red text-white bg-brand-red/10"
               : "border-[#2A2A2A] text-gray-500 hover:border-gray-500",
           ].join(" ")}
         >
@@ -54,7 +54,7 @@ export function TargetSelector({
           className={[
             "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200",
             value.type === "PERSONALIZED"
-              ? "border-[#E31414] text-white bg-[#E31414]/10"
+              ? "border-brand-red text-white bg-brand-red/10"
               : "border-[#2A2A2A] text-gray-500 hover:border-gray-500",
           ].join(" ")}
         >
@@ -71,7 +71,7 @@ export function TargetSelector({
             className={[
               "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200",
               value.type === "GROUP"
-                ? "border-[#E31414] text-white bg-[#E31414]/10"
+                ? "border-brand-red text-white bg-brand-red/10"
                 : "border-[#2A2A2A] text-gray-500 hover:border-gray-500",
             ].join(" ")}
           >
@@ -89,7 +89,7 @@ export function TargetSelector({
             className={[
               "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200",
               value.type === "STUDENT"
-                ? "border-[#E31414] text-white bg-[#E31414]/10"
+                ? "border-brand-red text-white bg-brand-red/10"
                 : "border-[#2A2A2A] text-gray-500 hover:border-gray-500",
             ].join(" ")}
           >
@@ -103,7 +103,7 @@ export function TargetSelector({
           disabled={disabled}
           value={"groupId" in value ? value.groupId : groups[0].id}
           onChange={(e) => onChange({ type: "GROUP", groupId: e.target.value })}
-          className="bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
+          className="bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
         >
           {groups.map((g) => (
             <option key={g.id} value={g.id}>
@@ -120,7 +120,7 @@ export function TargetSelector({
           onChange={(e) =>
             onChange({ type: "STUDENT", studentId: e.target.value })
           }
-          className="bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
+          className="bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
         >
           {students.map((s) => (
             <option key={s.id} value={s.id}>
@@ -152,7 +152,7 @@ export function TargetBadge({
       : targetStudentName ?? "Alumno";
 
   return (
-    <span className="text-xs font-heading font-bold uppercase tracking-[0.1em] px-2 py-0.5 bg-[#E31414]/10 text-[#E31414] border border-[#E31414]/20">
+    <span className="text-xs font-heading font-bold uppercase tracking-[0.1em] px-2 py-0.5 bg-brand-red/10 text-brand-red border border-brand-red/20">
       {label}
     </span>
   );

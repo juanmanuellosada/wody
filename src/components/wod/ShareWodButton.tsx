@@ -117,7 +117,7 @@ export function ShareWodButton({ title, content, dateLabel, gymName }: ShareWodB
               <div style={{
                 width: 4,
                 height: 24,
-                backgroundColor: "#E31414",
+                backgroundColor: "var(--color-red, #E31414)",
                 flexShrink: 0,
               }} />
               <span style={{
@@ -135,7 +135,7 @@ export function ShareWodButton({ title, content, dateLabel, gymName }: ShareWodB
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.1em",
-              color: "#E31414",
+              color: "var(--color-red, #E31414)",
               margin: 0,
             }}>
               {dateLabel}
@@ -146,7 +146,7 @@ export function ShareWodButton({ title, content, dateLabel, gymName }: ShareWodB
           <div style={{
             width: 48,
             height: 3,
-            backgroundColor: "#E31414",
+            backgroundColor: "var(--color-red, #E31414)",
             marginBottom: 20,
           }} />
 
@@ -181,7 +181,7 @@ export function ShareWodButton({ title, content, dateLabel, gymName }: ShareWodB
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
-              color: "#E31414",
+              color: "var(--color-red, #E31414)",
             }}>
               wody.com.ar
             </span>

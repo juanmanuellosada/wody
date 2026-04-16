@@ -96,7 +96,7 @@ export function RmForm({
       </div>
 
       {error && (
-        <p className="text-xs font-heading font-bold text-[#E31414] uppercase tracking-wide" role="alert">
+        <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
           {error}
         </p>
       )}

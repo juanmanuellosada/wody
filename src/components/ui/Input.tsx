@@ -29,16 +29,16 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             "bg-[#1A1A1A] text-white font-body",
             "border px-4 py-3 text-sm min-h-[44px]",
             "placeholder:text-gray-600",
-            "focus:outline-none focus:border-[#E31414] focus:ring-1 focus:ring-[#E31414]/20",
+            "focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             "transition-all duration-200",
-            error ? "border-[#E31414]" : "border-[#2A2A2A]",
+            error ? "border-brand-red" : "border-[#2A2A2A]",
             className,
           ].join(" ")}
           {...props}
         />
         {error && (
-          <p className="text-xs font-heading font-bold text-[#E31414] uppercase tracking-wide" role="alert">
+          <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
             {error}
           </p>
         )}

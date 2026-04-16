@@ -46,7 +46,7 @@ export default async function LoginPage({ params }: LoginPageProps) {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-black stripe-pattern relative">
       <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-20 bg-gradient-to-b from-transparent to-[#E31414]/50"
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-20 bg-gradient-to-b from-transparent to-brand-red/50"
         aria-hidden="true"
       />
 
@@ -73,7 +73,7 @@ export default async function LoginPage({ params }: LoginPageProps) {
               {gym.name}
             </p>
           )}
-          <div className="w-10 h-0.5 bg-[#E31414] mx-auto mb-3" aria-hidden="true" />
+          <div className="w-10 h-0.5 bg-brand-red mx-auto mb-3" aria-hidden="true" />
           <Image
             src={wodyTexto}
             alt="WODY"

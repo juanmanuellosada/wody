@@ -50,7 +50,7 @@ export default async function StudentDashboardPage({ params }: Props) {
             </div>
           </div>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-black/80 border border-[#E31414]/30 p-8 text-center max-w-sm mx-4">
+            <div className="bg-black/80 border border-brand-red/30 p-8 text-center max-w-sm mx-4">
               <p className="text-lg font-heading font-black uppercase tracking-[0.1em] text-white mb-3">
                 Contenido exclusivo
               </p>
@@ -60,7 +60,7 @@ export default async function StudentDashboardPage({ params }: Props) {
               </p>
               <Link
                 href={gymPath(gymSlug, "/dashboard/athlete/rms")}
-                className="inline-block px-6 py-3 font-heading font-bold uppercase tracking-[0.15em] text-white text-xs bg-[#E31414] hover:bg-[#B00F0F] transition-colors duration-200"
+                className="inline-block px-6 py-3 font-heading font-bold uppercase tracking-[0.15em] text-white text-xs bg-brand-red hover:bg-brand-red-dark transition-colors duration-200"
               >
                 Ir a mis RMs
               </Link>

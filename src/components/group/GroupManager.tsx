@@ -93,7 +93,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
   return (
     <section className="border border-[#1A1A1A] bg-[#0A0A0A]">
       <div className="px-5 py-3 border-b border-[#1A1A1A] flex items-center gap-3">
-        <span className="w-2 h-2 bg-[#E31414] flex-shrink-0" aria-hidden="true" />
+        <span className="w-2 h-2 bg-brand-red flex-shrink-0" aria-hidden="true" />
         <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
           Grupos
         </h2>
@@ -110,7 +110,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               placeholder="Nombre del grupo"
               disabled={isPending}
-              className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
+              className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
             <Button
               variant="primary"
@@ -125,7 +125,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
         )}
 
         {error && (
-          <p className="text-xs font-heading font-bold text-[#E31414] uppercase tracking-wide" role="alert">
+          <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
             {error}
           </p>
         )}
@@ -152,7 +152,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
                         onChange={(e) => setRenameValue(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleRename(group.id)}
                         disabled={isPending}
-                        className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-1.5 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
+                        className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-1.5 focus:outline-none focus:border-brand-red transition-colors duration-200"
                         autoFocus
                       />
                       <Button variant="primary" size="sm" onClick={() => handleRename(group.id)} disabled={isPending}>
@@ -209,7 +209,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
                         <button
                           onClick={() => handleRemove(student.id)}
                           disabled={isPending}
-                          className="text-gray-600 hover:text-[#E31414] transition-colors duration-200 cursor-pointer"
+                          className="text-gray-600 hover:text-brand-red transition-colors duration-200 cursor-pointer"
                           title="Quitar del grupo"
                         >
                           ×
@@ -225,7 +225,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
                     <select
                       id={`add-student-${group.id}`}
                       disabled={isPending}
-                      className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] text-gray-400 text-xs font-body px-2 py-1.5 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
+                      className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] text-gray-400 text-xs font-body px-2 py-1.5 focus:outline-none focus:border-brand-red transition-colors duration-200"
                       defaultValue=""
                       onChange={(e) => {
                         if (e.target.value) {

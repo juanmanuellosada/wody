@@ -389,7 +389,7 @@ export function TimersClient() {
       <div className="flex items-center justify-between">
         <button
           onClick={goBack}
-          className="text-xs text-gray-600 hover:text-[#E31414] uppercase tracking-[0.15em] font-heading font-bold transition-colors duration-200 flex items-center gap-2 cursor-pointer"
+          className="text-xs text-gray-600 hover:text-brand-red uppercase tracking-[0.15em] font-heading font-bold transition-colors duration-200 flex items-center gap-2 cursor-pointer"
         >
           <span aria-hidden="true">&#8592;</span> Volver
         </button>
@@ -416,7 +416,7 @@ export function TimersClient() {
                   type="checkbox"
                   checked={timeCapEnabled}
                   onChange={(e) => setTimeCapEnabled(e.target.checked)}
-                  className="accent-[#E31414]"
+                  className="accent-brand-red"
                 />
                 <span className="text-xs font-heading font-bold uppercase tracking-[0.1em] text-gray-400">
                   Time Cap
@@ -452,7 +452,7 @@ export function TimersClient() {
       {/* Prep countdown */}
       {showPrep && (
         <div className="flex flex-col items-center gap-4 py-12">
-          <p className="text-2xl font-heading font-black uppercase tracking-[0.1em] text-[#E31414] animate-pulse">
+          <p className="text-2xl font-heading font-black uppercase tracking-[0.1em] text-brand-red animate-pulse">
             Preparate!
           </p>
           <p className="text-8xl sm:text-9xl font-heading font-black tabular-nums text-white">
@@ -493,7 +493,7 @@ export function TimersClient() {
             <>
               <p className={[
                 "text-lg font-heading font-black uppercase tracking-[0.1em]",
-                state === "complete" ? "text-[#E31414]" : isWork ? "text-green-400" : "text-yellow-400",
+                state === "complete" ? "text-brand-red" : isWork ? "text-green-400" : "text-yellow-400",
               ].join(" ")}>
                 {state === "complete" ? "Completado!" : state === "idle" ? "Listo?" : isWork ? "Trabajo" : "Descanso"}
               </p>
@@ -571,13 +571,13 @@ function ModeCard({ label, description, accent, onClick }: {
       className={[
         "border p-5 text-left transition-all duration-200 cursor-pointer group",
         accent
-          ? "border-[#E31414]/30 bg-[#E31414]/5 hover:border-[#E31414] hover:bg-[#E31414]/10"
+          ? "border-brand-red/30 bg-brand-red/5 hover:border-brand-red hover:bg-brand-red/10"
           : "border-[#2A2A2A] bg-[#1A1A1A] hover:border-gray-500",
       ].join(" ")}
     >
       <p className={[
         "text-sm font-heading font-black uppercase tracking-[0.1em] mb-1 transition-colors duration-200",
-        accent ? "text-[#E31414]" : "text-white group-hover:text-[#E31414]",
+        accent ? "text-brand-red" : "text-white group-hover:text-brand-red",
       ].join(" ")}>
         {label}
       </p>
@@ -605,7 +605,7 @@ function TimeInput({ label, value, onChange, max }: {
         max={max}
         value={value}
         onChange={(e) => onChange(Math.max(0, Math.min(max, parseInt(e.target.value) || 0)))}
-        className="w-20 bg-[#0A0A0A] border border-[#2A2A2A] text-white text-2xl font-heading font-black text-center px-2 py-2 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
+        className="w-20 bg-[#0A0A0A] border border-[#2A2A2A] text-white text-2xl font-heading font-black text-center px-2 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
       />
     </div>
   );

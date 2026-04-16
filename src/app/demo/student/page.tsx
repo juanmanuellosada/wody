@@ -61,7 +61,7 @@ export default function DemoStudentPage() {
             </h1>
             <Link
               href="/demo/student/wod"
-              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-[#E31414] hover:text-white transition-colors duration-200 cursor-pointer"
+              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-brand-red hover:text-white transition-colors duration-200 cursor-pointer"
             >
               Ver en grande
             </Link>

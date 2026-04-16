@@ -20,7 +20,7 @@ export function TimerDisplay({ seconds, label, sublabel, accent, large }: TimerD
       {label && (
         <p className={[
           "font-heading font-bold uppercase tracking-[0.15em]",
-          accent ? "text-[#E31414]" : "text-gray-400",
+          accent ? "text-brand-red" : "text-gray-400",
           large ? "text-sm" : "text-xs",
         ].join(" ")}>
           {label}
@@ -28,7 +28,7 @@ export function TimerDisplay({ seconds, label, sublabel, accent, large }: TimerD
       )}
       <p className={[
         "font-heading font-black tabular-nums",
-        accent ? "text-[#E31414]" : "text-white",
+        accent ? "text-brand-red" : "text-white",
         large ? "text-7xl sm:text-9xl" : "text-5xl sm:text-7xl",
       ].join(" ")}>
         {formatTime(seconds)}

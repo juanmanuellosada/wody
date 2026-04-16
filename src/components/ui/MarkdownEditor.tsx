@@ -47,7 +47,7 @@ function ToolbarButton({
         "p-1.5 transition-colors duration-150 cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center",
         "disabled:opacity-30 disabled:cursor-not-allowed",
         isActive
-          ? "bg-[#E31414]/15 text-[#E31414]"
+          ? "bg-brand-red/15 text-brand-red"
           : "text-gray-500 hover:text-white hover:bg-[#1A1A1A]",
       ].join(" ")}
     >
@@ -144,7 +144,7 @@ export function MarkdownEditor({
     <div
       className={[
         "border bg-[#1A1A1A] transition-colors duration-200",
-        editor.isFocused ? "border-[#E31414]" : "border-[#2A2A2A]",
+        editor.isFocused ? "border-brand-red" : "border-[#2A2A2A]",
         disabled ? "opacity-50 pointer-events-none" : "",
       ].join(" ")}
     >

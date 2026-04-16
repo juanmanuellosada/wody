@@ -17,11 +17,18 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
   const gym = await prisma.gym.findUnique({ where: { slug: gymSlug } });
   if (!gym) notFound();
 
+  const accent = gym.primaryColor ?? "#E31414";
+  const accentVars = {
+    '--color-red': accent,
+    '--color-red-dark': `color-mix(in oklch, ${accent} 80%, black)`,
+    '--color-red-hover': `color-mix(in oklch, ${accent} 85%, white)`,
+  } as React.CSSProperties;
+
   const session = await auth();
 
   // Not authenticated — render children bare (login page, gym landing handle their own layout)
   if (!session?.user) {
-    return <>{children}</>;
+    return <div style={accentVars}>{children}</div>;
   }
 
   const { name, role, studentType } = session.user;
@@ -32,7 +39,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-black">
+    <div className="min-h-screen flex flex-col bg-black" style={accentVars}>
       <Navbar
         userName={name ?? "Usuario"}
         role={role}

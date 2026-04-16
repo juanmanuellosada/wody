@@ -23,12 +23,18 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function getAccentColor(): string {
+  return getComputedStyle(document.documentElement).getPropertyValue('--color-red').trim() || '#E31414';
+}
+
 async function generateRmImage(
   exercise: string,
   weight: number,
   date: string,
   athleteName: string
 ): Promise<Blob> {
+  const accent = getAccentColor();
+
   // Load logos
   const [wodyImg, unidosImg] = await Promise.all([
     loadImage(wodyTextoSrc.src),
@@ -45,7 +51,7 @@ async function generateRmImage(
   ctx.fillRect(0, 0, 1080, 1080);
 
   // Diagonal stripe pattern
-  ctx.strokeStyle = "rgba(227, 20, 20, 0.06)";
+  ctx.strokeStyle = `${accent}0F`;
   ctx.lineWidth = 1;
   for (let i = -1080; i < 2160; i += 30) {
     ctx.beginPath();
@@ -66,11 +72,11 @@ async function generateRmImage(
   ctx.drawImage(wodyImg, 1000 - wodyW, 85, wodyW, wodyH);
 
   // Red accent line below logos
-  ctx.fillStyle = "#E31414";
+  ctx.fillStyle = accent;
   ctx.fillRect(80, 160, 920, 2);
 
   // "NUEVO RECORD" label
-  ctx.fillStyle = "#E31414";
+  ctx.fillStyle = accent;
   ctx.font = "bold 28px sans-serif";
   ctx.letterSpacing = "8px";
   ctx.textAlign = "left";
@@ -98,7 +104,7 @@ async function generateRmImage(
   ctx.fillText(line, 80, y);
 
   // Weight — huge red number
-  ctx.fillStyle = "#E31414";
+  ctx.fillStyle = accent;
   ctx.font = "900 220px sans-serif";
   ctx.letterSpacing = "0px";
   const weightStr = weight % 1 === 0 ? weight.toString() : weight.toFixed(1);

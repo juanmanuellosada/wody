@@ -91,7 +91,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 items-center">
             <Link
               href="/demo"
-              className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-white text-sm bg-[#E31414] hover:bg-[#B00F0F] transition-colors duration-200 cursor-pointer"
+              className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-white text-sm bg-brand-red hover:bg-brand-red-dark transition-colors duration-200 cursor-pointer"
             >
               Ver Demo
             </Link>
@@ -99,7 +99,7 @@ export default function LandingPage() {
               href="https://www.instagram.com/wody.app/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-gray-300 text-sm border border-gray-700 hover:border-[#E31414] hover:text-white transition-all duration-200 cursor-pointer"
+              className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-gray-300 text-sm border border-gray-700 hover:border-brand-red hover:text-white transition-all duration-200 cursor-pointer"
             >
               Contactanos
             </a>
@@ -110,7 +110,7 @@ export default function LandingPage() {
       {/* Para quién */}
       <section className="px-6 pb-20 relative">
         <div className="max-w-5xl mx-auto">
-          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-[#E31414] text-center mb-3">
+          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-brand-red text-center mb-3">
             Para todo tipo de centro
           </p>
           <h2 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.05em] text-white text-center mb-12">
@@ -119,7 +119,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {["CrossFit", "Gimnasio", "Funcional", "GAP", "Pilates", "Personalizados"].map((tipo) => (
-              <div key={tipo} className="bg-white/[0.03] border border-white/[0.06] py-5 px-4 text-center hover:border-[#E31414]/30 transition-all duration-300">
+              <div key={tipo} className="bg-white/[0.03] border border-white/[0.06] py-5 px-4 text-center hover:border-brand-red/30 transition-all duration-300">
                 <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white">{tipo}</p>
               </div>
             ))}
@@ -130,7 +130,7 @@ export default function LandingPage() {
       {/* Features */}
       <section className="px-6 pb-24 relative">
         <div className="max-w-5xl mx-auto">
-          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-[#E31414] text-center mb-3">
+          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-brand-red text-center mb-3">
             Todo lo que necesitás
           </p>
           <h2 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.05em] text-white text-center mb-12">
@@ -175,7 +175,7 @@ export default function LandingPage() {
       {/* Cómo funciona */}
       <section className="border-t border-white/5 bg-[#08080D] px-6 py-20">
         <div className="max-w-4xl mx-auto">
-          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-[#E31414] text-center mb-3">
+          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-brand-red text-center mb-3">
             Simple y directo
           </p>
           <h2 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.05em] text-white text-center mb-12">
@@ -229,7 +229,7 @@ export default function LandingPage() {
       {/* Clientes / Ingreso */}
       <section className="border-t border-white/5 bg-[#08080D] px-6 py-20">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-[#E31414] mb-3">
+          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-brand-red mb-3">
             Ya usan WODY
           </p>
           <h2 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.05em] text-white mb-12">
@@ -239,7 +239,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap justify-center gap-6">
             <Link
               href="/unidos-garage"
-              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] hover:border-[#E31414]/40 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer w-64 group"
+              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] hover:border-brand-red/40 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer w-64 group"
             >
               <Image
                 src={unidosLogo}
@@ -258,7 +258,7 @@ export default function LandingPage() {
 
             <Link
               href="/rompiendo-limites"
-              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] hover:border-[#E31414]/40 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer w-64 group"
+              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] hover:border-brand-red/40 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer w-64 group"
             >
               <Image
                 src={rompiendoLogo}
@@ -303,7 +303,7 @@ export default function LandingPage() {
               href="https://www.instagram.com/wody.app/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#E31414] hover:text-white transition-colors duration-200"
+              className="text-brand-red hover:text-white transition-colors duration-200"
             >
               Contactanos
             </a>
@@ -331,7 +331,7 @@ export default function LandingPage() {
             href="https://www.instagram.com/wody.app/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-white text-sm bg-[#E31414] hover:bg-[#B00F0F] transition-colors duration-200 cursor-pointer"
+            className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-white text-sm bg-brand-red hover:bg-brand-red-dark transition-colors duration-200 cursor-pointer"
           >
             Empezar ahora
           </a>
@@ -388,7 +388,7 @@ function FeatureCard({
 }) {
   return (
     <div className="bg-white/[0.03] border border-white/[0.06] p-6 hover:bg-white/[0.05] hover:border-white/[0.1] transition-all duration-300 group">
-      <div className="text-[#E31414] mb-4 group-hover:scale-110 transition-transform duration-300 inline-block">
+      <div className="text-brand-red mb-4 group-hover:scale-110 transition-transform duration-300 inline-block">
         {icon}
       </div>
       <h3 className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white mb-2">
@@ -412,7 +412,7 @@ function StepCard({
 }) {
   return (
     <div className="text-center">
-      <p className="text-4xl font-heading font-black text-[#E31414]/20 mb-3">{number}</p>
+      <p className="text-4xl font-heading font-black text-brand-red/20 mb-3">{number}</p>
       <h3 className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white mb-2">
         {title}
       </h3>
@@ -437,14 +437,14 @@ function RoleCard({
       className={[
         "p-6 border transition-all duration-300",
         highlight
-          ? "bg-[#E31414]/5 border-[#E31414]/20"
+          ? "bg-brand-red/5 border-brand-red/20"
           : "bg-white/[0.02] border-white/[0.06]",
       ].join(" ")}
     >
       <h3
         className={[
           "text-lg font-heading font-black uppercase tracking-[0.1em] mb-4",
-          highlight ? "text-[#E31414]" : "text-white",
+          highlight ? "text-brand-red" : "text-white",
         ].join(" ")}
       >
         {role}
@@ -452,7 +452,7 @@ function RoleCard({
       <ul className="flex flex-col gap-2">
         {features.map((f) => (
           <li key={f} className="flex items-start gap-2 text-xs text-gray-400 font-body">
-            <span className="text-[#E31414] mt-0.5 flex-shrink-0">&#8226;</span>
+            <span className="text-brand-red mt-0.5 flex-shrink-0">&#8226;</span>
             {f}
           </li>
         ))}

@@ -86,7 +86,7 @@ export function AssignStudentForm({ teachers, students }: AssignStudentFormProps
               setSuccessMsg(null);
             }}
             disabled={isPending}
-            className="bg-[#1A1A1A] text-white font-body border border-[#2A2A2A] px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-[#E31414] focus:ring-1 focus:ring-[#E31414]/20 transition-all duration-200 disabled:opacity-50"
+            className="bg-[#1A1A1A] text-white font-body border border-[#2A2A2A] px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
           >
             {students.map((s) => (
               <option key={s.id} value={s.id}>
@@ -112,7 +112,7 @@ export function AssignStudentForm({ teachers, students }: AssignStudentFormProps
                   className={[
                     "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200 cursor-pointer",
                     selected
-                      ? "border-[#E31414] text-white bg-[#E31414]/10"
+                      ? "border-brand-red text-white bg-brand-red/10"
                       : "border-[#2A2A2A] text-gray-400 hover:border-gray-500",
                   ].join(" ")}
                 >
@@ -125,7 +125,7 @@ export function AssignStudentForm({ teachers, students }: AssignStudentFormProps
       </div>
 
       {error && (
-        <p className="text-xs font-heading font-bold text-[#E31414] uppercase tracking-wide" role="alert">
+        <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
           {error}
         </p>
       )}

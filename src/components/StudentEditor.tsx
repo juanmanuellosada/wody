@@ -103,7 +103,7 @@ export function StudentEditor({
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={isPending}
-              className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
+              className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
           </div>
           <div>
@@ -115,7 +115,7 @@ export function StudentEditor({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isPending}
-              className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
+              className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
           </div>
           <div>
@@ -128,7 +128,7 @@ export function StudentEditor({
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Dejar vacío para no cambiar"
               disabled={isPending}
-              className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
+              className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
           </div>
         </div>
@@ -153,7 +153,7 @@ export function StudentEditor({
                   <button
                     onClick={() => handleRemoveTeacher(t.id)}
                     disabled={isPending}
-                    className="text-gray-600 hover:text-[#E31414] transition-colors duration-200 cursor-pointer"
+                    className="text-gray-600 hover:text-brand-red transition-colors duration-200 cursor-pointer"
                     title="Quitar profe"
                   >
                     ×
@@ -169,7 +169,7 @@ export function StudentEditor({
                 value={addTeacherId}
                 onChange={(e) => setAddTeacherId(e.target.value)}
                 disabled={isPending}
-                className="flex-1 bg-[#1A1A1A] border border-[#2A2A2A] text-gray-300 text-xs font-body px-2 py-1.5 focus:outline-none focus:border-[#E31414] transition-colors duration-200"
+                className="flex-1 bg-[#1A1A1A] border border-[#2A2A2A] text-gray-300 text-xs font-body px-2 py-1.5 focus:outline-none focus:border-brand-red transition-colors duration-200"
               >
                 <option value="">Agregar profe...</option>
                 {availableTeachers.map((t) => (
@@ -191,7 +191,7 @@ export function StudentEditor({
         </div>
 
         {error && (
-          <p className="text-xs font-heading font-bold text-[#E31414] uppercase tracking-wide" role="alert">
+          <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
             {error}
           </p>
         )}

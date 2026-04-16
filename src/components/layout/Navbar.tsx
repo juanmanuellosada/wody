@@ -79,14 +79,14 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
               className={[
                 "text-xs font-heading font-bold uppercase tracking-[0.15em] transition-colors duration-200 relative py-1",
                 isActive(link.href)
-                  ? "text-[#E31414]"
+                  ? "text-brand-red"
                   : "text-gray-400 hover:text-white",
               ].join(" ")}
             >
               {link.label}
               {isActive(link.href) && (
                 <span
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E31414]"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-red"
                   aria-hidden="true"
                 />
               )}
@@ -98,11 +98,11 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
         <div className="hidden sm:flex items-center gap-4">
           <span className="text-xs text-gray-500 font-heading uppercase tracking-[0.1em]">
             {userName}{" "}
-            <span className="text-[#E31414]">({roleLabel})</span>
+            <span className="text-brand-red">({roleLabel})</span>
           </span>
           <button
             onClick={onSignOut}
-            className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-[#E31414] transition-colors duration-200 cursor-pointer min-h-[44px] flex items-center"
+            className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-brand-red transition-colors duration-200 cursor-pointer min-h-[44px] flex items-center"
           >
             Salir
           </button>
@@ -144,7 +144,7 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
         >
           <p className="text-xs text-gray-500 font-heading uppercase tracking-[0.1em]">
             {userName}{" "}
-            <span className="text-[#E31414]">({roleLabel})</span>
+            <span className="text-brand-red">({roleLabel})</span>
           </p>
           {links.map((link) => (
             <Link
@@ -155,12 +155,12 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
               className={[
                 "text-sm font-heading font-bold uppercase tracking-[0.15em] min-h-[44px] flex items-center",
                 isActive(link.href)
-                  ? "text-[#E31414]"
+                  ? "text-brand-red"
                   : "text-gray-300",
               ].join(" ")}
             >
               {isActive(link.href) && (
-                <span className="w-1.5 h-1.5 bg-[#E31414] mr-3 flex-shrink-0" aria-hidden="true" />
+                <span className="w-1.5 h-1.5 bg-brand-red mr-3 flex-shrink-0" aria-hidden="true" />
               )}
               {link.label}
             </Link>
@@ -170,7 +170,7 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
               setMenuOpen(false);
               onSignOut();
             }}
-            className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-[#E31414] text-left transition-colors duration-200 cursor-pointer min-h-[44px] flex items-center"
+            className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-brand-red text-left transition-colors duration-200 cursor-pointer min-h-[44px] flex items-center"
           >
             Salir
           </button>

@@ -118,7 +118,7 @@ export default function DemoTeacherPage() {
         <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-[#E31414] mb-1">
+              <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-1">
                 Dashboard Profe
               </p>
               <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white">
@@ -127,7 +127,7 @@ export default function DemoTeacherPage() {
             </div>
             <div className="flex gap-6">
               <div className="text-center">
-                <p className="text-3xl font-heading font-black text-[#E31414]">{mockWods.length}</p>
+                <p className="text-3xl font-heading font-black text-brand-red">{mockWods.length}</p>
                 <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
                   WODs
                 </p>

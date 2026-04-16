@@ -74,7 +74,7 @@ export default function DemoAdminPage() {
         <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-[#E31414] mb-1">
+              <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-1">
                 Panel de Control
               </p>
               <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white">
@@ -88,7 +88,7 @@ export default function DemoAdminPage() {
               </div>
               <div className="w-px bg-[#1A1A1A]" aria-hidden="true" />
               <div className="text-center">
-                <p className="text-2xl font-heading font-black text-[#E31414]">{totalStudents}</p>
+                <p className="text-2xl font-heading font-black text-brand-red">{totalStudents}</p>
                 <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">Alumnos</p>
               </div>
               <div className="w-px bg-[#1A1A1A]" aria-hidden="true" />
@@ -104,7 +104,7 @@ export default function DemoAdminPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <section className="border border-[#1A1A1A] bg-[#0A0A0A]">
             <div className="px-5 py-3 border-b border-[#1A1A1A] flex items-center gap-3">
-              <span className="w-2 h-2 bg-[#E31414] flex-shrink-0" aria-hidden="true" />
+              <span className="w-2 h-2 bg-brand-red flex-shrink-0" aria-hidden="true" />
               <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
                 Crear Usuario
               </h2>
@@ -124,7 +124,7 @@ export default function DemoAdminPage() {
 
           <section className="border border-[#1A1A1A] bg-[#0A0A0A]">
             <div className="px-5 py-3 border-b border-[#1A1A1A] flex items-center gap-3">
-              <span className="w-2 h-2 bg-[#E31414] flex-shrink-0" aria-hidden="true" />
+              <span className="w-2 h-2 bg-brand-red flex-shrink-0" aria-hidden="true" />
               <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
                 Asignaciones
               </h2>
@@ -165,7 +165,7 @@ export default function DemoAdminPage() {
             <h2 className="text-lg font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
               Usuarios
             </h2>
-            <span className="text-xs font-heading font-bold text-[#E31414] bg-[#E31414]/10 px-2 py-0.5">
+            <span className="text-xs font-heading font-bold text-brand-red bg-brand-red/10 px-2 py-0.5">
               {mockUsers.length}
             </span>
             <div className="flex-1 h-px bg-[#1A1A1A]" aria-hidden="true" />
@@ -194,7 +194,7 @@ export default function DemoAdminPage() {
                   >
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-[#1A1A1A] border border-[#2A2A2A] flex items-center justify-center flex-shrink-0 group-hover:border-[#E31414]/30 transition-colors duration-200">
+                        <div className="w-8 h-8 bg-[#1A1A1A] border border-[#2A2A2A] flex items-center justify-center flex-shrink-0 group-hover:border-brand-red/30 transition-colors duration-200">
                           <span className="text-xs font-heading font-bold text-gray-500">
                             {user.name.charAt(0).toUpperCase()}
                           </span>
@@ -202,7 +202,7 @@ export default function DemoAdminPage() {
                         <span className="text-white font-heading font-bold">
                           {user.name}
                           {user.id === "a1" && (
-                            <span className="ml-2 text-[#E31414] text-xs">(vos)</span>
+                            <span className="ml-2 text-brand-red text-xs">(vos)</span>
                           )}
                         </span>
                       </div>
@@ -213,7 +213,7 @@ export default function DemoAdminPage() {
                         className={[
                           "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 inline-block",
                           user.role === "ADMIN"
-                            ? "bg-[#E31414]/15 text-[#E31414] border border-[#E31414]/20"
+                            ? "bg-brand-red/15 text-brand-red border border-brand-red/20"
                             : user.role === "TEACHER"
                             ? "bg-white/5 text-white border border-white/10"
                             : "bg-[#1A1A1A] text-gray-400 border border-[#2A2A2A]",
@@ -278,7 +278,7 @@ export default function DemoAdminPage() {
                           className={[
                             "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5",
                             user.role === "ADMIN"
-                              ? "bg-[#E31414]/15 text-[#E31414] border border-[#E31414]/20"
+                              ? "bg-brand-red/15 text-brand-red border border-brand-red/20"
                               : user.role === "TEACHER"
                               ? "bg-white/5 text-white border border-white/10"
                               : "bg-[#1A1A1A] text-gray-400 border border-[#2A2A2A]",

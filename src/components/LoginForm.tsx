@@ -76,7 +76,7 @@ export function LoginForm({ gymSlug }: LoginFormProps) {
 
       {error && (
         <div
-          className="px-4 py-3 text-sm font-heading font-bold text-[#E31414] border border-[#E31414]/40 bg-[#E31414]/5 uppercase tracking-wide"
+          className="px-4 py-3 text-sm font-heading font-bold text-brand-red border border-brand-red/40 bg-brand-red/5 uppercase tracking-wide"
           role="alert"
         >
           {error}

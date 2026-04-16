@@ -40,7 +40,7 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
       {/* Hero */}
       <section className="flex-1 flex flex-col items-center justify-center px-6 py-16 sm:py-24 text-center overflow-hidden stripe-pattern relative">
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-16 sm:h-24 bg-gradient-to-b from-transparent to-[#E31414] line-expand"
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-16 sm:h-24 bg-gradient-to-b from-transparent to-brand-red line-expand"
           aria-hidden="true"
         />
 
@@ -78,7 +78,7 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
           )}
         </div>
 
-        <div className="w-12 sm:w-16 h-1 bg-[#E31414] my-4 sm:my-6 line-expand" aria-hidden="true" />
+        <div className="w-12 sm:w-16 h-1 bg-brand-red my-4 sm:my-6 line-expand" aria-hidden="true" />
 
         <p className="text-sm sm:text-base text-gray-400 max-w-md mb-8 sm:mb-10 leading-relaxed font-body">
           Los Polvorines, Buenos Aires.
@@ -88,13 +88,13 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
 
         <Link
           href={gymPath(gymSlug, "/login")}
-          className="relative z-10 inline-block px-10 sm:px-12 py-4 font-heading font-black uppercase tracking-[0.2em] text-white text-sm sm:text-base bg-[#E31414] hover:bg-[#B00F0F] active:bg-[#8B0B0B] transition-colors duration-200 cursor-pointer"
+          className="relative z-10 inline-block px-10 sm:px-12 py-4 font-heading font-black uppercase tracking-[0.2em] text-white text-sm sm:text-base bg-brand-red hover:bg-brand-red-dark active:bg-brand-red-active transition-colors duration-200 cursor-pointer"
         >
           Ingresar
         </Link>
 
         <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-px h-16 bg-gradient-to-t from-transparent to-[#E31414]/40"
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-px h-16 bg-gradient-to-t from-transparent to-brand-red/40"
           aria-hidden="true"
         />
       </section>
@@ -121,10 +121,10 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
 function Pillar({ label, sublabel }: { label: string; sublabel: string }) {
   return (
     <div className="text-center group">
-      <div className="text-3xl sm:text-4xl font-heading font-black uppercase tracking-wider text-[#E31414] mb-2 group-hover:tracking-[0.2em] transition-all duration-300">
+      <div className="text-3xl sm:text-4xl font-heading font-black uppercase tracking-wider text-brand-red mb-2 group-hover:tracking-[0.2em] transition-all duration-300">
         {label}
       </div>
-      <div className="w-8 h-0.5 bg-[#2A2A2A] group-hover:bg-[#E31414] mx-auto mb-3 transition-colors duration-300" />
+      <div className="w-8 h-0.5 bg-[#2A2A2A] group-hover:bg-brand-red mx-auto mb-3 transition-colors duration-300" />
       <p className="text-xs text-gray-500 uppercase tracking-[0.2em] font-heading font-medium">
         {sublabel}
       </p>

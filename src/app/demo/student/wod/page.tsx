@@ -53,7 +53,7 @@ export default async function DemoWodFullPage({ searchParams }: Props) {
           <div className="flex items-center justify-between gap-4 mb-6">
             <Link
               href="/demo/student"
-              className="text-xs text-gray-600 hover:text-[#E31414] uppercase tracking-[0.15em] font-heading font-bold transition-colors duration-200 flex items-center gap-2 cursor-pointer"
+              className="text-xs text-gray-600 hover:text-brand-red uppercase tracking-[0.15em] font-heading font-bold transition-colors duration-200 flex items-center gap-2 cursor-pointer"
             >
               <span aria-hidden="true">&#8592;</span> Volver
             </Link>
@@ -65,7 +65,7 @@ export default async function DemoWodFullPage({ searchParams }: Props) {
               {/* Date header */}
               <div className="flex items-center gap-3 mb-6">
                 {isToday && (
-                  <span className="inline-block w-2.5 h-2.5 bg-[#E31414] flex-shrink-0 animate-pulse" aria-hidden="true" />
+                  <span className="inline-block w-2.5 h-2.5 bg-brand-red flex-shrink-0 animate-pulse" aria-hidden="true" />
                 )}
                 <h1 className="text-2xl sm:text-4xl font-heading font-black uppercase tracking-[0.1em] text-white">
                   {isToday ? wod.title : wod.date}
@@ -73,7 +73,7 @@ export default async function DemoWodFullPage({ searchParams }: Props) {
               </div>
 
               {isToday ? (
-                <p className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-[#E31414] mb-2">
+                <p className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-brand-red mb-2">
                   {wod.date}
                 </p>
               ) : (
@@ -83,7 +83,7 @@ export default async function DemoWodFullPage({ searchParams }: Props) {
               )}
 
               {/* Separator */}
-              <div className="w-12 h-1 bg-[#E31414] mb-8" aria-hidden="true" />
+              <div className="w-12 h-1 bg-brand-red mb-8" aria-hidden="true" />
 
               {/* Content */}
               <MarkdownRenderer
