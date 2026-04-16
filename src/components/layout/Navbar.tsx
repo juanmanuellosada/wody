@@ -9,11 +9,11 @@ import { gymPath } from "@/lib/gym";
 
 import wodyBlanco from "@/logos/wody-blanco.png";
 import unidosTexto from "@/logos/unidos-texto.png";
-import rompiendoLogo from "@/logos/rompiendo-limites.png";
+import rompiendoHorizontal from "@/logos/rompiendo-limites-horizontal.png";
 
 const GYM_NAV_LOGOS: Record<string, { src: typeof unidosTexto; alt: string }> = {
   "unidos-garage": { src: unidosTexto, alt: "Unidos Garage" },
-  "rompiendo-limites": { src: rompiendoLogo, alt: "Rompiendo Limites" },
+  "rompiendo-limites": { src: rompiendoHorizontal, alt: "Rompiendo Limites" },
 };
 
 interface NavbarProps {
