@@ -76,7 +76,7 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
           <Image src={wodyBlanco} alt="WODY" width={22} height={22} className="opacity-90 group-hover:opacity-100 transition-opacity duration-200" />
           <span className="w-px h-5 bg-[#2A2A2A]" aria-hidden="true" />
           {gymLogo ? (
-            <Image src={gymLogo.src} alt={gymLogo.alt} width={80} height={24} className="h-6 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
+            <Image src={gymLogo.src} alt={gymLogo.alt} width={120} height={36} className="h-9 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
           ) : (
             <span className="text-xs font-heading font-bold uppercase tracking-[0.1em] text-gray-400 opacity-80 group-hover:opacity-100 transition-opacity duration-200">
               {gymSlug.replace(/-/g, " ")}
