@@ -48,6 +48,10 @@ export function TimersClient() {
   const [customRest, setCustomRest] = useState(20);
   const [customRounds, setCustomRounds] = useState(8);
 
+  // Tabata config (work is always 20s)
+  const [tabataRest, setTabataRest] = useState(10);
+  const [tabataRounds, setTabataRounds] = useState(8);
+
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSoundSecRef = useRef(-1);
   const pendingStartRef = useRef<(() => void) | null>(null);
@@ -78,7 +82,7 @@ export function TimersClient() {
     reset();
     setMode(m);
     if (m === "tabata") {
-      setIntervalConfig({ workSeconds: 20, restSeconds: 10, rounds: 8 });
+      setIntervalConfig({ workSeconds: 20, restSeconds: tabataRest, rounds: tabataRounds });
     }
   }
 
@@ -282,7 +286,7 @@ export function TimersClient() {
 
   function startTabata() {
     initAudio();
-    const cfg = { workSeconds: 20, restSeconds: 10, rounds: 8 };
+    const cfg = { workSeconds: 20, restSeconds: tabataRest, rounds: tabataRounds };
     startPrep(() => _startInterval(cfg));
   }
 
@@ -364,7 +368,7 @@ export function TimersClient() {
             Presets de entrenamiento
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <ModeCard label="TABATA" description="20s trabajo / 10s descanso × 8 rondas" accent onClick={() => selectMode("tabata")} />
+            <ModeCard label="TABATA" description="20s trabajo / descanso y rondas configurables" accent onClick={() => selectMode("tabata")} />
             <ModeCard label="AMRAP" description="Cuenta regresiva — tantas rondas como puedas" accent onClick={() => selectMode("amrap")} />
             <ModeCard label="FOR TIME" description="Cronómetro progresivo con time cap opcional" accent onClick={() => selectMode("fortime")} />
           </div>
@@ -442,9 +446,23 @@ export function TimersClient() {
           )}
 
           {mode === "tabata" && (
-            <p className="text-sm text-gray-400 font-body text-center">
-              20s trabajo — 10s descanso — 8 rondas — Total: 4:00
-            </p>
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="flex flex-col items-center gap-1">
+                  <label className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
+                    Trabajo (s)
+                  </label>
+                  <div className="w-20 bg-[#0A0A0A] border border-[#2A2A2A] text-gray-500 text-2xl font-heading font-black text-center px-2 py-2">
+                    20
+                  </div>
+                </div>
+                <TimeInput label="Descanso (s)" value={tabataRest} onChange={setTabataRest} max={60} />
+                <TimeInput label="Rondas" value={tabataRounds} onChange={setTabataRounds} max={50} />
+              </div>
+              <p className="text-xs text-gray-600 font-heading text-center">
+                Total: {formatTime((20 + tabataRest) * tabataRounds)}
+              </p>
+            </div>
           )}
         </div>
       )}
