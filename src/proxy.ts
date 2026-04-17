@@ -68,6 +68,17 @@ export async function proxy(request: NextRequest) {
   const session = await auth();
   const isAuthenticated = !!session?.user;
   const role = session?.user?.role;
+  const sessionGymSlug = session?.user?.gymSlug;
+
+  // Cross-gym guard: if authenticated to a different gym than the URL says,
+  // bounce to the session's own gym on the same subPath. Prevents the
+  // "wrong gym data at wrong URL" bug where a Gym A admin typing /gymB/admin
+  // would render Gym A's data under Gym B's URL.
+  if (isAuthenticated && sessionGymSlug && sessionGymSlug !== gymSlug) {
+    return NextResponse.redirect(
+      new URL(gymPath(sessionGymSlug, subPath), nextUrl)
+    );
+  }
 
   // Gym landing + login page: public (no auth required)
   if (subPath === "/login" || subPath === "/" || subPath === "") {
