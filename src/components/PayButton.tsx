@@ -8,9 +8,10 @@ import { markStudentAsPaid } from "@/actions/payment";
 interface Props {
   studentId: string;
   studentName: string;
+  demo?: boolean;
 }
 
-export function PayButton({ studentId, studentName }: Props) {
+export function PayButton({ studentId, studentName, demo }: Props) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -22,6 +23,10 @@ export function PayButton({ studentId, studentName }: Props) {
   }
 
   function handleConfirm() {
+    if (demo) {
+      setOpen(false);
+      return;
+    }
     startTransition(async () => {
       const result = await markStudentAsPaid(studentId);
       if (!result.success) setError(result.error);

@@ -10,11 +10,13 @@ import wodyBlanco from "@/logos/wody-blanco.png";
 const roleLinks = {
   admin: [
     { href: "/demo/admin", label: "Panel Admin" },
+    { href: "/demo/admin/pagos", label: "Pagos" },
     { href: "/demo/teacher", label: "Dashboard Profe" },
     { href: "/demo/teacher/rms", label: "Mis RMs" },
   ],
   teacher: [
     { href: "/demo/teacher", label: "Mis WODs" },
+    { href: "/demo/teacher/pagos", label: "Pagos" },
     { href: "/demo/teacher/rms", label: "Mis RMs" },
   ],
   student: [
