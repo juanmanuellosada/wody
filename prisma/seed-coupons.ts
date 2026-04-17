@@ -154,7 +154,7 @@ const COUPONS: Array<{
   },
   {
     slug: "tica-clothes",
-    name: "Tica Clothes",
+    name: "Tica",
     description:
       "10% de descuento en ticaclothes.com.ar con el código WODY10 al finalizar la compra.",
     instagramHandle: "ticaclothess",
