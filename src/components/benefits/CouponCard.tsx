@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
-import { Check, Copy, Ticket } from "lucide-react";
+import { Check, Copy, Lock, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { generateRedemption, type AvailableCoupon } from "@/actions/coupon";
 import { getCouponLogo } from "@/lib/coupon-logos";
@@ -10,6 +10,9 @@ import { InstagramIcon } from "@/components/icons/InstagramIcon";
 
 interface CouponCardProps {
   coupon: AvailableCoupon;
+  /** If true, disables actions and shows a "Ingresá para usar" button that
+   *  anchors to the login form at #benefits-login. */
+  preview?: boolean;
 }
 
 const RULE_LABEL: Record<AvailableCoupon["rule"], string> = {
@@ -18,7 +21,7 @@ const RULE_LABEL: Record<AvailableCoupon["rule"], string> = {
   UNLIMITED: "Uso libre",
 };
 
-export function CouponCard({ coupon }: CouponCardProps) {
+export function CouponCard({ coupon, preview = false }: CouponCardProps) {
   const [code, setCode] = useState<string | null>(coupon.pendingCode);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +93,17 @@ export function CouponCard({ coupon }: CouponCardProps) {
         {coupon.description}
       </p>
 
-      {blocked ? (
+      {preview ? (
+        <div className="mt-auto border-t border-white/[0.05] pt-4">
+          <a
+            href="#benefits-login"
+            className="inline-flex w-full items-center justify-center gap-2 bg-[#1A1A1A] text-gray-400 border border-[#2A2A2A] hover:border-brand-red hover:text-brand-red px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors cursor-pointer"
+          >
+            <Lock size={14} aria-hidden="true" />
+            <span>Ingresá para usar</span>
+          </a>
+        </div>
+      ) : blocked ? (
         <p className="mt-auto text-[11px] font-heading font-bold uppercase tracking-[0.15em] text-gray-600 border-t border-white/[0.05] pt-4">
           {coupon.blockedReason ?? "No disponible"}
         </p>

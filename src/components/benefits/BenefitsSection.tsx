@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { listAvailableCoupons } from "@/actions/coupon";
+import { listAvailableCoupons, listCouponsPreview } from "@/actions/coupon";
 import { BenefitsLogin } from "./BenefitsLogin";
 import { CouponCard } from "./CouponCard";
 
@@ -7,7 +7,9 @@ export async function BenefitsSection() {
   const session = await auth();
   const isLoggedIn = Boolean(session?.user?.id);
 
-  const coupons = isLoggedIn ? await listAvailableCoupons() : [];
+  const coupons = isLoggedIn
+    ? await listAvailableCoupons()
+    : await listCouponsPreview();
 
   return (
     <section className="border-t border-white/5 px-6 py-20 relative">
@@ -23,16 +25,20 @@ export async function BenefitsSection() {
           gym que use WODY.
         </p>
 
-        {!isLoggedIn ? (
-          <BenefitsLogin />
-        ) : coupons.length === 0 ? (
+        {!isLoggedIn && (
+          <div id="benefits-login" className="mb-12 scroll-mt-24">
+            <BenefitsLogin />
+          </div>
+        )}
+
+        {coupons.length === 0 ? (
           <p className="text-sm text-gray-500 font-body text-center">
             Todavía no hay beneficios disponibles.
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {coupons.map((c) => (
-              <CouponCard key={c.id} coupon={c} />
+              <CouponCard key={c.id} coupon={c} preview={!isLoggedIn} />
             ))}
           </div>
         )}

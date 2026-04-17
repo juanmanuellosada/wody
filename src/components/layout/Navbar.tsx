@@ -32,6 +32,7 @@ function getNavLinks(role: Role, gymSlug: string, studentType?: StudentType) {
       { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
       { href: gymPath(gymSlug, "/dashboard/rms"), label: "Mis RMs" },
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
+      { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
     ];
   }
   if (role === "TEACHER") {
@@ -40,12 +41,14 @@ function getNavLinks(role: Role, gymSlug: string, studentType?: StudentType) {
       { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
       { href: gymPath(gymSlug, "/dashboard/rms"), label: "Mis RMs" },
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
+      { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
     ];
   }
   return [
     { href: gymPath(gymSlug, "/dashboard/athlete"), label: "Mi WOD" },
     { href: gymPath(gymSlug, "/dashboard/rms"), label: "Mis RMs" },
     { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
+    { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
   ];
 }
 

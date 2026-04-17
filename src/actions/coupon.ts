@@ -35,6 +35,31 @@ function generateCode(): string {
   return `WODY-${out}`;
 }
 
+/**
+ * Public preview for non-logged-in visitors: all active coupons with no
+ * user-specific state (no pending code, nothing blocked).
+ */
+export async function listCouponsPreview(): Promise<AvailableCoupon[]> {
+  const coupons = await prisma.coupon.findMany({
+    where: { active: true },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+
+  return coupons.map((c) => ({
+    id: c.id,
+    slug: c.slug,
+    name: c.name,
+    description: c.description,
+    instagramHandle: c.instagramHandle,
+    instagramUrl: c.instagramUrl,
+    logoKey: c.logoKey,
+    rule: c.rule,
+    pendingCode: null,
+    blocked: false,
+    blockedReason: null,
+  }));
+}
+
 export async function listAvailableCoupons(): Promise<AvailableCoupon[]> {
   const session = await auth();
   if (!session?.user?.id) return [];
