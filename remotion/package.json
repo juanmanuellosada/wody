@@ -8,7 +8,9 @@
     "render": "remotion render CuponeraPromo out/cuponera.mp4",
     "render:gif": "remotion render CuponeraPromo out/cuponera.gif",
     "render:timers": "remotion render TimersPromo out/timers.mp4",
-    "render:timers:gif": "remotion render TimersPromo out/timers.gif"
+    "render:timers:gif": "remotion render TimersPromo out/timers.gif",
+    "render:pagos": "remotion render PagosPromo out/pagos.mp4",
+    "render:pagos:gif": "remotion render PagosPromo out/pagos.gif"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.400",
