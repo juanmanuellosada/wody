@@ -375,6 +375,18 @@ export default function LandingPage() {
             </svg>
             @wody.app
           </a>
+          <span className="text-gray-800">—</span>
+          <span>
+            Diseño x{" "}
+            <a
+              href="https://www.instagram.com/marlocomunica/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-600 hover:text-white transition-colors duration-200"
+            >
+              @marlocomunica
+            </a>
+          </span>
         </div>
       </footer>
     </main>
