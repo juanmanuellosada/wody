@@ -6,7 +6,9 @@
   "scripts": {
     "studio": "remotion studio",
     "render": "remotion render CuponeraPromo out/cuponera.mp4",
-    "render:gif": "remotion render CuponeraPromo out/cuponera.gif"
+    "render:gif": "remotion render CuponeraPromo out/cuponera.gif",
+    "render:timers": "remotion render TimersPromo out/timers.mp4",
+    "render:timers:gif": "remotion render TimersPromo out/timers.gif"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.400",

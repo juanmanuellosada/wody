@@ -12,14 +12,14 @@ Videos promocionales de WODY hechos con [Remotion](https://www.remotion.dev/).
 - `npm run studio` — abre el editor interactivo en el navegador
 - `npm run render` — renderiza `CuponeraPromo` a `out/cuponera.mp4`
 - `npm run render:gif` — idem a GIF
+- `npm run render:timers` — renderiza `TimersPromo` a `out/timers.mp4`
+- `npm run render:timers:gif` — idem a GIF
 
 ## Composiciones
 
 ### `CuponeraPromo`
 
 Reel vertical de 20s (1080×1920, 30fps) para promocionar la cuponera.
-
-Estructura:
 
 | Escena | Frames | Duración | Contenido |
 |---|---|---|---|
@@ -31,3 +31,21 @@ Estructura:
 
 Los logos vienen de `public/logos/`. Si agregás/cambiás comercios, actualizá
 `COMERCIOS` en `src/CuponeraPromo.tsx`.
+
+### `TimersPromo`
+
+Reel vertical de 30s (1080×1920, 30fps) mostrando los 6 modos de cronómetro.
+
+| Escena | Frames | Duración | Modo |
+|---|---|---|---|
+| Intro | 0–90 | 3s | Logo WODY + "Cronómetros" |
+| Demo 1 | 90–210 | 4s | Stopwatch (cuenta progresiva) |
+| Demo 2 | 210–330 | 4s | Countdown (cuenta regresiva) |
+| Demo 3 | 330–450 | 4s | Intervalos (trabajo/descanso) |
+| Demo 4 | 450–570 | 4s | TABATA (8 rondas 20/10) |
+| Demo 5 | 570–690 | 4s | AMRAP |
+| Demo 6 | 690–810 | 4s | FOR TIME (con cap) |
+| CTA | 810–900 | 3s | "Todo el cronómetro que tu box necesita" |
+
+Los números de cada demo se animan con `interpolate`; cambiá los valores en
+`src/TimersPromo.tsx` si querés otros tiempos.
