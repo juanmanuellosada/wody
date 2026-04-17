@@ -231,3 +231,13 @@ h1, h2, h3, h4, h5, h6 {
 .pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
+
+/* Overdue payment banner — subtle red pulse */
+@keyframes pulse-overdue {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-red) 35%, transparent); }
+  50% { box-shadow: 0 0 24px 2px color-mix(in srgb, var(--color-red) 25%, transparent); }
+}
+
+.wody-pulse-overdue {
+  animation: pulse-overdue 2.4s ease-in-out infinite;
+}

@@ -3,6 +3,7 @@ import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "@/components/layout/Navbar";
 import { InstallPwaButton } from "@/components/InstallPwaButton";
+import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
 import { gymPath } from "@/lib/gym";
 
@@ -32,7 +33,16 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
     return <div style={accentVars}>{children}</div>;
   }
 
-  const { name, role, studentType } = session.user;
+  const { id: userId, name, role, studentType } = session.user;
+
+  // Student-only: next payment date drives the status banner at the top of every page.
+  const student =
+    role === "STUDENT"
+      ? await prisma.user.findUnique({
+          where: { id: userId },
+          select: { nextPaymentDate: true },
+        })
+      : null;
 
   async function handleSignOut() {
     "use server";
@@ -49,6 +59,9 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         onSignOut={handleSignOut}
       />
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-10">
+        {student && (
+          <PaymentStatusBanner nextPaymentDate={student.nextPaymentDate} />
+        )}
         <InstallPwaButton />
         {children}
       </main>
