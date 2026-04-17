@@ -3,6 +3,7 @@ import { CuponeraPromo } from "./CuponeraPromo";
 import { TimersPromo } from "./TimersPromo";
 import { PagosPromo } from "./PagosPromo";
 import { UsuariosPromo } from "./UsuariosPromo";
+import { ValidarPromo } from "./ValidarPromo";
 
 export const Root = () => {
   return (
@@ -34,6 +35,14 @@ export const Root = () => {
       <Composition
         id="UsuariosPromo"
         component={UsuariosPromo}
+        durationInFrames={900}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="ValidarPromo"
+        component={ValidarPromo}
         durationInFrames={900}
         fps={30}
         width={1080}

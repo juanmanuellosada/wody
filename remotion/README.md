@@ -18,6 +18,8 @@ Videos promocionales de WODY hechos con [Remotion](https://www.remotion.dev/).
 - `npm run render:pagos:gif` — idem a GIF
 - `npm run render:usuarios` — renderiza `UsuariosPromo` a `out/usuarios.mp4`
 - `npm run render:usuarios:gif` — idem a GIF
+- `npm run render:validar` — renderiza `ValidarPromo` a `out/validar.mp4`
+- `npm run render:validar:gif` — idem a GIF
 
 ## Composiciones
 
@@ -85,3 +87,21 @@ Reel vertical de 30s (1080×1920, 30fps) con **estética Rompiendo Limites**
 Paleta verde definida arriba del archivo (`GREEN`, `GREEN_DIM`, `GREEN_BORDER`).
 Para otros gyms con colores propios, duplicá la composición y cambiá esas 3
 constantes.
+
+### `ValidarPromo`
+
+Reel vertical de 30s (1080×1920, 30fps) para mandarle a los comercios
+aliados explicándoles cómo validar un cupón WODY.
+
+| Escena | Frames | Duración | Contenido |
+|---|---|---|---|
+| Intro | 0–90 | 3s | Logo WODY + "Validar un cupón · Para comercios aliados · En 3 pasos" |
+| Paso 01 | 90–300 | 7s | Mockup de chat de Instagram: el alumno manda el código `WODY-XXXX-XXXX` y el link `wody.com.ar/validar/...` |
+| Paso 02 | 300–480 | 6s | Mockup de browser con la URL tipeándose, se aprieta Enter, barra de carga roja |
+| Paso 03 | 480–720 | 8s | Página de validación real con "✓ Cupón válido", logo Quinque, datos del alumno/gym/fechas |
+| Warning | 720–810 | 3s | Mismo cupón tras reload → "Ya fue usado" con banner de alerta |
+| CTA | 810–900 | 3s | "Aplicás el descuento · wody.com.ar/validar/EL-CODIGO · @wody.app" |
+
+Look and feel espejado de `src/app/validar/[codigo]/page.tsx`. El código y los
+datos de ejemplo (`WODY-8K4R-Z9P2`, Camila Torres, Rompiendo Limites, Quinque)
+están hardcodeados arriba del archivo — tocá ahí para cambiarlos.

@@ -12,7 +12,9 @@
     "render:pagos": "remotion render PagosPromo out/pagos.mp4",
     "render:pagos:gif": "remotion render PagosPromo out/pagos.gif",
     "render:usuarios": "remotion render UsuariosPromo out/usuarios.mp4",
-    "render:usuarios:gif": "remotion render UsuariosPromo out/usuarios.gif"
+    "render:usuarios:gif": "remotion render UsuariosPromo out/usuarios.gif",
+    "render:validar": "remotion render ValidarPromo out/validar.mp4",
+    "render:validar:gif": "remotion render ValidarPromo out/validar.gif"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.400",
