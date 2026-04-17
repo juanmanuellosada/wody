@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
-import { Check, Copy, Lock, Ticket } from "lucide-react";
+import { Check, Copy, ExternalLink, Lock, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { generateRedemption, type AvailableCoupon } from "@/actions/coupon";
 import { getCouponLogo } from "@/lib/coupon-logos";
@@ -22,7 +22,11 @@ const RULE_LABEL: Record<AvailableCoupon["rule"], string> = {
 };
 
 export function CouponCard({ coupon, preview = false }: CouponCardProps) {
-  const [code, setCode] = useState<string | null>(coupon.pendingCode);
+  const isFixed = Boolean(coupon.fixedCode);
+
+  const [code, setCode] = useState<string | null>(
+    coupon.fixedCode ?? coupon.pendingCode
+  );
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -53,6 +57,7 @@ export function CouponCard({ coupon, preview = false }: CouponCardProps) {
   }
 
   const blocked = coupon.blocked && !code;
+  const badgeLabel = isFixed ? "Tienda online" : RULE_LABEL[coupon.rule];
 
   return (
     <article
@@ -84,7 +89,7 @@ export function CouponCard({ coupon, preview = false }: CouponCardProps) {
             {coupon.name}
           </h3>
           <p className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] text-brand-red/80 mt-1">
-            {RULE_LABEL[coupon.rule]}
+            {badgeLabel}
           </p>
         </div>
       </header>
@@ -92,6 +97,12 @@ export function CouponCard({ coupon, preview = false }: CouponCardProps) {
       <p className="text-xs text-gray-400 font-body leading-relaxed">
         {coupon.description}
       </p>
+
+      {coupon.restrictions && (
+        <p className="text-[10px] text-gray-600 font-body italic leading-relaxed -mt-1">
+          {coupon.restrictions}
+        </p>
+      )}
 
       {preview ? (
         <div className="mt-auto border-t border-white/[0.05] pt-4">
@@ -107,6 +118,54 @@ export function CouponCard({ coupon, preview = false }: CouponCardProps) {
         <p className="mt-auto text-[11px] font-heading font-bold uppercase tracking-[0.15em] text-gray-600 border-t border-white/[0.05] pt-4">
           {coupon.blockedReason ?? "No disponible"}
         </p>
+      ) : isFixed ? (
+        <div className="mt-auto flex flex-col gap-3 border-t border-white/[0.05] pt-4">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="group flex items-center justify-between gap-2 bg-black border border-brand-red/40 px-4 py-3 hover:border-brand-red transition-colors cursor-pointer"
+            aria-label="Copiar código"
+          >
+            <span className="font-heading font-black tracking-[0.2em] text-sm text-white">
+              {code}
+            </span>
+            {copied ? (
+              <Check size={16} className="text-brand-red" aria-hidden="true" />
+            ) : (
+              <Copy
+                size={16}
+                className="text-gray-500 group-hover:text-brand-red transition-colors"
+                aria-hidden="true"
+              />
+            )}
+          </button>
+
+          {coupon.websiteUrl && (
+            <a
+              href={coupon.websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 bg-brand-red hover:bg-brand-red-dark text-white px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors"
+            >
+              <ExternalLink size={16} aria-hidden="true" />
+              <span>Ir a la tienda</span>
+            </a>
+          )}
+
+          <a
+            href={coupon.instagramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white border border-[#2A2A2A] hover:border-[#3A3A3A] px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors"
+          >
+            <InstagramIcon size={16} />
+            <span>@{coupon.instagramHandle}</span>
+          </a>
+
+          <p className="text-[10px] text-gray-600 font-body text-center leading-relaxed">
+            Aplicá el código al finalizar la compra.
+          </p>
+        </div>
       ) : code ? (
         <div className="mt-auto flex flex-col gap-3 border-t border-white/[0.05] pt-4">
           <button

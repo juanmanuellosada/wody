@@ -8,6 +8,7 @@ import nutriteConLu from "@/logos/nutrite-con-lu.png";
 import quinque from "@/logos/quinque.png";
 import rayOfLight from "@/logos/ray-of-light.jpeg";
 import readyForWod from "@/logos/ready-for-wod.png";
+import tica from "@/logos/tica.jpeg";
 
 export const COUPON_LOGOS: Record<string, StaticImageData> = {
   atr,
@@ -18,6 +19,7 @@ export const COUPON_LOGOS: Record<string, StaticImageData> = {
   quinque,
   "ray-of-light": rayOfLight,
   "ready-for-wod": readyForWod,
+  tica,
 };
 
 export function getCouponLogo(logoKey: string | null): StaticImageData | null {

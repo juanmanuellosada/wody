@@ -145,6 +145,9 @@ model Coupon {
   requiresConsumedSlug String?
   hideWhenConsumed     Boolean    @default(false)
   expiresAt            DateTime?
+  fixedCode            String?
+  websiteUrl           String?
+  restrictions         String?
   createdAt            DateTime   @default(now())
 
   redemptions CouponRedemption[]

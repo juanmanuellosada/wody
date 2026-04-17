@@ -14,6 +14,9 @@ const COUPONS: Array<{
   requiresConsumedSlug?: string | null;
   hideWhenConsumed?: boolean;
   expiresAt?: Date | null;
+  fixedCode?: string | null;
+  websiteUrl?: string | null;
+  restrictions?: string | null;
 }> = [
   {
     slug: "nutrite-con-lu",
@@ -149,6 +152,21 @@ const COUPONS: Array<{
     sortOrder: 82,
     hideWhenConsumed: true,
   },
+  {
+    slug: "tica-clothes",
+    name: "Tica Clothes",
+    description:
+      "10% de descuento en ticaclothes.com.ar con el código WODY10 al finalizar la compra.",
+    instagramHandle: "ticaclothess",
+    instagramUrl: "https://www.instagram.com/ticaclothess",
+    logoKey: "tica",
+    rule: CouponRule.UNLIMITED,
+    sortOrder: 90,
+    fixedCode: "WODY10",
+    websiteUrl: "https://ticaclothes.com.ar/",
+    restrictions:
+      "Aplican restricciones en fechas especiales y promos masivas como Cyber Monday, Black Friday, etc.",
+  },
 ];
 
 async function main() {
@@ -162,6 +180,9 @@ async function main() {
         requiresConsumedSlug: coupon.requiresConsumedSlug ?? null,
         hideWhenConsumed: coupon.hideWhenConsumed ?? false,
         expiresAt: coupon.expiresAt ?? null,
+        fixedCode: coupon.fixedCode ?? null,
+        websiteUrl: coupon.websiteUrl ?? null,
+        restrictions: coupon.restrictions ?? null,
         active: true,
       },
       update: {
@@ -175,6 +196,9 @@ async function main() {
         requiresConsumedSlug: coupon.requiresConsumedSlug ?? null,
         hideWhenConsumed: coupon.hideWhenConsumed ?? false,
         expiresAt: coupon.expiresAt ?? null,
+        fixedCode: coupon.fixedCode ?? null,
+        websiteUrl: coupon.websiteUrl ?? null,
+        restrictions: coupon.restrictions ?? null,
       },
     });
     console.log(`  ✓ ${coupon.name}`);

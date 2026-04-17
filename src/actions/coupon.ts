@@ -20,6 +20,13 @@ export type AvailableCoupon = {
   blocked: boolean;
   /** Present when blocked — explains why. */
   blockedReason: string | null;
+  /** When set, this coupon uses a static code (e.g. e-commerce checkout code)
+   *  — no redemption generated, no validation URL. */
+  fixedCode: string | null;
+  /** External shop URL (e-commerce). When set, becomes the primary CTA. */
+  websiteUrl: string | null;
+  /** Fine print shown below the description. */
+  restrictions: string | null;
 };
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -61,6 +68,9 @@ export async function listCouponsPreview(): Promise<AvailableCoupon[]> {
     pendingCode: null,
     blocked: false,
     blockedReason: null,
+    fixedCode: c.fixedCode,
+    websiteUrl: c.websiteUrl,
+    restrictions: c.restrictions,
   }));
 }
 
@@ -164,6 +174,9 @@ function buildAvailable(
     pendingCode: userPending?.code ?? null,
     blocked,
     blockedReason,
+    fixedCode: c.fixedCode,
+    websiteUrl: c.websiteUrl,
+    restrictions: c.restrictions,
   };
 }
 
