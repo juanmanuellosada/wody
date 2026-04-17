@@ -40,8 +40,12 @@ function generateCode(): string {
  * user-specific state (no pending code, nothing blocked).
  */
 export async function listCouponsPreview(): Promise<AvailableCoupon[]> {
+  const now = new Date();
   const coupons = await prisma.coupon.findMany({
-    where: { active: true },
+    where: {
+      active: true,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 
@@ -66,8 +70,12 @@ export async function listAvailableCoupons(): Promise<AvailableCoupon[]> {
 
   const userId = session.user.id;
 
+  const now = new Date();
   const coupons = await prisma.coupon.findMany({
-    where: { active: true },
+    where: {
+      active: true,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 
@@ -175,6 +183,10 @@ export async function generateRedemption(
   const coupon = await prisma.coupon.findUnique({ where: { slug: couponSlug } });
   if (!coupon || !coupon.active) {
     return { success: false, error: "Beneficio no disponible." };
+  }
+
+  if (coupon.expiresAt && coupon.expiresAt.getTime() <= Date.now()) {
+    return { success: false, error: "Beneficio vencido." };
   }
 
   if (coupon.requiresConsumedSlug) {

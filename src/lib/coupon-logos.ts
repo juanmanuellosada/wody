@@ -6,6 +6,7 @@ import bvSports from "@/logos/bv-sports.png";
 import ger from "@/logos/ger.png";
 import nutriteConLu from "@/logos/nutrite-con-lu.png";
 import quinque from "@/logos/quinque.png";
+import rayOfLight from "@/logos/ray-of-light.jpeg";
 import readyForWod from "@/logos/ready-for-wod.png";
 
 export const COUPON_LOGOS: Record<string, StaticImageData> = {
@@ -15,6 +16,7 @@ export const COUPON_LOGOS: Record<string, StaticImageData> = {
   ger,
   "nutrite-con-lu": nutriteConLu,
   quinque,
+  "ray-of-light": rayOfLight,
   "ready-for-wod": readyForWod,
 };
 

@@ -13,6 +13,7 @@ const COUPONS: Array<{
   sortOrder: number;
   requiresConsumedSlug?: string | null;
   hideWhenConsumed?: boolean;
+  expiresAt?: Date | null;
 }> = [
   {
     slug: "nutrite-con-lu",
@@ -112,6 +113,42 @@ const COUPONS: Array<{
     rule: CouponRule.UNLIMITED,
     sortOrder: 70,
   },
+  {
+    slug: "ray-of-light-cursos-anuales",
+    name: "Ray of Light · Cursos anuales",
+    description:
+      "Abril y Mayo: todavía estás a tiempo de sumarte a los cursos anuales. Sin abonar matrícula.",
+    instagramHandle: "rayoflight.classes",
+    instagramUrl: "https://www.instagram.com/rayoflight.classes",
+    logoKey: "ray-of-light",
+    rule: CouponRule.ONCE_PER_USER,
+    sortOrder: 80,
+    hideWhenConsumed: true,
+    // Argentina UTC-3 → midnight of June 1 Arg = 03:00 UTC. Válido durante todo mayo.
+    expiresAt: new Date("2026-06-01T03:00:00.000Z"),
+  },
+  {
+    slug: "ray-of-light-clase-particular",
+    name: "Ray of Light · Primera clase particular",
+    description: "10% de descuento en tu primera clase particular.",
+    instagramHandle: "rayoflight.classes",
+    instagramUrl: "https://www.instagram.com/rayoflight.classes",
+    logoKey: "ray-of-light",
+    rule: CouponRule.ONCE_PER_USER,
+    sortOrder: 81,
+    hideWhenConsumed: true,
+  },
+  {
+    slug: "ray-of-light-clase-online",
+    name: "Ray of Light · Primera clase online",
+    description: "10% de descuento en tu primera clase online.",
+    instagramHandle: "rayoflight.classes",
+    instagramUrl: "https://www.instagram.com/rayoflight.classes",
+    logoKey: "ray-of-light",
+    rule: CouponRule.ONCE_PER_USER,
+    sortOrder: 82,
+    hideWhenConsumed: true,
+  },
 ];
 
 async function main() {
@@ -124,6 +161,7 @@ async function main() {
         ...coupon,
         requiresConsumedSlug: coupon.requiresConsumedSlug ?? null,
         hideWhenConsumed: coupon.hideWhenConsumed ?? false,
+        expiresAt: coupon.expiresAt ?? null,
         active: true,
       },
       update: {
@@ -136,6 +174,7 @@ async function main() {
         sortOrder: coupon.sortOrder,
         requiresConsumedSlug: coupon.requiresConsumedSlug ?? null,
         hideWhenConsumed: coupon.hideWhenConsumed ?? false,
+        expiresAt: coupon.expiresAt ?? null,
       },
     });
     console.log(`  ✓ ${coupon.name}`);

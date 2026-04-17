@@ -144,6 +144,7 @@ model Coupon {
   sortOrder            Int        @default(0)
   requiresConsumedSlug String?
   hideWhenConsumed     Boolean    @default(false)
+  expiresAt            DateTime?
   createdAt            DateTime   @default(now())
 
   redemptions CouponRedemption[]
