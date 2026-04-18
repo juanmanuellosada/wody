@@ -17,6 +17,7 @@ import wodyTexto from "@/logos/wody-texto.png";
 import unidosLogo from "@/logos/unidos-logo-completo.png";
 import rompiendoLogo from "@/logos/rompiendo-limites.png";
 import agustinLogo from "@/logos/agustin-coach.png";
+import atlasLogo from "@/logos/atlas-gym.png";
 import { BenefitsSection } from "@/components/benefits/BenefitsSection";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 
@@ -228,9 +229,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Beneficios */}
-      <BenefitsSection />
-
       {/* Clientes / Ingreso */}
       <section className="border-t border-white/5 bg-[#08080D] px-6 py-20">
         <div className="max-w-4xl mx-auto text-center">
@@ -300,6 +298,27 @@ export default function LandingPage() {
                 Proximamente
               </span>
             </div>
+
+            <div
+              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] opacity-60 w-64"
+            >
+              <Image
+                src={atlasLogo}
+                alt="Atlas Gym & Fitness"
+                width={80}
+                height={80}
+                className="w-20 h-auto opacity-80"
+              />
+              <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+                Atlas
+              </span>
+              <span className="text-xs text-gray-600 font-body">
+                Gym &amp; Fitness — Los Polvorines, BA
+              </span>
+              <span className="text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-gray-500">
+                Proximamente
+              </span>
+            </div>
           </div>
 
           <p className="mt-8 text-xs text-gray-500 font-body">
@@ -315,6 +334,9 @@ export default function LandingPage() {
           </p>
         </div>
       </section>
+
+      {/* Beneficios */}
+      <BenefitsSection />
 
       {/* CTA */}
       <section className="px-6 py-20 text-center relative border-t border-white/5">
