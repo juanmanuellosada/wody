@@ -6,9 +6,9 @@ import bvSports from "@/logos/bv-sports.png";
 import ger from "@/logos/ger.png";
 import nutriteConLu from "@/logos/nutrite-con-lu.png";
 import quinque from "@/logos/quinque.png";
-import rayOfLight from "@/logos/ray-of-light.jpeg";
+import rayOfLight from "@/logos/ray-of-light.png";
 import readyForWod from "@/logos/ready-for-wod.png";
-import tica from "@/logos/tica.jpeg";
+import tica from "@/logos/tica.png";
 
 export const COUPON_LOGOS: Record<string, StaticImageData> = {
   atr,
