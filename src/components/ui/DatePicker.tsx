@@ -121,12 +121,12 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
         disabled={disabled}
         className={[
           "flex items-center justify-between gap-3 w-full",
-          "bg-[#1A1A1A] border px-4 py-3 text-sm min-h-[44px] font-heading font-bold",
+          "bg-elev border px-4 py-3 text-sm min-h-[44px] font-heading font-bold",
           "transition-all duration-200 cursor-pointer text-left",
           "disabled:opacity-50 disabled:cursor-not-allowed",
           open
             ? "border-brand-red ring-1 ring-brand-red/20"
-            : "border-[#2A2A2A] hover:border-[#444444]",
+            : "border-edge hover:border-[#444444]",
         ].join(" ")}
       >
         <span className="text-white uppercase tracking-[0.1em]">
@@ -153,13 +153,13 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 left-0 w-[280px] bg-[#0A0A0A] border border-[#1A1A1A] shadow-2xl shadow-black/50">
+        <div className="absolute z-50 mt-1 left-0 w-[280px] bg-panel border border-line shadow-2xl shadow-black/50">
           {/* Month/Year nav */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#1A1A1A]">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-line">
             <button
               type="button"
               onClick={prevMonth}
-              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#1A1A1A] transition-colors duration-200 cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-elev transition-colors duration-200 cursor-pointer"
               aria-label="Mes anterior"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square">
@@ -172,7 +172,7 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
             <button
               type="button"
               onClick={nextMonth}
-              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#1A1A1A] transition-colors duration-200 cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-elev transition-colors duration-200 cursor-pointer"
               aria-label="Mes siguiente"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square">
@@ -216,7 +216,7 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
                       ? "bg-brand-red text-white"
                       : isToday
                       ? "text-brand-red border border-brand-red/30"
-                      : "text-gray-300 hover:bg-[#1A1A1A] hover:text-white",
+                      : "text-gray-300 hover:bg-elev hover:text-white",
                   ].join(" ")}
                   aria-label={`${day} de ${MONTHS[viewMonth]} ${viewYear}`}
                   aria-pressed={isSelected}
@@ -228,7 +228,7 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
           </div>
 
           {/* Today shortcut */}
-          <div className="border-t border-[#1A1A1A] px-3 py-2">
+          <div className="border-t border-line px-3 py-2">
             <button
               type="button"
               onClick={() => {

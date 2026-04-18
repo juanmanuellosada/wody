@@ -8,7 +8,7 @@ import { getContentPreview, normalizeContent } from "@/components/ui/MarkdownRen
 
 const MarkdownEditor = dynamic(
   () => import("@/components/ui/MarkdownEditor").then((m) => m.MarkdownEditor),
-  { ssr: false, loading: () => <div className="h-[220px] bg-[#1A1A1A] border border-[#2A2A2A] animate-pulse" /> }
+  { ssr: false, loading: () => <div className="h-[220px] bg-elev border border-edge animate-pulse" /> }
 );
 import { CopyWodDialog } from "@/components/wod/CopyWodDialog";
 import { TargetSelector, TargetBadge } from "@/components/wod/TargetSelector";
@@ -142,9 +142,9 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
   return (
     <div className="flex flex-col gap-6">
       {mode !== "view" ? (
-        <div className="border border-[#1A1A1A] bg-[#0A0A0A]">
+        <div className="border border-line bg-panel">
           {/* Header bar */}
-          <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-[#1A1A1A]">
+          <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-line">
             <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
               {mode === "create" ? "Nuevo WOD" : "Editar WOD"}
             </h2>
@@ -173,7 +173,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
               onChange={(e) => setEditorTitle(e.target.value)}
               placeholder="Título (ej: WOD, Rutina Fuerza, Upper Body...)"
               disabled={isPending}
-              className="w-full bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-heading font-bold px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
+              className="w-full bg-panel border border-edge text-white text-sm font-heading font-bold px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
 
             <MarkdownEditor
@@ -219,7 +219,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar por título o fecha..."
-              className="w-full sm:w-72 bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
+              className="w-full sm:w-72 bg-panel border border-edge text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
           )}
         </div>
@@ -282,8 +282,8 @@ function WodManagerCard({
   const preview = getContentPreview(wod.content);
 
   return (
-    <div className="bg-[#1A1A1A] border border-[#2A2A2A] p-4 flex flex-col gap-3 transition-colors duration-200">
-      <div className="flex items-center justify-between gap-2 flex-wrap border-b border-[#2A2A2A] pb-3">
+    <div className="bg-elev border border-edge p-4 flex flex-col gap-3 transition-colors duration-200">
+      <div className="flex items-center justify-between gap-2 flex-wrap border-b border-edge pb-3">
         <div className="flex items-center gap-2">
           <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-brand-red">
             {formatDateArg(wod.date)}

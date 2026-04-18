@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Calendar, UserPlus } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getTodayArgentina, toInputDate } from "@/lib/dates";
@@ -30,43 +31,35 @@ export default async function StudentDashboardPage({ params }: Props) {
 
   const wodPath = gymPath(gymSlug, "/dashboard/athlete/wod");
 
-  // Students without a teacher: show blurred paywall
+  // Student aún sin profe asignado: estado de onboarding (no es paywall).
   if (teacherIds.length === 0) {
     return (
       <div className="flex flex-col gap-10">
-        <div className="relative">
-          <div className="blur-md pointer-events-none select-none" aria-hidden="true">
-            <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white mb-5">
-              WOD de Hoy
-            </h1>
-            <div className="border border-[#2A2A2A] bg-[#1A1A1A] p-6">
-              <p className="text-white font-heading font-bold uppercase text-sm">WARM UP</p>
-              <p className="text-gray-400 text-sm mt-2">3 rondas — Movilidad general</p>
-              <p className="text-gray-400 text-sm">5 cossack squat / 5 ohs con disco</p>
-              <p className="text-white font-heading font-bold uppercase text-sm mt-4">OLY</p>
-              <p className="text-gray-400 text-sm mt-2">Clean — 1 rep — 50/55/60/65/70%</p>
-              <p className="text-white font-heading font-bold uppercase text-sm mt-4">AMRAP 12&apos;</p>
-              <p className="text-gray-400 text-sm mt-2">T2B / BBJO / Power Clean 60%</p>
+        <section>
+          <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white mb-5">
+            WOD de Hoy
+          </h1>
+          <div className="border border-edge bg-panel p-8 sm:p-12 flex flex-col items-center text-center gap-5">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-brand-red/10 border border-brand-red/30">
+              <UserPlus size={26} className="text-brand-red" aria-hidden="true" />
             </div>
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-black/80 border border-brand-red/30 p-8 text-center max-w-sm mx-4">
-              <p className="text-lg font-heading font-black uppercase tracking-[0.1em] text-white mb-3">
-                Contenido exclusivo
+            <div className="flex flex-col gap-2 max-w-sm">
+              <p className="text-lg font-heading font-black uppercase tracking-[0.1em] text-white">
+                Aún sin profe asignado
               </p>
-              <p className="text-sm text-gray-400 font-body mb-4 leading-relaxed">
-                Los WODs personalizados son para alumnos del plan personalizado.
-                Habla con tu profe para acceder.
+              <p className="text-sm text-gray-400 font-body leading-relaxed">
+                Tu profe todavía no te conectó con su lista. Avisale para que te
+                asigne y empieces a ver tu rutina del día.
               </p>
-              <Link
-                href={gymPath(gymSlug, "/dashboard/rms")}
-                className="inline-block px-6 py-3 font-heading font-bold uppercase tracking-[0.15em] text-white text-xs bg-brand-red hover:bg-brand-red-dark transition-colors duration-200"
-              >
-                Ir a mis RMs
-              </Link>
             </div>
+            <Link
+              href={gymPath(gymSlug, "/dashboard/rms")}
+              className="mt-1 inline-block px-6 py-3 font-heading font-bold uppercase tracking-[0.15em] text-white text-xs bg-brand-red hover:bg-brand-red-dark transition-colors duration-200"
+            >
+              Mientras tanto, cargá tus RMs
+            </Link>
           </div>
-        </div>
+        </section>
       </div>
     );
   }
@@ -123,13 +116,16 @@ export default async function StudentDashboardPage({ params }: Props) {
             ))}
           </div>
         ) : (
-          <div className="border border-[#2A2A2A] p-8 text-center">
-            <p className="text-gray-500 text-sm font-heading font-bold uppercase tracking-[0.15em]">
-              No hay WOD para hoy
-            </p>
-            <p className="text-gray-700 text-xs mt-2 font-body">
-              Habla con tu profe
-            </p>
+          <div className="border border-edge p-8 text-center flex flex-col items-center gap-3">
+            <Calendar size={28} className="text-gray-600" aria-hidden="true" />
+            <div className="flex flex-col gap-1">
+              <p className="text-gray-500 text-sm font-heading font-bold uppercase tracking-[0.15em]">
+                No hay WOD para hoy
+              </p>
+              <p className="text-gray-500 text-xs font-body">
+                Hablá con tu profe
+              </p>
+            </div>
           </div>
         )}
       </section>
@@ -140,7 +136,7 @@ export default async function StudentDashboardPage({ params }: Props) {
           <h2 className="text-lg font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
             Historial
           </h2>
-          <div className="flex-1 h-px bg-[#1A1A1A]" aria-hidden="true" />
+          <div className="flex-1 h-px bg-elev" aria-hidden="true" />
         </div>
         <WodHistory wods={historyWods} wodPath={wodPath} />
       </section>

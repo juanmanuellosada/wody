@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { ClipboardList, SearchX } from "lucide-react";
 import { WodCard } from "@/components/wod/WodCard";
 import { toInputDate, formatDateArg } from "@/lib/dates";
 import type { Wod } from "@prisma/client";
@@ -29,20 +30,36 @@ export function WodHistory({ wods, wodPath }: WodHistoryProps) {
     <div className="flex flex-col gap-5">
       {wods.length > 0 && (
         <input
-          type="text"
+          type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Buscar por título o fecha..."
-          className="w-full bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
+          aria-label="Buscar en historial de WODs"
+          className="w-full bg-panel border border-edge text-white text-sm font-body px-4 py-3 min-h-[44px] placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
         />
       )}
 
       {filtered.length === 0 ? (
-        <p className="text-gray-600 text-sm font-heading uppercase tracking-[0.15em] font-bold">
-          {searchQuery.trim()
-            ? `No se encontraron WODs para "${searchQuery}".`
-            : "No hay WODs en el historial."}
-        </p>
+        <div className="border border-edge p-8 text-center flex flex-col items-center gap-3">
+          {searchQuery.trim() ? (
+            <>
+              <SearchX size={28} className="text-gray-600" aria-hidden="true" />
+              <p className="text-gray-500 text-sm font-body">
+                Sin resultados para{" "}
+                <span className="text-white font-heading font-bold uppercase tracking-[0.1em]">
+                  &quot;{searchQuery}&quot;
+                </span>
+              </p>
+            </>
+          ) : (
+            <>
+              <ClipboardList size={28} className="text-gray-600" aria-hidden="true" />
+              <p className="text-gray-500 text-sm font-heading font-bold uppercase tracking-[0.15em]">
+                Sin WODs en el historial
+              </p>
+            </>
+          )}
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           {filtered.map((wod) => (

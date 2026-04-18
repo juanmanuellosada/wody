@@ -8,8 +8,8 @@ function Card({ accent = false, className = "", children, ...props }: CardProps)
   return (
     <div
       className={[
-        "bg-[#1A1A1A]",
-        accent ? "border-l-2 border-brand-red" : "border border-[#2A2A2A]",
+        "bg-elev",
+        accent ? "border-l-2 border-brand-red" : "border border-edge",
         "p-4",
         "transition-colors duration-200",
         className,
@@ -24,7 +24,7 @@ function Card({ accent = false, className = "", children, ...props }: CardProps)
 function CardHeader({ className = "", children, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={["mb-3 pb-3 border-b border-[#2A2A2A]", className].join(" ")}
+      className={["mb-3 pb-3 border-b border-edge", className].join(" ")}
       {...props}
     >
       {children}

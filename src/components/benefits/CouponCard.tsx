@@ -108,7 +108,7 @@ export function CouponCard({ coupon, preview = false }: CouponCardProps) {
         <div className="mt-auto border-t border-white/[0.05] pt-4">
           <a
             href="#benefits-login"
-            className="inline-flex w-full items-center justify-center gap-2 bg-[#1A1A1A] text-gray-400 border border-[#2A2A2A] hover:border-brand-red hover:text-brand-red px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors cursor-pointer"
+            className="inline-flex w-full items-center justify-center gap-2 bg-elev text-gray-400 border border-edge hover:border-brand-red hover:text-brand-red px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors cursor-pointer"
           >
             <Lock size={14} aria-hidden="true" />
             <span>Ingresá para usar</span>
@@ -156,7 +156,7 @@ export function CouponCard({ coupon, preview = false }: CouponCardProps) {
             href={coupon.instagramUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white border border-[#2A2A2A] hover:border-[#3A3A3A] px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors"
+            className="inline-flex items-center justify-center gap-2 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white border border-edge hover:border-[#3A3A3A] px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors"
           >
             <InstagramIcon size={16} />
             <span>@{coupon.instagramHandle}</span>
@@ -211,12 +211,8 @@ export function CouponCard({ coupon, preview = false }: CouponCardProps) {
             loading={isPending}
             onClick={handleGenerate}
           >
-            {isPending ? null : (
-              <>
-                <Ticket size={16} aria-hidden="true" />
-                <span>Obtener código</span>
-              </>
-            )}
+            <Ticket size={16} aria-hidden="true" />
+            <span>Obtener código</span>
           </Button>
           {error && (
             <p className="text-[10px] font-heading font-bold text-brand-red uppercase tracking-wide text-center">

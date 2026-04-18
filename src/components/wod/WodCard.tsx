@@ -13,7 +13,7 @@ export function WodCard({ wod, actions, highlight = false }: WodCardProps) {
   const dateLabel = formatDateArg(wod.date);
 
   return (
-    <Card accent={highlight} className={highlight ? "border-brand-red" : ""}>
+    <Card accent={highlight}>
       <CardHeader>
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-3">

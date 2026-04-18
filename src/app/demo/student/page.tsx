@@ -77,7 +77,7 @@ export default function DemoStudentPage() {
             <h2 className="text-lg font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
               Historial
             </h2>
-            <div className="flex-1 h-px bg-[#1A1A1A]" aria-hidden="true" />
+            <div className="flex-1 h-px bg-elev" aria-hidden="true" />
           </div>
           <WodHistory wods={historyWods} wodPath="/demo/student/wod" />
         </section>

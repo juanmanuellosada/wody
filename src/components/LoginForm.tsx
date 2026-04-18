@@ -84,7 +84,7 @@ export function LoginForm({ gymSlug }: LoginFormProps) {
       )}
 
       <Button type="submit" variant="primary" size="lg" loading={isPending}>
-        {isPending ? null : "Ingresar"}
+        Ingresar
       </Button>
     </form>
   );

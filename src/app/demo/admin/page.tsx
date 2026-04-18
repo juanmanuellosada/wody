@@ -71,7 +71,7 @@ export default function DemoAdminPage() {
       <DemoNavbar />
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-10 flex flex-col gap-10">
         {/* Welcome banner */}
-        <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-6 sm:p-8">
+        <div className="border border-line bg-panel p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-1">
@@ -83,17 +83,17 @@ export default function DemoAdminPage() {
             </div>
             <div className="flex gap-6">
               <div className="text-center">
-                <p className="text-2xl font-heading font-black text-white">{totalTeachers}</p>
+                <p className="text-2xl font-heading font-black text-white tabular-nums">{totalTeachers}</p>
                 <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">Profes</p>
               </div>
-              <div className="w-px bg-[#1A1A1A]" aria-hidden="true" />
+              <div className="w-px bg-elev" aria-hidden="true" />
               <div className="text-center">
-                <p className="text-2xl font-heading font-black text-brand-red">{totalStudents}</p>
+                <p className="text-2xl font-heading font-black text-brand-red tabular-nums">{totalStudents}</p>
                 <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">Alumnos</p>
               </div>
-              <div className="w-px bg-[#1A1A1A]" aria-hidden="true" />
+              <div className="w-px bg-elev" aria-hidden="true" />
               <div className="text-center">
-                <p className="text-2xl font-heading font-black text-white">{mockUsers.length}</p>
+                <p className="text-2xl font-heading font-black text-white tabular-nums">{mockUsers.length}</p>
                 <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">Total</p>
               </div>
             </div>
@@ -102,19 +102,19 @@ export default function DemoAdminPage() {
 
         {/* Create user + Assign students — grid (disabled) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <section className="border border-[#1A1A1A] bg-[#0A0A0A]">
-            <div className="px-5 py-3 border-b border-[#1A1A1A] flex items-center gap-3">
+          <section className="border border-line bg-panel">
+            <div className="px-5 py-3 border-b border-line flex items-center gap-3">
               <span className="w-2 h-2 bg-brand-red flex-shrink-0" aria-hidden="true" />
               <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
                 Crear Usuario
               </h2>
             </div>
             <div className="p-5 flex flex-col gap-3">
-              <input disabled placeholder="Nombre" className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed" />
-              <input disabled placeholder="Email" className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed" />
-              <input disabled placeholder="Contraseña" type="password" className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed" />
+              <input disabled placeholder="Nombre" className="w-full bg-elev border border-edge text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed" />
+              <input disabled placeholder="Email" className="w-full bg-elev border border-edge text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed" />
+              <input disabled placeholder="Contraseña" type="password" className="w-full bg-elev border border-edge text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed" />
               <div className="flex gap-3">
-                <select disabled className="flex-1 bg-[#1A1A1A] border border-[#2A2A2A] text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed">
+                <select disabled className="flex-1 bg-elev border border-edge text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed">
                   <option>Profe</option>
                 </select>
                 <Button variant="primary" size="sm" disabled>Crear</Button>
@@ -122,18 +122,18 @@ export default function DemoAdminPage() {
             </div>
           </section>
 
-          <section className="border border-[#1A1A1A] bg-[#0A0A0A]">
-            <div className="px-5 py-3 border-b border-[#1A1A1A] flex items-center gap-3">
+          <section className="border border-line bg-panel">
+            <div className="px-5 py-3 border-b border-line flex items-center gap-3">
               <span className="w-2 h-2 bg-brand-red flex-shrink-0" aria-hidden="true" />
               <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
                 Asignaciones
               </h2>
             </div>
             <div className="p-5 flex flex-col gap-3">
-              <select disabled className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed">
+              <select disabled className="w-full bg-elev border border-edge text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed">
                 <option>Carlos Entrenador</option>
               </select>
-              <select disabled className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed">
+              <select disabled className="w-full bg-elev border border-edge text-gray-600 text-sm font-body px-3 py-2 cursor-not-allowed">
                 <option>Juan Pérez</option>
               </select>
               <Button variant="primary" size="sm" disabled>Asignar</Button>
@@ -148,7 +148,7 @@ export default function DemoAdminPage() {
               <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
                 Grupos de {teacherName}
               </h2>
-              <div className="flex-1 h-px bg-[#1A1A1A]" aria-hidden="true" />
+              <div className="flex-1 h-px bg-elev" aria-hidden="true" />
             </div>
             <GroupManager
               groups={groups}
@@ -168,18 +168,18 @@ export default function DemoAdminPage() {
             <span className="text-xs font-heading font-bold text-brand-red bg-brand-red/10 px-2 py-0.5">
               {mockUsers.length}
             </span>
-            <div className="flex-1 h-px bg-[#1A1A1A]" aria-hidden="true" />
+            <div className="flex-1 h-px bg-elev" aria-hidden="true" />
           </div>
 
           {/* Desktop table */}
-          <div className="hidden sm:block overflow-x-auto border border-[#1A1A1A]">
+          <div className="hidden sm:block overflow-x-auto border border-line">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-[#0A0A0A]">
+                <tr className="bg-panel">
                   {["Nombre", "Email", "Rol", "Tipo", "Alta", ""].map((h) => (
                     <th
                       key={h}
-                      className="text-left text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 px-4 py-3 border-b border-[#1A1A1A]"
+                      className="text-left text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 px-4 py-3 border-b border-line"
                     >
                       {h}
                     </th>
@@ -190,11 +190,11 @@ export default function DemoAdminPage() {
                 {mockUsers.map((user) => (
                   <tr
                     key={user.id}
-                    className="border-b border-[#1A1A1A] hover:bg-[#0D0D0D] transition-colors duration-200 group"
+                    className="border-b border-line hover:bg-hover transition-colors duration-200 group"
                   >
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-[#1A1A1A] border border-[#2A2A2A] flex items-center justify-center flex-shrink-0 group-hover:border-brand-red/30 transition-colors duration-200">
+                        <div className="w-8 h-8 bg-elev border border-edge flex items-center justify-center flex-shrink-0 group-hover:border-brand-red/30 transition-colors duration-200">
                           <span className="text-xs font-heading font-bold text-gray-500">
                             {user.name.charAt(0).toUpperCase()}
                           </span>
@@ -216,7 +216,7 @@ export default function DemoAdminPage() {
                             ? "bg-brand-red/15 text-brand-red border border-brand-red/20"
                             : user.role === "TEACHER"
                             ? "bg-white/5 text-white border border-white/10"
-                            : "bg-[#1A1A1A] text-gray-400 border border-[#2A2A2A]",
+                            : "bg-elev text-gray-400 border border-edge",
                         ].join(" ")}
                       >
                         {ROLE_LABEL[user.role] ?? user.role}
@@ -230,7 +230,7 @@ export default function DemoAdminPage() {
                           demo
                         />
                       ) : (
-                        <span className="text-xs text-gray-700 font-heading">—</span>
+                        <span className="text-xs text-gray-500 font-heading">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3.5 text-gray-600 text-xs font-heading">
@@ -263,7 +263,7 @@ export default function DemoAdminPage() {
               <Card key={user.id}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-9 h-9 bg-[#0A0A0A] border border-[#2A2A2A] flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="w-9 h-9 bg-panel border border-edge flex items-center justify-center flex-shrink-0 mt-0.5">
                       <span className="text-xs font-heading font-bold text-gray-500">
                         {user.name.charAt(0).toUpperCase()}
                       </span>
@@ -281,7 +281,7 @@ export default function DemoAdminPage() {
                               ? "bg-brand-red/15 text-brand-red border border-brand-red/20"
                               : user.role === "TEACHER"
                               ? "bg-white/5 text-white border border-white/10"
-                              : "bg-[#1A1A1A] text-gray-400 border border-[#2A2A2A]",
+                              : "bg-elev text-gray-400 border border-edge",
                           ].join(" ")}
                         >
                           {ROLE_LABEL[user.role] ?? user.role}

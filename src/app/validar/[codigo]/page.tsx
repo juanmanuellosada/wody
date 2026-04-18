@@ -55,7 +55,7 @@ export default async function ValidarPage({ params }: PageProps) {
       </div>
 
       <footer className="mt-12 text-center">
-        <p className="text-[10px] text-gray-700 font-body tracking-wide">
+        <p className="text-[10px] text-gray-500 font-body tracking-wide">
           Validación de beneficios · WODY
         </p>
       </footer>
@@ -65,7 +65,7 @@ export default async function ValidarPage({ params }: PageProps) {
 
 function NotFoundCard({ code }: { code: string }) {
   return (
-    <div className="bg-[#0A0A0A] border border-[#1A1A1A] p-8 text-center">
+    <div className="bg-panel border border-line p-8 text-center">
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand-red/10 border border-brand-red/30 mb-6">
         <AlertTriangle size={28} className="text-brand-red" aria-hidden="true" />
       </div>
@@ -95,7 +95,7 @@ function ResultCard({
   const justConsumed = result.wasJustConsumed;
 
   return (
-    <div className="bg-[#0A0A0A] border border-[#1A1A1A] overflow-hidden">
+    <div className="bg-panel border border-line overflow-hidden">
       <div
         className={[
           "px-6 py-5 flex items-center gap-3 border-b",

@@ -91,8 +91,8 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
   }
 
   return (
-    <section className="border border-[#1A1A1A] bg-[#0A0A0A]">
-      <div className="px-5 py-3 border-b border-[#1A1A1A] flex items-center gap-3">
+    <section className="border border-line bg-panel">
+      <div className="px-5 py-3 border-b border-line flex items-center gap-3">
         <span className="w-2 h-2 bg-brand-red flex-shrink-0" aria-hidden="true" />
         <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
           Grupos
@@ -110,7 +110,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               placeholder="Nombre del grupo"
               disabled={isPending}
-              className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
+              className="flex-1 bg-panel border border-edge text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
             <Button
               variant="primary"
@@ -140,7 +140,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
             {groups.map((group) => (
               <div
                 key={group.id}
-                className="border border-[#2A2A2A] bg-[#1A1A1A] p-4 flex flex-col gap-3"
+                className="border border-edge bg-elev p-4 flex flex-col gap-3"
               >
                 {/* Group header */}
                 <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -152,7 +152,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
                         onChange={(e) => setRenameValue(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleRename(group.id)}
                         disabled={isPending}
-                        className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-1.5 focus:outline-none focus:border-brand-red transition-colors duration-200"
+                        className="flex-1 bg-panel border border-edge text-white text-sm font-body px-3 py-1.5 focus:outline-none focus:border-brand-red transition-colors duration-200"
                         autoFocus
                       />
                       <Button variant="primary" size="sm" onClick={() => handleRename(group.id)} disabled={isPending}>
@@ -203,7 +203,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
                     {group.students.map((student) => (
                       <span
                         key={student.id}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#0A0A0A] border border-[#2A2A2A] text-xs font-heading font-bold text-gray-300"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-panel border border-edge text-xs font-heading font-bold text-gray-300"
                       >
                         {student.name}
                         <button
@@ -225,7 +225,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
                     <select
                       id={`add-student-${group.id}`}
                       disabled={isPending}
-                      className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] text-gray-400 text-xs font-body px-2 py-1.5 focus:outline-none focus:border-brand-red transition-colors duration-200"
+                      className="flex-1 bg-panel border border-edge text-gray-400 text-xs font-body px-2 py-1.5 focus:outline-none focus:border-brand-red transition-colors duration-200"
                       defaultValue=""
                       onChange={(e) => {
                         if (e.target.value) {

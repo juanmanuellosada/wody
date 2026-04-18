@@ -60,7 +60,7 @@ export function InstallPwaButton() {
   if (isInstalled) return null;
 
   return (
-    <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-4 mb-6 flex flex-col gap-3">
+    <div className="border border-line bg-panel p-4 mb-6 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex flex-col gap-1 min-w-0">
           <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white">
@@ -76,7 +76,7 @@ export function InstallPwaButton() {
       </div>
 
       {showInstructions && !deferredPrompt && (
-        <div className="border-t border-[#1A1A1A] pt-3 flex flex-col gap-2">
+        <div className="border-t border-line pt-3 flex flex-col gap-2">
           <p className="text-xs font-heading font-bold uppercase tracking-[0.1em] text-gray-400">
             Como instalar
           </p>

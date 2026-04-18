@@ -59,7 +59,7 @@ export function RmForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 bg-[#0A0A0A] border border-[#1A1A1A] p-5"
+      className="flex flex-col gap-4 bg-panel border border-line p-5"
     >
       <h3 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
         {isEditing ? "Editar RM" : "Agregar RM"}

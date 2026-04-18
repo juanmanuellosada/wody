@@ -85,7 +85,7 @@ export function DemoPagosView({
 
   return (
     <div className="flex flex-col gap-10">
-      <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-6 sm:p-8">
+      <div className="border border-line bg-panel p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-1">
@@ -138,11 +138,11 @@ export function DemoPagosView({
                     "text-center px-4 py-2 border transition-colors duration-200",
                     isActive
                       ? tile.activeClass
-                      : "border-[#1A1A1A] hover:border-[#2A2A2A] hover:bg-white/[0.02]",
+                      : "border-line hover:border-edge hover:bg-white/[0.02]",
                   ].join(" ")}
                 >
                   <p
-                    className={`text-2xl font-heading font-black ${tile.valueClass}`}
+                    className={`text-2xl font-heading font-black tabular-nums ${tile.valueClass}`}
                   >
                     {tile.value}
                   </p>
@@ -164,14 +164,14 @@ export function DemoPagosView({
         </p>
       ) : (
         <>
-          <div className="hidden sm:block overflow-x-auto border border-[#1A1A1A]">
+          <div className="hidden sm:block overflow-x-auto border border-line">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-[#0A0A0A]">
+                <tr className="bg-panel">
                   {["Alumno", "Próximo pago", "Estado", ""].map((h) => (
                     <th
                       key={h}
-                      className="text-left text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 px-4 py-3 border-b border-[#1A1A1A]"
+                      className="text-left text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 px-4 py-3 border-b border-line"
                     >
                       {h}
                     </th>
@@ -184,7 +184,7 @@ export function DemoPagosView({
                   return (
                     <tr
                       key={row.id}
-                      className="border-b border-[#1A1A1A] hover:bg-[#0D0D0D] transition-colors duration-200"
+                      className="border-b border-line hover:bg-hover transition-colors duration-200"
                     >
                       <td className="px-4 py-3.5">
                         <div className="flex flex-col">

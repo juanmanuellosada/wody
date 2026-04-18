@@ -28,7 +28,7 @@ export function BenefitsLogin() {
   }
 
   return (
-    <div className="max-w-sm mx-auto bg-[#0A0A0A] border border-[#1A1A1A] p-6 sm:p-8">
+    <div className="max-w-sm mx-auto bg-panel border border-line p-6 sm:p-8">
       <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-gray-400 text-center mb-2">
         Ingresá para ver beneficios
       </p>
@@ -66,7 +66,7 @@ export function BenefitsLogin() {
         )}
 
         <Button type="submit" variant="primary" size="md" loading={isPending}>
-          {isPending ? null : "Ingresar"}
+          Ingresar
         </Button>
       </form>
     </div>

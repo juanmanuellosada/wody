@@ -114,7 +114,7 @@ export function StudentEditor({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-[#0A0A0A] border border-[#2A2A2A] p-6 w-full max-w-md mx-4 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-panel border border-edge p-6 w-full max-w-md mx-4 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
         <h3 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
           Editar Alumno
         </h3>
@@ -129,7 +129,7 @@ export function StudentEditor({
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={isPending}
-              className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
+              className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
           </div>
           <div>
@@ -141,7 +141,7 @@ export function StudentEditor({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isPending}
-              className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
+              className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
           </div>
           <div>
@@ -154,7 +154,7 @@ export function StudentEditor({
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Dejar vacío para no cambiar"
               disabled={isPending}
-              className="w-full bg-[#1A1A1A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
+              className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
           </div>
           {currentPaymentDate && (
@@ -168,7 +168,7 @@ export function StudentEditor({
         </div>
 
         {/* Teachers */}
-        <div className="flex flex-col gap-2 border-t border-[#1A1A1A] pt-4">
+        <div className="flex flex-col gap-2 border-t border-line pt-4">
           <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 block">
             Profes asignados
           </label>
@@ -181,7 +181,7 @@ export function StudentEditor({
               {assignedTeachers.map((t) => (
                 <span
                   key={t.id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#1A1A1A] border border-[#2A2A2A] text-xs font-heading font-bold text-gray-300"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-elev border border-edge text-xs font-heading font-bold text-gray-300"
                 >
                   {t.name}
                   <button
@@ -203,7 +203,7 @@ export function StudentEditor({
                 value={addTeacherId}
                 onChange={(e) => setAddTeacherId(e.target.value)}
                 disabled={isPending}
-                className="flex-1 bg-[#1A1A1A] border border-[#2A2A2A] text-gray-300 text-xs font-body px-2 py-1.5 focus:outline-none focus:border-brand-red transition-colors duration-200"
+                className="flex-1 bg-elev border border-edge text-gray-300 text-xs font-body px-2 py-1.5 focus:outline-none focus:border-brand-red transition-colors duration-200"
               >
                 <option value="">Agregar profe...</option>
                 {availableTeachers.map((t) => (

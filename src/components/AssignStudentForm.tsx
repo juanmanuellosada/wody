@@ -86,7 +86,7 @@ export function AssignStudentForm({ teachers, students }: AssignStudentFormProps
               setSuccessMsg(null);
             }}
             disabled={isPending}
-            className="bg-[#1A1A1A] text-white font-body border border-[#2A2A2A] px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
+            className="bg-elev text-white font-body border border-edge px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
           >
             {students.map((s) => (
               <option key={s.id} value={s.id}>
@@ -100,7 +100,7 @@ export function AssignStudentForm({ teachers, students }: AssignStudentFormProps
           <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
             Profes ({selectedTeacherIds.length})
           </label>
-          <div className="flex flex-wrap gap-2 bg-[#1A1A1A] border border-[#2A2A2A] p-3 max-h-48 overflow-y-auto">
+          <div className="flex flex-wrap gap-2 bg-elev border border-edge p-3 max-h-48 overflow-y-auto">
             {teachers.map((t) => {
               const selected = selectedTeacherIds.includes(t.id);
               return (
@@ -113,7 +113,7 @@ export function AssignStudentForm({ teachers, students }: AssignStudentFormProps
                     "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200 cursor-pointer",
                     selected
                       ? "border-brand-red text-white bg-brand-red/10"
-                      : "border-[#2A2A2A] text-gray-400 hover:border-gray-500",
+                      : "border-edge text-gray-400 hover:border-gray-500",
                   ].join(" ")}
                 >
                   {t.name}

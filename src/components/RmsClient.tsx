@@ -53,7 +53,7 @@ export function RmsClient({ rms, athleteName }: RmsClientProps) {
           <h2 className="text-lg font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
             Historial de RMs
           </h2>
-          <div className="flex-1 h-px bg-[#1A1A1A]" aria-hidden="true" />
+          <div className="flex-1 h-px bg-elev" aria-hidden="true" />
         </div>
         {rms.length === 0 ? (
           <p className="text-gray-600 text-sm font-heading font-bold uppercase tracking-[0.15em]">
@@ -114,14 +114,14 @@ export function RmsClient({ rms, athleteName }: RmsClientProps) {
                   </div>
 
                   {expandedId === rm.id && (
-                    <div className="mt-4 pt-4 border-t border-[#2A2A2A]">
+                    <div className="mt-4 pt-4 border-t border-edge">
                       <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                         {PERCENTAGES.map((pct) => {
                           const value = Math.round(rm.weight * pct) / 100;
                           return (
                             <div
                               key={pct}
-                              className="bg-[#0A0A0A] border border-[#2A2A2A] py-2 px-1 text-center"
+                              className="bg-panel border border-edge py-2 px-1 text-center"
                             >
                               <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-gray-500">
                                 {pct}%

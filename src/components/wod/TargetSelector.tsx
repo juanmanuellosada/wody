@@ -41,7 +41,7 @@ export function TargetSelector({
             "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200",
             value.type === "ALL"
               ? "border-brand-red text-white bg-brand-red/10"
-              : "border-[#2A2A2A] text-gray-500 hover:border-gray-500",
+              : "border-edge text-gray-500 hover:border-gray-500",
           ].join(" ")}
         >
           Todos
@@ -55,7 +55,7 @@ export function TargetSelector({
             "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200",
             value.type === "PERSONALIZED"
               ? "border-brand-red text-white bg-brand-red/10"
-              : "border-[#2A2A2A] text-gray-500 hover:border-gray-500",
+              : "border-edge text-gray-500 hover:border-gray-500",
           ].join(" ")}
         >
           Personalizados
@@ -72,7 +72,7 @@ export function TargetSelector({
               "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200",
               value.type === "GROUP"
                 ? "border-brand-red text-white bg-brand-red/10"
-                : "border-[#2A2A2A] text-gray-500 hover:border-gray-500",
+                : "border-edge text-gray-500 hover:border-gray-500",
             ].join(" ")}
           >
             Grupo
@@ -90,7 +90,7 @@ export function TargetSelector({
               "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200",
               value.type === "STUDENT"
                 ? "border-brand-red text-white bg-brand-red/10"
-                : "border-[#2A2A2A] text-gray-500 hover:border-gray-500",
+                : "border-edge text-gray-500 hover:border-gray-500",
             ].join(" ")}
           >
             Alumno
@@ -103,7 +103,7 @@ export function TargetSelector({
           disabled={disabled}
           value={"groupId" in value ? value.groupId : groups[0].id}
           onChange={(e) => onChange({ type: "GROUP", groupId: e.target.value })}
-          className="bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
+          className="bg-panel border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
         >
           {groups.map((g) => (
             <option key={g.id} value={g.id}>
@@ -120,7 +120,7 @@ export function TargetSelector({
           onChange={(e) =>
             onChange({ type: "STUDENT", studentId: e.target.value })
           }
-          className="bg-[#0A0A0A] border border-[#2A2A2A] text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
+          className="bg-panel border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
         >
           {students.map((s) => (
             <option key={s.id} value={s.id}>

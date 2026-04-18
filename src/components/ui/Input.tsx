@@ -26,13 +26,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={[
-            "bg-[#1A1A1A] text-white font-body",
+            "bg-elev text-white font-body",
             "border px-4 py-3 text-sm min-h-[44px]",
             "placeholder:text-gray-600",
             "focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             "transition-all duration-200",
-            error ? "border-brand-red" : "border-[#2A2A2A]",
+            error ? "border-brand-red" : "border-edge",
             className,
           ].join(" ")}
           {...props}

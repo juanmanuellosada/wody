@@ -63,10 +63,14 @@ export default async function LoginPage({ params }: LoginPageProps) {
               priority
             />
           ) : gym.logo ? (
-            <img
+            <Image
               src={gym.logo}
               alt={gym.name}
+              width={140}
+              height={140}
+              unoptimized
               className="w-28 h-auto mx-auto mb-4 object-contain"
+              priority
             />
           ) : (
             <p className="text-2xl font-heading font-black uppercase tracking-[0.1em] text-white mb-4">
@@ -85,7 +89,7 @@ export default async function LoginPage({ params }: LoginPageProps) {
         </div>
 
         {/* Form */}
-        <div className="bg-[#0A0A0A] border border-[#1A1A1A] p-6 sm:p-8">
+        <div className="bg-panel border border-line p-6 sm:p-8">
           <h2 className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-gray-400 mb-6">
             Iniciar sesion
           </h2>

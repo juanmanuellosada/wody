@@ -68,7 +68,7 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
 
   return (
     <nav
-      className="bg-black/95 backdrop-blur-sm border-b border-[#1A1A1A] sticky top-0 z-40"
+      className="bg-black/95 backdrop-blur-sm border-b border-line sticky top-0 z-40"
       role="navigation"
       aria-label="Navegacion principal"
     >
@@ -79,7 +79,7 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
           className="flex items-center gap-2.5 group cursor-pointer"
         >
           <Image src={wodyBlanco} alt="WODY" width={22} height={22} className="opacity-90 group-hover:opacity-100 transition-opacity duration-200" />
-          <span className="w-px h-5 bg-[#2A2A2A]" aria-hidden="true" />
+          <span className="w-px h-5 bg-edge" aria-hidden="true" />
           {gymLogo ? (
             <Image src={gymLogo.src} alt={gymLogo.alt} width={120} height={36} className="h-9 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
           ) : (
@@ -158,7 +158,7 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
       {/* Mobile menu */}
       {menuOpen && (
         <div
-          className="sm:hidden bg-black border-t border-[#1A1A1A] px-4 py-5 flex flex-col gap-4"
+          className="sm:hidden bg-black border-t border-line px-4 py-5 flex flex-col gap-4"
           role="menu"
         >
           <p className="text-xs text-gray-500 font-heading uppercase tracking-[0.1em]">

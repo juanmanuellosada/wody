@@ -64,7 +64,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
   return (
     <div className="flex flex-col gap-8">
       {/* Welcome header */}
-      <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-6 sm:p-8">
+      <div className="border border-line bg-panel p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-1">
@@ -81,7 +81,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
                 {wods.length === 1 ? "WOD" : "WODs"}
               </p>
             </div>
-            <div className="w-px bg-[#1A1A1A]" aria-hidden="true" />
+            <div className="w-px bg-elev" aria-hidden="true" />
             <div className="text-center">
               <p className="text-3xl font-heading font-black text-white">{groups.length}</p>
               <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">

@@ -405,7 +405,7 @@ export function TimersClient() {
 
       {/* Config (only in idle) */}
       {state === "idle" && (
-        <div className="border border-[#1A1A1A] bg-[#0A0A0A] p-5 flex flex-col gap-4">
+        <div className="border border-line bg-panel p-5 flex flex-col gap-4">
           {(mode === "countdown" || mode === "amrap") && (
             <div className="flex items-center gap-4 justify-center">
               <TimeInput label="Min" value={countdownMinutes} onChange={setCountdownMinutes} max={99} />
@@ -584,7 +584,7 @@ function ModeCard({ label, description, accent, onClick }: {
         "border p-5 text-left transition-all duration-200 cursor-pointer group",
         accent
           ? "border-brand-red/30 bg-brand-red/5 hover:border-brand-red hover:bg-brand-red/10"
-          : "border-[#2A2A2A] bg-[#1A1A1A] hover:border-gray-500",
+          : "border-edge bg-elev hover:border-gray-500",
       ].join(" ")}
     >
       <p className={[
@@ -617,7 +617,7 @@ function TimeInput({ label, value, onChange, max }: {
         max={max}
         value={value}
         onChange={(e) => onChange(Math.max(0, Math.min(max, parseInt(e.target.value) || 0)))}
-        className="w-20 bg-[#0A0A0A] border border-[#2A2A2A] text-white text-2xl font-heading font-black text-center px-2 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
+        className="w-20 bg-panel border border-edge text-white text-2xl font-heading font-black text-center px-2 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
       />
     </div>
   );

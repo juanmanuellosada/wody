@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { formatDateArg, getTodayArgentina } from "@/lib/dates";
 
 interface PaymentStatusBannerProps {
@@ -73,12 +74,12 @@ export function PaymentStatusBanner({ nextPaymentDate }: PaymentStatusBannerProp
       role="alert"
     >
       <div className="flex items-start gap-3 min-w-0">
-        <span
-          className="text-brand-red text-2xl font-heading font-black leading-none flex-shrink-0"
+        <AlertTriangle
+          size={24}
+          strokeWidth={2.25}
+          className="text-brand-red flex-shrink-0 mt-0.5"
           aria-hidden="true"
-        >
-          ⚠
-        </span>
+        />
         <div className="flex flex-col gap-1 min-w-0">
           <p className="text-base font-heading font-black uppercase tracking-[0.1em] text-brand-red">
             Cuota atrasada

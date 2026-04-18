@@ -114,7 +114,7 @@ export function CopyWodDialog({
       }}
     >
       <div
-        className="w-full max-w-sm bg-[#0A0A0A] border border-[#1A1A1A] p-6 flex flex-col gap-5"
+        className="w-full max-w-sm bg-panel border border-line p-6 flex flex-col gap-5"
         role="dialog"
         aria-modal="true"
         aria-label="Copiar WOD"

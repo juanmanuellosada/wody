@@ -48,7 +48,7 @@ function ToolbarButton({
         "disabled:opacity-30 disabled:cursor-not-allowed",
         isActive
           ? "bg-brand-red/15 text-brand-red"
-          : "text-gray-500 hover:text-white hover:bg-[#1A1A1A]",
+          : "text-gray-500 hover:text-white hover:bg-elev",
       ].join(" ")}
     >
       {children}
@@ -57,7 +57,7 @@ function ToolbarButton({
 }
 
 function Separator() {
-  return <div className="mx-1 h-4 w-px bg-[#2A2A2A]" />;
+  return <div className="mx-1 h-4 w-px bg-edge" />;
 }
 
 export function MarkdownEditor({
@@ -143,13 +143,13 @@ export function MarkdownEditor({
   return (
     <div
       className={[
-        "border bg-[#1A1A1A] transition-colors duration-200",
-        editor.isFocused ? "border-brand-red" : "border-[#2A2A2A]",
+        "border bg-elev transition-colors duration-200",
+        editor.isFocused ? "border-brand-red" : "border-edge",
         disabled ? "opacity-50 pointer-events-none" : "",
       ].join(" ")}
     >
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-[#2A2A2A] bg-[#0A0A0A] px-2 py-1">
+      <div className="flex flex-wrap items-center gap-0.5 border-b border-edge bg-panel px-2 py-1">
         <ToolbarButton
           onClick={cmd(() => editor.chain().focus().toggleBold().run())}
           isActive={editor.isActive("bold")}

@@ -100,7 +100,7 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
       </section>
 
       {/* Features */}
-      <section className="border-t border-[#1A1A1A] py-16 sm:py-20 px-6">
+      <section className="border-t border-line py-16 sm:py-20 px-6">
         <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-12 sm:gap-8">
           <Pillar label="WOD" sublabel="Entrenamiento del dia" />
           <Pillar label="RM" sublabel="Registra tus rep max" />
@@ -109,8 +109,8 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
       </section>
 
       {/* Footer */}
-      <footer className="py-6 text-center border-t border-[#1A1A1A]">
-        <p className="text-xs text-gray-700 font-body tracking-wide">
+      <footer className="py-6 text-center border-t border-line">
+        <p className="text-xs text-gray-500 font-body tracking-wide">
           &copy; {new Date().getFullYear()} {gym.name} &mdash; Powered by WODY
         </p>
       </footer>
@@ -124,7 +124,7 @@ function Pillar({ label, sublabel }: { label: string; sublabel: string }) {
       <div className="text-3xl sm:text-4xl font-heading font-black uppercase tracking-wider text-brand-red mb-2 group-hover:tracking-[0.2em] transition-all duration-300">
         {label}
       </div>
-      <div className="w-8 h-0.5 bg-[#2A2A2A] group-hover:bg-brand-red mx-auto mb-3 transition-colors duration-300" />
+      <div className="w-8 h-0.5 bg-edge group-hover:bg-brand-red mx-auto mb-3 transition-colors duration-300" />
       <p className="text-xs text-gray-500 uppercase tracking-[0.2em] font-heading font-medium">
         {sublabel}
       </p>

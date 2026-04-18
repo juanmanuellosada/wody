@@ -62,7 +62,7 @@ export function ToggleStudentTypeButton({ userId, currentType, demo }: Props) {
             if (e.target === e.currentTarget) setShowModal(false);
           }}
         >
-          <div className="bg-[#0A0A0A] border border-[#2A2A2A] p-6 sm:p-8 max-w-sm w-full">
+          <div className="bg-panel border border-edge p-6 sm:p-8 max-w-sm w-full">
             <p className="text-sm font-heading font-black uppercase tracking-[0.1em] text-white mb-4">
               Cambiar tipo de alumno
             </p>

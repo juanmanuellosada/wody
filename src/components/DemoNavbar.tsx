@@ -51,7 +51,7 @@ export function DemoNavbar() {
 
   return (
     <nav
-      className="bg-black/95 backdrop-blur-sm border-b border-[#1A1A1A] sticky top-0 z-40"
+      className="bg-black/95 backdrop-blur-sm border-b border-line sticky top-0 z-40"
       role="navigation"
       aria-label="Navegacion demo"
     >
@@ -59,7 +59,7 @@ export function DemoNavbar() {
         {/* Logo */}
         <Link href="/demo" className="flex items-center gap-2.5 group cursor-pointer">
           <Image src={wodyBlanco} alt="WODY" width={22} height={22} className="opacity-90 group-hover:opacity-100 transition-opacity duration-200" />
-          <span className="w-px h-5 bg-[#2A2A2A]" aria-hidden="true" />
+          <span className="w-px h-5 bg-edge" aria-hidden="true" />
           <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400 group-hover:text-white transition-colors duration-200">
             Demo
           </span>
@@ -99,7 +99,7 @@ export function DemoNavbar() {
                 "text-xs font-heading font-bold uppercase tracking-[0.1em] px-2 py-1 border transition-colors duration-200",
                 currentRole === role
                   ? "border-brand-red text-brand-red bg-brand-red/10"
-                  : "border-[#2A2A2A] text-gray-500 hover:border-gray-500 hover:text-white",
+                  : "border-edge text-gray-500 hover:border-gray-500 hover:text-white",
               ].join(" ")}
             >
               {label}
@@ -128,7 +128,7 @@ export function DemoNavbar() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="sm:hidden bg-black border-t border-[#1A1A1A] px-4 py-5 flex flex-col gap-4" role="menu">
+        <div className="sm:hidden bg-black border-t border-line px-4 py-5 flex flex-col gap-4" role="menu">
           {/* Current role sections */}
           <p className="text-xs text-gray-500 font-heading uppercase tracking-[0.1em]">
             Secciones — <span className="text-brand-red">{roleLabel}</span>
@@ -152,7 +152,7 @@ export function DemoNavbar() {
           ))}
 
           {/* Role switcher */}
-          <div className="border-t border-[#1A1A1A] pt-4 mt-1">
+          <div className="border-t border-line pt-4 mt-1">
             <p className="text-xs text-gray-500 font-heading uppercase tracking-[0.1em] mb-3">
               Cambiar rol
             </p>
@@ -166,7 +166,7 @@ export function DemoNavbar() {
                     "text-xs font-heading font-bold uppercase tracking-[0.1em] px-3 py-2 border transition-colors duration-200",
                     currentRole === role
                       ? "border-brand-red text-brand-red bg-brand-red/10"
-                      : "border-[#2A2A2A] text-gray-400",
+                      : "border-edge text-gray-400",
                   ].join(" ")}
                 >
                   {label}
