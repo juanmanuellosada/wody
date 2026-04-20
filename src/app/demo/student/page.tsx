@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DemoNavbar } from "@/components/DemoNavbar";
+import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { WodCard } from "@/components/wod/WodCard";
 import { WodHistory } from "@/components/wod/WodHistory";
 
@@ -13,6 +14,7 @@ const yesterday = new Date(today.getTime() - 86400000);
 const twoDaysAgo = new Date(today.getTime() - 86400000 * 2);
 const threeDaysAgo = new Date(today.getTime() - 86400000 * 3);
 const fourDaysAgo = new Date(today.getTime() - 86400000 * 4);
+const nextPaymentDate = new Date(today.getTime() + 86400000 * 12);
 
 const todayWod = {
   id: "w1",
@@ -53,6 +55,8 @@ export default function DemoStudentPage() {
     <>
       <DemoNavbar />
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-10 flex flex-col gap-10">
+        <PaymentStatusBanner nextPaymentDate={nextPaymentDate} />
+
         {/* Today's WOD */}
         <section>
           <div className="flex items-center justify-between mb-5">
