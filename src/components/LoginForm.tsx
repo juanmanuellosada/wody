@@ -72,6 +72,7 @@ export function LoginForm({ gymSlug }: LoginFormProps) {
         autoComplete="current-password"
         required
         disabled={isPending}
+        showPasswordToggle
       />
 
       {error && (

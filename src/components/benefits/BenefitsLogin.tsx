@@ -54,6 +54,7 @@ export function BenefitsLogin() {
           autoComplete="current-password"
           required
           disabled={isPending}
+          showPasswordToggle
         />
 
         {error && (
