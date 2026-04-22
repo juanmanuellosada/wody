@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/notify-due-today",
+      "schedule": "0 12 * * *"
+    }
+  ]
+}

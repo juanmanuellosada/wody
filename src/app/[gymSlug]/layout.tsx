@@ -3,6 +3,7 @@ import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "@/components/layout/Navbar";
 import { InstallPwaButton } from "@/components/InstallPwaButton";
+import { NotificationPermissionButton } from "@/components/NotificationPermissionButton";
 import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
 import { gymPath } from "@/lib/gym";
@@ -94,6 +95,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
           <PaymentStatusBanner nextPaymentDate={student.nextPaymentDate} />
         )}
         <InstallPwaButton />
+        {role === "STUDENT" && <NotificationPermissionButton />}
         {children}
       </main>
       {role === "STUDENT" && <WhatsAppFab />}

@@ -80,6 +80,7 @@ model User {
   studentOf      TeacherStudent[]   @relation("StudentRel")
   teacherGroups  Group[]            @relation("TeacherGroups")
   redemptions    CouponRedemption[]
+  pushSubscriptions PushSubscription[]
 
   @@unique([email, gymId])
 }
@@ -138,6 +139,19 @@ model TeacherStudent {
   student User @relation("StudentRel", fields: [studentId], references: [id], onDelete: Cascade)
 
   @@id([teacherId, studentId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Coupon {

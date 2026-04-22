@@ -1,4 +1,4 @@
-const CACHE_NAME = "wody-v2";
+const CACHE_NAME = "wody-v3";
 const STATIC_ASSETS = [
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
@@ -25,6 +25,27 @@ self.addEventListener("activate", (event) => {
     )
   );
   self.clients.claim();
+});
+
+// Push — show a notification when the server pushes one to this client.
+// Payload shape: { title: string, body: string }. No click action (intentional).
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: "WODY", body: event.data.text() };
+  }
+  const { title = "WODY", body = "" } = payload;
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icons/icon-192x192.png",
+      badge: "/icons/icon-192x192.png",
+      tag: "wody-due",
+    })
+  );
 });
 
 // Fetch — only cache static assets, let Next.js handle navigation
