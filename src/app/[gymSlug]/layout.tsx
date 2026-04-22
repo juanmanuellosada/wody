@@ -19,14 +19,24 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
   const gym = await prisma.gym.findUnique({ where: { slug: gymSlug } });
   if (!gym) notFound();
 
+  const session = await auth();
+
+  // Gym bloqueado: nada del /{slug}/* es accesible. Si el usuario tiene sesión
+  // de este gym, lo firmamos fuera (la cookie quedaría colgada sino); si no,
+  // redirigimos directo a la landing de WODY.
+  if (gym.blockedAt) {
+    if (session?.user && session.user.gymSlug === gymSlug) {
+      redirect("/api/auth/kick?next=/");
+    }
+    redirect("/");
+  }
+
   const accent = gym.primaryColor ?? "#E31414";
   const accentVars = {
     '--color-red': accent,
     '--color-red-dark': `color-mix(in oklch, ${accent} 80%, black)`,
     '--color-red-hover': `color-mix(in oklch, ${accent} 85%, white)`,
   } as React.CSSProperties;
-
-  const session = await auth();
 
   // Not authenticated or session belongs to a different gym — render children bare
   // (login page and gym landing handle their own layout)

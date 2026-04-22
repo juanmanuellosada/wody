@@ -8,6 +8,9 @@ export type LoginResult =
   | { success: false; error: string };
 
 function renderBlockedMessage(code: string): string | null {
+  if (code === "gym_blocked") {
+    return "Este gimnasio no está disponible temporalmente.";
+  }
   // "blocked:manual:BOX" | "blocked:overdue:<days>:BOX|GYM"
   if (!code.startsWith("blocked:")) return null;
   const parts = code.split(":");

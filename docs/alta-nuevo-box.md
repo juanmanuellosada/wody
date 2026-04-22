@@ -60,6 +60,18 @@ sus profes correspondientes con TeacherStudent.
 
 ---
 
+## Bloquear / desbloquear un gym
+
+El bloqueo de gym es manual vía SQL (no hay UI). Cuando `Gym.blockedAt` no es null, ningún usuario del gym puede loguearse y cualquier ruta bajo `/{slug}/*` redirige a `/`. Las sesiones vivas se firman fuera en el primer request después del bloqueo.
+
+```sql
+-- Bloquear
+UPDATE "Gym" SET "blockedAt" = NOW() WHERE slug = 'slug-del-gym';
+
+-- Desbloquear
+UPDATE "Gym" SET "blockedAt" = NULL WHERE slug = 'slug-del-gym';
+```
+
 ## Notas
 
 - El WhatsApp del profe e Instagram del gym no se guardan en la DB actualmente (no hay campo en el schema), pero quedan documentados para cuando se agregue esa funcionalidad.

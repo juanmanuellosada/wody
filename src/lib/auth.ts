@@ -58,6 +58,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const passwordValid = await compare(password, user.password);
           if (!passwordValid) continue;
 
+          if (user.gym.blockedAt) {
+            throw new UserBlockedError("gym_blocked");
+          }
+
           const status = getBlockStatus({
             role: user.role,
             blockedAt: user.blockedAt,

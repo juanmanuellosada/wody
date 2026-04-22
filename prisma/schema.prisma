@@ -45,13 +45,14 @@ enum RedemptionStatus {
 }
 
 model Gym {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   name         String
-  slug         String   @unique
-  kind         GymKind  @default(BOX)
+  slug         String    @unique
+  kind         GymKind   @default(BOX)
   logo         String?
   primaryColor String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
+  blockedAt    DateTime?
   users        User[]
 }
 
