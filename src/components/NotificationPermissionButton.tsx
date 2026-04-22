@@ -2,7 +2,31 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
-import { savePushSubscription } from "@/actions/push";
+
+// POSTea la sub al endpoint REST /api/notifications/subscribe.
+// Usamos un route handler en vez del server action porque fue más confiable
+// en Safari iOS (encoding de form actions tiene ediciones raras en Webkit).
+async function saveSubscription(sub: {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch("/api/notifications/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(sub),
+  });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const data = (await res.json()) as { error?: string };
+      if (data?.error) message = data.error;
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, error: message };
+  }
+  return { ok: true };
+}
 
 // Converts the VAPID public key (base64url) into a Uint8Array.
 // Safari iOS rejects a raw ArrayBuffer here with "Application server key
@@ -62,11 +86,11 @@ export function NotificationPermissionButton() {
           setSyncState("missing");
           return;
         }
-        const res = await savePushSubscription({
+        const res = await saveSubscription({
           endpoint: json.endpoint,
           keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
         });
-        setSyncState(res.success ? "synced" : "missing");
+        setSyncState(res.ok ? "synced" : "missing");
       } catch {
         setSyncState("missing");
       }
@@ -76,6 +100,10 @@ export function NotificationPermissionButton() {
   const handleEnable = useCallback(async () => {
     setError(null);
     setBusy(true);
+    // Fuerza el syncState a "missing" mientras corre el flujo para que el
+    // render no desmonte el componente cuando Notification.requestPermission
+    // devuelve "granted" y pega el re-render.
+    setSyncState("missing");
     try {
       const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       if (!publicKey) throw new Error("Falta la VAPID public key.");
@@ -106,11 +134,11 @@ export function NotificationPermissionButton() {
         throw new Error("La suscripción no devolvió las claves esperadas.");
       }
 
-      const res = await savePushSubscription({
+      const res = await saveSubscription({
         endpoint: json.endpoint,
         keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
       });
-      if (!res.success) throw new Error(res.error);
+      if (!res.ok) throw new Error(res.error ?? "No se pudo guardar la sub.");
       setSyncState("synced");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo activar.");
@@ -120,10 +148,14 @@ export function NotificationPermissionButton() {
   }, []);
 
   if (!supported) return null;
-  // Don't render while we check if there's an existing sub to upsert —
-  // prevents a "Activar" flash for users already set up.
-  if (permission === "granted" && syncState === "unknown") return null;
-  if (permission === "granted" && syncState === "synced") return null;
+  // While we're doing work (permission prompt, subscribe, POST) always
+  // render so errors have a place to appear. Without this, a mid-flow
+  // setPermission("granted") would unmount the component and any later
+  // setError would be lost.
+  if (!busy) {
+    if (permission === "granted" && syncState === "unknown") return null;
+    if (permission === "granted" && syncState === "synced") return null;
+  }
 
   return (
     <div className="border border-line bg-panel p-4 mb-6 flex flex-col gap-3">
