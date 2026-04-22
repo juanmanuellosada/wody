@@ -20,7 +20,9 @@ class UserBlockedError extends CredentialsSignin {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
-  session: { strategy: "jwt" },
+  // 90 días: queremos que la PWA mantenga la sesión aunque el usuario
+  // pase tiempo sin abrirla. Default de NextAuth es 30.
+  session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 90 },
   providers: [
     Credentials({
       name: "Credentials",

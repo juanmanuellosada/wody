@@ -1,6 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { auth } from "@/lib/auth";
+import { gymPath } from "@/lib/gym";
 import {
   Dumbbell,
   Trophy,
@@ -27,7 +30,19 @@ export const metadata: Metadata = {
     "Plataforma para gestionar rutinas, records y seguimiento de alumnos. CrossFit, gimnasios, funcional, GAP y más.",
 };
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // Si el usuario ya tiene sesión, lo mandamos directo a su dashboard.
+  // Importa sobre todo para PWA: iOS/Android siempre abren `start_url=/`
+  // al relanzar la app, así que sin este redirect el usuario ve la landing
+  // genérica aunque esté logueado.
+  const session = await auth();
+  if (session?.user?.gymSlug) {
+    const { gymSlug, role } = session.user;
+    if (role === "ADMIN") redirect(gymPath(gymSlug, "/admin"));
+    if (role === "TEACHER") redirect(gymPath(gymSlug, "/dashboard/teacher"));
+    redirect(gymPath(gymSlug, "/dashboard/athlete"));
+  }
+
   return (
     <main className="min-h-screen flex flex-col bg-[#0A0A0F] text-white overflow-hidden">
       {/* Hero */}
