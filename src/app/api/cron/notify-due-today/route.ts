@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendPushToUser } from "@/lib/push";
 import { getTodayArgentina } from "@/lib/dates";
 
-// Vercel Cron: 9:00 ART (12:00 UTC) daily — see vercel.json.
+// Vercel Cron: 12:00 ART (15:00 UTC) daily — see vercel.json.
 // Sends two kinds of reminders to STUDENT users whose nextPaymentDate falls
 // today or 3 days from today (Argentina time):
 //   - "Tu cuota vence hoy. Pasá por tu {box|gym} para renovar."

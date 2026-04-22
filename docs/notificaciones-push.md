@@ -4,7 +4,7 @@ Se mandan a alumnos (STUDENT) cuando falta su cuota:
 - **3 días antes** del vencimiento
 - **El día** del vencimiento
 
-El cron corre **diariamente a las 9:00 ART** (12:00 UTC) — configurado en `vercel.json`.
+El cron corre **diariamente a las 12:00 ART** (15:00 UTC) — configurado en `vercel.json`.
 
 ## Alcance y exclusiones
 
