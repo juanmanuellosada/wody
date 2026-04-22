@@ -16,12 +16,21 @@ function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
   return buffer;
 }
 
+type SyncState = "unknown" | "synced" | "missing";
+
 export function NotificationPermissionButton() {
   const [supported, setSupported] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>("default");
+  const [syncState, setSyncState] = useState<SyncState>("unknown");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // On mount: detect support + current permission, and if granted, try to
+  // resync an existing subscription with the server (idempotent upsert).
+  // This covers the case where a past subscribe call succeeded in the OS
+  // but the POST to our server never made it (first-launch glitch, iOS
+  // flakiness, etc.) — without this, the button would hide and there'd
+  // be no way to recover.
   useEffect(() => {
     const ok =
       typeof window !== "undefined" &&
@@ -29,7 +38,38 @@ export function NotificationPermissionButton() {
       "PushManager" in window &&
       "Notification" in window;
     setSupported(ok);
-    if (ok) setPermission(Notification.permission);
+    if (!ok) return;
+
+    const currentPermission = Notification.permission;
+    setPermission(currentPermission);
+
+    if (currentPermission !== "granted") return;
+
+    (async () => {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const existing = await registration.pushManager.getSubscription();
+        if (!existing) {
+          setSyncState("missing");
+          return;
+        }
+        const json = existing.toJSON() as {
+          endpoint?: string;
+          keys?: { p256dh?: string; auth?: string };
+        };
+        if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+          setSyncState("missing");
+          return;
+        }
+        const res = await savePushSubscription({
+          endpoint: json.endpoint,
+          keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+        });
+        setSyncState(res.success ? "synced" : "missing");
+      } catch {
+        setSyncState("missing");
+      }
+    })();
   }, []);
 
   const handleEnable = useCallback(async () => {
@@ -68,6 +108,7 @@ export function NotificationPermissionButton() {
         keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
       });
       if (!res.success) throw new Error(res.error);
+      setSyncState("synced");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo activar.");
     } finally {
@@ -76,7 +117,10 @@ export function NotificationPermissionButton() {
   }, []);
 
   if (!supported) return null;
-  if (permission === "granted") return null;
+  // Don't render while we check if there's an existing sub to upsert —
+  // prevents a "Activar" flash for users already set up.
+  if (permission === "granted" && syncState === "unknown") return null;
+  if (permission === "granted" && syncState === "synced") return null;
 
   return (
     <div className="border border-line bg-panel p-4 mb-6 flex flex-col gap-3">
