@@ -1,9 +1,13 @@
 import webpush from "web-push";
 import { prisma } from "@/lib/prisma";
+import { getTodayArgentina } from "@/lib/dates";
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_DAYS_AHEAD = 2;
 
 let configured = false;
 function ensureConfigured() {
@@ -59,4 +63,67 @@ export async function sendPushToUser(
   );
 
   return { sent, removed };
+}
+
+function bodyForDaysRemaining(
+  days: number,
+  word: "box" | "gym"
+): string {
+  if (days <= 0) return `Tu cuota vence hoy. Pasá por tu ${word} para renovar.`;
+  if (days === 1)
+    return `Tu cuota vence mañana. Pasá por tu ${word} para renovar.`;
+  return `Tu cuota vence en ${days} días. Pasá por tu ${word} para renovar.`;
+}
+
+// Manda el recordatorio de vencimiento al alumno si aplica. Dedupea por día
+// (Argentina) vía User.lastDueNotifiedOn: no importa si lo dispara el cron o
+// el login, como máximo una push por alumno por día. Si está fuera de rango,
+// bloqueado, o ya fue notificado hoy, no hace nada.
+export async function sendDueReminderIfNeeded(
+  userId: string,
+  today: Date = getTodayArgentina()
+): Promise<{ sent: boolean; reason: string }> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      blockedAt: true,
+      nextPaymentDate: true,
+      lastDueNotifiedOn: true,
+      gym: { select: { name: true, kind: true, blockedAt: true } },
+    },
+  });
+
+  if (!user) return { sent: false, reason: "user-not-found" };
+  if (user.role !== "STUDENT") return { sent: false, reason: "not-student" };
+  if (user.blockedAt) return { sent: false, reason: "user-blocked" };
+  if (user.gym.blockedAt) return { sent: false, reason: "gym-blocked" };
+
+  const daysRemaining = Math.round(
+    (user.nextPaymentDate.getTime() - today.getTime()) / DAY_MS
+  );
+  if (daysRemaining < 0 || daysRemaining > MAX_DAYS_AHEAD) {
+    return { sent: false, reason: "out-of-range" };
+  }
+
+  if (
+    user.lastDueNotifiedOn &&
+    user.lastDueNotifiedOn.getTime() === today.getTime()
+  ) {
+    return { sent: false, reason: "already-notified-today" };
+  }
+
+  const word: "box" | "gym" = user.gym.kind === "GYM" ? "gym" : "box";
+  const body = bodyForDaysRemaining(daysRemaining, word);
+  const result = await sendPushToUser(userId, user.gym.name, body);
+
+  if (result.sent > 0) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lastDueNotifiedOn: today },
+    });
+    return { sent: true, reason: `sent-day-${daysRemaining}` };
+  }
+
+  return { sent: false, reason: "no-active-subs" };
 }

@@ -69,6 +69,7 @@ model User {
   createdAt       DateTime    @default(now())
   nextPaymentDate DateTime    @default(now()) @db.Date
   blockedAt       DateTime?
+  lastDueNotifiedOn DateTime? @db.Date
 
   gym   Gym    @relation(fields: [gymId], references: [id])
   group Group? @relation("GroupStudents", fields: [groupId], references: [id], onDelete: SetNull)

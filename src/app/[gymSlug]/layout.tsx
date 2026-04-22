@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { after } from "next/server";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "@/components/layout/Navbar";
@@ -8,6 +9,7 @@ import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
 import { gymPath } from "@/lib/gym";
 import { getBlockStatus } from "@/lib/blocking";
+import { sendDueReminderIfNeeded } from "@/lib/push";
 
 interface GymLayoutProps {
   children: React.ReactNode;
@@ -70,6 +72,14 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
   }
 
   const student = role === "STUDENT" ? dbUser : null;
+
+  // Disparar el recordatorio de cuota post-response (no bloquea el render).
+  // El helper dedupea por día (User.lastDueNotifiedOn), así que el primer
+  // acceso del día del alumno manda la push; el cron de las 12 atrapa a los
+  // que no entraron.
+  if (role === "STUDENT") {
+    after(() => sendDueReminderIfNeeded(userId).catch(() => {}));
+  }
 
   async function handleSignOut() {
     "use server";

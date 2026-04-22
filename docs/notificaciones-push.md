@@ -5,7 +5,11 @@ Se mandan a alumnos (STUDENT) cuyo `nextPaymentDate` cae en el rango **[hoy, hoy
 - 1 día → "Tu cuota vence mañana. Pasá por tu {box|gym} para renovar."
 - 2 días → "Tu cuota vence en 2 días. Pasá por tu {box|gym} para renovar."
 
-El cron corre **diariamente a las 12:00 ART** (15:00 UTC) — configurado en `vercel.json`. Como el rango es continuo, un alumno cuya cuota vence en 2 días va a recibir 3 recordatorios (uno por día) hasta el vencimiento.
+**Dos disparadores**:
+- **Cron Vercel** diario **a las 12:00 ART** (15:00 UTC) — definido en `vercel.json`.
+- **Login / navegación del alumno** — el layout `/[gymSlug]/layout.tsx` dispara el mismo check post-response vía `after()` de next/server cada vez que el alumno entra.
+
+Dedup por día vía `User.lastDueNotifiedOn` (DATE): después del primer envío del día, los dos disparadores ven `lastDueNotifiedOn === hoy` y saltean. Cualquiera que llegue primero gana, así que un alumno recibe exactamente **3 notificaciones** en su ciclo (una cada día en el rango), sin duplicados.
 
 ## Alcance y exclusiones
 
