@@ -7,6 +7,8 @@ import { formatDateArg, getTodayArgentina } from "@/lib/dates";
 import { Card } from "@/components/ui/Card";
 import { PayButton } from "@/components/PayButton";
 import { EditStudentButton } from "@/components/EditStudentButton";
+import { BlockUserButton } from "@/components/BlockUserButton";
+import { getBlockStatus } from "@/lib/blocking";
 
 type StatusFilter = "all" | "overdue" | "due-soon" | "ok";
 
@@ -27,6 +29,7 @@ type PaymentRow = {
   name: string;
   email: string;
   nextPaymentDate: Date;
+  blockedAt: Date | null;
   assignedTeachers: { id: string; name: string }[];
 };
 
@@ -92,6 +95,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
             name: true,
             email: true,
             nextPaymentDate: true,
+            blockedAt: true,
           },
         })
       : prisma.user.findMany({
@@ -106,6 +110,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
             name: true,
             email: true,
             nextPaymentDate: true,
+            blockedAt: true,
           },
         }),
     prisma.teacherStudent.findMany({
@@ -258,6 +263,11 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
               <tbody>
                 {visibleRows.map((row) => {
                   const status = computeStatus(row.nextPaymentDate, today);
+                  const blockStatus = getBlockStatus({
+                    role: "STUDENT",
+                    blockedAt: row.blockedAt,
+                    nextPaymentDate: row.nextPaymentDate,
+                  });
                   return (
                     <tr
                       key={row.id}
@@ -277,17 +287,31 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                         {formatDateArg(row.nextPaymentDate)}
                       </td>
                       <td className="px-4 py-3.5">
-                        <span
-                          className={[
-                            "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 inline-block",
-                            statusClasses(status),
-                          ].join(" ")}
-                        >
-                          {statusLabel(status)}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span
+                            className={[
+                              "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 inline-block",
+                              statusClasses(status),
+                            ].join(" ")}
+                          >
+                            {statusLabel(status)}
+                          </span>
+                          {blockStatus.blocked && (
+                            <span
+                              className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 inline-block bg-brand-red/15 text-brand-red border border-brand-red/30"
+                              title={
+                                blockStatus.kind === "overdue"
+                                  ? `Auto-bloqueado: ${blockStatus.days} días de atraso`
+                                  : "Bloqueado manualmente"
+                              }
+                            >
+                              {blockStatus.kind === "overdue" ? "Auto-bloq." : "Bloqueado"}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-2 flex-wrap">
                           <PayButton
                             studentId={row.id}
                             studentName={row.name}
@@ -297,9 +321,18 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                             name={row.name}
                             email={row.email}
                             nextPaymentDate={row.nextPaymentDate}
+                            blocked={row.blockedAt !== null}
                             assignedTeachers={row.assignedTeachers}
                             allTeachers={teachers}
                           />
+                          {isAdmin && (
+                            <BlockUserButton
+                              userId={row.id}
+                              currentUserId={session.user.id}
+                              userRole="STUDENT"
+                              blocked={row.blockedAt !== null}
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -313,6 +346,11 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
           <div className="sm:hidden flex flex-col gap-3">
             {visibleRows.map((row) => {
               const status = computeStatus(row.nextPaymentDate, today);
+              const blockStatus = getBlockStatus({
+                role: "STUDENT",
+                blockedAt: row.blockedAt,
+                nextPaymentDate: row.nextPaymentDate,
+              });
               return (
                 <Card key={row.id}>
                   <div className="flex flex-col gap-3">
@@ -325,14 +363,28 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                           {row.email}
                         </p>
                       </div>
-                      <span
-                        className={[
-                          "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 flex-shrink-0",
-                          statusClasses(status),
-                        ].join(" ")}
-                      >
-                        {statusLabel(status)}
-                      </span>
+                      <div className="flex flex-col gap-1 items-end flex-shrink-0">
+                        <span
+                          className={[
+                            "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5",
+                            statusClasses(status),
+                          ].join(" ")}
+                        >
+                          {statusLabel(status)}
+                        </span>
+                        {blockStatus.blocked && (
+                          <span
+                            className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 bg-brand-red/15 text-brand-red border border-brand-red/30"
+                            title={
+                              blockStatus.kind === "overdue"
+                                ? `Auto-bloqueado: ${blockStatus.days} días de atraso`
+                                : "Bloqueado manualmente"
+                            }
+                          >
+                            {blockStatus.kind === "overdue" ? "Auto-bloq." : "Bloqueado"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex flex-col">
@@ -343,7 +395,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                           {formatDateArg(row.nextPaymentDate)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
                         <PayButton
                           studentId={row.id}
                           studentName={row.name}
@@ -353,9 +405,18 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                           name={row.name}
                           email={row.email}
                           nextPaymentDate={row.nextPaymentDate}
+                          blocked={row.blockedAt !== null}
                           assignedTeachers={row.assignedTeachers}
                           allTeachers={teachers}
                         />
+                        {isAdmin && (
+                          <BlockUserButton
+                            userId={row.id}
+                            currentUserId={session.user.id}
+                            userRole="STUDENT"
+                            blocked={row.blockedAt !== null}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>

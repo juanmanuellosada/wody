@@ -14,6 +14,7 @@ interface EditStudentButtonProps {
   name: string;
   email: string;
   nextPaymentDate?: Date;
+  blocked?: boolean;
   assignedTeachers: TeacherOption[];
   allTeachers: TeacherOption[];
   demo?: boolean;
@@ -24,6 +25,7 @@ export function EditStudentButton({
   name,
   email,
   nextPaymentDate,
+  blocked,
   assignedTeachers,
   allTeachers,
   demo,
@@ -41,6 +43,7 @@ export function EditStudentButton({
           currentName={name}
           currentEmail={email}
           currentPaymentDate={nextPaymentDate}
+          currentBlocked={blocked}
           assignedTeachers={assignedTeachers}
           allTeachers={allTeachers}
           onClose={() => setOpen(false)}

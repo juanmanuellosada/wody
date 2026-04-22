@@ -12,6 +12,7 @@ Necesito dar de alta un nuevo box en WODY. Estos son los datos:
 ## Datos del gimnasio
 - **Nombre completo:** [NOMBRE DEL GYM]
 - **Slug (URL):** [slug-en-minusculas-con-guiones]
+- **Tipo de instalación:** [BOX o GYM] — BOX para CrossFit / funcional, GYM para gimnasio tradicional. Se guarda en el enum `GymKind` (campo `kind` del modelo `Gym`) y define cómo se refiere la app al lugar en los mensajes al usuario (ej: "contactá con tu box" vs "contactá con tu gym").
 - **Color de acentuación (hex):** [#HEXCOLOR]
 - **Ubicación:** [Ciudad, Provincia]
 - **Tipo de actividad:** [CrossFit / Funcional / Entrenamiento personalizado / etc.]
@@ -33,9 +34,10 @@ Crearlo con role: ADMIN — el sistema ya permite que los ADMIN funcionen como p
 
 Hacé todo lo necesario para que el box quede operativo:
 
-1. **Base de datos:** Crear un script o migration que inserte el Gym (con su `primaryColor`), el Admin, y opcionalmente
-WODs y RMs de ejemplo. Podés crear un script separado en `prisma/` para correrlo una sola vez (ejemplo:
-`prisma/seed-[slug].ts`). El color de acentuación se guarda en `primaryColor` y el theming dinámico lo aplica
+1. **Base de datos:** Crear un script o migration que inserte el Gym (con su `primaryColor` **y su `kind: GymKind`**),
+el Admin, y opcionalmente WODs y RMs de ejemplo. Podés crear un script separado en `prisma/` para correrlo una sola
+vez (ejemplo: `prisma/seed-[slug].ts`). El `kind` va al enum `GymKind` y acepta `"BOX"` o `"GYM"` — setearlo según el
+tipo de instalación de arriba. El color de acentuación se guarda en `primaryColor` y el theming dinámico lo aplica
 automáticamente a toda la UI del gym (botones, acentos, bordes, imágenes compartibles, etc.).
 
 2. **Landing page (`src/app/page.tsx`):**

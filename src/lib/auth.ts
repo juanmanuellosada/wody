@@ -1,11 +1,22 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import type { Role, StudentType } from "@prisma/client";
+import { getBlockStatus } from "@/lib/blocking";
 
 // Apply type augmentations
 import "@/types/index";
+
+// Serialized into the login error so the server action can render a
+// user-facing message. Format: "blocked:manual:BOX" | "blocked:overdue:7:GYM".
+class UserBlockedError extends CredentialsSignin {
+  code: string;
+  constructor(code: string) {
+    super();
+    this.code = code;
+  }
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -46,6 +57,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         for (const user of candidates) {
           const passwordValid = await compare(password, user.password);
           if (!passwordValid) continue;
+
+          const status = getBlockStatus({
+            role: user.role,
+            blockedAt: user.blockedAt,
+            nextPaymentDate: user.nextPaymentDate,
+          });
+          if (status.blocked) {
+            const gymKind = user.gym.kind;
+            throw new UserBlockedError(
+              status.kind === "overdue"
+                ? `blocked:overdue:${status.days}:${gymKind}`
+                : `blocked:manual:${gymKind}`
+            );
+          }
 
           return {
             id: user.id,

@@ -7,6 +7,23 @@ export type LoginResult =
   | { success: true }
   | { success: false; error: string };
 
+function renderBlockedMessage(code: string): string | null {
+  // "blocked:manual:BOX" | "blocked:overdue:<days>:BOX|GYM"
+  if (!code.startsWith("blocked:")) return null;
+  const parts = code.split(":");
+  if (parts[1] === "overdue") {
+    const days = Number(parts[2]);
+    const word = parts[3] === "GYM" ? "gym" : "box";
+    const dayWord = days === 1 ? "día" : "días";
+    return `Tu cuota está vencida hace ${days} ${dayWord}. Contactá con tu ${word}.`;
+  }
+  if (parts[1] === "manual") {
+    const word = parts[2] === "GYM" ? "gym" : "box";
+    return `Tu cuenta está bloqueada. Contactá con tu ${word}.`;
+  }
+  return null;
+}
+
 /**
  * Server Action: authenticate with email + password + gymSlug.
  * Returns a typed error on failure.
@@ -43,11 +60,14 @@ export async function login(formData: FormData): Promise<LoginResult> {
 
     if (error instanceof AuthError) {
       switch (error.type) {
-        case "CredentialsSignin":
+        case "CredentialsSignin": {
+          const code = (error as unknown as { code?: string }).code ?? "";
+          const blockedMsg = renderBlockedMessage(code);
           return {
             success: false,
-            error: "Email o contraseña incorrectos.",
+            error: blockedMsg ?? "Email o contraseña incorrectos.",
           };
+        }
         case "CallbackRouteError":
           return {
             success: false,

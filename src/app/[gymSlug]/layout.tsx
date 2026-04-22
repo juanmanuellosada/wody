@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "@/components/layout/Navbar";
@@ -6,6 +6,7 @@ import { InstallPwaButton } from "@/components/InstallPwaButton";
 import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
 import { gymPath } from "@/lib/gym";
+import { getBlockStatus } from "@/lib/blocking";
 
 interface GymLayoutProps {
   children: React.ReactNode;
@@ -35,14 +36,26 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
 
   const { id: userId, name, role, studentType } = session.user;
 
-  // Student-only: next payment date drives the status banner at the top of every page.
-  const student =
-    role === "STUDENT"
-      ? await prisma.user.findUnique({
-          where: { id: userId },
-          select: { nextPaymentDate: true },
-        })
-      : null;
+  // One DB read covers both: the blocked check (every request) and the
+  // student's next payment date used for the status banner.
+  const dbUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { blockedAt: true, nextPaymentDate: true, role: true },
+  });
+
+  if (dbUser) {
+    const status = getBlockStatus({
+      role: dbUser.role,
+      blockedAt: dbUser.blockedAt,
+      nextPaymentDate: dbUser.nextPaymentDate,
+    });
+    if (status.blocked) {
+      const next = encodeURIComponent(gymPath(gymSlug, "/login?blocked=1"));
+      redirect(`/api/auth/kick?next=${next}`);
+    }
+  }
+
+  const student = role === "STUDENT" ? dbUser : null;
 
   async function handleSignOut() {
     "use server";

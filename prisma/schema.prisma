@@ -16,6 +16,11 @@ enum Role {
   STUDENT
 }
 
+enum GymKind {
+  GYM
+  BOX
+}
+
 enum StudentType {
   GENERAL
   PERSONALIZED
@@ -43,6 +48,7 @@ model Gym {
   id           String   @id @default(cuid())
   name         String
   slug         String   @unique
+  kind         GymKind  @default(BOX)
   logo         String?
   primaryColor String?
   createdAt    DateTime @default(now())
@@ -60,6 +66,7 @@ model User {
   groupId         String?
   createdAt       DateTime    @default(now())
   nextPaymentDate DateTime    @default(now()) @db.Date
+  blockedAt       DateTime?
 
   gym   Gym    @relation(fields: [gymId], references: [id])
   group Group? @relation("GroupStudents", fields: [groupId], references: [id], onDelete: SetNull)

@@ -246,6 +246,43 @@ export async function updateStudent(
   }
 }
 
+export async function setUserBlocked(
+  userId: string,
+  blocked: boolean
+): Promise<UserResult> {
+  const session = await auth();
+
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (userId === session.user.id) {
+    return { success: false, error: "No podés bloquear tu propia cuenta." };
+  }
+
+  const gymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.gymId !== gymId) {
+    return { success: false, error: "Usuario no encontrado." };
+  }
+
+  if (user.role === "ADMIN") {
+    return { success: false, error: "No se pueden bloquear administradores." };
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { blockedAt: blocked ? new Date() : null },
+  });
+
+  revalidatePath(gymPath(gymSlug, "/admin"));
+  revalidatePath(gymPath(gymSlug, "/pagos"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+  return { success: true };
+}
+
 export async function toggleStudentType(userId: string): Promise<UserResult> {
   const session = await auth();
 

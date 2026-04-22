@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { updateStudent, assignStudent, unassignStudent } from "@/actions/user";
+import { updateStudent, assignStudent, unassignStudent, setUserBlocked } from "@/actions/user";
 import { setStudentPaymentDate } from "@/actions/payment";
 import { toInputDate } from "@/lib/dates";
 
@@ -17,6 +17,7 @@ interface StudentEditorProps {
   currentName: string;
   currentEmail: string;
   currentPaymentDate?: Date;
+  currentBlocked?: boolean;
   assignedTeachers: TeacherOption[];
   allTeachers: TeacherOption[];
   onClose: () => void;
@@ -28,6 +29,7 @@ export function StudentEditor({
   currentName,
   currentEmail,
   currentPaymentDate,
+  currentBlocked = false,
   assignedTeachers,
   allTeachers,
   onClose,
@@ -36,6 +38,7 @@ export function StudentEditor({
   const [name, setName] = useState(currentName);
   const [email, setEmail] = useState(currentEmail);
   const [password, setPassword] = useState("");
+  const [blocked, setBlocked] = useState(currentBlocked);
   const currentPaymentDateStr = currentPaymentDate
     ? toInputDate(currentPaymentDate)
     : "";
@@ -106,6 +109,20 @@ export function StudentEditor({
     startTransition(async () => {
       const result = await unassignStudent(teacherId, studentId);
       if (!result.success) setError(result.error);
+    });
+  }
+
+  function handleToggleBlocked() {
+    if (demo) return;
+    setError(null);
+    const next = !blocked;
+    startTransition(async () => {
+      const result = await setUserBlocked(studentId, next);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setBlocked(next);
     });
   }
 
@@ -223,6 +240,30 @@ export function StudentEditor({
             </div>
           )}
         </div>
+
+        {/* Block / unblock */}
+        {!demo && (
+          <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 block">
+              Acceso
+            </label>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-gray-500 font-body">
+                {blocked
+                  ? "Bloqueado: no puede ingresar a la app."
+                  : "Activo: puede ingresar a la app."}
+              </p>
+              <Button
+                variant={blocked ? "primary" : "danger"}
+                size="sm"
+                onClick={handleToggleBlocked}
+                disabled={isPending}
+              >
+                {blocked ? "Desbloquear" : "Bloquear"}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {error && (
           <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">

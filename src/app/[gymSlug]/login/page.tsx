@@ -12,6 +12,7 @@ import rompiendoLogo from "@/logos/rompiendo-limites.png";
 
 interface LoginPageProps {
   params: Promise<{ gymSlug: string }>;
+  searchParams: Promise<{ blocked?: string }>;
 }
 
 export async function generateMetadata({ params }: LoginPageProps): Promise<Metadata> {
@@ -27,8 +28,9 @@ const GYM_LOGOS: Record<string, typeof unidosLogo> = {
   "rompiendo-limites": rompiendoLogo,
 };
 
-export default async function LoginPage({ params }: LoginPageProps) {
+export default async function LoginPage({ params, searchParams }: LoginPageProps) {
   const { gymSlug } = await params;
+  const { blocked } = await searchParams;
 
   const gym = await prisma.gym.findUnique({ where: { slug: gymSlug } });
   if (!gym) notFound();
@@ -87,6 +89,15 @@ export default async function LoginPage({ params }: LoginPageProps) {
             priority
           />
         </div>
+
+        {blocked === "1" && (
+          <div
+            className="mb-4 px-4 py-3 text-sm font-heading font-bold text-brand-red border border-brand-red/40 bg-brand-red/5 uppercase tracking-wide"
+            role="alert"
+          >
+            Tu sesión fue cerrada. Ingresá de nuevo para ver el motivo.
+          </div>
+        )}
 
         {/* Form */}
         <div className="bg-panel border border-line p-6 sm:p-8">

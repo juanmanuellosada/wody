@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserForm } from "@/components/UserForm";
 import { DeleteUserButton } from "@/components/DeleteUserButton";
+import { BlockUserButton } from "@/components/BlockUserButton";
 import { ToggleStudentTypeButton } from "@/components/ToggleStudentTypeButton";
 import { AssignStudentForm } from "@/components/AssignStudentForm";
 import { EditStudentButton } from "@/components/EditStudentButton";
@@ -10,6 +11,7 @@ import { GroupManager } from "@/components/group/GroupManager";
 import { Card } from "@/components/ui/Card";
 import { formatDateArg } from "@/lib/dates";
 import { gymPath } from "@/lib/gym";
+import { getBlockStatus } from "@/lib/blocking";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -36,7 +38,7 @@ export default async function AdminPage({ params }: Props) {
     prisma.user.findMany({
       where: { gymId },
       orderBy: [{ role: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, email: true, role: true, studentType: true, createdAt: true, groupId: true, nextPaymentDate: true },
+      select: { id: true, name: true, email: true, role: true, studentType: true, createdAt: true, groupId: true, nextPaymentDate: true, blockedAt: true },
     }),
     prisma.group.findMany({
       where: { teacher: { gymId } },
@@ -204,7 +206,13 @@ export default async function AdminPage({ params }: Props) {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {users.map((user) => {
+                const blockStatus = getBlockStatus({
+                  role: user.role,
+                  blockedAt: user.blockedAt,
+                  nextPaymentDate: user.nextPaymentDate,
+                });
+                return (
                 <tr
                   key={user.id}
                   className="border-b border-line hover:bg-hover transition-colors duration-200 group"
@@ -226,18 +234,32 @@ export default async function AdminPage({ params }: Props) {
                   </td>
                   <td className="px-4 py-3.5 text-gray-400 font-body">{user.email}</td>
                   <td className="px-4 py-3.5">
-                    <span
-                      className={[
-                        "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 inline-block",
-                        user.role === "ADMIN"
-                          ? "bg-brand-red/15 text-brand-red border border-brand-red/20"
-                          : user.role === "TEACHER"
-                          ? "bg-white/5 text-white border border-white/10"
-                          : "bg-elev text-gray-400 border border-edge",
-                      ].join(" ")}
-                    >
-                      {ROLE_LABEL[user.role] ?? user.role}
-                    </span>
+                    <div className="flex flex-col gap-1 items-start">
+                      <span
+                        className={[
+                          "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 inline-block",
+                          user.role === "ADMIN"
+                            ? "bg-brand-red/15 text-brand-red border border-brand-red/20"
+                            : user.role === "TEACHER"
+                            ? "bg-white/5 text-white border border-white/10"
+                            : "bg-elev text-gray-400 border border-edge",
+                        ].join(" ")}
+                      >
+                        {ROLE_LABEL[user.role] ?? user.role}
+                      </span>
+                      {blockStatus.blocked && (
+                        <span
+                          className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 inline-block bg-brand-red/15 text-brand-red border border-brand-red/30"
+                          title={
+                            blockStatus.kind === "overdue"
+                              ? `Auto-bloqueado: ${blockStatus.days} días de atraso`
+                              : "Bloqueado manualmente"
+                          }
+                        >
+                          {blockStatus.kind === "overdue" ? "Auto-bloq." : "Bloqueado"}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3.5">
                     {user.role === "STUDENT" ? (
@@ -277,17 +299,24 @@ export default async function AdminPage({ params }: Props) {
                     {formatDateArg(user.createdAt)}
                   </td>
                   <td className="px-4 py-3.5">
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
                       {user.role === "STUDENT" && (
                         <EditStudentButton
                           studentId={user.id}
                           name={user.name}
                           email={user.email}
                           nextPaymentDate={user.nextPaymentDate}
+                          blocked={user.blockedAt !== null}
                           assignedTeachers={teachersByStudentId.get(user.id) ?? []}
                           allTeachers={allTeacherOptions}
                         />
                       )}
+                      <BlockUserButton
+                        userId={user.id}
+                        currentUserId={currentUserId}
+                        userRole={user.role}
+                        blocked={user.blockedAt !== null}
+                      />
                       <DeleteUserButton
                         userId={user.id}
                         currentUserId={currentUserId}
@@ -295,14 +324,21 @@ export default async function AdminPage({ params }: Props) {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
 
         {/* Mobile cards */}
         <div className="sm:hidden flex flex-col gap-3">
-          {users.map((user) => (
+          {users.map((user) => {
+            const blockStatus = getBlockStatus({
+              role: user.role,
+              blockedAt: user.blockedAt,
+              nextPaymentDate: user.nextPaymentDate,
+            });
+            return (
             <Card key={user.id}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
@@ -338,10 +374,22 @@ export default async function AdminPage({ params }: Props) {
                           currentType={user.studentType}
                         />
                       )}
+                      {blockStatus.blocked && (
+                        <span
+                          className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 bg-brand-red/15 text-brand-red border border-brand-red/30"
+                          title={
+                            blockStatus.kind === "overdue"
+                              ? `Auto-bloqueado: ${blockStatus.days} días de atraso`
+                              : "Bloqueado manualmente"
+                          }
+                        >
+                          {blockStatus.kind === "overdue" ? "Auto-bloq." : "Bloqueado"}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-1 flex-shrink-0">
+                <div className="flex gap-1 flex-shrink-0 flex-wrap justify-end">
                   {user.role === "STUDENT" && (
                     <EditStudentButton
                       studentId={user.id}
@@ -352,6 +400,12 @@ export default async function AdminPage({ params }: Props) {
                       allTeachers={allTeacherOptions}
                     />
                   )}
+                  <BlockUserButton
+                    userId={user.id}
+                    currentUserId={currentUserId}
+                    userRole={user.role}
+                    blocked={user.blockedAt !== null}
+                  />
                   <DeleteUserButton
                     userId={user.id}
                     currentUserId={currentUserId}
@@ -359,7 +413,8 @@ export default async function AdminPage({ params }: Props) {
                 </div>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       </section>
     </div>
