@@ -4,7 +4,7 @@ import { sendPushToUser } from "@/lib/push";
 import { getTodayArgentina } from "@/lib/dates";
 
 // Vercel Cron: 12:00 ART (15:00 UTC) daily — see vercel.json.
-// Manda recordatorio a STUDENTs cuyo nextPaymentDate cae en [hoy, hoy+3]
+// Manda recordatorio a STUDENTs cuyo nextPaymentDate cae en [hoy, hoy+2]
 // (ART), con copy personalizado según los días restantes. Skipped:
 // alumnos bloqueados, gyms bloqueados y alumnos sin subs push.
 
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   }
 
   const today = getTodayArgentina();
-  const rangeEnd = new Date(today.getTime() + 3 * DAY_MS);
+  const rangeEnd = new Date(today.getTime() + 2 * DAY_MS);
 
   const students = await prisma.user.findMany({
     where: {

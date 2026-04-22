@@ -1,11 +1,11 @@
 # Notificaciones push
 
-Se mandan a alumnos (STUDENT) cuyo `nextPaymentDate` cae en el rango **[hoy, hoy+3]** (ART). Es decir: hoy, mañana, en 2 días o en 3 días. Copy personalizado según los días restantes:
+Se mandan a alumnos (STUDENT) cuyo `nextPaymentDate` cae en el rango **[hoy, hoy+2]** (ART). Es decir: hoy, mañana o en 2 días. Copy personalizado según los días restantes:
 - 0 días → "Tu cuota vence hoy. Pasá por tu {box|gym} para renovar."
 - 1 día → "Tu cuota vence mañana. Pasá por tu {box|gym} para renovar."
-- N días → "Tu cuota vence en N días. Pasá por tu {box|gym} para renovar."
+- 2 días → "Tu cuota vence en 2 días. Pasá por tu {box|gym} para renovar."
 
-El cron corre **diariamente a las 12:00 ART** (15:00 UTC) — configurado en `vercel.json`. Como el rango es continuo, un alumno cuya cuota vence en 3 días va a recibir 4 recordatorios (uno por día) hasta el vencimiento.
+El cron corre **diariamente a las 12:00 ART** (15:00 UTC) — configurado en `vercel.json`. Como el rango es continuo, un alumno cuya cuota vence en 2 días va a recibir 3 recordatorios (uno por día) hasta el vencimiento.
 
 ## Alcance y exclusiones
 
