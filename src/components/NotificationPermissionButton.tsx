@@ -29,9 +29,9 @@ async function saveSubscription(sub: {
 }
 
 // Converts the VAPID public key (base64url) into a Uint8Array.
-// Safari iOS rejects a raw ArrayBuffer here with "Application server key
-// must contain a valid P-256 public key" — Uint8Array is what works across
-// Chrome / Firefox / Safari.
+// Safari iOS ha tenido distintos quirks con BufferSource vs string, así que
+// intentamos primero con string (DOMString, permitido por el spec de Push API
+// y soportado por Safari 16.4+) y fallback a Uint8Array si falla.
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -39,6 +39,34 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const output = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
   return output;
+}
+
+async function subscribeWithKey(
+  registration: ServiceWorkerRegistration,
+  publicKey: string
+): Promise<PushSubscription> {
+  // Intento 1: pasar el base64url como string (spec-compliant, más simple).
+  try {
+    return await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: publicKey as unknown as BufferSource,
+    });
+  } catch (e1) {
+    // Intento 2: Uint8Array decodificada.
+    try {
+      return await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+      });
+    } catch (e2) {
+      // Re-throw con ambos mensajes para debug.
+      const m1 = e1 instanceof Error ? e1.message : String(e1);
+      const m2 = e2 instanceof Error ? e2.message : String(e2);
+      throw new Error(
+        `Subscribe falló. string: "${m1}". Uint8Array: "${m2}". Key length: ${publicKey.length}.`
+      );
+    }
+  }
 }
 
 type SyncState = "unknown" | "synced" | "missing";
@@ -118,12 +146,7 @@ export function NotificationPermissionButton() {
       const registration = await navigator.serviceWorker.ready;
       let subscription = await registration.pushManager.getSubscription();
       if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          // Cast: TS narrows Uint8Array<ArrayBufferLike> stricter than the
-          // Push API signature needs; the runtime accepts it fine.
-          applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
-        });
+        subscription = await subscribeWithKey(registration, publicKey);
       }
 
       const json = subscription.toJSON() as {
