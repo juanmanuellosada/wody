@@ -34,7 +34,7 @@ export default async function AdminPage({ params }: Props) {
   const gymId = session.user.gymId;
   const currentUserId = session.user.id;
 
-  const [users, allGroups, teacherStudentLinks] = await Promise.all([
+  const [users, allGroups, teacherStudentLinks, gymConfig] = await Promise.all([
     prisma.user.findMany({
       where: { gymId },
       orderBy: [{ role: "asc" }, { name: "asc" }],
@@ -55,7 +55,13 @@ export default async function AdminPage({ params }: Props) {
       where: { teacher: { gymId } },
       select: { teacherId: true, studentId: true },
     }),
+    prisma.gym.findUnique({
+      where: { id: gymId },
+      select: { autoBlockAfterDays: true },
+    }),
   ]);
+
+  const autoBlockAfterDays = gymConfig?.autoBlockAfterDays ?? 5;
 
   const teachers = users.filter(
     (u) => u.role === "TEACHER" || u.role === "ADMIN"
@@ -207,11 +213,14 @@ export default async function AdminPage({ params }: Props) {
             </thead>
             <tbody>
               {users.map((user) => {
-                const blockStatus = getBlockStatus({
-                  role: user.role,
-                  blockedAt: user.blockedAt,
-                  nextPaymentDate: user.nextPaymentDate,
-                });
+                const blockStatus = getBlockStatus(
+                  {
+                    role: user.role,
+                    blockedAt: user.blockedAt,
+                    nextPaymentDate: user.nextPaymentDate,
+                  },
+                  autoBlockAfterDays
+                );
                 return (
                 <tr
                   key={user.id}
@@ -333,11 +342,14 @@ export default async function AdminPage({ params }: Props) {
         {/* Mobile cards */}
         <div className="sm:hidden flex flex-col gap-3">
           {users.map((user) => {
-            const blockStatus = getBlockStatus({
-              role: user.role,
-              blockedAt: user.blockedAt,
-              nextPaymentDate: user.nextPaymentDate,
-            });
+            const blockStatus = getBlockStatus(
+              {
+                role: user.role,
+                blockedAt: user.blockedAt,
+                nextPaymentDate: user.nextPaymentDate,
+              },
+              autoBlockAfterDays
+            );
             return (
             <Card key={user.id}>
               <div className="flex items-start justify-between gap-3">

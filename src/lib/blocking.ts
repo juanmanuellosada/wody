@@ -1,8 +1,6 @@
 import type { Role } from "@prisma/client";
 import { getTodayArgentina } from "@/lib/dates";
 
-export const MAX_OVERDUE_DAYS_BEFORE_BLOCK = 5;
-
 type BlockStatusInput = {
   role: Role;
   blockedAt: Date | null;
@@ -16,6 +14,7 @@ export type BlockStatus =
 
 export function getBlockStatus(
   user: BlockStatusInput,
+  autoBlockAfterDays: number,
   today: Date = getTodayArgentina()
 ): BlockStatus {
   if (user.blockedAt) {
@@ -27,7 +26,7 @@ export function getBlockStatus(
     const daysOverdue = Math.round(
       (today.getTime() - user.nextPaymentDate.getTime()) / msPerDay
     );
-    if (daysOverdue > MAX_OVERDUE_DAYS_BEFORE_BLOCK) {
+    if (daysOverdue > autoBlockAfterDays) {
       return { blocked: true, kind: "overdue", days: daysOverdue };
     }
   }

@@ -54,11 +54,14 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
   });
 
   if (dbUser) {
-    const status = getBlockStatus({
-      role: dbUser.role,
-      blockedAt: dbUser.blockedAt,
-      nextPaymentDate: dbUser.nextPaymentDate,
-    });
+    const status = getBlockStatus(
+      {
+        role: dbUser.role,
+        blockedAt: dbUser.blockedAt,
+        nextPaymentDate: dbUser.nextPaymentDate,
+      },
+      gym.autoBlockAfterDays
+    );
     if (status.blocked) {
       const next = encodeURIComponent(gymPath(gymSlug, "/login?blocked=1"));
       redirect(`/api/auth/kick?next=${next}`);

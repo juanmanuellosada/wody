@@ -85,7 +85,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
   const gymId = session.user.gymId;
   const isAdmin = session.user.role === "ADMIN";
 
-  const [students, teacherLinks, teachers] = await Promise.all([
+  const [students, teacherLinks, teachers, gymConfig] = await Promise.all([
     isAdmin
       ? prisma.user.findMany({
           where: { gymId, role: "STUDENT" },
@@ -122,7 +122,13 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    prisma.gym.findUnique({
+      where: { id: gymId },
+      select: { autoBlockAfterDays: true },
+    }),
   ]);
+
+  const autoBlockAfterDays = gymConfig?.autoBlockAfterDays ?? 5;
 
   const teachersById = new Map(teachers.map((t) => [t.id, t]));
   const teachersByStudentId = new Map<string, { id: string; name: string }[]>();
@@ -263,11 +269,14 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
               <tbody>
                 {visibleRows.map((row) => {
                   const status = computeStatus(row.nextPaymentDate, today);
-                  const blockStatus = getBlockStatus({
-                    role: "STUDENT",
-                    blockedAt: row.blockedAt,
-                    nextPaymentDate: row.nextPaymentDate,
-                  });
+                  const blockStatus = getBlockStatus(
+                    {
+                      role: "STUDENT",
+                      blockedAt: row.blockedAt,
+                      nextPaymentDate: row.nextPaymentDate,
+                    },
+                    autoBlockAfterDays
+                  );
                   return (
                     <tr
                       key={row.id}
@@ -346,11 +355,14 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
           <div className="sm:hidden flex flex-col gap-3">
             {visibleRows.map((row) => {
               const status = computeStatus(row.nextPaymentDate, today);
-              const blockStatus = getBlockStatus({
-                role: "STUDENT",
-                blockedAt: row.blockedAt,
-                nextPaymentDate: row.nextPaymentDate,
-              });
+              const blockStatus = getBlockStatus(
+                {
+                  role: "STUDENT",
+                  blockedAt: row.blockedAt,
+                  nextPaymentDate: row.nextPaymentDate,
+                },
+                autoBlockAfterDays
+              );
               return (
                 <Card key={row.id}>
                   <div className="flex flex-col gap-3">

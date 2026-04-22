@@ -62,11 +62,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             throw new UserBlockedError("gym_blocked");
           }
 
-          const status = getBlockStatus({
-            role: user.role,
-            blockedAt: user.blockedAt,
-            nextPaymentDate: user.nextPaymentDate,
-          });
+          const status = getBlockStatus(
+            {
+              role: user.role,
+              blockedAt: user.blockedAt,
+              nextPaymentDate: user.nextPaymentDate,
+            },
+            user.gym.autoBlockAfterDays
+          );
           if (status.blocked) {
             const gymKind = user.gym.kind;
             throw new UserBlockedError(

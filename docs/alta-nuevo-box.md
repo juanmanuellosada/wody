@@ -72,6 +72,14 @@ UPDATE "Gym" SET "blockedAt" = NOW() WHERE slug = 'slug-del-gym';
 UPDATE "Gym" SET "blockedAt" = NULL WHERE slug = 'slug-del-gym';
 ```
 
+## Tolerancia de auto-bloqueo por mora
+
+Cada gym tiene su propio umbral de días de atraso antes de que un alumno quede auto-bloqueado (`Gym.autoBlockAfterDays`, default `5` → se bloquea a partir del día 6). Se edita a mano:
+
+```sql
+UPDATE "Gym" SET "autoBlockAfterDays" = 10 WHERE slug = 'slug-del-gym';
+```
+
 ## Notas
 
 - El WhatsApp del profe e Instagram del gym no se guardan en la DB actualmente (no hay campo en el schema), pero quedan documentados para cuando se agregue esa funcionalidad.
