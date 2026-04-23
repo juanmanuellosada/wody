@@ -7,6 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description:
       "Plataforma de gestión de entrenamientos y records personales para boxes de CrossFit.",
     start_url: "/",
+    scope: "/",
     display: "standalone",
     background_color: "#000000",
     theme_color: "#000000",

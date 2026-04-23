@@ -21,10 +21,22 @@ export function CheckinScannerButton({ gymSlug }: CheckinScannerButtonProps) {
   // `IScannerControls` vive en @zxing/browser; lo tipamos suelto para no
   // traer el tipo al bundle principal (la lib se importa dinámico).
   const controlsRef = useRef<{ stop: () => void } | null>(null);
+  // Un QR detectado ya fue manejado — no procesamos más. Previene que el
+  // loop de zxing dispare handleDetected varias veces antes de que alcancemos
+  // a stopScan y navegar.
+  const detectedRef = useRef(false);
 
   const stopScan = useCallback(() => {
     controlsRef.current?.stop();
     controlsRef.current = null;
+    // Cerramos explícitamente los tracks del stream por si zxing dejó
+    // alguno abierto (iOS a veces se confunde si la cámara sigue activa
+    // durante la navegación).
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach((t) => t.stop());
+      videoRef.current.srcObject = null;
+    }
   }, []);
 
   useEffect(() => {
@@ -34,6 +46,7 @@ export function CheckinScannerButton({ gymSlug }: CheckinScannerButtonProps) {
     }
 
     let cancelled = false;
+    detectedRef.current = false;
     setStarting(true);
     setError(null);
 
@@ -48,7 +61,8 @@ export function CheckinScannerButton({ gymSlug }: CheckinScannerButtonProps) {
           undefined,
           videoRef.current,
           (result) => {
-            if (!result) return;
+            if (!result || detectedRef.current) return;
+            detectedRef.current = true;
             handleDetected(result.getText());
           }
         );
@@ -78,19 +92,23 @@ export function CheckinScannerButton({ gymSlug }: CheckinScannerButtonProps) {
       const url = new URL(text);
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       if (url.origin !== origin) {
+        detectedRef.current = false;
         setError("Este QR no pertenece a WODY.");
         return;
       }
       const expected = `/${gymSlug}/checkin`;
       if (!url.pathname.startsWith(expected)) {
+        detectedRef.current = false;
         setError("El QR es de otro gym.");
         return;
       }
-      // Navegación same-origin → queda dentro del scope de la PWA.
+      // Paramos el stream primero y después navegamos. iOS a veces
+      // renderiza raro si la cámara sigue activa durante la nav.
       stopScan();
       setOpen(false);
       window.location.href = url.pathname + url.search;
     } catch {
+      detectedRef.current = false;
       setError("El QR no contiene una URL válida.");
     }
   }

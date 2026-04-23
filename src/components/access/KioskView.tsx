@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import {
@@ -50,6 +50,12 @@ export function KioskView({
   const [qrSvg, setQrSvg] = useState(initialQrSvg);
   const [pending, setPending] = useState<PendingLog[]>([]);
   const [recent, setRecent] = useState<RecentLog[]>([]);
+  // Toast que aparece cuando llega un ingreso nuevo (escaneo o manual).
+  // Se muestra 3s y se va. Acknowledgeamos el último id visto para no
+  // re-disparar el toast en cada poll.
+  const [toast, setToast] = useState<RecentLog | null>(null);
+  const lastSeenRecentIdRef = useRef<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refresca el QR cuando el bucket cambia. Pedimos un re-render del
   // server component con router.refresh() y leemos el nuevo SVG via
@@ -81,6 +87,22 @@ export function KioskView({
         if (cancelled) return;
         setPending(data.pending);
         setRecent(data.recent);
+
+        // Toast: si el primero de recientes es distinto al último que
+        // vimos (y NO es el primer tick), flasheamos. Evita disparar
+        // en el primer load para no popear toast de entradas viejas.
+        if (data.recent.length > 0) {
+          const latest = data.recent[0];
+          if (
+            lastSeenRecentIdRef.current !== null &&
+            lastSeenRecentIdRef.current !== latest.id
+          ) {
+            setToast(latest);
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+            toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+          }
+          lastSeenRecentIdRef.current = latest.id;
+        }
       } catch {
         /* ignore transient errors */
       }
@@ -91,6 +113,7 @@ export function KioskView({
     return () => {
       cancelled = true;
       clearInterval(interval);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, [gymSlug]);
 
@@ -102,8 +125,8 @@ export function KioskView({
           Ingresos
         </h1>
         <p className="text-xs font-body text-gray-500">
-          Los alumnos escanean este QR con su celular para registrar su
-          ingreso. El código rota cada 5 minutos.
+          Escaneá este QR desde la app de WODY para registrar el ingreso.
+          El código rota cada 5 minutos.
         </p>
         <div
           className="bg-white p-4 self-start"
@@ -115,7 +138,35 @@ export function KioskView({
       </section>
 
       {/* Panel der: pendings + recientes */}
-      <section className="flex-1 flex flex-col gap-8">
+      <section className="flex-1 flex flex-col gap-6">
+        {toast && (
+          <div
+            className={[
+              "border px-4 py-3 flex items-center gap-3",
+              toast.state === "GRANTED"
+                ? "border-green-500/40 bg-green-500/10"
+                : "border-brand-red/40 bg-brand-red/10",
+            ].join(" ")}
+            role="status"
+          >
+            <span
+              className={[
+                "w-2 h-2 flex-shrink-0",
+                toast.state === "GRANTED" ? "bg-green-500" : "bg-brand-red",
+              ].join(" ")}
+              aria-hidden="true"
+            />
+            <p
+              className={[
+                "text-xs font-heading font-bold uppercase tracking-[0.15em]",
+                toast.state === "GRANTED" ? "text-green-400" : "text-brand-red",
+              ].join(" ")}
+            >
+              {toast.state === "GRANTED" ? "Ingresó" : "Denegado"} ·{" "}
+              {formatMemberNumber(toast.user.memberNumber)} {toast.user.name}
+            </p>
+          </div>
+        )}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
@@ -257,13 +308,11 @@ function ManualLookup() {
   const [input, setInput] = useState("");
   const [looked, setLooked] = useState<LookupUser | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [justGranted, setJustGranted] = useState<LookupUser | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setJustGranted(null);
     const trimmed = input.trim();
     if (!trimmed) return;
     startTransition(async () => {
@@ -274,17 +323,16 @@ function ManualLookup() {
         return;
       }
       if (res.alDia) {
-        // Al día → auto-permit, igual que el flujo de QR. Sin paso
-        // intermedio de decisión.
+        // Al día → auto-permit, igual que el flujo de QR. El toast
+        // global (arriba del feed) confirma al operador; acá solo
+        // limpiamos el input.
         const grantRes = await createManualCheckin(res.user.id, "GRANT");
         if (!grantRes.success) {
           setError(grantRes.error);
           setLooked(null);
           return;
         }
-        setJustGranted(res.user);
         setInput("");
-        setTimeout(() => setJustGranted(null), 2500);
       } else {
         setLooked(res.user);
       }
@@ -358,17 +406,6 @@ function ManualLookup() {
         >
           {error}
         </p>
-      )}
-      {justGranted && (
-        <div
-          className="border border-green-500/40 bg-green-500/10 px-3 py-2"
-          role="status"
-        >
-          <p className="text-xs font-heading font-bold text-green-400 uppercase tracking-wide">
-            Permitido · {formatMemberNumber(justGranted.memberNumber)}{" "}
-            {justGranted.name}
-          </p>
-        </div>
       )}
     </form>
   );

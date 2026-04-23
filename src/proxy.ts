@@ -149,11 +149,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (subPath.startsWith("/checkin")) {
-    // Solo alumnos pueden hacer check-in (admins/profes/access no usan el
-    // flujo de QR; si necesitan ingresar, el operador los mete manual).
-    if (role !== "STUDENT") {
+    // Alumnos y profes hacen ingreso vía QR/manual. ACCESS opera el
+    // kiosk y no hace ingreso desde acá (si necesita, usa el manual).
+    if (role === "ACCESS") {
       return NextResponse.redirect(
-        new URL(gymPath(gymSlug, "/"), nextUrl)
+        new URL(gymPath(gymSlug, "/ingresos"), nextUrl)
       );
     }
     return NextResponse.next();

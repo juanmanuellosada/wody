@@ -37,7 +37,18 @@ export default async function CheckinPage({ params, searchParams }: Props) {
     );
   }
 
-  const result = await createCheckin(gymSlug, token);
+  let result: Awaited<ReturnType<typeof createCheckin>>;
+  try {
+    result = await createCheckin(gymSlug, token);
+  } catch (err) {
+    console.error("createCheckin threw:", err);
+    return (
+      <CheckinFallback
+        title="Error al registrar el ingreso"
+        body="Probá de nuevo en unos segundos."
+      />
+    );
+  }
 
   if (!result.success) {
     return <CheckinFallback title="No pudimos registrar tu ingreso" body={result.error} />;

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { gymPath } from "@/lib/gym";
 import { WodManagerClient } from "@/components/wod/WodManagerClient";
 import { GroupManager } from "@/components/group/GroupManager";
+import { CheckinScannerButton } from "@/components/access/CheckinScannerButton";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -63,6 +64,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
+      <CheckinScannerButton gymSlug={gymSlug} />
       {/* Welcome header */}
       <div className="border border-line bg-panel p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
