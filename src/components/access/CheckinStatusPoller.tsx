@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
 
@@ -9,6 +10,7 @@ interface CheckinStatusPollerProps {
   logId: string;
   initialState: "PENDING" | "GRANTED";
   userName: string;
+  backHref: string;
 }
 
 // Pollea /api/checkin/status/:id cada 1.5s hasta que el estado deje de
@@ -18,6 +20,7 @@ export function CheckinStatusPoller({
   logId,
   initialState,
   userName,
+  backHref,
 }: CheckinStatusPollerProps) {
   const [state, setState] = useState<State>(initialState);
 
@@ -110,6 +113,15 @@ export function CheckinStatusPoller({
               Mostrale esta pantalla a recepción.
             </p>
           </>
+        )}
+
+        {state !== "PENDING" && (
+          <Link
+            href={backHref}
+            className="mt-2 inline-block px-6 py-3 font-heading font-bold uppercase tracking-[0.15em] text-white text-xs bg-brand-red hover:bg-brand-red-dark transition-colors duration-200"
+          >
+            Volver
+          </Link>
         )}
       </div>
     </main>

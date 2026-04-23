@@ -54,11 +54,19 @@ export default async function CheckinPage({ params, searchParams }: Props) {
     return <CheckinFallback title="No pudimos registrar tu ingreso" body={result.error} />;
   }
 
+  const backHref =
+    session.user.role === "STUDENT"
+      ? gymPath(gymSlug, "/dashboard/athlete")
+      : session.user.role === "TEACHER" || session.user.role === "ADMIN"
+      ? gymPath(gymSlug, "/dashboard/teacher")
+      : gymPath(gymSlug, "/");
+
   return (
     <CheckinStatusPoller
       logId={result.logId}
       initialState={result.state}
       userName={session.user.name ?? "alumno"}
+      backHref={backHref}
     />
   );
 }
