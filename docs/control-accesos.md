@@ -58,11 +58,11 @@ Diseño:
 | Campo | Tipo | Notas |
 | --- | --- | --- |
 | `memberNumber` | `Int` | Único por gym, auto-asignado al crear el usuario. No editable. |
-| `qrLookup` | `String?` | HMAC-SHA256(qrToken, `QR_LOOKUP_SECRET`). Unique, indexado. |
+| `qrToken` | `String` | Token random 32 bytes base64url, unique global. Al crear un usuario se genera; al regenerar, se pisa el campo y el QR anterior deja de validar. |
 
-Unique `(gymId, memberNumber)`.
+Unique `(gymId, memberNumber)`. Unique global en `qrToken`.
 
-El **token raw del QR no se guarda**. El server lo genera (32 bytes random base64url), computa `qrLookup = HMAC(token)` y guarda solo eso. El raw se entrega al alumno en su dashboard, renderizado como QR. Al regenerar, se pisa el `qrLookup` → el QR anterior deja de funcionar.
+El `qrToken` se guarda **raw** (no hasheado). Trade-off explícito: si la DB leakea, los tokens filtran — pero ya filtrarían emails, fechas de pago y demás PII en el mismo incidente, así que el blast radius no cambia significativamente. Además, un token solo pullea la ficha del socio en el kiosk; el gate real de entrada es el operador humano. Simplifica mucho el flujo (re-render del QR entre sesiones) sin aumentar el riesgo real.
 
 ### `Gym` — agregar
 
@@ -100,7 +100,7 @@ Sumar `ACCESS`.
 3. El server intenta resolver **en este orden** — el primero que matchea gana:
    1. **Email**: si matchea formato → `User.findFirst({ email, gymId })`.
    2. **Número de socio**: si todo dígitos → `User.findFirst({ gymId, memberNumber: parseInt(input) })`.
-   3. **QR**: si matchea formato esperado (ej. prefijo `WODY:{slug}:{token}`) → `qrLookup = HMAC(token, QR_LOOKUP_SECRET)` → busca por `qrLookup`.
+   3. **QR**: si matchea formato `WODY:{slug}:{token}` → parsea, valida slug y busca `User.findUnique({ qrToken: token })` verificando que pertenezca al gym actual.
 4. Si no matcheó nada → retorna `UNKNOWN_IDENTIFIER` + incrementa rate-limit counter de la sesión.
 5. Si matcheó → retorna `{ user: {id, memberNumber, name, role, nextPaymentDate, blockedAt, gym.blockedAt, gym.autoBlockAfterDays}, recommendation: "ALLOW" | "REVIEW" | "BLOCK" }`.
 6. La UI muestra una tarjeta con los datos + el color de recomendación:
@@ -119,7 +119,7 @@ Sumar `ACCESS`.
 - **Número de socio**: no es secreto. Es un identificador público. Cualquiera que tipee un número existente puede pullear la ficha del socio en pantalla. La privacidad se protege porque:
   - Solo sesiones con rol `ACCESS` o `ADMIN` pueden acceder a `/ingresos`.
   - La pantalla muestra datos mínimos (nombre, rol, badge verde/amarillo/rojo). No muestra monto, historial, ni detalles de la cuota en tipografía grande.
-- **QR**: token 32 bytes random base64url. Solo se guarda `qrLookup` (HMAC con pepper). Si la DB leakea, no se pueden reconstruir los QRs. Regenerar invalida el anterior. Este es el factor "fuerte" para quien lo quiera.
+- **QR**: token 32 bytes random base64url, guardado raw con unique index. Regenerar pisa el valor → el QR anterior deja de validar inmediatamente. No es 100% leak-proof ante un DB leak, pero ya explicamos el trade-off arriba.
 - **Email**: no es factor de auth — es solo un método de búsqueda.
 - **Rate limiting por sesión**: máximo **60 lookups por minuto** por sesión del kiosk. Previene scripts que enumeren socios. Los operadores legítimos no se ven afectados (60 lookups/min ≈ 1 por segundo, muy alto para uso normal). Al excederse: 5 min de bloqueo, registrado como `RATE_LIMITED`.
 - **Sesión del kiosk**: dura 90 días (`NextAuth.session.maxAge`). Si el dispositivo se roba, rotar `AUTH_SECRET` invalida todas las sesiones activas.
@@ -130,12 +130,12 @@ Sumar `ACCESS`.
 
 La pantalla de Ingresos es una PWA con service worker propio (`/sw-access.js`, separado del `sw.js` principal):
 
-- **Cache local** en IndexedDB: snapshot de los usuarios del gym con `{id, memberNumber, name, role, email, qrLookup, nextPaymentDate, blockedAt, gymBlockedAt, autoBlockAfterDays}`.
+- **Cache local** en IndexedDB: snapshot de los usuarios del gym con `{id, memberNumber, name, role, email, qrToken, nextPaymentDate, blockedAt, gymBlockedAt, autoBlockAfterDays}`.
 - **Sync**: cada 60 segundos con red + al abrir la pantalla. Refresca el snapshot entero.
 - **Modo offline**: si el `fetch` al server action falla, valida contra la cache local. El `AccessLog` se buffereaen IndexedDB y se flushea cuando vuelve la conexión.
 - **Banner de estado**: amarillo "Sin conexión — datos cacheados hace X min" si la cache está vieja o hay error de red.
 - **Stale máximo**: si la cache tiene **>24h** sin sincronizar, el sistema deja de validar y muestra error — evita permitir a alguien dado de baja con datos muy viejos.
-- **Datos en cliente**: el snapshot no incluye hashes de passwords ni secrets. Los `qrLookup` son HMACs, no reversibles. Si el dispositivo se roba, no hay bruteforce offline posible (a diferencia del diseño anterior con `pinHash`).
+- **Datos en cliente**: el snapshot incluye `qrToken` raw (necesario para validar offline). Si el dispositivo se roba, los tokens de los socios se filtran. Mitigación: la cache se borra al desloguearse, y rotar la sesión fuerza re-sync. Si un dispositivo se pierde, el admin puede regenerar los QRs masivamente (TODO: agregar acción bulk).
 
 ---
 
@@ -187,9 +187,7 @@ La sección de Ingresos es un item nuevo en la navbar, visible para `ACCESS` y `
 
 ## Env vars nuevas
 
-```
-QR_LOOKUP_SECRET="..."    # >=32 bytes random. No rotar sin re-computar qrLookups.
-```
+No hay env vars nuevas para el sistema de accesos. Los `qrToken` se generan con `crypto.randomBytes(32).toString('base64url')` directamente, sin pepper.
 
 ---
 

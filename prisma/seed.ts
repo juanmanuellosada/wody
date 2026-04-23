@@ -1,5 +1,10 @@
 import { PrismaClient, Role } from "@prisma/client";
 import { hash } from "bcryptjs";
+import { randomBytes } from "node:crypto";
+
+function qr(): string {
+  return randomBytes(32).toString("base64url");
+}
 
 const prisma = new PrismaClient();
 
@@ -112,6 +117,7 @@ async function main() {
       role: Role.ADMIN,
       gymId: gym.id,
       memberNumber: 1,
+      qrToken: qr(),
     },
   });
 
@@ -123,6 +129,7 @@ async function main() {
       role: Role.TEACHER,
       gymId: gym.id,
       memberNumber: 2,
+      qrToken: qr(),
     },
   });
 
@@ -134,6 +141,7 @@ async function main() {
       role: Role.STUDENT,
       gymId: gym.id,
       memberNumber: 3,
+      qrToken: qr(),
     },
   });
 
@@ -145,6 +153,7 @@ async function main() {
       role: Role.STUDENT,
       gymId: gym.id,
       memberNumber: 4,
+      qrToken: qr(),
     },
   });
 

@@ -73,6 +73,7 @@ model User {
   blockedAt       DateTime?
   lastDueNotifiedOn DateTime? @db.Date
   memberNumber    Int
+  qrToken         String      @unique
 
   gym   Gym    @relation(fields: [gymId], references: [id])
   group Group? @relation("GroupStudents", fields: [groupId], references: [id], onDelete: SetNull)

@@ -7,7 +7,7 @@ import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import { WodCard } from "@/components/wod/WodCard";
 import { WodHistory } from "@/components/wod/WodHistory";
 import { gymPath } from "@/lib/gym";
-import { formatMemberNumber } from "@/lib/memberNumber";
+import { StudentQrCard } from "@/components/access/StudentQrCard";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -31,20 +31,18 @@ export default async function StudentDashboardPage({ params }: Props) {
     }),
     prisma.user.findUnique({
       where: { id: studentId },
-      select: { memberNumber: true, groupId: true, studentType: true },
+      select: { memberNumber: true, qrToken: true, groupId: true, studentType: true },
     }),
   ]);
   const teacherIds = teacherLinks.map((l) => l.teacherId);
 
-  const memberCard = student ? (
-    <div className="border border-line bg-panel p-4 flex items-center justify-between gap-3">
-      <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-gray-500">
-        Tu número de socio
-      </p>
-      <p className="text-xl font-heading font-black text-white tabular-nums tracking-[0.15em]">
-        {formatMemberNumber(student.memberNumber)}
-      </p>
-    </div>
+  const accessCard = student ? (
+    <StudentQrCard
+      userId={studentId}
+      memberNumber={student.memberNumber}
+      qrToken={student.qrToken}
+      gymSlug={gymSlug}
+    />
   ) : null;
 
   const wodPath = gymPath(gymSlug, "/dashboard/athlete/wod");
@@ -53,7 +51,7 @@ export default async function StudentDashboardPage({ params }: Props) {
   if (teacherIds.length === 0) {
     return (
       <div className="flex flex-col gap-10">
-        {memberCard}
+        {accessCard}
         <section>
           <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white mb-5">
             WOD de Hoy
@@ -110,7 +108,7 @@ export default async function StudentDashboardPage({ params }: Props) {
 
   return (
     <div className="flex flex-col gap-10">
-      {memberCard}
+      {accessCard}
       {/* Today's WODs */}
       <section>
         <div className="flex items-center justify-between mb-5">
