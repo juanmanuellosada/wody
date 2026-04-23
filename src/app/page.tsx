@@ -19,7 +19,7 @@ import {
 import wodyTexto from "@/logos/wody-texto.png";
 import unidosLogo from "@/logos/unidos-logo-completo.png";
 import rompiendoLogo from "@/logos/rompiendo-limites.png";
-import agustinLogo from "@/logos/agustin-coach.png";
+import milaFitLogo from "@/logos/mila-fit.png";
 import atlasLogo from "@/logos/atlas-gym.png";
 import { BenefitsSection } from "@/components/benefits/BenefitsSection";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
@@ -294,27 +294,6 @@ export default async function LandingPage() {
               </span>
             </Link>
 
-            <div
-              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] opacity-60 w-64"
-            >
-              <Image
-                src={agustinLogo}
-                alt="Agustin Diuorno"
-                width={80}
-                height={80}
-                className="w-20 h-auto opacity-80"
-              />
-              <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
-                Agustin Diuorno
-              </span>
-              <span className="text-xs text-gray-600 font-body">
-                Entrenamiento personalizado
-              </span>
-              <span className="text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-gray-500">
-                Proximamente
-              </span>
-            </div>
-
             <Link
               href="/atlas-gym"
               className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] hover:border-brand-red/40 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer w-64 group"
@@ -333,6 +312,27 @@ export default async function LandingPage() {
                 Gym &amp; Fitness — Los Polvorines, BA
               </span>
             </Link>
+
+            <div
+              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] opacity-60 w-64"
+            >
+              <Image
+                src={milaFitLogo}
+                alt="Mila Fit"
+                width={80}
+                height={80}
+                className="w-20 h-auto opacity-80"
+              />
+              <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+                Mila Fit
+              </span>
+              <span className="text-xs text-gray-600 font-body">
+                Gimnasio — Los Polvorines, BA
+              </span>
+              <span className="text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-gray-500">
+                Proximamente
+              </span>
+            </div>
           </div>
 
           <p className="mt-8 text-xs text-gray-500 font-body">
