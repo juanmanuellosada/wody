@@ -8,6 +8,7 @@ import { NotificationPermissionButton } from "@/components/NotificationPermissio
 import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
 import { gymPath } from "@/lib/gym";
+import { gymTerms } from "@/lib/gym-terms";
 import { getBlockStatus } from "@/lib/blocking";
 import { sendDueReminderIfNeeded } from "@/lib/push";
 
@@ -94,6 +95,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         studentType={studentType}
         gymSlug={gymSlug}
         onSignOut={handleSignOut}
+        terms={gymTerms(gym.kind)}
       />
       <main
         className={[

@@ -5,6 +5,7 @@ import { getTodayArgentina, toInputDate, formatDateArg } from "@/lib/dates";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { ShareWodButton } from "@/components/wod/ShareWodButton";
 import { gymPath } from "@/lib/gym";
+import { gymTerms } from "@/lib/gym-terms";
 import Link from "next/link";
 
 interface Props {
@@ -35,10 +36,14 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     redirect(athletePath);
   }
 
-  const student = await prisma.user.findUnique({
-    where: { id: studentId },
-    select: { groupId: true, studentType: true },
-  });
+  const [student, gym] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: studentId },
+      select: { groupId: true, studentType: true },
+    }),
+    prisma.gym.findUnique({ where: { slug: gymSlug }, select: { name: true, kind: true } }),
+  ]);
+  const terms = gymTerms(gym?.kind ?? "BOX");
 
   const isPersonalized = student?.studentType === "PERSONALIZED";
 
@@ -83,7 +88,7 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center px-6 text-center">
         <p className="text-gray-500 text-lg font-heading font-bold uppercase tracking-[0.15em]">
-          No hay WOD para mostrar
+          No hay {terms.wod} para mostrar
         </p>
         <Link
           href={athletePath}
@@ -95,7 +100,6 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     );
   }
 
-  const gym = await prisma.gym.findUnique({ where: { slug: gymSlug }, select: { name: true } });
   const dateLabel = formatDateArg(wod.date);
   const isToday = toInputDate(wod.date) === toInputDate(getTodayArgentina());
 

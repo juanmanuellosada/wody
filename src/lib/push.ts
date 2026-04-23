@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import { prisma } from "@/lib/prisma";
 import { getTodayArgentina } from "@/lib/dates";
+import { gymTerms } from "@/lib/gym-terms";
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
@@ -65,10 +66,7 @@ export async function sendPushToUser(
   return { sent, removed };
 }
 
-function bodyForDaysRemaining(
-  days: number,
-  word: "box" | "gym"
-): string {
+function bodyForDaysRemaining(days: number, word: string): string {
   if (days <= 0) return `Tu cuota vence hoy. Pasá por tu ${word} para renovar.`;
   if (days === 1)
     return `Tu cuota vence mañana. Pasá por tu ${word} para renovar.`;
@@ -113,8 +111,7 @@ export async function sendDueReminderIfNeeded(
     return { sent: false, reason: "already-notified-today" };
   }
 
-  const word: "box" | "gym" = user.gym.kind === "GYM" ? "gym" : "box";
-  const body = bodyForDaysRemaining(daysRemaining, word);
+  const body = bodyForDaysRemaining(daysRemaining, gymTerms(user.gym.kind).kindWord);
   const result = await sendPushToUser(userId, user.gym.name, body);
 
   if (result.sent > 0) {

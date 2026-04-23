@@ -5,8 +5,13 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { createUser } from "@/actions/user";
 import { formatMemberNumber } from "@/lib/memberNumber";
+import type { GymTerms } from "@/lib/gym-terms";
 
-export function UserForm() {
+interface UserFormProps {
+  terms: GymTerms;
+}
+
+export function UserForm({ terms }: UserFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -91,8 +96,8 @@ export function UserForm() {
           defaultValue="PERSONALIZED"
           className="bg-elev text-white font-body border border-edge px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
         >
-          <option value="PERSONALIZED">Personalizado (WODs + RMs)</option>
-          <option value="GENERAL">General (solo RMs)</option>
+          <option value="PERSONALIZED">Personalizado ({terms.wods} + {terms.rms})</option>
+          <option value="GENERAL">General (solo {terms.rms})</option>
         </select>
       </div>
       )}

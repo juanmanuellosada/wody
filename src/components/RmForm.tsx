@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { createRm, updateRm } from "@/actions/rm";
 import { toInputDate } from "@/lib/dates";
+import type { GymTerms } from "@/lib/gym-terms";
 
 interface RmFormProps {
   editId?: string;
@@ -14,6 +15,7 @@ interface RmFormProps {
   defaultDate?: string;
   onCancel?: () => void;
   onSuccess?: () => void;
+  terms: GymTerms;
 }
 
 export function RmForm({
@@ -23,6 +25,7 @@ export function RmForm({
   defaultDate,
   onCancel,
   onSuccess,
+  terms,
 }: RmFormProps) {
   const todayStr = toInputDate(new Date());
   const [date, setDate] = useState(defaultDate ?? todayStr);
@@ -62,7 +65,7 @@ export function RmForm({
       className="flex flex-col gap-4 bg-panel border border-line p-5"
     >
       <h3 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
-        {isEditing ? "Editar RM" : "Agregar RM"}
+        {isEditing ? `Editar ${terms.rm}` : `Agregar ${terms.rm}`}
       </h3>
 
       <Input
@@ -103,7 +106,7 @@ export function RmForm({
 
       {success && !isEditing && (
         <p className="text-xs font-heading font-bold text-green-500 uppercase tracking-wide" role="status">
-          RM guardado correctamente.
+          {terms.rm} guardado correctamente.
         </p>
       )}
 
@@ -114,7 +117,7 @@ export function RmForm({
           </Button>
         )}
         <Button type="submit" loading={isPending} size="md">
-          {isEditing ? "Actualizar" : "Guardar RM"}
+          {isEditing ? "Actualizar" : `Guardar ${terms.rm}`}
         </Button>
       </div>
     </form>

@@ -1,6 +1,8 @@
 "use server";
 
 import { signIn } from "@/lib/auth";
+import { gymTerms } from "@/lib/gym-terms";
+import type { GymKind } from "@prisma/client";
 import { AuthError } from "next-auth";
 
 export type LoginResult =
@@ -16,12 +18,12 @@ function renderBlockedMessage(code: string): string | null {
   const parts = code.split(":");
   if (parts[1] === "overdue") {
     const days = Number(parts[2]);
-    const word = parts[3] === "GYM" ? "gym" : "box";
+    const word = gymTerms((parts[3] as GymKind) ?? "BOX").kindWord;
     const dayWord = days === 1 ? "día" : "días";
     return `Tu cuota está vencida hace ${days} ${dayWord}. Contactá con tu ${word}.`;
   }
   if (parts[1] === "manual") {
-    const word = parts[2] === "GYM" ? "gym" : "box";
+    const word = gymTerms((parts[2] as GymKind) ?? "BOX").kindWord;
     return `Tu cuenta está bloqueada. Contactá con tu ${word}.`;
   }
   return null;

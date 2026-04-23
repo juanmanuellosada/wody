@@ -1,23 +1,23 @@
-# Prompt para dar de alta un nuevo box en WODY
+# Prompt para dar de alta un nuevo gym en WODY
 
 Copiar, completar los datos, y pegar en una nueva conversación de Claude Code en el directorio del proyecto.
 
-Este prompt es para **boxes de CrossFit / funcional** (`kind: "BOX"`). Si vas a dar de alta un gimnasio tradicional, usá [`docs/alta-nuevo-gym.md`](./alta-nuevo-gym.md).
+Este prompt es para **gimnasios tradicionales** (`kind: "GYM"`). Si vas a dar de alta un box de CrossFit / funcional, usá [`docs/alta-nuevo-box.md`](./alta-nuevo-box.md).
 
 ---
 
 ## Prompt
 
 ```
-Necesito dar de alta un nuevo box en WODY. Estos son los datos:
+Necesito dar de alta un nuevo gym en WODY. Estos son los datos:
 
 ## Datos del gimnasio
 - **Nombre completo:** [NOMBRE DEL GYM]
 - **Slug (URL):** [slug-en-minusculas-con-guiones]
-- **Tipo de instalación:** BOX (CrossFit / funcional — se guarda en el enum `GymKind`, campo `kind` del modelo `Gym`). Con `kind: "BOX"` la UI muestra "WOD", "RM", "box". Si es un gimnasio tradicional usá el prompt de `alta-nuevo-gym.md` en su lugar.
+- **Tipo de instalación:** GYM (gimnasio tradicional — se guarda en el enum `GymKind`, campo `kind` del modelo `Gym`). La UI cambia automáticamente su terminología visible según este campo: con `kind: "GYM"` muestra "Rutina" en vez de "WOD", "PR" en vez de "RM", "gym" en vez de "box". Por debajo los datos se guardan igual (modelo `Wod` y modelo `RM` en la DB) — es solo terminología visible al usuario.
 - **Color de acentuación (hex):** [#HEXCOLOR]
 - **Ubicación:** [Ciudad, Provincia]
-- **Tipo de actividad:** [CrossFit / Funcional / Entrenamiento personalizado / etc.]
+- **Tipo de actividad:** [Entrenamiento funcional / Musculación / Entrenamiento personalizado / etc.]
 - **Instagram del gimnasio:** [URL completa + @handle]
 
 ## Datos del admin (es admin y profe)
@@ -26,7 +26,7 @@ Necesito dar de alta un nuevo box en WODY. Estos son los datos:
 - **Contraseña:** [contraseña]
 - **WhatsApp:** [+54 9 XX XXXX-XXXX]
 
-El admin tiene doble rol: es ADMIN y también actúa como profe (crea WODs, se le asignan alumnos vía TeacherStudent).
+El admin tiene doble rol: es ADMIN y también actúa como profe (crea rutinas, se le asignan alumnos vía TeacherStudent).
 Crearlo con role: ADMIN — el sistema ya permite que los ADMIN funcionen como profes.
 
 ## Estado en la landing
@@ -34,9 +34,9 @@ Crearlo con role: ADMIN — el sistema ya permite que los ADMIN funcionen como p
 
 ---
 
-Hacé todo lo necesario para que el box quede operativo:
+Hacé todo lo necesario para que el gym quede operativo:
 
-1. **Base de datos:** Crear un script separado en `prisma/` para correrlo una sola vez (ej: `prisma/seed-[slug].ts`) que inserte el Gym con **`kind: "BOX"`** y su `primaryColor`, el Admin, y opcionalmente WODs y RMs de ejemplo. El `kind` va al enum `GymKind` y acepta `"BOX"` o `"GYM"` — para este alta es `"BOX"`. El color de acentuación se guarda en `primaryColor` y el theming dinámico lo aplica automáticamente a toda la UI del gym (botones, acentos, bordes, imágenes compartibles, etc.).
+1. **Base de datos:** Crear un script separado en `prisma/` para correrlo una sola vez (ej: `prisma/seed-[slug].ts`) que inserte el Gym con **`kind: "GYM"`** y su `primaryColor`, el Admin, y opcionalmente rutinas y PRs de ejemplo. El `kind` va al enum `GymKind` y acepta `"BOX"` o `"GYM"` — para este alta es `"GYM"`. El color de acentuación se guarda en `primaryColor` y el theming dinámico lo aplica automáticamente a toda la UI del gym (botones, acentos, bordes, imágenes compartibles).
 
 2. **Landing page (`src/app/page.tsx`):**
    - Importar el logo del nuevo gym
@@ -46,10 +46,10 @@ Hacé todo lo necesario para que el box quede operativo:
 El logo cargado es src/logos/[NOMBRE-DEL-LOGO].png
 
 3. **Logo mapping:** Los logos de los gyms están **centralizados en un solo archivo**: `src/lib/gym-logos.ts`. Agregar el nuevo slug+logo en los diccionarios que correspondan:
-   - `GYM_LOGOS_SQUARE` — logo vertical/cuadrado. Se usa en la landing del gym, en el login, y en las imágenes compartibles de RMs.
+   - `GYM_LOGOS_SQUARE` — logo vertical/cuadrado. Se usa en la landing del gym, en el login, y en las imágenes compartibles de PRs.
    - `GYM_LOGOS_HORIZONTAL` — logo horizontal/wordmark. Se usa en el navbar.
 
-Si el gym no tiene alguno de los dos tipos de logo, no lo agregues a ese map — la app cae automáticamente a mostrar el nombre del gym como texto (incluidas las imágenes de RMs compartibles).
+Si el gym no tiene alguno de los dos tipos de logo, no lo agregues a ese map — la app cae automáticamente a mostrar el nombre del gym como texto (incluidas las imágenes de PRs compartibles).
 
 4. **Verificar** que no se rompa nada: correr `npx prisma generate` y `npm run build` para asegurarte de que compila.
 
@@ -78,7 +78,7 @@ Cada gym tiene su propio umbral de días de atraso antes de que un alumno quede 
 UPDATE "Gym" SET "autoBlockAfterDays" = 10 WHERE slug = 'slug-del-gym';
 ```
 
-## Cómo funciona la terminología BOX vs GYM
+## Cómo funciona la terminología GYM vs BOX
 
 La UI resuelve en runtime qué palabras mostrar según `Gym.kind`, vía el helper `gymTerms(kind)` en `src/lib/gym-terms.ts`:
 
@@ -89,17 +89,16 @@ La UI resuelve en runtime qué palabras mostrar según `Gym.kind`, vía el helpe
 | "Pasá por tu box" | "Pasá por tu gym" |
 | "el WOD" / "los WODs" | "la Rutina" / "las Rutinas" |
 
-No hace falta tocar código al dar de alta un box — basta con setear `kind: "BOX"` en el seed y todos los textos visibles quedan con terminología de CrossFit (dashboards, navbar, formularios, mensajes de error, notificaciones push, share de RMs, etc.).
+No hace falta tocar código al dar de alta un gym — basta con setear `kind: "GYM"` en el seed y todos los textos visibles cambian automáticamente (dashboards de alumno y profe, navbar, formularios, mensajes de error, notificaciones push, share de PRs, etc.). Por debajo siguen siendo las mismas tablas de DB (`Wod`, `RM`).
 
 ## Notas
 
 - El WhatsApp del profe e Instagram del gym no se guardan en la DB actualmente (no hay campo en el schema), pero quedan documentados para cuando se agregue esa funcionalidad.
-- El logo tiene que estar previamente en `src/logos/`. Si no lo tenés, el gym funciona igual mostrando el nombre como texto en la landing, login, navbar y en la imagen compartible de RMs.
-- Si el gym ya estaba como "Próximamente" en la landing (como Rompiendo Limites o Agustin), el prompt se encarga de activarlo cambiando el `<div>` por un `<Link>`.
+- El logo tiene que estar previamente en `src/logos/`. Si no lo tenés, el gym funciona igual mostrando el nombre como texto en la landing, login, navbar y en la imagen compartible de PRs.
 - El color de acentuación se guarda en `primaryColor` de la DB y se aplica automáticamente. El layout `src/app/[gymSlug]/layout.tsx` sobreescribe las CSS custom properties (`--color-red`, `--color-red-dark`, `--color-red-hover`) con el `primaryColor` del gym. Todos los componentes usan theme tokens de Tailwind (`brand-red`, `brand-red-dark`, `brand-red-active`) que resuelven a estas variables, así que cada gym tiene su propio color de acentuación sin cambios adicionales en el código.
 
 ---
 
-## Template genérico para futuros boxes
+## Template genérico para futuros gyms
 
-Para dar de alta otro box, copiar el prompt de arriba y reemplazar los valores entre corchetes `[...]` con los datos reales del gym.
+Para dar de alta otro gym, copiar el prompt de arriba y reemplazar los valores entre corchetes `[...]` con los datos reales del gym.

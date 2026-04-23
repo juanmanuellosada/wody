@@ -16,6 +16,7 @@ import { createWod, updateWod, deleteWod } from "@/actions/wod";
 import type { WodTarget } from "@/actions/wod";
 import { toInputDate, getTodayArgentina, formatDateArg } from "@/lib/dates";
 import type { Wod, WodTargetType } from "@prisma/client";
+import type { GymTerms } from "@/lib/gym-terms";
 
 interface WodForManager extends Pick<Wod, "id" | "title" | "content" | "date"> {
   targetType: WodTargetType;
@@ -39,12 +40,13 @@ interface WodManagerClientProps {
   wods: WodForManager[];
   groups: GroupOption[];
   students: StudentOption[];
+  terms: GymTerms;
   demo?: boolean;
 }
 
 type Mode = "view" | "create" | "edit";
 
-export function WodManagerClient({ wods, groups, students, demo }: WodManagerClientProps) {
+export function WodManagerClient({ wods, groups, students, terms, demo }: WodManagerClientProps) {
   const todayStr = toInputDate(getTodayArgentina());
 
   const [mode, setMode] = useState<Mode>("view");
@@ -146,7 +148,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
           {/* Header bar */}
           <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-line">
             <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
-              {mode === "create" ? "Nuevo WOD" : "Editar WOD"}
+              {mode === "create" ? terms.newWod : `Editar ${terms.wod}`}
             </h2>
             <div className="w-44">
               <DatePicker
@@ -171,7 +173,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
               type="text"
               value={editorTitle}
               onChange={(e) => setEditorTitle(e.target.value)}
-              placeholder="Título (ej: WOD, Rutina Fuerza, Upper Body...)"
+              placeholder={`Título (ej: ${terms.wod}, Fuerza, Upper Body...)`}
               disabled={isPending}
               className="w-full bg-panel border border-edge text-white text-sm font-heading font-bold px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
@@ -180,6 +182,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
               value={editorContent}
               onChange={setEditorContent}
               disabled={isPending}
+              placeholder={terms.writeWodHere}
             />
 
             {formError && (
@@ -203,7 +206,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
                 loading={isPending}
                 onClick={mode === "create" ? handleCreate : handleUpdate}
               >
-                {mode === "create" ? "Guardar WOD" : "Actualizar WOD"}
+                {mode === "create" ? `Guardar ${terms.wod}` : `Actualizar ${terms.wod}`}
               </Button>
             </div>
           </div>
@@ -211,7 +214,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
       ) : (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Button variant="primary" size="sm" onClick={startCreate} className="self-start">
-            + Nuevo WOD
+            + {terms.newWod}
           </Button>
           {wods.length > 0 && (
             <input
@@ -227,11 +230,11 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
 
       {wods.length === 0 ? (
         <p className="text-gray-600 text-sm font-heading font-bold uppercase tracking-[0.15em]">
-          No hay WODs cargados todavia.
+          No hay {terms.wods} cargados todavia.
         </p>
       ) : filteredWods.length === 0 ? (
         <p className="text-gray-600 text-sm font-heading font-bold uppercase tracking-[0.15em]">
-          No se encontraron WODs para &ldquo;{searchQuery}&rdquo;.
+          No se encontraron {terms.wods} para &ldquo;{searchQuery}&rdquo;.
         </p>
       ) : (
         <div className="flex flex-col gap-4">
@@ -256,6 +259,7 @@ export function WodManagerClient({ wods, groups, students, demo }: WodManagerCli
           students={students}
           onClose={() => setCopyWodId(null)}
           demo={demo}
+          terms={terms}
         />
       )}
     </div>

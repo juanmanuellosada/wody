@@ -6,15 +6,10 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import type { Role, StudentType } from "@prisma/client";
 import { gymPath } from "@/lib/gym";
+import type { GymTerms } from "@/lib/gym-terms";
 
 import wodyBlanco from "@/logos/wody-blanco.png";
-import unidosTexto from "@/logos/unidos-texto.png";
-import rompiendoHorizontal from "@/logos/rompiendo-limites-horizontal.png";
-
-const GYM_NAV_LOGOS: Record<string, { src: typeof unidosTexto; alt: string }> = {
-  "unidos-garage": { src: unidosTexto, alt: "Unidos Garage" },
-  "rompiendo-limites": { src: rompiendoHorizontal, alt: "Rompiendo Limites" },
-};
+import { GYM_LOGOS_HORIZONTAL } from "@/lib/gym-logos";
 
 interface NavbarProps {
   userName: string;
@@ -22,25 +17,26 @@ interface NavbarProps {
   studentType?: StudentType;
   gymSlug: string;
   onSignOut: () => void;
+  terms: GymTerms;
 }
 
-function getNavLinks(role: Role, gymSlug: string, studentType?: StudentType) {
+function getNavLinks(role: Role, gymSlug: string, terms: GymTerms, studentType?: StudentType) {
   if (role === "ADMIN") {
     return [
       { href: gymPath(gymSlug, "/admin"), label: "Panel Admin" },
       { href: gymPath(gymSlug, "/dashboard/teacher"), label: "Dashboard Profe" },
       { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
       { href: gymPath(gymSlug, "/ingresos"), label: "Ingresos" },
-      { href: gymPath(gymSlug, "/dashboard/rms"), label: "Mis RMs" },
+      { href: gymPath(gymSlug, "/dashboard/rms"), label: `Mis ${terms.rms}` },
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
       { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
     ];
   }
   if (role === "TEACHER") {
     return [
-      { href: gymPath(gymSlug, "/dashboard/teacher"), label: "Mis WODs" },
+      { href: gymPath(gymSlug, "/dashboard/teacher"), label: `Mis ${terms.wods}` },
       { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
-      { href: gymPath(gymSlug, "/dashboard/rms"), label: "Mis RMs" },
+      { href: gymPath(gymSlug, "/dashboard/rms"), label: `Mis ${terms.rms}` },
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
       { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
     ];
@@ -52,17 +48,17 @@ function getNavLinks(role: Role, gymSlug: string, studentType?: StudentType) {
     ];
   }
   return [
-    { href: gymPath(gymSlug, "/dashboard/athlete"), label: "Mi WOD" },
-    { href: gymPath(gymSlug, "/dashboard/rms"), label: "Mis RMs" },
+    { href: gymPath(gymSlug, "/dashboard/athlete"), label: `Mi ${terms.wod}` },
+    { href: gymPath(gymSlug, "/dashboard/rms"), label: `Mis ${terms.rms}` },
     { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
     { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
   ];
 }
 
-export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: NavbarProps) {
+export function Navbar({ userName, role, studentType, gymSlug, onSignOut, terms }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
-  const links = getNavLinks(role, gymSlug, studentType);
+  const links = getNavLinks(role, gymSlug, terms, studentType);
 
   const roleLabel =
     role === "ADMIN"
@@ -77,7 +73,7 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
     return pathname === href;
   }
 
-  const gymLogo = GYM_NAV_LOGOS[gymSlug];
+  const gymLogo = GYM_LOGOS_HORIZONTAL[gymSlug];
 
   return (
     <nav

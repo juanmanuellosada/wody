@@ -7,8 +7,7 @@ import { gymPath } from "@/lib/gym";
 import type { Metadata } from "next";
 
 import wodyTexto from "@/logos/wody-texto.png";
-import unidosLogo from "@/logos/unidos-logo-completo.png";
-import rompiendoLogo from "@/logos/rompiendo-limites.png";
+import { GYM_LOGOS_SQUARE } from "@/lib/gym-logos";
 
 interface LoginPageProps {
   params: Promise<{ gymSlug: string }>;
@@ -21,12 +20,6 @@ export async function generateMetadata({ params }: LoginPageProps): Promise<Meta
   const gymName = gym?.name ?? "WODY";
   return { title: `Ingresar — ${gymName}` };
 }
-
-// Map gym slugs to their static logo imports
-const GYM_LOGOS: Record<string, typeof unidosLogo> = {
-  "unidos-garage": unidosLogo,
-  "rompiendo-limites": rompiendoLogo,
-};
 
 export default async function LoginPage({ params, searchParams }: LoginPageProps) {
   const { gymSlug } = await params;
@@ -44,7 +37,7 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
     redirect(gymPath(gymSlug, "/dashboard/athlete"));
   }
 
-  const staticLogo = GYM_LOGOS[gymSlug];
+  const staticLogo = GYM_LOGOS_SQUARE[gymSlug];
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-black stripe-pattern relative">

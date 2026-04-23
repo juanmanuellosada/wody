@@ -11,6 +11,7 @@ import { GroupManager } from "@/components/group/GroupManager";
 import { Card } from "@/components/ui/Card";
 import { formatDateArg } from "@/lib/dates";
 import { gymPath } from "@/lib/gym";
+import { gymTerms } from "@/lib/gym-terms";
 import { getBlockStatus } from "@/lib/blocking";
 import { formatMemberNumber } from "@/lib/memberNumber";
 
@@ -58,11 +59,12 @@ export default async function AdminPage({ params }: Props) {
     }),
     prisma.gym.findUnique({
       where: { id: gymId },
-      select: { autoBlockAfterDays: true },
+      select: { autoBlockAfterDays: true, kind: true },
     }),
   ]);
 
   const autoBlockAfterDays = gymConfig?.autoBlockAfterDays ?? 5;
+  const terms = gymTerms(gymConfig?.kind ?? "BOX");
 
   const teachers = users.filter(
     (u) => u.role === "TEACHER" || u.role === "ADMIN"
@@ -131,7 +133,7 @@ export default async function AdminPage({ params }: Props) {
             </h2>
           </div>
           <div className="p-5">
-            <UserForm />
+            <UserForm terms={terms} />
           </div>
         </section>
 
@@ -279,6 +281,7 @@ export default async function AdminPage({ params }: Props) {
                       <ToggleStudentTypeButton
                         userId={user.id}
                         currentType={user.studentType}
+                        terms={terms}
                       />
                     ) : (
                       <span className="text-xs text-gray-500 font-heading">—</span>
@@ -391,6 +394,7 @@ export default async function AdminPage({ params }: Props) {
                         <ToggleStudentTypeButton
                           userId={user.id}
                           currentType={user.studentType}
+                          terms={terms}
                         />
                       )}
                       {blockStatus.blocked && (

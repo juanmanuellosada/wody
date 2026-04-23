@@ -4,6 +4,7 @@ import { DemoNavbar } from "@/components/DemoNavbar";
 import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { WodCard } from "@/components/wod/WodCard";
 import { WodHistory } from "@/components/wod/WodHistory";
+import { gymTerms } from "@/lib/gym-terms";
 
 export const metadata: Metadata = {
   title: "WODY — Demo Alumno",
@@ -83,7 +84,7 @@ export default function DemoStudentPage() {
             </h2>
             <div className="flex-1 h-px bg-elev" aria-hidden="true" />
           </div>
-          <WodHistory wods={historyWods} wodPath="/demo/student/wod" />
+          <WodHistory wods={historyWods} wodPath="/demo/student/wod" terms={gymTerms("BOX")} />
         </section>
       </main>
     </>

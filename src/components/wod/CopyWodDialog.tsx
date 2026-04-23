@@ -8,6 +8,7 @@ import { copyWod } from "@/actions/wod";
 import type { WodTarget } from "@/actions/wod";
 import { toInputDate } from "@/lib/dates";
 import type { WodTargetType } from "@prisma/client";
+import type { GymTerms } from "@/lib/gym-terms";
 
 interface GroupOption {
   id: string;
@@ -33,6 +34,7 @@ interface CopyWodDialogProps {
   students: StudentOption[];
   onClose: () => void;
   demo?: boolean;
+  terms: GymTerms;
 }
 
 function sourceToTarget(wod: SourceWod): WodTarget {
@@ -58,6 +60,7 @@ export function CopyWodDialog({
   students,
   onClose,
   demo,
+  terms,
 }: CopyWodDialogProps) {
   const sourceDateStr = toInputDate(sourceWod.date);
   const sourceTarget = sourceToTarget(sourceWod);
@@ -117,11 +120,11 @@ export function CopyWodDialog({
         className="w-full max-w-sm bg-panel border border-line p-6 flex flex-col gap-5"
         role="dialog"
         aria-modal="true"
-        aria-label="Copiar WOD"
+        aria-label={`Copiar ${terms.wod}`}
       >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
-            Copiar WOD
+            Copiar {terms.wod}
           </h2>
           <button
             onClick={onClose}

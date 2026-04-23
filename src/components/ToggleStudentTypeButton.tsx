@@ -4,14 +4,16 @@ import { useState, useTransition, useEffect } from "react";
 import { toggleStudentType } from "@/actions/user";
 import { Button } from "@/components/ui/Button";
 import type { StudentType } from "@prisma/client";
+import type { GymTerms } from "@/lib/gym-terms";
 
 interface Props {
   userId: string;
   currentType: StudentType;
   demo?: boolean;
+  terms: GymTerms;
 }
 
-export function ToggleStudentTypeButton({ userId, currentType, demo }: Props) {
+export function ToggleStudentTypeButton({ userId, currentType, demo, terms }: Props) {
   const [isPending, startTransition] = useTransition();
   const [showModal, setShowModal] = useState(false);
 
@@ -76,8 +78,8 @@ export function ToggleStudentTypeButton({ userId, currentType, demo }: Props) {
                 {newTypeLabel}
               </span>
               {isPersonalized
-                ? ". Va a perder acceso a los WODs."
-                : ". Va a poder ver los WODs de su profe."}
+                ? `. Va a perder acceso a ${terms.theWods}.`
+                : `. Va a poder ver ${terms.theWods} de su profe.`}
             </p>
             <div className="flex gap-3 justify-end">
               <Button

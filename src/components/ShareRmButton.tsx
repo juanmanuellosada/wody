@@ -2,15 +2,19 @@
 
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import type { GymTerms } from "@/lib/gym-terms";
+import { GYM_LOGOS_SQUARE } from "@/lib/gym-logos";
 
 import wodyTextoSrc from "@/logos/wody-texto.png";
-import unidosLogoSrc from "@/logos/unidos-logo-completo.png";
 
 interface ShareRmButtonProps {
   exercise: string;
   weight: number;
   date: string;
   athleteName: string;
+  gymName: string;
+  gymSlug: string;
+  terms: GymTerms;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -31,14 +35,15 @@ async function generateRmImage(
   exercise: string,
   weight: number,
   date: string,
-  athleteName: string
+  athleteName: string,
+  gymName: string,
+  gymLogoSrc: string | null
 ): Promise<Blob> {
   const accent = getAccentColor();
 
-  // Load logos
-  const [wodyImg, unidosImg] = await Promise.all([
+  const [wodyImg, gymLogoImg] = await Promise.all([
     loadImage(wodyTextoSrc.src),
-    loadImage(unidosLogoSrc.src),
+    gymLogoSrc ? loadImage(gymLogoSrc) : Promise.resolve(null),
   ]);
 
   const canvas = document.createElement("canvas");
@@ -60,11 +65,20 @@ async function generateRmImage(
     ctx.stroke();
   }
 
-  // Top: Unidos logo (left) + WODY logo (right)
-  // Unidos logo — draw at top-left
-  const unidosH = 80;
-  const unidosW = (unidosImg.width / unidosImg.height) * unidosH;
-  ctx.drawImage(unidosImg, 80, 60, unidosW, unidosH);
+  // Top-left: gym logo (or name fallback)
+  if (gymLogoImg) {
+    const h = 80;
+    const w = (gymLogoImg.width / gymLogoImg.height) * h;
+    ctx.drawImage(gymLogoImg, 80, 60, w, h);
+  } else {
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "900 36px sans-serif";
+    ctx.letterSpacing = "2px";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(gymName.toUpperCase(), 80, 100);
+    ctx.textBaseline = "alphabetic";
+  }
 
   // WODY text logo — draw at top-right
   const wodyH = 28;
@@ -134,28 +148,37 @@ async function generateRmImage(
   ctx.letterSpacing = "2px";
   ctx.fillText(date, 80, 985);
 
-  // Bottom-right: Unidos logo small
-  const smallUnidosH = 50;
-  const smallUnidosW = (unidosImg.width / unidosImg.height) * smallUnidosH;
-  ctx.drawImage(unidosImg, 1000 - smallUnidosW, 935, smallUnidosW, smallUnidosH);
+  // Bottom-right: gym logo small (or name fallback)
+  if (gymLogoImg) {
+    const h = 50;
+    const w = (gymLogoImg.width / gymLogoImg.height) * h;
+    ctx.drawImage(gymLogoImg, 1000 - w, 935, w, h);
+  } else {
+    ctx.fillStyle = "#888888";
+    ctx.font = "bold 20px sans-serif";
+    ctx.letterSpacing = "4px";
+    ctx.textAlign = "right";
+    ctx.fillText(gymName.toUpperCase(), 1000, 970);
+  }
 
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob!), "image/png");
   });
 }
 
-export function ShareRmButton({ exercise, weight, date, athleteName }: ShareRmButtonProps) {
+export function ShareRmButton({ exercise, weight, date, athleteName, gymName, gymSlug, terms }: ShareRmButtonProps) {
   const [sharing, setSharing] = useState(false);
 
   const handleShare = useCallback(async () => {
     setSharing(true);
     try {
-      const blob = await generateRmImage(exercise, weight, date, athleteName);
+      const gymLogoSrc = GYM_LOGOS_SQUARE[gymSlug]?.src ?? null;
+      const blob = await generateRmImage(exercise, weight, date, athleteName, gymName, gymLogoSrc);
       const file = new File([blob], `rm-${exercise.toLowerCase().replace(/\s+/g, "-")}.png`, {
         type: "image/png",
       });
 
-      const shareText = `Nuevo RM en ${exercise}: ${weight}kg - Unidos Garage CrossFit`;
+      const shareText = `Nuevo ${terms.rm} en ${exercise}: ${weight}kg - ${gymName}`;
 
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
@@ -178,7 +201,7 @@ export function ShareRmButton({ exercise, weight, date, athleteName }: ShareRmBu
     } finally {
       setSharing(false);
     }
-  }, [exercise, weight, date, athleteName]);
+  }, [exercise, weight, date, athleteName, gymName, gymSlug, terms]);
 
   return (
     <Button

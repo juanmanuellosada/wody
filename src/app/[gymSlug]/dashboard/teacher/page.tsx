@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath } from "@/lib/gym";
+import { gymTerms } from "@/lib/gym-terms";
 import { WodManagerClient } from "@/components/wod/WodManagerClient";
 import { GroupManager } from "@/components/group/GroupManager";
 import { CheckinScannerButton } from "@/components/access/CheckinScannerButton";
@@ -23,7 +24,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
 
   const teacherId = session.user.id;
 
-  const [wods, groups, myStudents] = await Promise.all([
+  const [wods, groups, myStudents, gym] = await Promise.all([
     prisma.wod.findMany({
       where: { teacherId },
       orderBy: { date: "desc" },
@@ -48,7 +49,9 @@ export default async function TeacherDashboardPage({ params }: Props) {
       where: { teacherId },
       select: { student: { select: { id: true, name: true, studentType: true, groupId: true } } },
     }),
+    prisma.gym.findUnique({ where: { slug: gymSlug }, select: { kind: true } }),
   ]);
+  const terms = gymTerms(gym?.kind ?? "BOX");
 
   const wodsForClient = wods.map((w) => ({
     ...w,
@@ -80,7 +83,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
             <div className="text-center">
               <p className="text-3xl font-heading font-black text-brand-red">{wods.length}</p>
               <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
-                {wods.length === 1 ? "WOD" : "WODs"}
+                {wods.length === 1 ? terms.wod : terms.wods}
               </p>
             </div>
             <div className="w-px bg-elev" aria-hidden="true" />
@@ -111,6 +114,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
         wods={wodsForClient}
         groups={groupOptions}
         students={personalizedStudents}
+        terms={terms}
       />
     </div>
   );

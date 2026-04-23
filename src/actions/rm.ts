@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath } from "@/lib/gym";
+import { gymTerms } from "@/lib/gym-terms";
 
 export type RmResult =
   | { success: true }
@@ -72,12 +73,13 @@ export async function updateRm(rmId: string, formData: FormData): Promise<RmResu
 
   const { gymSlug } = session.user;
 
-  const rm = await prisma.rM.findUnique({
-    where: { id: rmId },
-  });
+  const [rm, gym] = await Promise.all([
+    prisma.rM.findUnique({ where: { id: rmId } }),
+    prisma.gym.findUnique({ where: { slug: gymSlug }, select: { kind: true } }),
+  ]);
 
   if (!rm || rm.studentId !== session.user.id) {
-    return { success: false, error: "RM no encontrado." };
+    return { success: false, error: gymTerms(gym?.kind ?? "BOX").rmNotFound };
   }
 
   const parsed = validateRmFields(formData);
@@ -107,12 +109,13 @@ export async function deleteRm(rmId: string): Promise<RmResult> {
 
   const { gymSlug } = session.user;
 
-  const rm = await prisma.rM.findUnique({
-    where: { id: rmId },
-  });
+  const [rm, gym] = await Promise.all([
+    prisma.rM.findUnique({ where: { id: rmId } }),
+    prisma.gym.findUnique({ where: { slug: gymSlug }, select: { kind: true } }),
+  ]);
 
   if (!rm || rm.studentId !== session.user.id) {
-    return { success: false, error: "RM no encontrado." };
+    return { success: false, error: gymTerms(gym?.kind ?? "BOX").rmNotFound };
   }
 
   await prisma.rM.delete({ where: { id: rmId } });

@@ -4,19 +4,14 @@ import Image from "next/image";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath } from "@/lib/gym";
+import { gymTerms } from "@/lib/gym-terms";
 
 import wodyTexto from "@/logos/wody-texto.png";
-import unidosLogo from "@/logos/unidos-logo-completo.png";
-import rompiendoLogo from "@/logos/rompiendo-limites.png";
+import { GYM_LOGOS_SQUARE } from "@/lib/gym-logos";
 
 interface GymLandingProps {
   params: Promise<{ gymSlug: string }>;
 }
-
-const GYM_LOGOS: Record<string, typeof unidosLogo> = {
-  "unidos-garage": unidosLogo,
-  "rompiendo-limites": rompiendoLogo,
-};
 
 export default async function GymLandingPage({ params }: GymLandingProps) {
   const { gymSlug } = await params;
@@ -33,7 +28,8 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
     redirect(gymPath(gymSlug, "/dashboard/athlete"));
   }
 
-  const staticLogo = GYM_LOGOS[gymSlug];
+  const staticLogo = GYM_LOGOS_SQUARE[gymSlug];
+  const terms = gymTerms(gym.kind);
 
   return (
     <main className="min-h-screen flex flex-col bg-black">
@@ -102,8 +98,8 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
       {/* Features */}
       <section className="border-t border-line py-16 sm:py-20 px-6">
         <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-12 sm:gap-8">
-          <Pillar label="WOD" sublabel="Entrenamiento del dia" />
-          <Pillar label="RM" sublabel="Registra tus rep max" />
+          <Pillar label={terms.wod} sublabel="Entrenamiento del dia" />
+          <Pillar label={terms.rm} sublabel={terms.rmPillarSublabel} />
           <Pillar label="TRACK" sublabel="Seguimiento personalizado" />
         </div>
       </section>

@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath } from "@/lib/gym";
+import { gymTerms } from "@/lib/gym-terms";
 import { Prisma, WodTargetType } from "@prisma/client";
+
+async function termsForSlug(slug: string) {
+  const gym = await prisma.gym.findUnique({ where: { slug }, select: { kind: true } });
+  return gymTerms(gym?.kind ?? "BOX");
+}
 
 export type WodTarget =
   | { type: "ALL" }
@@ -61,11 +67,12 @@ export async function createWod(
 
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
+  const terms = await termsForSlug(gymSlug);
 
-  const trimmedTitle = title.trim() || "WOD";
+  const trimmedTitle = title.trim() || terms.wod;
 
   if (!content.trim()) {
-    return { success: false, error: "El contenido del WOD no puede estar vacio." };
+    return { success: false, error: terms.wodContentEmptyError };
   }
 
   const targetError = await validateTarget(target, teacherId);
@@ -106,19 +113,20 @@ export async function updateWod(
 
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
+  const terms = await termsForSlug(gymSlug);
 
   const wod = await prisma.wod.findUnique({
     where: { id: wodId },
   });
 
   if (!wod || wod.teacherId !== teacherId) {
-    return { success: false, error: "WOD no encontrado." };
+    return { success: false, error: terms.wodNotFound };
   }
 
-  const trimmedTitle = title.trim() || "WOD";
+  const trimmedTitle = title.trim() || terms.wod;
 
   if (!content.trim()) {
-    return { success: false, error: "El contenido del WOD no puede estar vacio." };
+    return { success: false, error: terms.wodContentEmptyError };
   }
 
   if (target) {
@@ -157,6 +165,7 @@ export async function copyWod(
 
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
+  const terms = await termsForSlug(gymSlug);
 
   const sourceWod = await prisma.wod.findUnique({
     where: { id: sourceWodId },
@@ -164,7 +173,7 @@ export async function copyWod(
   });
 
   if (!sourceWod || sourceWod.teacherId !== teacherId) {
-    return { success: false, error: "WOD origen no encontrado." };
+    return { success: false, error: terms.wodSourceNotFound };
   }
 
   // Use provided target, or copy the source WOD's target
@@ -210,13 +219,14 @@ export async function deleteWod(wodId: string): Promise<WodResult> {
 
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
+  const terms = await termsForSlug(gymSlug);
 
   const wod = await prisma.wod.findUnique({
     where: { id: wodId },
   });
 
   if (!wod || wod.teacherId !== teacherId) {
-    return { success: false, error: "WOD no encontrado." };
+    return { success: false, error: terms.wodNotFound };
   }
 
   await prisma.wod.delete({ where: { id: wodId } });

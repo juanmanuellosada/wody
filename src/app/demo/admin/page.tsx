@@ -3,6 +3,7 @@ import { DemoNavbar } from "@/components/DemoNavbar";
 import { GroupManager } from "@/components/group/GroupManager";
 import { EditStudentButton } from "@/components/EditStudentButton";
 import { ToggleStudentTypeButton } from "@/components/ToggleStudentTypeButton";
+import { gymTerms } from "@/lib/gym-terms";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -228,6 +229,7 @@ export default function DemoAdminPage() {
                           userId={user.id}
                           currentType={user.studentType as "GENERAL" | "PERSONALIZED"}
                           demo
+                          terms={gymTerms("BOX")}
                         />
                       ) : (
                         <span className="text-xs text-gray-500 font-heading">—</span>

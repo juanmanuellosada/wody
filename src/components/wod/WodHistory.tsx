@@ -5,14 +5,16 @@ import { ClipboardList, SearchX } from "lucide-react";
 import { WodCard } from "@/components/wod/WodCard";
 import { toInputDate, formatDateArg } from "@/lib/dates";
 import type { Wod } from "@prisma/client";
+import type { GymTerms } from "@/lib/gym-terms";
 import Link from "next/link";
 
 interface WodHistoryProps {
   wods: Pick<Wod, "id" | "title" | "content" | "date">[];
   wodPath: string;
+  terms: GymTerms;
 }
 
-export function WodHistory({ wods, wodPath }: WodHistoryProps) {
+export function WodHistory({ wods, wodPath, terms }: WodHistoryProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -34,7 +36,7 @@ export function WodHistory({ wods, wodPath }: WodHistoryProps) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Buscar por título o fecha..."
-          aria-label="Buscar en historial de WODs"
+          aria-label={`Buscar en historial de ${terms.wods}`}
           className="w-full bg-panel border border-edge text-white text-sm font-body px-4 py-3 min-h-[44px] placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
         />
       )}
@@ -55,7 +57,7 @@ export function WodHistory({ wods, wodPath }: WodHistoryProps) {
             <>
               <ClipboardList size={28} className="text-gray-600" aria-hidden="true" />
               <p className="text-gray-500 text-sm font-heading font-bold uppercase tracking-[0.15em]">
-                Sin WODs en el historial
+                Sin {terms.wods} en el historial
               </p>
             </>
           )}

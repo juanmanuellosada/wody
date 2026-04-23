@@ -7,6 +7,7 @@ import { ShareRmButton } from "@/components/ShareRmButton";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { toInputDate } from "@/lib/dates";
+import type { GymTerms } from "@/lib/gym-terms";
 
 const PERCENTAGES = [
   30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95,
@@ -23,6 +24,9 @@ interface RmData {
 interface RmsClientProps {
   rms: RmData[];
   athleteName: string;
+  gymName: string;
+  gymSlug: string;
+  terms: GymTerms;
 }
 
 function formatDate(iso: string): string {
@@ -35,7 +39,7 @@ function formatDate(iso: string): string {
   });
 }
 
-export function RmsClient({ rms, athleteName }: RmsClientProps) {
+export function RmsClient({ rms, athleteName, gymName, gymSlug, terms }: RmsClientProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -43,21 +47,21 @@ export function RmsClient({ rms, athleteName }: RmsClientProps) {
     <div className="flex flex-col gap-10">
       <section>
         <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white mb-5">
-          Mis RMs
+          Mis {terms.rms}
         </h1>
-        {editingId === null && <RmForm />}
+        {editingId === null && <RmForm terms={terms} />}
       </section>
 
       <section>
         <div className="flex items-center gap-4 mb-5">
           <h2 className="text-lg font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
-            Historial de RMs
+            Historial de {terms.rms}
           </h2>
           <div className="flex-1 h-px bg-elev" aria-hidden="true" />
         </div>
         {rms.length === 0 ? (
           <p className="text-gray-600 text-sm font-heading font-bold uppercase tracking-[0.15em]">
-            No tenes RMs registrados todavia.
+            No tenes {terms.rms} registrados todavia.
           </p>
         ) : (
           <div className="flex flex-col gap-3">
@@ -71,6 +75,7 @@ export function RmsClient({ rms, athleteName }: RmsClientProps) {
                   defaultDate={toInputDate(new Date(rm.date))}
                   onCancel={() => setEditingId(null)}
                   onSuccess={() => setEditingId(null)}
+                  terms={terms}
                 />
               ) : (
                 <Card key={rm.id}>
@@ -101,6 +106,9 @@ export function RmsClient({ rms, athleteName }: RmsClientProps) {
                         weight={rm.weight}
                         date={formatDate(rm.date)}
                         athleteName={athleteName}
+                        gymName={gymName}
+                        gymSlug={gymSlug}
+                        terms={terms}
                       />
                       <Button
                         variant="secondary"

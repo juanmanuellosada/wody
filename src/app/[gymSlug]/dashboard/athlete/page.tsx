@@ -7,6 +7,7 @@ import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import { WodCard } from "@/components/wod/WodCard";
 import { WodHistory } from "@/components/wod/WodHistory";
 import { gymPath } from "@/lib/gym";
+import { gymTerms } from "@/lib/gym-terms";
 import { formatMemberNumber } from "@/lib/memberNumber";
 import { CheckinScannerButton } from "@/components/access/CheckinScannerButton";
 
@@ -25,7 +26,7 @@ export default async function StudentDashboardPage({ params }: Props) {
   const studentId = session.user.id;
   const todayStr = toInputDate(getTodayArgentina());
 
-  const [teacherLinks, student] = await Promise.all([
+  const [teacherLinks, student, gym] = await Promise.all([
     prisma.teacherStudent.findMany({
       where: { studentId },
       select: { teacherId: true },
@@ -34,7 +35,9 @@ export default async function StudentDashboardPage({ params }: Props) {
       where: { id: studentId },
       select: { memberNumber: true, groupId: true, studentType: true },
     }),
+    prisma.gym.findUnique({ where: { slug: gymSlug }, select: { kind: true } }),
   ]);
+  const terms = gymTerms(gym?.kind ?? "BOX");
   const teacherIds = teacherLinks.map((l) => l.teacherId);
 
   const accessCard = student ? (
@@ -60,7 +63,7 @@ export default async function StudentDashboardPage({ params }: Props) {
         {accessCard}
         <section>
           <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white mb-5">
-            WOD de Hoy
+            {terms.wod} de Hoy
           </h1>
           <div className="border border-edge bg-panel p-8 sm:p-12 flex flex-col items-center text-center gap-5">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-brand-red/10 border border-brand-red/30">
@@ -79,7 +82,7 @@ export default async function StudentDashboardPage({ params }: Props) {
               href={gymPath(gymSlug, "/dashboard/rms")}
               className="mt-1 inline-block px-6 py-3 font-heading font-bold uppercase tracking-[0.15em] text-white text-xs bg-brand-red hover:bg-brand-red-dark transition-colors duration-200"
             >
-              Mientras tanto, cargá tus RMs
+              Mientras tanto, cargá tus {terms.rms}
             </Link>
           </div>
         </section>
@@ -119,7 +122,7 @@ export default async function StudentDashboardPage({ params }: Props) {
       <section>
         <div className="flex items-center justify-between mb-5">
           <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white">
-            {todayWods.length > 1 ? "WODs de Hoy" : "WOD de Hoy"}
+            {todayWods.length > 1 ? `${terms.wods} de Hoy` : `${terms.wod} de Hoy`}
           </h1>
         </div>
         {todayWods.length > 0 ? (
@@ -139,7 +142,7 @@ export default async function StudentDashboardPage({ params }: Props) {
             <Calendar size={28} className="text-gray-600" aria-hidden="true" />
             <div className="flex flex-col gap-1">
               <p className="text-gray-500 text-sm font-heading font-bold uppercase tracking-[0.15em]">
-                No hay WOD para hoy
+                No hay {terms.wod} para hoy
               </p>
               <p className="text-gray-500 text-xs font-body">
                 Hablá con tu profe
@@ -157,7 +160,7 @@ export default async function StudentDashboardPage({ params }: Props) {
           </h2>
           <div className="flex-1 h-px bg-elev" aria-hidden="true" />
         </div>
-        <WodHistory wods={historyWods} wodPath={wodPath} />
+        <WodHistory wods={historyWods} wodPath={wodPath} terms={terms} />
       </section>
     </div>
   );

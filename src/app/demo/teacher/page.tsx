@@ -3,6 +3,7 @@ import { DemoNavbar } from "@/components/DemoNavbar";
 import { WodManagerClient } from "@/components/wod/WodManagerClient";
 import { GroupManager } from "@/components/group/GroupManager";
 import type { WodTargetType } from "@prisma/client";
+import { gymTerms } from "@/lib/gym-terms";
 
 export const metadata: Metadata = {
   title: "WODY — Demo Profe",
@@ -156,6 +157,7 @@ export default function DemoTeacherPage() {
           groups={mockGroupOptions}
           students={mockStudents}
           demo
+          terms={gymTerms("BOX")}
         />
       </main>
     </>

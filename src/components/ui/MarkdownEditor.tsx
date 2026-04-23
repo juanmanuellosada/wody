@@ -20,6 +20,7 @@ interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  placeholder?: string;
 }
 
 function ToolbarButton({
@@ -64,6 +65,7 @@ export function MarkdownEditor({
   value,
   onChange,
   disabled = false,
+  placeholder = "Escribi el WOD aca...",
 }: MarkdownEditorProps) {
   const [, setTick] = useState(0);
 
@@ -88,7 +90,7 @@ export function MarkdownEditor({
         gapcursor: false,
       }),
       Placeholder.configure({
-        placeholder: "Escribi el WOD aca...",
+        placeholder,
       }),
       Markdown.configure({
         html: false,
