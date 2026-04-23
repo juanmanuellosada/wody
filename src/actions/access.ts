@@ -121,7 +121,7 @@ export type LookupUser = {
 };
 
 export type LookupResult =
-  | { success: true; user: LookupUser }
+  | { success: true; user: LookupUser; alDia: boolean }
   | { success: false; error: string };
 
 // Búsqueda manual desde el kiosk cuando el alumno no puede escanear
@@ -184,6 +184,11 @@ export async function lookupForKiosk(input: string): Promise<LookupResult> {
 
   return {
     success: true,
+    alDia: isUserAlDia({
+      role: user.role,
+      blockedAt: user.blockedAt,
+      nextPaymentDate: user.nextPaymentDate,
+    }),
     user: {
       id: user.id,
       name: user.name,

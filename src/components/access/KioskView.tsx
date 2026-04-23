@@ -257,11 +257,13 @@ function ManualLookup() {
   const [input, setInput] = useState("");
   const [looked, setLooked] = useState<LookupUser | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [justGranted, setJustGranted] = useState<LookupUser | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setJustGranted(null);
     const trimmed = input.trim();
     if (!trimmed) return;
     startTransition(async () => {
@@ -269,6 +271,20 @@ function ManualLookup() {
       if (!res.success) {
         setError(res.error);
         setLooked(null);
+        return;
+      }
+      if (res.alDia) {
+        // Al día → auto-permit, igual que el flujo de QR. Sin paso
+        // intermedio de decisión.
+        const grantRes = await createManualCheckin(res.user.id, "GRANT");
+        if (!grantRes.success) {
+          setError(grantRes.error);
+          setLooked(null);
+          return;
+        }
+        setJustGranted(res.user);
+        setInput("");
+        setTimeout(() => setJustGranted(null), 2500);
       } else {
         setLooked(res.user);
       }
@@ -342,6 +358,17 @@ function ManualLookup() {
         >
           {error}
         </p>
+      )}
+      {justGranted && (
+        <div
+          className="border border-green-500/40 bg-green-500/10 px-3 py-2"
+          role="status"
+        >
+          <p className="text-xs font-heading font-bold text-green-400 uppercase tracking-wide">
+            Permitido · {formatMemberNumber(justGranted.memberNumber)}{" "}
+            {justGranted.name}
+          </p>
+        </div>
       )}
     </form>
   );
