@@ -68,6 +68,7 @@ async function main() {
       password: adminPassword,
       role: Role.ADMIN,
       gymId: gym.id,
+      memberNumber: 1,
     },
   });
 

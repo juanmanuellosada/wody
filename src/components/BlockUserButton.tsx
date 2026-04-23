@@ -8,7 +8,7 @@ import { setUserBlocked } from "@/actions/user";
 interface BlockUserButtonProps {
   userId: string;
   currentUserId: string;
-  userRole: "ADMIN" | "TEACHER" | "STUDENT";
+  userRole: "ADMIN" | "TEACHER" | "STUDENT" | "ACCESS";
   blocked: boolean;
 }
 

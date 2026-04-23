@@ -4,17 +4,18 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { createUser } from "@/actions/user";
+import { formatMemberNumber } from "@/lib/memberNumber";
 
 export function UserForm() {
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [successNumber, setSuccessNumber] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [selectedRole, setSelectedRole] = useState("");
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
+    setSuccessNumber(null);
 
     const form = e.currentTarget;
     const formData = new FormData(form);
@@ -22,7 +23,7 @@ export function UserForm() {
     startTransition(async () => {
       const result = await createUser(formData);
       if (result.success) {
-        setSuccess(true);
+        setSuccessNumber(result.memberNumber);
         form.reset();
       } else {
         setError(result.error);
@@ -102,10 +103,18 @@ export function UserForm() {
         </p>
       )}
 
-      {success && (
-        <p className="text-xs font-heading font-bold text-green-500 uppercase tracking-wide" role="status">
-          Usuario creado correctamente.
-        </p>
+      {successNumber !== null && (
+        <div
+          className="flex items-center justify-between gap-3 border border-green-500/40 bg-green-500/5 px-4 py-3"
+          role="status"
+        >
+          <p className="text-xs font-heading font-bold text-green-500 uppercase tracking-wide">
+            Usuario creado
+          </p>
+          <p className="text-xs font-heading font-bold text-green-500 uppercase tracking-[0.15em]">
+            Nº de socio: {formatMemberNumber(successNumber)}
+          </p>
+        </div>
       )}
 
       <Button type="submit" loading={isPending} size="md">

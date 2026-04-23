@@ -14,6 +14,7 @@ enum Role {
   ADMIN
   TEACHER
   STUDENT
+  ACCESS
 }
 
 enum GymKind {
@@ -54,6 +55,7 @@ model Gym {
   createdAt          DateTime  @default(now())
   blockedAt          DateTime?
   autoBlockAfterDays Int       @default(20)
+  nextMemberNumber   Int       @default(1)
   users              User[]
 }
 
@@ -70,6 +72,7 @@ model User {
   nextPaymentDate DateTime    @default(now()) @db.Date
   blockedAt       DateTime?
   lastDueNotifiedOn DateTime? @db.Date
+  memberNumber    Int
 
   gym   Gym    @relation(fields: [gymId], references: [id])
   group Group? @relation("GroupStudents", fields: [groupId], references: [id], onDelete: SetNull)
@@ -84,6 +87,7 @@ model User {
   pushSubscriptions PushSubscription[]
 
   @@unique([email, gymId])
+  @@unique([gymId, memberNumber])
 }
 
 model Group {

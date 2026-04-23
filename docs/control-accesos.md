@@ -1,183 +1,199 @@
 # Control de accesos — Plan de implementación
 
-Sistema de control de accesos para gimnasios basado en PIN numérico. Cada socio tiene un PIN asociado; en una pantalla del admin se ingresa el PIN, se identifica al socio, se valida estado de pago y se registra el ingreso.
+Sistema de control de ingresos para gimnasios. Identificación por **número de socio, QR o email** — el primero que matchea gana. En el kiosk se muestra toda la info del usuario (rol, estado de pago, bloqueos) y el **operador decide** permitir o denegar. Todo queda auditado. Funciona **offline-friendly** via PWA para aguantar caídas de internet.
 
-Dos fases:
-
-1. **Fase 1 — Solo software.** Validación + registro. No dispara nada físico.
-2. **Fase 2 — Integración con hardware.** Molinete, cerradura eléctrica, electroimán, etc. (a definir).
+Solo software — no hay integración con hardware de puerta en este plan.
 
 ---
 
-## Fase 1 — Control de accesos web
+## Roles
 
-### Alcance
+Se suma un rol nuevo a `Role`:
 
-- Alta/edición de PIN por socio desde el admin.
-- Pantalla kiosk en `/[gymSlug]/admin/accesos` que:
-  - Muestra un teclado numérico.
-  - Valida el PIN contra la base.
-  - Muestra nombre + foto (si hubiera) + estado de pago del socio.
-  - Registra un `AccessLog` siempre (otorgado, denegado por PIN inválido, denegado por mora).
-- Historial de accesos filtrable por fecha/socio.
+```
+ADMIN    — controla todo el gym (ya existe)
+TEACHER  — da clases (ya existe)
+STUDENT  — alumno (ya existe)
+ACCESS   — operador de la entrada. Solo ve la sección de Ingresos.
+```
 
-### Modelo de datos
+`ACCESS` es el rol típico para el recepcionista o para la PC/tablet kiosk que queda logueada en la entrada. Se puede loguear desde cualquier dispositivo. `ADMIN` hereda los permisos de `ACCESS`.
 
-**`User`** — agregar:
+---
+
+## Número de socio (en lugar de PIN)
+
+Cada alumno/profe al crearse recibe un **número de socio auto-asignado, secuencial por gym**. Es un entero corto (típicamente 1–4 dígitos), **no editable** ni por el admin ni por el alumno, y funciona como identificador público — se usa en la pantalla de ingresos, puede aparecer en credenciales, admin lists, recibos, etc.
+
+Diseño:
+
+- `User.memberNumber Int` — único por gym.
+- `Gym.nextMemberNumber Int @default(1)` — contador del próximo número a asignar. Al crear un usuario, se incrementa atómicamente y se le asigna el valor anterior.
+- Display-friendly: se muestra con padding a 4 dígitos (ej. `0042`) para consistencia visual, pero internamente es el entero.
+- Backfill: usuarios existentes se numeran en orden de `createdAt`.
+
+**No es un factor de autenticación real.** Es un identificador público. La decisión real de acceso la toma el operador viendo la cara del socio y su estado en pantalla. El factor "fuerte" de auth, para quien lo quiera, es el QR.
+
+---
+
+## Alcance
+
+- Asignación automática de número de socio al crear usuario.
+- Regeneración del QR del socio desde el admin o desde el dashboard del alumno (el viejo queda inválido).
+- Pantalla "Ingresos" en `/[gymSlug]/ingresos`:
+  - Input único que acepta número de socio, QR escaneado o email.
+  - Al matchear, muestra nombre + rol + estado de pago + estado de bloqueo.
+  - Recomienda (verde / amarillo / rojo), decisión del operador.
+  - Dos botones: **Permitir** / **Denegar** (+ razón opcional).
+- Historial filtrable por fecha/socio en `/[gymSlug]/ingresos/historial`.
+- Dashboard del alumno: tarjeta con su número de socio + QR personal + botón "regenerar QR".
+- PWA dedicada: funciona offline con snapshot local de usuarios del gym.
+
+---
+
+## Modelo de datos
+
+### `User` — agregar
 
 | Campo | Tipo | Notas |
 | --- | --- | --- |
-| `pinHash` | `String?` | bcrypt del PIN. |
-| `pinLookup` | `String?` | HMAC-SHA256(pin, `PIN_LOOKUP_SECRET`). Indexado. Permite buscar sin traer todos los socios del gym. |
+| `memberNumber` | `Int` | Único por gym, auto-asignado al crear el usuario. No editable. |
+| `qrLookup` | `String?` | HMAC-SHA256(qrToken, `QR_LOOKUP_SECRET`). Unique, indexado. |
 
-Unique `(gymId, pinLookup)` — el PIN es único por gym, no global.
+Unique `(gymId, memberNumber)`.
 
-**Nueva tabla `AccessLog`:**
+El **token raw del QR no se guarda**. El server lo genera (32 bytes random base64url), computa `qrLookup = HMAC(token)` y guarda solo eso. El raw se entrega al alumno en su dashboard, renderizado como QR. Al regenerar, se pisa el `qrLookup` → el QR anterior deja de funcionar.
+
+### `Gym` — agregar
+
+| Campo | Tipo | Notas |
+| --- | --- | --- |
+| `nextMemberNumber` | `Int` (default 1) | Contador para asignar números de socio nuevos. |
+
+Se incrementa en la misma transacción que crea al usuario (`prisma.$transaction`) para evitar race conditions.
+
+### `Role` — ampliar
+
+Sumar `ACCESS`.
+
+### Nueva tabla `AccessLog`
 
 | Campo | Tipo | Notas |
 | --- | --- | --- |
 | `id` | `String` (cuid) | PK |
 | `gymId` | `String` | FK → Gym |
-| `userId` | `String?` | FK → User. Null si el PIN era desconocido. |
+| `userId` | `String?` | FK → User. Null si el identifier no matcheó a nadie. |
+| `operatorId` | `String` | FK → User. Quien operaba el kiosk. |
 | `at` | `DateTime` | default `now()` |
-| `result` | `AccessResult` enum | `GRANTED`, `DENIED_UNKNOWN_PIN`, `DENIED_PAYMENT_DUE`, `DENIED_RATE_LIMIT` |
-| `method` | `AccessMethod` enum | `PIN` (por ahora único). Deja lugar a futuro: `CARD`, `QR`, `RFID`. |
-| `deviceId` | `String?` | Identificador de la estación que registró el acceso (Fase 2). |
+| `method` | `AccessMethod` enum | `MEMBER_NUMBER`, `QR`, `EMAIL` |
+| `result` | `AccessResult` enum | `GRANTED`, `DENIED`, `UNKNOWN_IDENTIFIER`, `RATE_LIMITED` |
+| `reason` | `String?` | Texto opcional — ej. "cuota vencida", "bloqueado manualmente". |
 
 Índices: `(gymId, at DESC)`, `(gymId, userId, at DESC)`.
 
-### Flujo de validación
+---
 
-1. Socio tipea PIN en keypad (pantalla kiosk).
-2. Submit dispara server action `validatePin(gymId, pin)`.
-3. El server:
-   - Computa `pinLookup = HMAC(pin, PIN_LOOKUP_SECRET)`.
-   - `SELECT user WHERE gymId = ? AND pinLookup = ?`.
-   - Si no existe → `AccessLog { result: DENIED_UNKNOWN_PIN, userId: null }` + rate-limit counter++.
-   - Si existe → bcrypt-compare `pin` contra `pinHash` (defensa en profundidad ante colisiones de HMAC o leak de `pinLookup`).
-   - Si match y `nextPaymentDate < today` → `AccessLog { result: DENIED_PAYMENT_DUE }` + mensaje "Pago vencido".
-   - Si match y al día → `AccessLog { result: GRANTED }` + mensaje "Bienvenido, {nombre}".
-4. La UI muestra el resultado 2-3 segundos y vuelve al keypad.
+## Flujo de validación
 
-### Rate limiting
+1. Operador tipea / escanea / pega un identifier en un input único.
+2. Submit dispara server action `identifyPerson(gymId, input)`.
+3. El server intenta resolver **en este orden** — el primero que matchea gana:
+   1. **Email**: si matchea formato → `User.findFirst({ email, gymId })`.
+   2. **Número de socio**: si todo dígitos → `User.findFirst({ gymId, memberNumber: parseInt(input) })`.
+   3. **QR**: si matchea formato esperado (ej. prefijo `WODY:{slug}:{token}`) → `qrLookup = HMAC(token, QR_LOOKUP_SECRET)` → busca por `qrLookup`.
+4. Si no matcheó nada → retorna `UNKNOWN_IDENTIFIER` + incrementa rate-limit counter de la sesión.
+5. Si matcheó → retorna `{ user: {id, memberNumber, name, role, nextPaymentDate, blockedAt, gym.blockedAt, gym.autoBlockAfterDays}, recommendation: "ALLOW" | "REVIEW" | "BLOCK" }`.
+6. La UI muestra una tarjeta con los datos + el color de recomendación:
+   - **Verde (ALLOW)**: al día, no bloqueado.
+   - **Amarillo (REVIEW)**: cuota vencida pero dentro del umbral `autoBlockAfterDays`, o a punto de vencer.
+   - **Rojo (BLOCK)**: usuario bloqueado, gym bloqueado, o mora > `autoBlockAfterDays`.
+7. Operador clickea **Permitir** o **Denegar** (con razón opcional). Se dispara `logAccessDecision` que graba el `AccessLog` con `operatorId`, `method`, `result`, `reason`.
+8. La pantalla vuelve al input vacío después de 2-3s.
 
-- Máximo **3 intentos fallidos** por `(gymId, IP)` en **60 segundos** → bloqueo 5 min con `DENIED_RATE_LIMIT`.
-- Implementación simple: tabla `AccessAttempt` o tabla en memoria (si hay un solo worker). Si se escala, mover a Redis/Upstash.
-
-### Seguridad del PIN
-
-- **Mínimo 6 dígitos.** 4 dígitos = 10.000 combinaciones, rompe con rate-limit débil o múltiples IPs.
-- `pinHash` con bcrypt (misma config que passwords).
-- `pinLookup` con HMAC + pepper en env (`PIN_LOOKUP_SECRET`). Sin la pepper, no se puede reconstruir el lookup desde la DB.
-- Nunca loguear el PIN ni en claro ni en errores.
-- Rotación: admin puede resetear el PIN de un socio; el anterior queda invalidado.
-
-### UI / Rutas
-
-- `/[gymSlug]/admin/accesos` — pantalla kiosk, solo rol `ADMIN`.
-- `/[gymSlug]/admin/accesos/historial` — tabla de `AccessLog` con filtros.
-- Form de PIN en la edición del socio (reusa `UserForm` existente).
-
-### Archivos nuevos
-
-- `prisma/schema.prisma` — campos en `User` + tabla `AccessLog` + enums.
-- `src/actions/access.ts` — `setUserPin`, `clearUserPin`, `validatePin`.
-- `src/app/[gymSlug]/admin/accesos/page.tsx` — kiosk.
-- `src/app/[gymSlug]/admin/accesos/historial/page.tsx` — log viewer.
-- `src/components/admin/PinKeypad.tsx` — teclado numérico.
-- `src/components/admin/AccessResult.tsx` — feedback (nombre, verde/rojo, motivo).
-
-### Env vars nuevas
-
-```
-PIN_LOOKUP_SECRET="..."   # >=32 bytes random, no rotar sin re-hashear todos los lookups
-```
+**El operador puede override la recomendación.** Aunque el sistema recomiende rojo, puede permitir — queda registrado con su `operatorId` y el `reason` que escriba.
 
 ---
 
-## Fase 2 — Integración con hardware
+## Seguridad
 
-**A definir en su momento.** Esta sección captura lo pensado para no perder el contexto.
+- **Número de socio**: no es secreto. Es un identificador público. Cualquiera que tipee un número existente puede pullear la ficha del socio en pantalla. La privacidad se protege porque:
+  - Solo sesiones con rol `ACCESS` o `ADMIN` pueden acceder a `/ingresos`.
+  - La pantalla muestra datos mínimos (nombre, rol, badge verde/amarillo/rojo). No muestra monto, historial, ni detalles de la cuota en tipografía grande.
+- **QR**: token 32 bytes random base64url. Solo se guarda `qrLookup` (HMAC con pepper). Si la DB leakea, no se pueden reconstruir los QRs. Regenerar invalida el anterior. Este es el factor "fuerte" para quien lo quiera.
+- **Email**: no es factor de auth — es solo un método de búsqueda.
+- **Rate limiting por sesión**: máximo **60 lookups por minuto** por sesión del kiosk. Previene scripts que enumeren socios. Los operadores legítimos no se ven afectados (60 lookups/min ≈ 1 por segundo, muy alto para uso normal). Al excederse: 5 min de bloqueo, registrado como `RATE_LIMITED`.
+- **Sesión del kiosk**: dura 90 días (`NextAuth.session.maxAge`). Si el dispositivo se roba, rotar `AUTH_SECRET` invalida todas las sesiones activas.
 
-### Opciones de actuador físico
+---
 
-| Tipo | Costo aprox | Notas |
+## Offline-friendly
+
+La pantalla de Ingresos es una PWA con service worker propio (`/sw-access.js`, separado del `sw.js` principal):
+
+- **Cache local** en IndexedDB: snapshot de los usuarios del gym con `{id, memberNumber, name, role, email, qrLookup, nextPaymentDate, blockedAt, gymBlockedAt, autoBlockAfterDays}`.
+- **Sync**: cada 60 segundos con red + al abrir la pantalla. Refresca el snapshot entero.
+- **Modo offline**: si el `fetch` al server action falla, valida contra la cache local. El `AccessLog` se buffereaen IndexedDB y se flushea cuando vuelve la conexión.
+- **Banner de estado**: amarillo "Sin conexión — datos cacheados hace X min" si la cache está vieja o hay error de red.
+- **Stale máximo**: si la cache tiene **>24h** sin sincronizar, el sistema deja de validar y muestra error — evita permitir a alguien dado de baja con datos muy viejos.
+- **Datos en cliente**: el snapshot no incluye hashes de passwords ni secrets. Los `qrLookup` son HMACs, no reversibles. Si el dispositivo se roba, no hay bruteforce offline posible (a diferencia del diseño anterior con `pinHash`).
+
+---
+
+## UI / Rutas
+
+| Ruta | Roles | Descripción |
 | --- | --- | --- |
-| **Cerradura eléctrica** (puerta común) | Cerradura ~30–60 USD + fuente 12V | La más simple. Pulso de 1-3s abre el picaporte. |
-| **Electroimán** (maglock) | ~40–80 USD + fuente | Aguanta 150-500 kg. Falla-seguro: sin corriente, la puerta se abre (bueno para escape ante cortes). |
-| **Molinete / torniquete** | Mucho más caro (500+ USD) | Típicamente trae su propia controladora con entrada de pulso libre-de-potencial. Wody dispara el pulso igual que a una cerradura. |
-| **Barrera vehicular** | Similar a molinete | Mismo patrón: pulso/relé seco. |
+| `/[gymSlug]/ingresos` | `ACCESS`, `ADMIN` | Kiosk: input + tarjeta de resultado |
+| `/[gymSlug]/ingresos/historial` | `ACCESS`, `ADMIN` | `AccessLog` con filtros fecha/socio |
+| `/[gymSlug]/admin` | `ADMIN` | Muestra `memberNumber` en la lista de usuarios. Botón "regenerar QR" en el editor del socio. |
+| `/[gymSlug]/dashboard/athlete` | `STUDENT` | Tarjeta con número de socio + QR + botón "regenerar QR" |
 
-Todos se reducen al mismo problema: **disparar un relé** por una duración corta.
+La sección de Ingresos es un item nuevo en la navbar, visible para `ACCESS` y `ADMIN`.
 
-### Opciones de controlador de relé
+---
 
-1. **Shelly Plus 1** (~25 USD). HTTP local nativo: `POST http://shelly.lan/rpc/Switch.Set`. Soporta auth. Recomendado.
-2. **ESP32 + ESPHome** (~10 USD + trabajo). Más DIY, más flexible.
-3. **Controladora comercial** (ZKTeco, Hikvision, etc.). Más robusta pero más cerrada, protocolos propios.
+## Integración con features existentes
 
-### Arquitectura de integración
+- **Bloqueos** (`User.blockedAt`, `Gym.blockedAt`): la tarjeta de resultado muestra "Bloqueado" en rojo. Recomendación = `BLOCK`. El operador puede permitir igual, el override queda logueado.
+- **Auto-bloqueo por mora** (`Gym.autoBlockAfterDays`): el umbral configurable del gym define cuándo la recomendación pasa de `REVIEW` a `BLOCK` por deuda. Consistente con el resto del sistema.
+- **Push notifications**: cuando el operador **deniega** y la razón es pago vencido, se dispara una push al alumno usando `sendPushToUser`: *"Acceso denegado: tu cuota está vencida. Acercate a recepción."* Dedupea con `User.lastDueNotifiedOn` para no duplicar con el recordatorio diario de vencimiento.
 
-La PC del gimnasio (ya es requisito de Fase 1) funciona como **puente LAN**:
+---
+
+## Auditoría
+
+- **Accesos**: `AccessLog` registra operador, método, resultado, razón, usuario (si hubo match). Queryable desde `/ingresos/historial`.
+
+(No hay `PinChangeLog` — los números de socio no se editan, así que no hay nada que auditar.)
+
+---
+
+## Archivos nuevos / tocados
+
+- `prisma/schema.prisma` — `Role` ampliado con `ACCESS`, `User.memberNumber` + `User.qrLookup`, `Gym.nextMemberNumber`, tabla `AccessLog`, enums `AccessMethod` + `AccessResult`.
+- Migración de backfill: asignar `memberNumber` a los usuarios existentes en orden de `createdAt`, y setear `Gym.nextMemberNumber` al máximo+1 de cada gym.
+- `src/actions/access.ts` — `identifyPerson`, `logAccessDecision`, `regenerateQrToken`.
+- `src/actions/user.ts` — al crear un usuario, incrementar `Gym.nextMemberNumber` en la misma transacción.
+- `src/app/[gymSlug]/ingresos/page.tsx` — kiosk.
+- `src/app/[gymSlug]/ingresos/historial/page.tsx` — log viewer.
+- `src/components/access/AccessInput.tsx` — input multi-modal (texto + scanner QR).
+- `src/components/access/AccessResultCard.tsx` — tarjeta de resultado + botones.
+- `src/components/access/AccessOfflineBanner.tsx` — banner de estado de conexión.
+- `src/components/access/StudentMemberCard.tsx` — número de socio + QR en el dashboard del alumno.
+- `src/components/layout/Navbar.tsx` — item "Ingresos" visible para `ACCESS` y `ADMIN`.
+- `public/sw-access.js` — service worker dedicado (cache + offline buffer).
+
+---
+
+## Env vars nuevas
 
 ```
-Socio ──PIN──▶ Browser kiosk (PC del gym) ──server action──▶ Wody cloud (Vercel/Next.js)
-                        │                                              │
-                        │◀────────── { ok, unlockToken } ──────────────┘
-                        │
-                        └──HTTP LAN──▶ Shelly ──relé──▶ Cerradura
+QR_LOOKUP_SECRET="..."    # >=32 bytes random. No rotar sin re-computar qrLookups.
 ```
-
-Ventajas:
-
-- Wody cloud **no necesita entrar a la LAN del gym** (sería un nightmare de NAT/firewall/IPs dinámicas).
-- El PC ya está en la LAN del gym y ya tiene la sesión ADMIN.
-- El `unlockToken` firmado (JWT corto, ~5s TTL) evita que alguien dispare el Shelly directo sin validar PIN.
-
-### Configuración por gym
-
-Agregar a `Gym`:
-
-| Campo | Tipo | Notas |
-| --- | --- | --- |
-| `doorControllerUrl` | `String?` | Ej: `http://192.168.1.50` |
-| `doorControllerToken` | `String?` | Basic auth o API key del Shelly |
-| `doorRelayChannel` | `Int?` | Por si el controlador tiene varios canales. |
-| `doorPulseMs` | `Int?` | Default 1500. |
-
-Es por gym, no env global — cada local tiene su propia red y hardware.
-
-### Modo kiosk en la PC
-
-- Auto-login de Windows/Linux al arrancar.
-- Chromium en modo `--kiosk` apuntando a `/[gymSlug]/admin/accesos`.
-- Auto-arranque al boot (Task Scheduler / systemd).
-- Pantalla táctil si se quiere, o mouse/teclado común.
-
-### Offline / resiliencia
-
-Opciones discutidas:
-
-- **Descartada:** "sin internet → dejar pasar a todos". El ataque es cortar el router, trivial.
-- **Fase 1 simple:** llave mecánica de backup + UPS en el router (~30 USD/mes con 4G de respaldo elimina 99% de caídas). Si el PC no puede llegar al cloud, la puerta no se abre por PIN, se usa la llave.
-- **Fase 2 avanzada (si hiciera falta):** PWA con Service Worker en la misma pantalla kiosk:
-  - Cachea en IndexedDB la lista de `{ userId, pinLookup, pinHash, paymentOk }` vigente.
-  - Sincroniza cada N minutos cuando hay red.
-  - Si `fetch` al server falla → valida contra caché local y bufferea `AccessLog` para subir después.
-  - Warning visible si la caché tiene >24h sin sincronizar.
-- **Fase 3 (solo si crece):** agente Node como servicio del sistema en la PC del gym, con SQLite local. El browser habla a `localhost:3001` en lugar del cloud. El agente sincroniza bidireccionalmente.
-
-### PIN maestro offline
-
-Sobre sellado con un PIN de emergencia que solo el dueño del gym conoce. No va por el sistema normal, no queda en DB con los demás — se resuelve en la cabeza del dueño con la llave física. Sistema pensado para degradar a "llave mecánica", no para tener un bypass digital.
 
 ---
 
 ## Decisiones pendientes
 
-- [ ] ¿Largo mínimo de PIN? (recomendación: 6 dígitos).
-- [ ] ¿Un PIN por socio, o múltiples PINs por socio (ej. uno para el titular y otro para cónyuge)?
-- [ ] ¿Historial de accesos visible al propio socio en su dashboard, o solo al admin?
-- [ ] Fase 2: ¿molinete, cerradura, o ambos? ¿Una puerta o varias?
-- [ ] Fase 2: ¿hay requisito de integrar con hardware existente del gym (lector RFID, tarjetas)?
-- [ ] ¿Accesos denegados por mora generan notificación automática al socio? (oportunidad de cobranza).
+- [ ] ¿Formato de display del número? `0042` con padding, o `42` directo? Recomendación: padding a 4 dígitos para consistencia visual.
+- [ ] Al crear un alumno: ¿el admin ve el número asignado en un toast/pantalla, o lo busca en la lista después? Recomendación: mostrarlo en la confirmación de "Usuario creado".

@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/Card";
 import { formatDateArg } from "@/lib/dates";
 import { gymPath } from "@/lib/gym";
 import { getBlockStatus } from "@/lib/blocking";
+import { formatMemberNumber } from "@/lib/memberNumber";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -38,7 +39,7 @@ export default async function AdminPage({ params }: Props) {
     prisma.user.findMany({
       where: { gymId },
       orderBy: [{ role: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, email: true, role: true, studentType: true, createdAt: true, groupId: true, nextPaymentDate: true, blockedAt: true },
+      select: { id: true, name: true, email: true, role: true, studentType: true, createdAt: true, groupId: true, nextPaymentDate: true, blockedAt: true, memberNumber: true },
     }),
     prisma.group.findMany({
       where: { teacher: { gymId } },
@@ -201,7 +202,7 @@ export default async function AdminPage({ params }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-panel">
-                {["Nombre", "Email", "Rol", "Tipo", "Profes", "Alta", ""].map((h) => (
+                {["Nº", "Nombre", "Email", "Rol", "Tipo", "Profes", "Alta", ""].map((h) => (
                   <th
                     key={h}
                     className="text-left text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 px-4 py-3 border-b border-line"
@@ -226,6 +227,9 @@ export default async function AdminPage({ params }: Props) {
                   key={user.id}
                   className="border-b border-line hover:bg-hover transition-colors duration-200 group"
                 >
+                  <td className="px-4 py-3.5 text-gray-500 font-heading font-bold text-xs tabular-nums tracking-[0.1em]">
+                    {formatMemberNumber(user.memberNumber)}
+                  </td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-elev border border-edge flex items-center justify-center flex-shrink-0 group-hover:border-brand-red/30 transition-colors duration-200">
@@ -361,6 +365,9 @@ export default async function AdminPage({ params }: Props) {
                   </div>
                   <div className="flex flex-col gap-1 min-w-0">
                     <p className="text-white font-heading font-bold text-sm truncate">
+                      <span className="text-gray-500 mr-2 tabular-nums tracking-[0.1em]">
+                        {formatMemberNumber(user.memberNumber)}
+                      </span>
                       {user.name}
                       {user.id === currentUserId && (
                         <span className="ml-1 text-brand-red text-xs">(vos)</span>

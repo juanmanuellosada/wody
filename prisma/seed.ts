@@ -111,6 +111,7 @@ async function main() {
       password: adminPassword,
       role: Role.ADMIN,
       gymId: gym.id,
+      memberNumber: 1,
     },
   });
 
@@ -121,6 +122,7 @@ async function main() {
       password: teacherPassword,
       role: Role.TEACHER,
       gymId: gym.id,
+      memberNumber: 2,
     },
   });
 
@@ -131,6 +133,7 @@ async function main() {
       password: studentPassword,
       role: Role.STUDENT,
       gymId: gym.id,
+      memberNumber: 3,
     },
   });
 
@@ -141,6 +144,7 @@ async function main() {
       password: studentPassword,
       role: Role.STUDENT,
       gymId: gym.id,
+      memberNumber: 4,
     },
   });
 

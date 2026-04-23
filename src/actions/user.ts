@@ -11,7 +11,11 @@ export type UserResult =
   | { success: true }
   | { success: false; error: string };
 
-export async function createUser(formData: FormData): Promise<UserResult> {
+export type CreateUserResult =
+  | { success: true; memberNumber: number }
+  | { success: false; error: string };
+
+export async function createUser(formData: FormData): Promise<CreateUserResult> {
   const session = await auth();
 
   if (!session?.user || session.user.role !== "ADMIN") {
@@ -42,19 +46,32 @@ export async function createUser(formData: FormData): Promise<UserResult> {
   const hashedPassword = await hash(password, 10);
 
   try {
-    await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        role: role as Role,
-        studentType: (role === "STUDENT" ? studentType : "PERSONALIZED") as StudentType,
-        gymId,
-      },
+    // Transacción: incrementa Gym.nextMemberNumber y crea el user con el
+    // número anterior. Atómico para evitar colisiones si dos creaciones
+    // ocurren en paralelo.
+    const memberNumber = await prisma.$transaction(async (tx) => {
+      const gym = await tx.gym.update({
+        where: { id: gymId },
+        data: { nextMemberNumber: { increment: 1 } },
+        select: { nextMemberNumber: true },
+      });
+      const assigned = gym.nextMemberNumber - 1;
+      await tx.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          role: role as Role,
+          studentType: (role === "STUDENT" ? studentType : "PERSONALIZED") as StudentType,
+          gymId,
+          memberNumber: assigned,
+        },
+      });
+      return assigned;
     });
 
     revalidatePath(gymPath(gymSlug, "/admin"));
-    return { success: true };
+    return { success: true, memberNumber };
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
