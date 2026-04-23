@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { Role } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath } from "@/lib/gym";
@@ -100,6 +101,128 @@ export async function decideCheckin(
   await prisma.accessLog.update({
     where: { id: logId },
     data: {
+      state: decision === "GRANT" ? "GRANTED" : "DENIED",
+      decidedById: session.user.id,
+      decidedAt: new Date(),
+    },
+  });
+
+  revalidatePath(gymPath(session.user.gymSlug, "/ingresos"));
+  return { success: true };
+}
+
+export type LookupUser = {
+  id: string;
+  name: string;
+  role: Role;
+  memberNumber: number;
+  nextPaymentDate: string; // ISO
+  blockedAt: string | null; // ISO
+};
+
+export type LookupResult =
+  | { success: true; user: LookupUser }
+  | { success: false; error: string };
+
+// Búsqueda manual desde el kiosk cuando el alumno no puede escanear
+// (no tiene el celu, batería muerta, data sin internet, etc.). Resuelve
+// email o número de socio — lo que coincida primero. No crea ningún log:
+// solo retorna la ficha del socio para que el operador decida.
+export async function lookupForKiosk(input: string): Promise<LookupResult> {
+  const session = await auth();
+  if (
+    !session?.user ||
+    (session.user.role !== "ACCESS" && session.user.role !== "ADMIN")
+  ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return { success: false, error: "Ingresá un identificador." };
+  }
+
+  const gymId = session.user.gymId;
+  let user: {
+    id: string;
+    name: string;
+    role: Role;
+    memberNumber: number;
+    nextPaymentDate: Date;
+    blockedAt: Date | null;
+  } | null = null;
+
+  if (trimmed.includes("@")) {
+    user = await prisma.user.findFirst({
+      where: { gymId, email: trimmed.toLowerCase() },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        memberNumber: true,
+        nextPaymentDate: true,
+        blockedAt: true,
+      },
+    });
+  } else if (/^\d{1,6}$/.test(trimmed)) {
+    user = await prisma.user.findFirst({
+      where: { gymId, memberNumber: parseInt(trimmed, 10) },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        memberNumber: true,
+        nextPaymentDate: true,
+        blockedAt: true,
+      },
+    });
+  }
+
+  if (!user) {
+    return { success: false, error: "No se encontró ningún socio con ese identificador." };
+  }
+
+  return {
+    success: true,
+    user: {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      memberNumber: user.memberNumber,
+      nextPaymentDate: user.nextPaymentDate.toISOString(),
+      blockedAt: user.blockedAt?.toISOString() ?? null,
+    },
+  };
+}
+
+// Crea un AccessLog ya resuelto desde el kiosk manual. A diferencia de
+// decideCheckin (que actualiza un pending que vino por QR), este crea
+// la fila directo en GRANTED o DENIED porque el operador nunca tuvo un
+// paso intermedio de pending.
+export async function createManualCheckin(
+  userId: string,
+  decision: "GRANT" | "DENY"
+): Promise<DecideResult> {
+  const session = await auth();
+  if (
+    !session?.user ||
+    (session.user.role !== "ACCESS" && session.user.role !== "ADMIN")
+  ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { gymId: true },
+  });
+  if (!target || target.gymId !== session.user.gymId) {
+    return { success: false, error: "Usuario no encontrado." };
+  }
+
+  await prisma.accessLog.create({
+    data: {
+      gymId: session.user.gymId,
+      userId,
       state: decision === "GRANT" ? "GRANTED" : "DENIED",
       decidedById: session.user.id,
       decidedAt: new Date(),

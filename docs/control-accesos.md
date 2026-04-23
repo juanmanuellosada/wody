@@ -187,11 +187,21 @@ La sección de Ingresos es un item nuevo en la navbar, visible para `ACCESS` y `
 
 ## Env vars nuevas
 
-No hay env vars nuevas para el sistema de accesos. Los `qrToken` se generan con `crypto.randomBytes(32).toString('base64url')` directamente, sin pepper.
+```
+CHECKIN_TOKEN_SECRET="..."   # >=32 bytes random. Firma el token rotativo
+                             # del QR del kiosk. Si se rota, los QRs
+                             # activos quedan inválidos inmediatamente
+                             # (scan vuelve a la siguiente rotación).
+```
 
 ---
 
-## Decisiones pendientes
+## Pendientes (no bloquean el primer rollout)
 
-- [ ] ¿Formato de display del número? `0042` con padding, o `42` directo? Recomendación: padding a 4 dígitos para consistencia visual.
-- [ ] Al crear un alumno: ¿el admin ve el número asignado en un toast/pantalla, o lo busca en la lista después? Recomendación: mostrarlo en la confirmación de "Usuario creado".
+- [ ] **Crear usuarios con rol `ACCESS` desde la UI**. Hoy el `UserForm` solo permite TEACHER/STUDENT; los `ACCESS` hay que crearlos por DB directamente. Fix: sumar la opción al select del form.
+- [ ] **Filtros en `/ingresos/historial`**: hoy muestra los últimos 200 sin filtros. Sumar selector de fecha + búsqueda por socio (nombre / número / email).
+- [ ] **Offline-friendly (PWA del kiosk)**: armar `public/sw-access.js` dedicado + cache IndexedDB con snapshot de usuarios del gym. Bufferear `AccessLog` offline para flushear al reconectar. Sin esto, un corte de internet rompe los ingresos. Ver sección "Offline-friendly" más arriba — está diseñado pero no implementado.
+- [ ] **Push al alumno cuando se lo deniega**: reusar `sendPushToUser` del sistema de notificaciones con mensaje tipo *"Acceso denegado: acercate a recepción."* Dedupear con `User.lastDueNotifiedOn` para no spamear junto al recordatorio diario de vencimiento.
+- [ ] **Expiración explícita de pendings**: hoy los PENDING >5 min quedan en DB con `state: PENDING` pero se filtran del feed del kiosk vía WHERE. Para el historial conviene marcarlos `EXPIRED` (nuevo valor del enum) vía cron diario o lazy al leer, así los reportes futuros no muestran pendings que en realidad nunca se resolvieron.
+- [ ] **Exportar historial a CSV**: si el admin lo necesita para auditorías o liquidaciones.
+- [ ] **Scanner QR en el input manual**: hoy el input manual acepta nº de socio o email. Sumar `BarcodeDetector` para que el operador pueda pegar un scanner USB o usar la cámara del kiosk si le querés dar esa opción.
