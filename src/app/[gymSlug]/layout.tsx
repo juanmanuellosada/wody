@@ -7,7 +7,7 @@ import { InstallPwaButton } from "@/components/InstallPwaButton";
 import { NotificationPermissionButton } from "@/components/NotificationPermissionButton";
 import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
-import { gymPath } from "@/lib/gym";
+import { gymPath, hasTeacherWhatsAppContact } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import { getBlockStatus } from "@/lib/blocking";
 import { sendDueReminderIfNeeded } from "@/lib/push";
@@ -111,7 +111,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         {role === "STUDENT" && <NotificationPermissionButton />}
         {children}
       </main>
-      {role === "STUDENT" && <WhatsAppFab />}
+      {role === "STUDENT" && hasTeacherWhatsAppContact(gymSlug) && <WhatsAppFab />}
     </div>
   );
 }

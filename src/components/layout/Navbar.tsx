@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import type { Role, StudentType } from "@prisma/client";
-import { gymPath } from "@/lib/gym";
+import { gymPath, hasAccessControl } from "@/lib/gym";
 import type { GymTerms } from "@/lib/gym-terms";
 
 import wodyBlanco from "@/logos/wody-blanco.png";
@@ -22,12 +22,16 @@ interface NavbarProps {
 }
 
 function getNavLinks(role: Role, gymSlug: string, terms: GymTerms, studentType?: StudentType) {
+  const accessControl = hasAccessControl(gymSlug);
+
   if (role === "ADMIN") {
     return [
       { href: gymPath(gymSlug, "/admin"), label: "Panel Admin" },
       { href: gymPath(gymSlug, "/dashboard/teacher"), label: "Dashboard Profe" },
       { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
-      { href: gymPath(gymSlug, "/ingresos"), label: "Ingresos" },
+      ...(accessControl
+        ? [{ href: gymPath(gymSlug, "/ingresos"), label: "Ingresos" }]
+        : []),
       { href: gymPath(gymSlug, "/dashboard/rms"), label: `Mis ${terms.rms}` },
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
       { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
@@ -43,6 +47,7 @@ function getNavLinks(role: Role, gymSlug: string, terms: GymTerms, studentType?:
     ];
   }
   if (role === "ACCESS") {
+    if (!accessControl) return [];
     return [
       { href: gymPath(gymSlug, "/ingresos"), label: "Ingresos" },
       { href: gymPath(gymSlug, "/ingresos/historial"), label: "Historial" },

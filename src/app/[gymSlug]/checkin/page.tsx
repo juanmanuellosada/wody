@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { gymPath } from "@/lib/gym";
+import { gymPath, hasAccessControl } from "@/lib/gym";
 import { createCheckin } from "@/actions/access";
 import { CheckinStatusPoller } from "@/components/access/CheckinStatusPoller";
 
@@ -15,6 +15,7 @@ interface Props {
 // cliente pollea el estado para mostrarle el resultado.
 export default async function CheckinPage({ params, searchParams }: Props) {
   const { gymSlug } = await params;
+  if (!hasAccessControl(gymSlug)) notFound();
   const { t: token } = await searchParams;
 
   const gym = await prisma.gym.findUnique({ where: { slug: gymSlug } });

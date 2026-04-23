@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { gymPath } from "@/lib/gym";
+import { gymPath, hasAccessControl } from "@/lib/gym";
 import { formatMemberNumber } from "@/lib/memberNumber";
 import { formatDateArg } from "@/lib/dates";
 
@@ -11,6 +11,7 @@ interface Props {
 
 export default async function IngresosHistorialPage({ params }: Props) {
   const { gymSlug } = await params;
+  if (!hasAccessControl(gymSlug)) notFound();
   const session = await auth();
 
   if (

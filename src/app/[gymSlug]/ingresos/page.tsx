@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { auth } from "@/lib/auth";
-import { gymPath } from "@/lib/gym";
+import { gymPath, hasAccessControl } from "@/lib/gym";
 import { generateCheckinToken, msUntilNextBucket } from "@/lib/checkin";
 import { KioskView } from "@/components/access/KioskView";
 
@@ -15,6 +15,7 @@ interface Props {
 // vez que el bucket cambia (cada 5 min).
 export default async function IngresosPage({ params }: Props) {
   const { gymSlug } = await params;
+  if (!hasAccessControl(gymSlug)) notFound();
   const session = await auth();
 
   if (
