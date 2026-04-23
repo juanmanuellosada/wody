@@ -9,7 +9,7 @@ import { gymPath } from "@/lib/gym";
 import type { GymTerms } from "@/lib/gym-terms";
 
 import wodyBlanco from "@/logos/wody-blanco.png";
-import { GYM_LOGOS_HORIZONTAL } from "@/lib/gym-logos";
+import { GYM_LOGOS_HORIZONTAL, GYM_LOGOS_SQUARE } from "@/lib/gym-logos";
 
 interface NavbarProps {
   userName: string;
@@ -74,7 +74,8 @@ export function Navbar({ userName, role, studentType, gymSlug, gymName, onSignOu
     return pathname === href;
   }
 
-  const gymLogo = GYM_LOGOS_HORIZONTAL[gymSlug];
+  const horizontalLogo = GYM_LOGOS_HORIZONTAL[gymSlug];
+  const squareLogo = GYM_LOGOS_SQUARE[gymSlug];
 
   return (
     <nav
@@ -90,8 +91,10 @@ export function Navbar({ userName, role, studentType, gymSlug, gymName, onSignOu
         >
           <Image src={wodyBlanco} alt="WODY" width={22} height={22} className="opacity-90 group-hover:opacity-100 transition-opacity duration-200" />
           <span className="w-px h-5 bg-edge" aria-hidden="true" />
-          {gymLogo ? (
-            <Image src={gymLogo.src} alt={gymLogo.alt} width={120} height={36} className="h-9 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
+          {horizontalLogo ? (
+            <Image src={horizontalLogo.src} alt={horizontalLogo.alt} width={120} height={36} className="h-9 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
+          ) : squareLogo ? (
+            <Image src={squareLogo} alt={gymName} width={36} height={36} className="h-9 w-9 object-contain opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
           ) : (
             <span className="text-xs font-heading font-bold uppercase tracking-[0.1em] text-gray-400 opacity-80 group-hover:opacity-100 transition-opacity duration-200">
               {gymName}
