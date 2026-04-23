@@ -378,7 +378,7 @@ function ManualLookup() {
         Ingreso manual
       </label>
       <p className="text-xs text-gray-600 font-body">
-        Si el alumno no puede escanear, buscalo por nº de socio o email.
+        Si el usuario no puede escanear, buscalo por nº de socio o email.
       </p>
       <div className="flex gap-2">
         <input
