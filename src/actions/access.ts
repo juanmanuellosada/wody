@@ -67,7 +67,10 @@ export async function createCheckin(
     },
   });
 
-  revalidatePath(gymPath(gymSlug, "/ingresos"));
+  // Nota: no llamamos revalidatePath acá porque el kiosk pollea vía
+  // fetch cada 2s (no usa el cache de Next). Además, revalidatePath
+  // llamado desde el render de un server component puede tirar
+  // "Route ... used revalidatePath during render" en Next 16.
   return { success: true, logId: log.id, state: autoGrant ? "GRANTED" : "PENDING" };
 }
 

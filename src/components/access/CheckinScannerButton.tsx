@@ -52,6 +52,31 @@ export function CheckinScannerButton({ gymSlug }: CheckinScannerButtonProps) {
 
     (async () => {
       try {
+        // Si el navegador soporta Permissions API y ya estamos en "granted",
+        // getUserMedia no debería reprompter. Si está "denied", cortamos acá
+        // con un mensaje claro. Nota: iOS Safari en PWA a veces reprompea
+        // igual — limitación del OS, no hay fix desde JS.
+        if (
+          typeof navigator !== "undefined" &&
+          "permissions" in navigator &&
+          navigator.permissions?.query
+        ) {
+          try {
+            const status = await navigator.permissions.query({
+              name: "camera" as PermissionName,
+            });
+            if (status.state === "denied") {
+              setError(
+                "El acceso a la cámara está bloqueado. Habilitalo desde la configuración del navegador."
+              );
+              setStarting(false);
+              return;
+            }
+          } catch {
+            /* Safari iOS puede tirar acá — seguimos y que getUserMedia decida */
+          }
+        }
+
         const { BrowserMultiFormatReader } = await import("@zxing/browser");
         if (cancelled) return;
         if (!videoRef.current) return;
