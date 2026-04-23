@@ -45,6 +45,12 @@ enum RedemptionStatus {
   CONSUMED
 }
 
+enum AccessState {
+  PENDING
+  GRANTED
+  DENIED
+}
+
 model Gym {
   id                 String    @id @default(cuid())
   name               String
@@ -57,6 +63,7 @@ model Gym {
   autoBlockAfterDays Int       @default(20)
   nextMemberNumber   Int       @default(1)
   users              User[]
+  accessLogs         AccessLog[]
 }
 
 model User {
@@ -73,7 +80,6 @@ model User {
   blockedAt       DateTime?
   lastDueNotifiedOn DateTime? @db.Date
   memberNumber    Int
-  qrToken         String      @unique
 
   gym   Gym    @relation(fields: [gymId], references: [id])
   group Group? @relation("GroupStudents", fields: [groupId], references: [id], onDelete: SetNull)
@@ -86,6 +92,8 @@ model User {
   teacherGroups  Group[]            @relation("TeacherGroups")
   redemptions    CouponRedemption[]
   pushSubscriptions PushSubscription[]
+  accessesAsUser    AccessLog[] @relation("AccessLogUser")
+  accessesDecidedBy AccessLog[] @relation("AccessLogDecidedBy")
 
   @@unique([email, gymId])
   @@unique([gymId, memberNumber])
@@ -157,6 +165,24 @@ model PushSubscription {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+}
+
+model AccessLog {
+  id          String      @id @default(cuid())
+  gymId       String
+  userId      String
+  at          DateTime    @default(now())
+  state       AccessState @default(PENDING)
+  decidedById String?
+  decidedAt   DateTime?
+
+  gym       Gym   @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  user      User  @relation("AccessLogUser", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("AccessLogDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([gymId, state, at])
+  @@index([gymId, at(sort: Desc)])
   @@index([userId])
 }
 

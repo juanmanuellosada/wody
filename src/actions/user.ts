@@ -6,7 +6,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma, Role, StudentType } from "@prisma/client";
 import { gymPath } from "@/lib/gym";
-import { generateQrToken } from "@/lib/qr";
 
 export type UserResult =
   | { success: true }
@@ -66,7 +65,6 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
           studentType: (role === "STUDENT" ? studentType : "PERSONALIZED") as StudentType,
           gymId,
           memberNumber: assigned,
-          qrToken: generateQrToken(),
         },
       });
       return assigned;

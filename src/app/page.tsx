@@ -40,6 +40,7 @@ export default async function LandingPage() {
     const { gymSlug, role } = session.user;
     if (role === "ADMIN") redirect(gymPath(gymSlug, "/admin"));
     if (role === "TEACHER") redirect(gymPath(gymSlug, "/dashboard/teacher"));
+    if (role === "ACCESS") redirect(gymPath(gymSlug, "/ingresos"));
     redirect(gymPath(gymSlug, "/dashboard/athlete"));
   }
 

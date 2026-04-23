@@ -6,7 +6,6 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { updateStudent, assignStudent, unassignStudent, setUserBlocked } from "@/actions/user";
 import { setStudentPaymentDate } from "@/actions/payment";
 import { toInputDate } from "@/lib/dates";
-import { RegenerateQrButton } from "@/components/access/RegenerateQrButton";
 
 interface TeacherOption {
   id: string;
@@ -241,21 +240,6 @@ export function StudentEditor({
             </div>
           )}
         </div>
-
-        {/* QR */}
-        {!demo && (
-          <div className="flex flex-col gap-2 border-t border-line pt-4">
-            <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 block">
-              QR de acceso
-            </label>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-gray-500 font-body">
-                Regenerar invalida el QR anterior del alumno.
-              </p>
-              <RegenerateQrButton userId={studentId} scope="admin" />
-            </div>
-          </div>
-        )}
 
         {/* Block / unblock */}
         {!demo && (

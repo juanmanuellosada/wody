@@ -40,6 +40,7 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
     const role = session.user.role;
     if (role === "ADMIN") redirect(gymPath(gymSlug, "/admin"));
     if (role === "TEACHER") redirect(gymPath(gymSlug, "/dashboard/teacher"));
+    if (role === "ACCESS") redirect(gymPath(gymSlug, "/ingresos"));
     redirect(gymPath(gymSlug, "/dashboard/athlete"));
   }
 

@@ -88,6 +88,8 @@ export async function proxy(request: NextRequest) {
         destination = gymPath(gymSlug, "/admin");
       } else if (role === "TEACHER") {
         destination = gymPath(gymSlug, "/dashboard/teacher");
+      } else if (role === "ACCESS") {
+        destination = gymPath(gymSlug, "/ingresos");
       } else {
         destination = gymPath(gymSlug, "/dashboard/athlete");
       }
@@ -129,8 +131,30 @@ export async function proxy(request: NextRequest) {
       const destination =
         role === "ADMIN"
           ? gymPath(gymSlug, "/admin")
+          : role === "ACCESS"
+          ? gymPath(gymSlug, "/ingresos")
           : gymPath(gymSlug, "/dashboard/teacher");
       return NextResponse.redirect(new URL(destination, nextUrl));
+    }
+    return NextResponse.next();
+  }
+
+  if (subPath.startsWith("/ingresos")) {
+    if (role !== "ACCESS" && role !== "ADMIN") {
+      return NextResponse.redirect(
+        new URL(gymPath(gymSlug, "/dashboard/athlete"), nextUrl)
+      );
+    }
+    return NextResponse.next();
+  }
+
+  if (subPath.startsWith("/checkin")) {
+    // Solo alumnos pueden hacer check-in (admins/profes/access no usan el
+    // flujo de QR; si necesitan ingresar, el operador los mete manual).
+    if (role !== "STUDENT") {
+      return NextResponse.redirect(
+        new URL(gymPath(gymSlug, "/"), nextUrl)
+      );
     }
     return NextResponse.next();
   }

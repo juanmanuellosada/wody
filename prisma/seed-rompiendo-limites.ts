@@ -69,7 +69,6 @@ async function main() {
       role: Role.ADMIN,
       gymId: gym.id,
       memberNumber: 1,
-      qrToken: require("node:crypto").randomBytes(32).toString("base64url"),
     },
   });
 

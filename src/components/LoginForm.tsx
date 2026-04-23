@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { login } from "@/actions/auth";
@@ -13,6 +14,7 @@ interface LoginFormProps {
 export function LoginForm({ gymSlug }: LoginFormProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,6 +29,15 @@ export function LoginForm({ gymSlug }: LoginFormProps) {
         return;
       }
 
+      // Honor ?next=... si el user venía redirigido desde una ruta
+      // específica (ej. /checkin?t=...). Validación: solo paths del mismo
+      // origen (empiezan con /) para prevenir open redirect.
+      const next = searchParams.get("next");
+      if (next && next.startsWith("/")) {
+        window.location.href = next;
+        return;
+      }
+
       try {
         const res = await fetch("/api/auth/session");
         const session = await res.json();
@@ -38,6 +49,8 @@ export function LoginForm({ gymSlug }: LoginFormProps) {
           destination = gymPath(slug, "/admin");
         } else if (role === "TEACHER") {
           destination = gymPath(slug, "/dashboard/teacher");
+        } else if (role === "ACCESS") {
+          destination = gymPath(slug, "/ingresos");
         } else {
           destination = gymPath(slug, "/dashboard/athlete");
         }

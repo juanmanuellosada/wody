@@ -7,7 +7,7 @@ import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import { WodCard } from "@/components/wod/WodCard";
 import { WodHistory } from "@/components/wod/WodHistory";
 import { gymPath } from "@/lib/gym";
-import { StudentQrCard } from "@/components/access/StudentQrCard";
+import { formatMemberNumber } from "@/lib/memberNumber";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -31,18 +31,20 @@ export default async function StudentDashboardPage({ params }: Props) {
     }),
     prisma.user.findUnique({
       where: { id: studentId },
-      select: { memberNumber: true, qrToken: true, groupId: true, studentType: true },
+      select: { memberNumber: true, groupId: true, studentType: true },
     }),
   ]);
   const teacherIds = teacherLinks.map((l) => l.teacherId);
 
   const accessCard = student ? (
-    <StudentQrCard
-      userId={studentId}
-      memberNumber={student.memberNumber}
-      qrToken={student.qrToken}
-      gymSlug={gymSlug}
-    />
+    <div className="border border-line bg-panel p-4 flex items-center justify-between gap-3">
+      <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-gray-500">
+        Tu número de socio
+      </p>
+      <p className="text-xl font-heading font-black text-white tabular-nums tracking-[0.15em]">
+        {formatMemberNumber(student.memberNumber)}
+      </p>
+    </div>
   ) : null;
 
   const wodPath = gymPath(gymSlug, "/dashboard/athlete/wod");

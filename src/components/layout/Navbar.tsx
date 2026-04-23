@@ -30,6 +30,7 @@ function getNavLinks(role: Role, gymSlug: string, studentType?: StudentType) {
       { href: gymPath(gymSlug, "/admin"), label: "Panel Admin" },
       { href: gymPath(gymSlug, "/dashboard/teacher"), label: "Dashboard Profe" },
       { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
+      { href: gymPath(gymSlug, "/ingresos"), label: "Ingresos" },
       { href: gymPath(gymSlug, "/dashboard/rms"), label: "Mis RMs" },
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
       { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
@@ -42,6 +43,12 @@ function getNavLinks(role: Role, gymSlug: string, studentType?: StudentType) {
       { href: gymPath(gymSlug, "/dashboard/rms"), label: "Mis RMs" },
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
       { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
+    ];
+  }
+  if (role === "ACCESS") {
+    return [
+      { href: gymPath(gymSlug, "/ingresos"), label: "Ingresos" },
+      { href: gymPath(gymSlug, "/ingresos/historial"), label: "Historial" },
     ];
   }
   return [
@@ -58,7 +65,13 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut }: Navb
   const links = getNavLinks(role, gymSlug, studentType);
 
   const roleLabel =
-    role === "ADMIN" ? "Admin" : role === "TEACHER" ? "Profe" : "Atleta";
+    role === "ADMIN"
+      ? "Admin"
+      : role === "TEACHER"
+      ? "Profe"
+      : role === "ACCESS"
+      ? "Accesos"
+      : "Atleta";
 
   function isActive(href: string) {
     return pathname === href;
