@@ -29,20 +29,39 @@ export default async function IngresosPage({ params }: Props) {
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const origin = `${proto}://${host}`;
 
-  const token = generateCheckinToken(gymSlug);
-  const checkinUrl = `${origin}${gymPath(gymSlug, `/checkin?t=${encodeURIComponent(token)}`)}`;
-  const svg = await QRCode.toString(checkinUrl, {
-    type: "svg",
-    margin: 2,
-    width: 280,
-    errorCorrectionLevel: "M",
-  });
+  let svg: string;
+  let expiresInMs: number;
+  try {
+    const token = generateCheckinToken(gymSlug);
+    const checkinUrl = `${origin}${gymPath(gymSlug, `/checkin?t=${encodeURIComponent(token)}`)}`;
+    svg = await QRCode.toString(checkinUrl, {
+      type: "svg",
+      margin: 2,
+      width: 280,
+      errorCorrectionLevel: "M",
+    });
+    expiresInMs = msUntilNextBucket();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error desconocido";
+    return (
+      <div className="border border-brand-red/40 bg-brand-red/5 p-6 flex flex-col gap-3">
+        <h1 className="text-lg font-heading font-black uppercase tracking-[0.1em] text-white">
+          No pudimos generar el QR
+        </h1>
+        <p className="text-sm text-gray-400 font-body">{message}</p>
+        <p className="text-xs text-gray-500 font-body">
+          Verificá que la env var <code>CHECKIN_TOKEN_SECRET</code> esté
+          definida en Vercel y redeployá.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <KioskView
       gymSlug={gymSlug}
       initialQrSvg={svg}
-      initialQrExpiresInMs={msUntilNextBucket()}
+      initialQrExpiresInMs={expiresInMs}
     />
   );
 }
