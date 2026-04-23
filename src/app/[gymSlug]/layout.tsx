@@ -94,6 +94,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         role={role}
         studentType={studentType}
         gymSlug={gymSlug}
+        gymName={gym.name}
         onSignOut={handleSignOut}
         terms={gymTerms(gym.kind)}
       />

@@ -16,6 +16,7 @@ interface NavbarProps {
   role: Role;
   studentType?: StudentType;
   gymSlug: string;
+  gymName: string;
   onSignOut: () => void;
   terms: GymTerms;
 }
@@ -55,7 +56,7 @@ function getNavLinks(role: Role, gymSlug: string, terms: GymTerms, studentType?:
   ];
 }
 
-export function Navbar({ userName, role, studentType, gymSlug, onSignOut, terms }: NavbarProps) {
+export function Navbar({ userName, role, studentType, gymSlug, gymName, onSignOut, terms }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
   const links = getNavLinks(role, gymSlug, terms, studentType);
@@ -93,7 +94,7 @@ export function Navbar({ userName, role, studentType, gymSlug, onSignOut, terms 
             <Image src={gymLogo.src} alt={gymLogo.alt} width={120} height={36} className="h-9 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
           ) : (
             <span className="text-xs font-heading font-bold uppercase tracking-[0.1em] text-gray-400 opacity-80 group-hover:opacity-100 transition-opacity duration-200">
-              {gymSlug.replace(/-/g, " ")}
+              {gymName}
             </span>
           )}
         </Link>
