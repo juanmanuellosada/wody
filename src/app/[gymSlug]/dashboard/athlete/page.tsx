@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import { WodCard } from "@/components/wod/WodCard";
 import { WodHistory } from "@/components/wod/WodHistory";
-import { gymPath } from "@/lib/gym";
+import { gymPath, hasAccessControl } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import { formatMemberNumber } from "@/lib/memberNumber";
 import { CheckinScannerButton } from "@/components/access/CheckinScannerButton";
@@ -40,7 +40,7 @@ export default async function StudentDashboardPage({ params }: Props) {
   const terms = gymTerms(gym?.kind ?? "BOX");
   const teacherIds = teacherLinks.map((l) => l.teacherId);
 
-  const accessCard = student ? (
+  const accessCard = student && hasAccessControl(gymSlug) ? (
     <div className="flex flex-col gap-3">
       <CheckinScannerButton gymSlug={gymSlug} />
       <div className="border border-line bg-panel p-4 flex items-center justify-between gap-3">

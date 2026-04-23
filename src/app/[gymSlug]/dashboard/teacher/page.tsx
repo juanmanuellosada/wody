@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { gymPath } from "@/lib/gym";
+import { gymPath, hasAccessControl } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import { WodManagerClient } from "@/components/wod/WodManagerClient";
 import { GroupManager } from "@/components/group/GroupManager";
@@ -67,7 +67,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
-      <CheckinScannerButton gymSlug={gymSlug} />
+      {hasAccessControl(gymSlug) && <CheckinScannerButton gymSlug={gymSlug} />}
       {/* Welcome header */}
       <div className="border border-line bg-panel p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
