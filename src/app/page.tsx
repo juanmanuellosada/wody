@@ -327,7 +327,7 @@ export default async function LandingPage() {
                 Mila Fit
               </span>
               <span className="text-xs text-gray-600 font-body">
-                Gimnasio — Los Polvorines, BA
+                Gym &amp; Fitness — Los Polvorines, BA
               </span>
               <span className="text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-gray-500">
                 Proximamente
