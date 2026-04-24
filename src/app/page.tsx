@@ -5,14 +5,11 @@ import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 import { gymPath } from "@/lib/gym";
 import {
-  Dumbbell,
   Trophy,
-  Users,
   Smartphone,
   BarChart3,
   Share2,
   CalendarDays,
-  ClipboardList,
   Building2,
 } from "lucide-react";
 

@@ -33,7 +33,6 @@ const BRAND_RED_80 = "rgba(227,20,20,0.8)";
 const TEXT_PRIMARY = "#FFFFFF";
 const TEXT_MUTED = "rgba(255,255,255,0.5)";
 const TEXT_DIM = "rgba(255,255,255,0.3)";
-const TEXT_DIMMER = "rgba(255,255,255,0.2)";
 
 /* Data used throughout */
 const CODE = "WODY-8K4R-Z9P2";

@@ -11,9 +11,6 @@ type TimerState = "idle" | "countdown-prep" | "running" | "paused" | "complete";
 const TICK_MS = 50;
 const PREP_SECONDS = 10;
 
-// Modes that get a "Preparate!" countdown before starting
-const PREP_MODES = new Set<TimerMode>(["tabata", "amrap", "fortime", "interval"]);
-
 interface IntervalConfig {
   workSeconds: number;
   restSeconds: number;

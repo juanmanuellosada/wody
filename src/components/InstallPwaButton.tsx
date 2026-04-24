@@ -18,11 +18,9 @@ export function InstallPwaButton() {
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
 
-    if (isStandalone) {
-      setIsInstalled(true);
-      return;
-    }
+    if (isStandalone) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from window.matchMedia (external system); initial state defaults to true to avoid flashing the button before this check runs.
     setIsInstalled(false);
 
     function handleBeforeInstall(e: Event) {

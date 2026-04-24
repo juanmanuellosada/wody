@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import type { Role, StudentType } from "@prisma/client";
+import type { Role } from "@prisma/client";
 import { gymPath, hasAccessControl } from "@/lib/gym";
 import type { GymTerms } from "@/lib/gym-terms";
 
@@ -14,14 +14,13 @@ import { GYM_LOGOS_HORIZONTAL, GYM_LOGOS_SQUARE } from "@/lib/gym-logos";
 interface NavbarProps {
   userName: string;
   role: Role;
-  studentType?: StudentType;
   gymSlug: string;
   gymName: string;
   onSignOut: () => void;
   terms: GymTerms;
 }
 
-function getNavLinks(role: Role, gymSlug: string, terms: GymTerms, studentType?: StudentType) {
+function getNavLinks(role: Role, gymSlug: string, terms: GymTerms) {
   const accessControl = hasAccessControl(gymSlug);
 
   if (role === "ADMIN") {
@@ -61,10 +60,10 @@ function getNavLinks(role: Role, gymSlug: string, terms: GymTerms, studentType?:
   ];
 }
 
-export function Navbar({ userName, role, studentType, gymSlug, gymName, onSignOut, terms }: NavbarProps) {
+export function Navbar({ userName, role, gymSlug, gymName, onSignOut, terms }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
-  const links = getNavLinks(role, gymSlug, terms, studentType);
+  const links = getNavLinks(role, gymSlug, terms);
 
   const roleLabel =
     role === "ADMIN"

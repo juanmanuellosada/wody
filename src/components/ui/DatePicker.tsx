@@ -44,7 +44,15 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
   const { year, month } = parseDate(value);
   const [viewYear, setViewYear] = useState(year);
   const [viewMonth, setViewMonth] = useState(month);
+  const [prevValue, setPrevValue] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sync view when value changes externally (derived-from-prop pattern).
+  if (prevValue !== value) {
+    setPrevValue(value);
+    setViewYear(year);
+    setViewMonth(month);
+  }
 
   // Close on outside click
   useEffect(() => {
@@ -67,13 +75,6 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [open]);
-
-  // Sync view when value changes externally
-  useEffect(() => {
-    const { year: y, month: m } = parseDate(value);
-    setViewYear(y);
-    setViewMonth(m);
-  }, [value]);
 
   function prevMonth() {
     if (viewMonth === 0) {
@@ -203,7 +204,6 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
               const day = i + 1;
               const isSelected = isSelectedMonth && selectedParsed.day === day;
               const isToday = isTodayMonth && now.getDate() === day;
-              const dateStr = formatYMD(viewYear, viewMonth, day);
 
               return (
                 <button

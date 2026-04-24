@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
-import { Prisma, WodTargetType } from "@prisma/client";
+import { WodTargetType } from "@prisma/client";
 
 async function termsForSlug(slug: string) {
   const gym = await prisma.gym.findUnique({ where: { slug }, select: { kind: true } });
