@@ -36,7 +36,7 @@ Crearlo con role: ADMIN — el sistema ya permite que los ADMIN funcionen como p
 
 Hacé todo lo necesario para que el gym quede operativo:
 
-1. **Base de datos:** Crear un script separado en `prisma/` para correrlo una sola vez (ej: `prisma/seed-[slug].ts`) que inserte el Gym con **`kind: "GYM"`** y su `primaryColor`, el Admin, y opcionalmente rutinas y PRs de ejemplo. El `kind` va al enum `GymKind` y acepta `"BOX"` o `"GYM"` — para este alta es `"GYM"`. El color de acentuación se guarda en `primaryColor` y el theming dinámico lo aplica automáticamente a toda la UI del gym (botones, acentos, bordes, imágenes compartibles).
+1. **Base de datos:** Crear un script separado en `prisma/` para correrlo una sola vez (ej: `prisma/seed-[slug].ts`) que inserte el Gym con **`kind: "GYM"`** y su `primaryColor`, el Admin, y opcionalmente rutinas y PRs de ejemplo. El `kind` va al enum `GymKind` y acepta `"BOX"` o `"GYM"` — para este alta es `"GYM"`. El color de acentuación se guarda en `primaryColor` y el theming dinámico lo aplica automáticamente **desde `/{slug}` en adelante** — o sea, empieza a respetarse ya en la landing del propio gym (`/{slug}`), no solo desde el login hacia adentro. Alcanza a la landing del gym, al login, a todos los dashboards (botones, acentos, bordes, gradientes, stripes) y a las imágenes compartibles de PRs. La landing pública de WODY (`/`) mantiene su rojo de marca.
 
 2. **Landing page (`src/app/page.tsx`):**
    - Importar el logo del nuevo gym
@@ -95,7 +95,7 @@ No hace falta tocar código al dar de alta un gym — basta con setear `kind: "G
 
 - El WhatsApp del profe e Instagram del gym no se guardan en la DB actualmente (no hay campo en el schema), pero quedan documentados para cuando se agregue esa funcionalidad.
 - El logo tiene que estar previamente en `src/logos/`. Si no lo tenés, el gym funciona igual mostrando el nombre como texto en la landing, login, navbar y en la imagen compartible de PRs.
-- El color de acentuación se guarda en `primaryColor` de la DB y se aplica automáticamente. El layout `src/app/[gymSlug]/layout.tsx` sobreescribe las CSS custom properties (`--color-red`, `--color-red-dark`, `--color-red-hover`) con el `primaryColor` del gym. Todos los componentes usan theme tokens de Tailwind (`brand-red`, `brand-red-dark`, `brand-red-active`) que resuelven a estas variables, así que cada gym tiene su propio color de acentuación sin cambios adicionales en el código.
+- El color de acentuación se guarda en `primaryColor` de la DB y se aplica automáticamente **a partir de `/{slug}` inclusive** (la propia landing del gym ya lo respeta, no recién desde el login). El layout `src/app/[gymSlug]/layout.tsx` sobreescribe las CSS custom properties (`--color-red`, `--color-red-dark`, `--color-red-hover`) con el `primaryColor` del gym envolviendo a todos sus children — incluyendo la landing `/{slug}/page.tsx`. Todos los componentes usan theme tokens de Tailwind (`brand-red`, `brand-red-dark`, `brand-red-active`) que resuelven a estas variables, así que cada gym tiene su propio color de acentuación sin cambios adicionales en el código. La landing pública de WODY (`/`) queda fuera de este scope y mantiene el rojo de marca.
 
 ---
 

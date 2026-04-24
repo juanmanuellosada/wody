@@ -23,7 +23,7 @@ async function main() {
       slug: "mila-fit",
       kind: GymKind.GYM,
       logo: null,
-      primaryColor: "#f80710",
+      primaryColor: "#ff3873",
     },
   });
 
