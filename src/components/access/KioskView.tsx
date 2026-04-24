@@ -210,7 +210,7 @@ export function KioskView({
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
               Ingresos
             </h2>
@@ -220,17 +220,6 @@ export function KioskView({
               </span>
             )}
             <div className="flex-1 h-px bg-line" aria-hidden="true" />
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500">
-              Día
-            </span>
-            <div className="w-[180px]">
-              <DatePicker
-                value={selectedDate}
-                onChange={(v) => setSelectedDate(v)}
-              />
-            </div>
             {!isToday && (
               <button
                 type="button"
@@ -240,6 +229,12 @@ export function KioskView({
                 Hoy
               </button>
             )}
+            <div className="w-[180px]">
+              <DatePicker
+                value={selectedDate}
+                onChange={(v) => setSelectedDate(v)}
+              />
+            </div>
           </div>
           {recent.length === 0 ? (
             <p className="text-sm text-gray-600 font-body italic">
