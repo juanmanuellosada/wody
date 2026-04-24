@@ -10,7 +10,7 @@ import {
   type LookupUser,
 } from "@/actions/access";
 import { formatMemberNumber } from "@/lib/memberNumber";
-import { formatDateArg, getTodayArgentina } from "@/lib/dates";
+import { formatDateArg, getTodayArgentina, toInputDate } from "@/lib/dates";
 
 interface PendingUser {
   id: string;
@@ -50,6 +50,9 @@ export function KioskView({
   const [qrSvg, setQrSvg] = useState(initialQrSvg);
   const [pending, setPending] = useState<PendingLog[]>([]);
   const [recent, setRecent] = useState<RecentLog[]>([]);
+  const todayStr = toInputDate(getTodayArgentina());
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const isToday = selectedDate === todayStr;
   // Toast que aparece cuando llega un ingreso nuevo (escaneo o manual).
   // Se muestra 3s y se va. Acknowledgeamos el último id visto para no
   // re-disparar el toast en cada poll.
@@ -72,13 +75,24 @@ export function KioskView({
     setQrSvg(initialQrSvg);
   }, [initialQrSvg]);
 
+  // Reset del toast tracker al cambiar de día: evita que al volver a hoy
+  // flashee un toast con el último ingreso pre-existente.
+  useEffect(() => {
+    lastSeenRecentIdRef.current = null;
+    setToast(null);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+  }, [selectedDate]);
+
   // Polling del feed cada 2s.
   useEffect(() => {
     let cancelled = false;
 
     async function tick() {
       try {
-        const res = await fetch("/api/ingresos/pending", { cache: "no-store" });
+        const res = await fetch(
+          `/api/ingresos/pending?date=${encodeURIComponent(selectedDate)}`,
+          { cache: "no-store" }
+        );
         if (!res.ok) return;
         const data = (await res.json()) as {
           pending: PendingLog[];
@@ -91,7 +105,9 @@ export function KioskView({
         // Toast: si el primero de recientes es distinto al último que
         // vimos (y NO es el primer tick), flasheamos. Evita disparar
         // en el primer load para no popear toast de entradas viejas.
-        if (data.recent.length > 0) {
+        // Solo tiene sentido al mirar el día de hoy (en días pasados
+        // la lista no cambia en tiempo real).
+        if (isToday && data.recent.length > 0) {
           const latest = data.recent[0];
           if (
             lastSeenRecentIdRef.current !== null &&
@@ -115,7 +131,7 @@ export function KioskView({
       clearInterval(interval);
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
-  }, [gymSlug]);
+  }, [gymSlug, selectedDate, isToday]);
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
@@ -193,15 +209,43 @@ export function KioskView({
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
-              Recientes
+              Ingresos
             </h2>
+            {recent.length > 0 && (
+              <span className="text-xs font-heading font-bold text-gray-400 bg-elev border border-edge px-2 py-0.5">
+                {recent.length}
+              </span>
+            )}
             <div className="flex-1 h-px bg-line" aria-hidden="true" />
+            <label className="flex items-center gap-2">
+              <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500">
+                Día
+              </span>
+              <input
+                type="date"
+                value={selectedDate}
+                max={todayStr}
+                onChange={(e) => setSelectedDate(e.target.value || todayStr)}
+                className="bg-elev border border-edge text-white text-xs font-body px-2 py-1 focus:outline-none focus:border-brand-red transition-colors duration-200"
+              />
+              {!isToday && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(todayStr)}
+                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-white px-2 py-1"
+                >
+                  Hoy
+                </button>
+              )}
+            </label>
           </div>
           {recent.length === 0 ? (
             <p className="text-sm text-gray-600 font-body italic">
-              Todavía no hay ingresos hoy.
+              {isToday
+                ? "Todavía no hay ingresos hoy."
+                : `No hubo ingresos el ${formatDateArg(new Date(selectedDate + "T12:00:00Z"))}.`}
             </p>
           ) : (
             <ul className="flex flex-col divide-y divide-line border border-line">
