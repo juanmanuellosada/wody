@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
 import {
   decideCheckin,
   lookupForKiosk,
@@ -209,7 +210,7 @@ export function KioskView({
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
             <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
               Ingresos
             </h2>
@@ -219,27 +220,26 @@ export function KioskView({
               </span>
             )}
             <div className="flex-1 h-px bg-line" aria-hidden="true" />
-            <label className="flex items-center gap-2">
-              <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500">
-                Día
-              </span>
-              <input
-                type="date"
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500">
+              Día
+            </span>
+            <div className="w-[180px]">
+              <DatePicker
                 value={selectedDate}
-                max={todayStr}
-                onChange={(e) => setSelectedDate(e.target.value || todayStr)}
-                className="bg-elev border border-edge text-white text-xs font-body px-2 py-1 focus:outline-none focus:border-brand-red transition-colors duration-200"
+                onChange={(v) => setSelectedDate(v)}
               />
-              {!isToday && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedDate(todayStr)}
-                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-white px-2 py-1"
-                >
-                  Hoy
-                </button>
-              )}
-            </label>
+            </div>
+            {!isToday && (
+              <button
+                type="button"
+                onClick={() => setSelectedDate(todayStr)}
+                className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-white px-2 py-1"
+              >
+                Hoy
+              </button>
+            )}
           </div>
           {recent.length === 0 ? (
             <p className="text-sm text-gray-600 font-body italic">
