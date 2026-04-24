@@ -82,7 +82,9 @@ export default async function AdminPage({ params }: Props) {
   }
   const allTeacherOptions = teachers.map((t) => ({ id: t.id, name: t.name }));
 
-  const totalTeachers = users.filter((u) => u.role === "TEACHER").length;
+  const totalTeachers = users.filter(
+    (u) => u.role === "TEACHER" || u.role === "ADMIN"
+  ).length;
   const totalStudents = students.length;
 
   return (

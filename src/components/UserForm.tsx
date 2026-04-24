@@ -80,6 +80,7 @@ export function UserForm({ terms }: UserFormProps) {
           <option value="" disabled>
             Selecciona un rol
           </option>
+          <option value="ADMIN">Admin (Profe)</option>
           <option value="TEACHER">Profe</option>
           <option value="STUDENT">Alumno</option>
         </select>

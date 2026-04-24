@@ -36,8 +36,8 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
   if (!password || password.length < 6) {
     return { success: false, error: "La contraseña debe tener al menos 6 caracteres." };
   }
-  if (role !== "TEACHER" && role !== "STUDENT") {
-    return { success: false, error: "El rol debe ser Profe o Alumno." };
+  if (role !== "ADMIN" && role !== "TEACHER" && role !== "STUDENT") {
+    return { success: false, error: "El rol debe ser Admin, Profe o Alumno." };
   }
   if (studentType !== "GENERAL" && studentType !== "PERSONALIZED") {
     return { success: false, error: "Tipo de alumno invalido." };
