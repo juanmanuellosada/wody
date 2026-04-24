@@ -40,7 +40,7 @@ export default async function AdminPage({ params }: Props) {
     prisma.user.findMany({
       where: { gymId },
       orderBy: [{ role: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, email: true, role: true, studentType: true, createdAt: true, groupId: true, nextPaymentDate: true, blockedAt: true, memberNumber: true },
+      select: { id: true, name: true, email: true, role: true, studentType: true, canCreateOwnRoutines: true, createdAt: true, groupId: true, nextPaymentDate: true, blockedAt: true, memberNumber: true },
     }),
     prisma.group.findMany({
       where: { teacher: { gymId } },
@@ -135,7 +135,7 @@ export default async function AdminPage({ params }: Props) {
             </h2>
           </div>
           <div className="p-5">
-            <UserForm terms={terms} />
+            <UserForm terms={terms} teachers={allTeacherOptions} />
           </div>
         </section>
 
@@ -325,6 +325,8 @@ export default async function AdminPage({ params }: Props) {
                           email={user.email}
                           nextPaymentDate={user.nextPaymentDate}
                           blocked={user.blockedAt !== null}
+                          studentType={user.studentType}
+                          canCreateOwnRoutines={user.canCreateOwnRoutines}
                           assignedTeachers={teachersByStudentId.get(user.id) ?? []}
                           allTeachers={allTeacherOptions}
                         />
@@ -421,6 +423,8 @@ export default async function AdminPage({ params }: Props) {
                       name={user.name}
                       email={user.email}
                       nextPaymentDate={user.nextPaymentDate}
+                      studentType={user.studentType}
+                      canCreateOwnRoutines={user.canCreateOwnRoutines}
                       assignedTeachers={teachersByStudentId.get(user.id) ?? []}
                       allTeachers={allTeacherOptions}
                     />

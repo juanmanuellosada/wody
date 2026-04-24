@@ -22,6 +22,39 @@ export type WodResult =
   | { success: true; wodId?: string }
   | { success: false; error: string };
 
+type SessionUser = {
+  id: string;
+  role: string;
+  canCreateOwnRoutines: boolean;
+};
+
+function isSelfTarget(target: WodTarget, userId: string) {
+  return target.type === "STUDENT" && target.studentId === userId;
+}
+
+// Authorizes a create/update where the acting user is also the WOD's "teacher"
+// field. Teachers/admins can use any target; other roles can only target
+// themselves and only if they have canCreateOwnRoutines.
+function canWriteWithTarget(user: SessionUser, target: WodTarget) {
+  if (user.role === "TEACHER" || user.role === "ADMIN") return true;
+  return user.canCreateOwnRoutines && isSelfTarget(target, user.id);
+}
+
+// Authorizes operations that don't take a new target (delete, some updates).
+// Teachers/admins can always act on wods they own. Self-service users can act
+// on their own self-targeted wods.
+function canWriteExisting(
+  user: SessionUser,
+  wod: { targetType: string; targetStudentId: string | null }
+) {
+  if (user.role === "TEACHER" || user.role === "ADMIN") return true;
+  return (
+    user.canCreateOwnRoutines &&
+    wod.targetType === "STUDENT" &&
+    wod.targetStudentId === user.id
+  );
+}
+
 async function validateTarget(
   target: WodTarget,
   teacherId: string
@@ -32,6 +65,9 @@ async function validateTarget(
       return "Grupo no encontrado.";
     }
   } else if (target.type === "STUDENT") {
+    // Self-target (teacher creating their own routine, or self-service
+    // student) doesn't require a TeacherStudent link.
+    if (target.studentId === teacherId) return null;
     const link = await prisma.teacherStudent.findUnique({
       where: { teacherId_studentId: { teacherId, studentId: target.studentId } },
     });
@@ -58,10 +94,7 @@ export async function createWod(
 ): Promise<WodResult> {
   const session = await auth();
 
-  if (
-    !session?.user ||
-    (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")
-  ) {
+  if (!session?.user || !canWriteWithTarget(session.user, target)) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -92,6 +125,7 @@ export async function createWod(
 
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
   revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/mis-rutinas"));
   return { success: true, wodId: wod.id };
 }
 
@@ -104,10 +138,7 @@ export async function updateWod(
 ): Promise<WodResult> {
   const session = await auth();
 
-  if (
-    !session?.user ||
-    (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")
-  ) {
+  if (!session?.user) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -121,6 +152,16 @@ export async function updateWod(
 
   if (!wod || wod.teacherId !== teacherId) {
     return { success: false, error: terms.wodNotFound };
+  }
+
+  if (!canWriteExisting(session.user, wod)) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  // Self-service students can't reassign target; force-keep existing target
+  // when the new one isn't still self.
+  if (target && !canWriteWithTarget(session.user, target)) {
+    return { success: false, error: "No autorizado." };
   }
 
   const trimmedTitle = title.trim() || terms.wod;
@@ -146,6 +187,7 @@ export async function updateWod(
 
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
   revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/mis-rutinas"));
   return { success: true };
 }
 
@@ -156,10 +198,7 @@ export async function copyWod(
 ): Promise<WodResult> {
   const session = await auth();
 
-  if (
-    !session?.user ||
-    (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")
-  ) {
+  if (!session?.user) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -187,6 +226,10 @@ export async function copyWod(
       : {}),
   } as WodTarget;
 
+  if (!canWriteWithTarget(session.user, resolvedTarget)) {
+    return { success: false, error: "No autorizado." };
+  }
+
   const targetError = await validateTarget(resolvedTarget, teacherId);
   if (targetError) return { success: false, error: targetError };
 
@@ -204,16 +247,14 @@ export async function copyWod(
 
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
   revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/mis-rutinas"));
   return { success: true, wodId: newWod.id };
 }
 
 export async function deleteWod(wodId: string): Promise<WodResult> {
   const session = await auth();
 
-  if (
-    !session?.user ||
-    (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")
-  ) {
+  if (!session?.user) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -229,9 +270,14 @@ export async function deleteWod(wodId: string): Promise<WodResult> {
     return { success: false, error: terms.wodNotFound };
   }
 
+  if (!canWriteExisting(session.user, wod)) {
+    return { success: false, error: "No autorizado." };
+  }
+
   await prisma.wod.delete({ where: { id: wodId } });
 
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
   revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/mis-rutinas"));
   return { success: true };
 }

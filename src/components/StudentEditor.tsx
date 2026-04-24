@@ -3,9 +3,16 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { updateStudent, assignStudent, unassignStudent, setUserBlocked } from "@/actions/user";
+import {
+  updateStudent,
+  assignStudent,
+  unassignStudent,
+  setUserBlocked,
+  setCanCreateOwnRoutines,
+} from "@/actions/user";
 import { setStudentPaymentDate } from "@/actions/payment";
 import { toInputDate } from "@/lib/dates";
+import type { StudentType } from "@prisma/client";
 
 interface TeacherOption {
   id: string;
@@ -18,6 +25,8 @@ interface StudentEditorProps {
   currentEmail: string;
   currentPaymentDate?: Date;
   currentBlocked?: boolean;
+  currentStudentType: StudentType;
+  currentCanCreateOwnRoutines: boolean;
   assignedTeachers: TeacherOption[];
   allTeachers: TeacherOption[];
   onClose: () => void;
@@ -30,6 +39,8 @@ export function StudentEditor({
   currentEmail,
   currentPaymentDate,
   currentBlocked = false,
+  currentStudentType,
+  currentCanCreateOwnRoutines,
   assignedTeachers,
   allTeachers,
   onClose,
@@ -39,6 +50,7 @@ export function StudentEditor({
   const [email, setEmail] = useState(currentEmail);
   const [password, setPassword] = useState("");
   const [blocked, setBlocked] = useState(currentBlocked);
+  const [canCreate, setCanCreate] = useState(currentCanCreateOwnRoutines);
   const currentPaymentDateStr = currentPaymentDate
     ? toInputDate(currentPaymentDate)
     : "";
@@ -46,6 +58,10 @@ export function StudentEditor({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [addTeacherId, setAddTeacherId] = useState("");
+
+  const showCanCreateToggle = currentStudentType === "PERSONALIZED";
+  // Sin profe asignado el alumno tiene que autogestionarse: bloqueamos el toggle en true.
+  const canCreateLocked = assignedTeachers.length === 0;
 
   const availableTeachers = allTeachers.filter(
     (t) => !assignedTeachers.some((at) => at.id === t.id)
@@ -123,6 +139,20 @@ export function StudentEditor({
         return;
       }
       setBlocked(next);
+    });
+  }
+
+  function handleToggleCanCreate() {
+    if (demo || canCreateLocked) return;
+    setError(null);
+    const next = !canCreate;
+    startTransition(async () => {
+      const result = await setCanCreateOwnRoutines(studentId, next);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setCanCreate(next);
     });
   }
 
@@ -240,6 +270,32 @@ export function StudentEditor({
             </div>
           )}
         </div>
+
+        {/* Self-service routines */}
+        {showCanCreateToggle && (
+          <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 block">
+              Rutinas propias
+            </label>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-gray-500 font-body leading-snug max-w-[16rem]">
+                {canCreateLocked
+                  ? "Sin profe asignado: el alumno se autogestiona."
+                  : canCreate
+                  ? "Puede crearse sus propias rutinas."
+                  : "No puede crearse rutinas."}
+              </p>
+              <Button
+                variant={canCreate ? "danger" : "primary"}
+                size="sm"
+                onClick={handleToggleCanCreate}
+                disabled={isPending || canCreateLocked}
+              >
+                {canCreate ? "Desactivar" : "Activar"}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Block / unblock */}
         {!demo && (

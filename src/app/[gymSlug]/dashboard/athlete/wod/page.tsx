@@ -23,6 +23,7 @@ export default async function WodFullPage({ params, searchParams }: Props) {
 
   const { id: wodId } = await searchParams;
   const studentId = session.user.id;
+  const canCreateOwn = session.user.canCreateOwnRoutines;
   const athletePath = gymPath(gymSlug, "/dashboard/athlete");
 
   // Find all teachers assigned to this student
@@ -32,7 +33,7 @@ export default async function WodFullPage({ params, searchParams }: Props) {
   });
   const teacherIds = teacherLinks.map((l) => l.teacherId);
 
-  if (teacherIds.length === 0) {
+  if (teacherIds.length === 0 && !canCreateOwn) {
     redirect(athletePath);
   }
 
@@ -47,27 +48,40 @@ export default async function WodFullPage({ params, searchParams }: Props) {
 
   const isPersonalized = student?.studentType === "PERSONALIZED";
 
-  const targetFilter = {
-    OR: [
-      { targetType: "ALL" as const },
-      ...(isPersonalized
-        ? [
-            { targetType: "PERSONALIZED" as const },
-            ...(student?.groupId
-              ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
-              : []),
-            { targetType: "STUDENT" as const, targetStudentId: studentId },
-          ]
-        : []),
-    ],
-  };
+  const teacherWodClause = teacherIds.length > 0
+    ? [{
+        teacherId: { in: teacherIds },
+        OR: [
+          { targetType: "ALL" as const },
+          ...(isPersonalized
+            ? [
+                { targetType: "PERSONALIZED" as const },
+                ...(student?.groupId
+                  ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
+                  : []),
+                { targetType: "STUDENT" as const, targetStudentId: studentId },
+              ]
+            : []),
+        ],
+      }]
+    : [];
+
+  const selfWodClause = canCreateOwn
+    ? [{
+        teacherId: studentId,
+        targetType: "STUDENT" as const,
+        targetStudentId: studentId,
+      }]
+    : [];
+
+  const visibleClause = { OR: [...teacherWodClause, ...selfWodClause] };
 
   let wod;
 
   if (wodId) {
-    // Specific WOD by ID — verify it belongs to one of the student's teachers and target matches
+    // Specific WOD by ID — verify the student has visibility on it
     wod = await prisma.wod.findFirst({
-      where: { id: wodId, teacherId: { in: teacherIds }, ...targetFilter },
+      where: { id: wodId, ...visibleClause },
       select: { id: true, title: true, content: true, date: true, teacherId: true },
     });
     if (!wod) {
@@ -77,11 +91,11 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     // Default: today's WOD — fetch and compare date strings to bypass
     // Prisma/pg timezone ambiguity with @db.Date columns
     const todayStr = toInputDate(getTodayArgentina());
-    const teacherWods = await prisma.wod.findMany({
-      where: { teacherId: { in: teacherIds }, ...targetFilter },
+    const visibleWods = await prisma.wod.findMany({
+      where: visibleClause,
       select: { id: true, title: true, content: true, date: true, teacherId: true },
     });
-    wod = teacherWods.find((w) => toInputDate(w.date) === todayStr) ?? null;
+    wod = visibleWods.find((w) => toInputDate(w.date) === todayStr) ?? null;
   }
 
   if (!wod) {

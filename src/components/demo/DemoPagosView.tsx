@@ -221,6 +221,8 @@ export function DemoPagosView({
                             name={row.name}
                             email={row.email}
                             nextPaymentDate={row.nextPaymentDate}
+                            studentType="PERSONALIZED"
+                            canCreateOwnRoutines={false}
                             assignedTeachers={row.assignedTeachers}
                             allTeachers={allTeachers}
                             demo
@@ -278,6 +280,8 @@ export function DemoPagosView({
                           name={row.name}
                           email={row.email}
                           nextPaymentDate={row.nextPaymentDate}
+                          studentType="PERSONALIZED"
+                          canCreateOwnRoutines={false}
                           assignedTeachers={row.assignedTeachers}
                           allTeachers={allTeachers}
                           demo

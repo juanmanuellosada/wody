@@ -30,6 +30,8 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
   const password = (formData.get("password") as string | null)?.trim();
   const role = formData.get("role") as string | null;
   const studentType = (formData.get("studentType") as string | null) || "PERSONALIZED";
+  const teacherIdRaw = (formData.get("teacherId") as string | null)?.trim() || null;
+  const canCreateOwnRoutinesRaw = formData.get("canCreateOwnRoutines");
 
   if (!name) return { success: false, error: "El nombre es obligatorio." };
   if (!email) return { success: false, error: "El email es obligatorio." };
@@ -43,12 +45,42 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
     return { success: false, error: "Tipo de alumno invalido." };
   }
 
+  // Resolve canCreateOwnRoutines + teacher link according to role/type rules.
+  const isPersonalizedStudent = role === "STUDENT" && studentType === "PERSONALIZED";
+  const requestedCanCreate = canCreateOwnRoutinesRaw === "1" || canCreateOwnRoutinesRaw === "true";
+
+  let canCreateOwnRoutines = false;
+  let teacherIdToLink: string | null = null;
+
+  if (role === "TEACHER" || role === "ADMIN") {
+    canCreateOwnRoutines = true;
+  } else if (isPersonalizedStudent) {
+    teacherIdToLink = teacherIdRaw;
+    // Sin profe asignado el alumno tiene que autogestionarse.
+    canCreateOwnRoutines = teacherIdToLink ? requestedCanCreate : true;
+  }
+  // GENERAL students: flag stays false, no teacher link at creation time.
+
+  if (teacherIdToLink) {
+    const teacher = await prisma.user.findUnique({
+      where: { id: teacherIdToLink },
+      select: { gymId: true, role: true },
+    });
+    if (
+      !teacher ||
+      teacher.gymId !== gymId ||
+      (teacher.role !== "TEACHER" && teacher.role !== "ADMIN")
+    ) {
+      return { success: false, error: "El profe seleccionado no es válido." };
+    }
+  }
+
   const hashedPassword = await hash(password, 10);
 
   try {
-    // Transacción: incrementa Gym.nextMemberNumber y crea el user con el
-    // número anterior. Atómico para evitar colisiones si dos creaciones
-    // ocurren en paralelo.
+    // Transacción: incrementa Gym.nextMemberNumber, crea el user con el
+    // número anterior y (si corresponde) crea el vínculo con el profe.
+    // Atómico para evitar colisiones si dos creaciones ocurren en paralelo.
     const memberNumber = await prisma.$transaction(async (tx) => {
       const gym = await tx.gym.update({
         where: { id: gymId },
@@ -56,21 +88,28 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
         select: { nextMemberNumber: true },
       });
       const assigned = gym.nextMemberNumber - 1;
-      await tx.user.create({
+      const created = await tx.user.create({
         data: {
           name,
           email,
           password: hashedPassword,
           role: role as Role,
           studentType: (role === "STUDENT" ? studentType : "PERSONALIZED") as StudentType,
+          canCreateOwnRoutines,
           gymId,
           memberNumber: assigned,
         },
       });
+      if (teacherIdToLink) {
+        await tx.teacherStudent.create({
+          data: { teacherId: teacherIdToLink, studentId: created.id },
+        });
+      }
       return assigned;
     });
 
     revalidatePath(gymPath(gymSlug, "/admin"));
+    revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
     return { success: true, memberNumber };
   } catch (error) {
     if (
@@ -165,12 +204,23 @@ export async function unassignStudent(
   const gymSlug = session.user.gymSlug;
 
   try {
-    await prisma.teacherStudent.delete({
-      where: { teacherId_studentId: { teacherId, studentId } },
+    await prisma.$transaction(async (tx) => {
+      await tx.teacherStudent.delete({
+        where: { teacherId_studentId: { teacherId, studentId } },
+      });
+      // Si al alumno no le queda ningún profe, tiene que autogestionarse.
+      const remaining = await tx.teacherStudent.count({ where: { studentId } });
+      if (remaining === 0) {
+        await tx.user.update({
+          where: { id: studentId },
+          data: { canCreateOwnRoutines: true },
+        });
+      }
     });
 
     revalidatePath(gymPath(gymSlug, "/admin"));
     revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+    revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
     return { success: true };
   } catch (error) {
     if (
@@ -323,12 +373,66 @@ export async function toggleStudentType(userId: string): Promise<UserResult> {
     where: { id: userId },
     data: {
       studentType: newType,
-      // GENERAL students can't belong to groups
-      ...(newType === "GENERAL" ? { groupId: null } : {}),
+      // GENERAL students can't belong to groups ni crear sus propias rutinas
+      ...(newType === "GENERAL"
+        ? { groupId: null, canCreateOwnRoutines: false }
+        : {}),
     },
   });
 
   revalidatePath(gymPath(gymSlug, "/admin"));
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+  return { success: true };
+}
+
+export async function setCanCreateOwnRoutines(
+  studentId: string,
+  value: boolean
+): Promise<UserResult> {
+  const session = await auth();
+
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const gymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+
+  const student = await prisma.user.findUnique({
+    where: { id: studentId },
+    select: { gymId: true, role: true, studentType: true },
+  });
+
+  if (!student || student.gymId !== gymId || student.role !== "STUDENT") {
+    return { success: false, error: "Alumno no encontrado." };
+  }
+
+  if (student.studentType !== "PERSONALIZED") {
+    return {
+      success: false,
+      error: "Solo alumnos personalizados pueden autogestionar rutinas.",
+    };
+  }
+
+  // Si no tiene profe asignado, el flag tiene que quedar en true.
+  if (!value) {
+    const linkCount = await prisma.teacherStudent.count({
+      where: { studentId },
+    });
+    if (linkCount === 0) {
+      return {
+        success: false,
+        error: "El alumno no tiene profe asignado: no podés desactivarlo.",
+      };
+    }
+  }
+
+  await prisma.user.update({
+    where: { id: studentId },
+    data: { canCreateOwnRoutines: value },
+  });
+
+  revalidatePath(gymPath(gymSlug, "/admin"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
   return { success: true };
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { StudentEditor } from "@/components/StudentEditor";
+import type { StudentType } from "@prisma/client";
 
 interface TeacherOption {
   id: string;
@@ -15,6 +16,8 @@ interface EditStudentButtonProps {
   email: string;
   nextPaymentDate?: Date;
   blocked?: boolean;
+  studentType: StudentType;
+  canCreateOwnRoutines: boolean;
   assignedTeachers: TeacherOption[];
   allTeachers: TeacherOption[];
   demo?: boolean;
@@ -26,6 +29,8 @@ export function EditStudentButton({
   email,
   nextPaymentDate,
   blocked,
+  studentType,
+  canCreateOwnRoutines,
   assignedTeachers,
   allTeachers,
   demo,
@@ -44,6 +49,8 @@ export function EditStudentButton({
           currentEmail={email}
           currentPaymentDate={nextPaymentDate}
           currentBlocked={blocked}
+          currentStudentType={studentType}
+          currentCanCreateOwnRoutines={canCreateOwnRoutines}
           assignedTeachers={assignedTeachers}
           allTeachers={allTeachers}
           onClose={() => setOpen(false)}

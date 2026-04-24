@@ -48,7 +48,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
     return <div style={accentVars}>{children}</div>;
   }
 
-  const { id: userId, name, role, studentType } = session.user;
+  const { id: userId, name, role, canCreateOwnRoutines } = session.user;
 
   // One DB read covers both: the blocked check (every request) and the
   // student's next payment date used for the status banner.
@@ -92,11 +92,11 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
       <Navbar
         userName={name ?? "Usuario"}
         role={role}
-        studentType={studentType}
         gymSlug={gymSlug}
         gymName={gym.name}
         onSignOut={handleSignOut}
         terms={gymTerms(gym.kind)}
+        canCreateOwnRoutines={canCreateOwnRoutines}
       />
       <main
         className={[

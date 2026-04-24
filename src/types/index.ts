@@ -7,6 +7,7 @@ declare module "next-auth" {
       id: string;
       role: Role;
       studentType: StudentType;
+      canCreateOwnRoutines: boolean;
       gymId: string;
       gymSlug: string;
     } & DefaultSession["user"];
@@ -15,6 +16,7 @@ declare module "next-auth" {
   interface User {
     role: Role;
     studentType: StudentType;
+    canCreateOwnRoutines: boolean;
     gymId: string;
     gymSlug: string;
   }
@@ -25,6 +27,7 @@ declare module "@auth/core/types" {
   interface User {
     role: Role;
     studentType: StudentType;
+    canCreateOwnRoutines: boolean;
     gymId: string;
     gymSlug: string;
   }

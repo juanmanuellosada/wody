@@ -18,15 +18,26 @@ interface NavbarProps {
   gymName: string;
   onSignOut: () => void;
   terms: GymTerms;
+  canCreateOwnRoutines?: boolean;
 }
 
-function getNavLinks(role: Role, gymSlug: string, terms: GymTerms) {
+function getNavLinks(
+  role: Role,
+  gymSlug: string,
+  terms: GymTerms,
+  canCreateOwnRoutines: boolean
+) {
   const accessControl = hasAccessControl(gymSlug);
+  const myRoutinesLink = {
+    href: gymPath(gymSlug, "/dashboard/mis-rutinas"),
+    label: `Mis ${terms.wods}`,
+  };
 
   if (role === "ADMIN") {
     return [
       { href: gymPath(gymSlug, "/admin"), label: "Panel Admin" },
       { href: gymPath(gymSlug, "/dashboard/teacher"), label: "Dashboard Profe" },
+      ...(canCreateOwnRoutines ? [myRoutinesLink] : []),
       { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
       ...(accessControl
         ? [{ href: gymPath(gymSlug, "/ingresos"), label: "Ingresos" }]
@@ -38,7 +49,8 @@ function getNavLinks(role: Role, gymSlug: string, terms: GymTerms) {
   }
   if (role === "TEACHER") {
     return [
-      { href: gymPath(gymSlug, "/dashboard/teacher"), label: `Mis ${terms.wods}` },
+      { href: gymPath(gymSlug, "/dashboard/teacher"), label: `${terms.wods} de mis alumnos` },
+      ...(canCreateOwnRoutines ? [myRoutinesLink] : []),
       { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
       { href: gymPath(gymSlug, "/dashboard/rms"), label: `Mis ${terms.rms}` },
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
@@ -54,16 +66,19 @@ function getNavLinks(role: Role, gymSlug: string, terms: GymTerms) {
   }
   return [
     { href: gymPath(gymSlug, "/dashboard/athlete"), label: `Mi ${terms.wod}` },
+    ...(canCreateOwnRoutines
+      ? [{ href: gymPath(gymSlug, "/dashboard/mis-rutinas"), label: "Mis rutinas" }]
+      : []),
     { href: gymPath(gymSlug, "/dashboard/rms"), label: `Mis ${terms.rms}` },
     { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
     { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
   ];
 }
 
-export function Navbar({ userName, role, gymSlug, gymName, onSignOut, terms }: NavbarProps) {
+export function Navbar({ userName, role, gymSlug, gymName, onSignOut, terms, canCreateOwnRoutines = false }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
-  const links = getNavLinks(role, gymSlug, terms);
+  const links = getNavLinks(role, gymSlug, terms, canCreateOwnRoutines);
 
   const roleLabel =
     role === "ADMIN"

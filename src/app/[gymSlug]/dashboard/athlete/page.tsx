@@ -24,6 +24,7 @@ export default async function StudentDashboardPage({ params }: Props) {
   }
 
   const studentId = session.user.id;
+  const canCreateOwn = session.user.canCreateOwnRoutines;
   const todayStr = toInputDate(getTodayArgentina());
 
   const [teacherLinks, student, gym] = await Promise.all([
@@ -56,8 +57,8 @@ export default async function StudentDashboardPage({ params }: Props) {
 
   const wodPath = gymPath(gymSlug, "/dashboard/athlete/wod");
 
-  // Student aún sin profe asignado: estado de onboarding (no es paywall).
-  if (teacherIds.length === 0) {
+  // Student aún sin profe y sin autogestión habilitada: onboarding (no paywall).
+  if (teacherIds.length === 0 && !canCreateOwn) {
     return (
       <div className="flex flex-col gap-10">
         {accessCard}
@@ -92,22 +93,34 @@ export default async function StudentDashboardPage({ params }: Props) {
 
   const isPersonalized = student?.studentType === "PERSONALIZED";
 
+  const teacherWodClause = teacherIds.length > 0
+    ? [{
+        teacherId: { in: teacherIds },
+        OR: [
+          { targetType: "ALL" as const },
+          ...(isPersonalized
+            ? [
+                { targetType: "PERSONALIZED" as const },
+                ...(student?.groupId
+                  ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
+                  : []),
+                { targetType: "STUDENT" as const, targetStudentId: studentId },
+              ]
+            : []),
+        ],
+      }]
+    : [];
+
+  const selfWodClause = canCreateOwn
+    ? [{
+        teacherId: studentId,
+        targetType: "STUDENT" as const,
+        targetStudentId: studentId,
+      }]
+    : [];
+
   const allWods = await prisma.wod.findMany({
-    where: {
-      teacherId: { in: teacherIds },
-      OR: [
-        { targetType: "ALL" },
-        ...(isPersonalized
-          ? [
-              { targetType: "PERSONALIZED" as const },
-              ...(student?.groupId
-                ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
-                : []),
-              { targetType: "STUDENT" as const, targetStudentId: studentId },
-            ]
-          : []),
-      ],
-    },
+    where: { OR: [...teacherWodClause, ...selfWodClause] },
     orderBy: { date: "desc" },
     select: { id: true, title: true, content: true, date: true },
   });

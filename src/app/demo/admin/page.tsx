@@ -245,6 +245,8 @@ export default function DemoAdminPage() {
                             studentId={user.id}
                             name={user.name}
                             email={user.email}
+                            studentType="PERSONALIZED"
+                            canCreateOwnRoutines={false}
                             assignedTeachers={[]}
                             allTeachers={[]}
                             demo
@@ -293,7 +295,7 @@ export default function DemoAdminPage() {
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     {user.role === "STUDENT" && (
-                      <EditStudentButton studentId={user.id} name={user.name} email={user.email} assignedTeachers={[]} allTeachers={[]} demo />
+                      <EditStudentButton studentId={user.id} name={user.name} email={user.email} studentType="PERSONALIZED" canCreateOwnRoutines={false} assignedTeachers={[]} allTeachers={[]} demo />
                     )}
                     <Button variant="danger" size="sm" disabled>Eliminar</Button>
                   </div>

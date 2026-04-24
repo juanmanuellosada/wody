@@ -30,6 +30,8 @@ type PaymentRow = {
   email: string;
   nextPaymentDate: Date;
   blockedAt: Date | null;
+  studentType: import("@prisma/client").StudentType;
+  canCreateOwnRoutines: boolean;
   assignedTeachers: { id: string; name: string }[];
 };
 
@@ -96,6 +98,8 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
             email: true,
             nextPaymentDate: true,
             blockedAt: true,
+            studentType: true,
+            canCreateOwnRoutines: true,
           },
         })
       : prisma.user.findMany({
@@ -111,6 +115,8 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
             email: true,
             nextPaymentDate: true,
             blockedAt: true,
+            studentType: true,
+            canCreateOwnRoutines: true,
           },
         }),
     prisma.teacherStudent.findMany({
@@ -331,6 +337,8 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                             email={row.email}
                             nextPaymentDate={row.nextPaymentDate}
                             blocked={row.blockedAt !== null}
+                            studentType={row.studentType}
+                            canCreateOwnRoutines={row.canCreateOwnRoutines}
                             assignedTeachers={row.assignedTeachers}
                             allTeachers={teachers}
                           />
@@ -418,6 +426,8 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                           email={row.email}
                           nextPaymentDate={row.nextPaymentDate}
                           blocked={row.blockedAt !== null}
+                          studentType={row.studentType}
+                          canCreateOwnRoutines={row.canCreateOwnRoutines}
                           assignedTeachers={row.assignedTeachers}
                           allTeachers={teachers}
                         />

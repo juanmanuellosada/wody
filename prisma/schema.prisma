@@ -73,6 +73,7 @@ model User {
   name            String
   role            Role
   studentType     StudentType @default(PERSONALIZED)
+  canCreateOwnRoutines Boolean @default(false)
   gymId           String
   groupId         String?
   createdAt       DateTime    @default(now())

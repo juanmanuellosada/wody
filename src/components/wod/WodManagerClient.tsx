@@ -42,11 +42,14 @@ interface WodManagerClientProps {
   students: StudentOption[];
   terms: GymTerms;
   demo?: boolean;
+  // Cuando se pasa, todos los WODs se crean/editan contra este target
+  // y se oculta el selector. Se usa en la pantalla "Mis rutinas".
+  lockedTarget?: WodTarget;
 }
 
 type Mode = "view" | "create" | "edit";
 
-export function WodManagerClient({ wods, groups, students, terms, demo }: WodManagerClientProps) {
+export function WodManagerClient({ wods, groups, students, terms, demo, lockedTarget }: WodManagerClientProps) {
   const todayStr = toInputDate(getTodayArgentina());
 
   const [mode, setMode] = useState<Mode>("view");
@@ -59,7 +62,8 @@ export function WodManagerClient({ wods, groups, students, terms, demo }: WodMan
     () => (copyWodId ? wods.find((w) => w.id === copyWodId) ?? null : null),
     [copyWodId, wods]
   );
-  const [target, setTarget] = useState<WodTarget>({ type: "ALL" });
+  const initialTarget: WodTarget = lockedTarget ?? { type: "ALL" };
+  const [target, setTarget] = useState<WodTarget>(initialTarget);
   const [formError, setFormError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -80,7 +84,7 @@ export function WodManagerClient({ wods, groups, students, terms, demo }: WodMan
     setNewDate(todayStr);
     setEditorTitle("");
     setEditorContent("");
-    setTarget({ type: "ALL" });
+    setTarget(lockedTarget ?? { type: "ALL" });
     setFormError(null);
   }
 
@@ -90,7 +94,9 @@ export function WodManagerClient({ wods, groups, students, terms, demo }: WodMan
     setEditorTitle(wod.title);
     setEditorContent(normalizeContent(wod.content));
     setNewDate(toInputDate(wod.date));
-    if (wod.targetType === "GROUP" && wod.targetGroupId) {
+    if (lockedTarget) {
+      setTarget(lockedTarget);
+    } else if (wod.targetType === "GROUP" && wod.targetGroupId) {
       setTarget({ type: "GROUP", groupId: wod.targetGroupId });
     } else if (wod.targetType === "STUDENT" && wod.targetStudentId) {
       setTarget({ type: "STUDENT", studentId: wod.targetStudentId });
@@ -161,13 +167,15 @@ export function WodManagerClient({ wods, groups, students, terms, demo }: WodMan
 
           {/* Editor area */}
           <div className="p-5 flex flex-col gap-4">
-            <TargetSelector
-              groups={groups}
-              students={students}
-              value={target}
-              onChange={setTarget}
-              disabled={isPending}
-            />
+            {!lockedTarget && (
+              <TargetSelector
+                groups={groups}
+                students={students}
+                value={target}
+                onChange={setTarget}
+                disabled={isPending}
+              />
+            )}
 
             <input
               type="text"
@@ -244,9 +252,10 @@ export function WodManagerClient({ wods, groups, students, terms, demo }: WodMan
               wod={wod}
               onEdit={() => startEdit(wod)}
               onDelete={() => handleDelete(wod.id)}
-              onCopy={() => setCopyWodId(wod.id)}
+              onCopy={lockedTarget ? undefined : () => setCopyWodId(wod.id)}
               disabled={isPending || mode !== "view"}
               demoMode={demo}
+              hideTargetBadge={!!lockedTarget}
             />
           ))}
         </div>
@@ -270,9 +279,10 @@ interface WodManagerCardProps {
   wod: WodForManager;
   onEdit: () => void;
   onDelete: () => void;
-  onCopy: () => void;
+  onCopy?: () => void;
   disabled: boolean;
   demoMode?: boolean;
+  hideTargetBadge?: boolean;
 }
 
 function WodManagerCard({
@@ -282,6 +292,7 @@ function WodManagerCard({
   onCopy,
   disabled,
   demoMode,
+  hideTargetBadge,
 }: WodManagerCardProps) {
   const preview = getContentPreview(wod.content);
 
@@ -295,16 +306,20 @@ function WodManagerCard({
           <span className="text-sm font-heading font-bold text-white">
             {wod.title}
           </span>
-          <TargetBadge
-            targetType={wod.targetType}
-            targetGroupName={wod.targetGroupName}
-            targetStudentName={wod.targetStudentName}
-          />
+          {!hideTargetBadge && (
+            <TargetBadge
+              targetType={wod.targetType}
+              targetGroupName={wod.targetGroupName}
+              targetStudentName={wod.targetStudentName}
+            />
+          )}
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="ghost" size="sm" onClick={onCopy} disabled={disabled}>
-            Copiar
-          </Button>
+          {onCopy && (
+            <Button variant="ghost" size="sm" onClick={onCopy} disabled={disabled}>
+              Copiar
+            </Button>
+          )}
           <Button variant="secondary" size="sm" onClick={onEdit} disabled={disabled}>
             Editar
           </Button>
