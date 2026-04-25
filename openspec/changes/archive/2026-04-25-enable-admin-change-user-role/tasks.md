@@ -29,18 +29,18 @@
 
 ## 4. Verificación manual
 
-- [ ] 4.1 Logueado como ADMIN: promover a un TEACHER no bloqueado. Confirmar que el diálogo aparece, que la lista refresca con el usuario como ADMIN, y que las filas de `TeacherStudent` donde figura como `teacherId` se conservan (`select count(*) from "TeacherStudent" where "teacherId" = ?`).
-- [ ] 4.2 Logueado como el TEACHER recién promovido: cerrar sesión, volver a entrar, comprobar que la sesión refleja `role = ADMIN` y que el panel de admin es accesible.
-- [ ] 4.3 Bloquear a un TEACHER (con `setUserBlocked` desde la UI). Verificar que el botón "Promover a admin" aparece deshabilitado con el indicador de bloqueo. Intentar postear el form a mano (curl/devtools): la action devuelve error.
-- [ ] 4.4 Logueado como ADMIN del gym A: postear el form a mano apuntando a un TEACHER del gym B. Confirmar rechazo.
-- [ ] 4.5 Logueado como ADMIN: postear el form a mano apuntando a un usuario ADMIN, STUDENT o ACCESS. Confirmar rechazo con mensaje explícito (no no-op silencioso).
-- [ ] 4.6 Logueado como TEACHER, STUDENT o ACCESS: confirmar que el botón no aparece y que postear el form directo es rechazado por la action.
-- [ ] 4.7 Verificar que el panel de admin **no** muestra el botón "Promover a admin" en filas que ya son ADMIN ni en filas STUDENT/ACCESS.
+- [x] 4.1 Logueado como ADMIN: promover a un TEACHER no bloqueado. Confirmar que el diálogo aparece, que la lista refresca con el usuario como ADMIN, y que las filas de `TeacherStudent` donde figura como `teacherId` se conservan (`select count(*) from "TeacherStudent" where "teacherId" = ?`).
+- [x] 4.2 Logueado como el TEACHER recién promovido: cerrar sesión, volver a entrar, comprobar que la sesión refleja `role = ADMIN` y que el panel de admin es accesible.
+- [x] 4.3 Bloquear a un TEACHER (con `setUserBlocked` desde la UI). Verificar que el botón "Promover a admin" aparece deshabilitado con el indicador de bloqueo. Intentar postear el form a mano (curl/devtools): la action devuelve error.
+- [x] 4.4 Logueado como ADMIN del gym A: postear el form a mano apuntando a un TEACHER del gym B. Confirmar rechazo.
+- [x] 4.5 Logueado como ADMIN: postear el form a mano apuntando a un usuario ADMIN, STUDENT o ACCESS. Confirmar rechazo con mensaje explícito (no no-op silencioso).
+- [x] 4.6 Logueado como TEACHER, STUDENT o ACCESS: confirmar que el botón no aparece y que postear el form directo es rechazado por la action.
+- [x] 4.7 Verificar que el panel de admin **no** muestra el botón "Promover a admin" en filas que ya son ADMIN ni en filas STUDENT/ACCESS.
 
 ## 5. Cierre
 
 - [x] 5.1 `npm run lint` limpio.
 - [x] 5.2 `npm run build` limpio.
 - [x] 5.3 Commit en Conventional Commits en español, scope por feature: `feat(admin): permitir promover un profe a admin desde el panel`.
-- [ ] 5.4 Marcar todas las tasks como completadas en este archivo.
-- [ ] 5.5 Ejecutar `/opsx:archive enable-admin-change-user-role` para promover los specs a `openspec/specs/` y mover el cambio a `openspec/changes/archive/`.
+- [x] 5.4 Marcar todas las tasks como completadas en este archivo.
+- [x] 5.5 Ejecutar `/opsx:archive enable-admin-change-user-role` para promover los specs a `openspec/specs/` y mover el cambio a `openspec/changes/archive/`.
