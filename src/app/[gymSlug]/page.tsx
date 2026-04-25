@@ -8,6 +8,7 @@ import { gymTerms } from "@/lib/gym-terms";
 
 import wodyTexto from "@/logos/wody-texto.png";
 import { GYM_LOGOS_SQUARE } from "@/lib/gym-logos";
+import { GYM_LOCATIONS } from "@/lib/gym-locations";
 
 interface GymLandingProps {
   params: Promise<{ gymSlug: string }>;
@@ -77,9 +78,15 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
         <div className="w-12 sm:w-16 h-1 bg-brand-red my-4 sm:my-6 line-expand" aria-hidden="true" />
 
         <p className="text-sm sm:text-base text-gray-400 max-w-md mb-8 sm:mb-10 leading-relaxed font-body">
-          Los Polvorines, Buenos Aires.
-          <br />
-          Gestiona tus entrenamientos y records personales.
+          {GYM_LOCATIONS[gymSlug] ? (
+            <>
+              {GYM_LOCATIONS[gymSlug]}.
+              <br />
+              Gestiona tus entrenamientos y records personales.
+            </>
+          ) : (
+            <>Gestiona tus entrenamientos y records personales.</>
+          )}
         </p>
 
         <Link

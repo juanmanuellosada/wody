@@ -18,6 +18,7 @@ import unidosLogo from "@/logos/unidos-logo-completo.png";
 import rompiendoLogo from "@/logos/rompiendo-limites.png";
 import milaFitLogo from "@/logos/mila-fit.png";
 import atlasLogo from "@/logos/atlas-gym.png";
+import { GYM_LOCATIONS } from "@/lib/gym-locations";
 import { BenefitsSection } from "@/components/benefits/BenefitsSection";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 
@@ -268,7 +269,7 @@ export default async function LandingPage() {
                 Unidos Garage
               </span>
               <span className="text-xs text-gray-600 font-body">
-                CrossFit — Los Polvorines, BA
+                CrossFit — {GYM_LOCATIONS["unidos-garage"]}
               </span>
             </Link>
 
@@ -287,7 +288,7 @@ export default async function LandingPage() {
                 Rompiendo Limites
               </span>
               <span className="text-xs text-gray-600 font-body">
-                CrossFit — Boulogne, BA
+                CrossFit — {GYM_LOCATIONS["rompiendo-limites"]}
               </span>
             </Link>
 
@@ -306,7 +307,7 @@ export default async function LandingPage() {
                 Atlas
               </span>
               <span className="text-xs text-gray-600 font-body">
-                Gym &amp; Fitness — Los Polvorines, BA
+                Gym &amp; Fitness — {GYM_LOCATIONS["atlas-gym"]}
               </span>
             </Link>
 
@@ -325,7 +326,7 @@ export default async function LandingPage() {
                 Mila Fit
               </span>
               <span className="text-xs text-gray-600 font-body">
-                Gym &amp; Fitness — Los Polvorines, BA
+                Gym &amp; Fitness — {GYM_LOCATIONS["mila-fit"]}
               </span>
             </Link>
           </div>

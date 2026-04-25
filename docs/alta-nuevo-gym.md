@@ -31,16 +31,20 @@ Hacé todo lo necesario para que el gym quede operativo:
 
 2. **Landing page (`src/app/page.tsx`):**
    - Importar el logo del nuevo gym
-   - Si está "Habilitado": agregar un `<Link>` clickeable al slug del gym (igual que los activos)
+   - Si está "Habilitado": agregar un `<Link>` clickeable al slug del gym (igual que los activos). La localidad que aparece en la card **no se hardcodea inline** — se interpola desde `GYM_LOCATIONS` (ver paso 3).
    - Si está "Próximamente": agregar un `<div>` con opacidad reducida y el label "Proximamente" (igual que los existentes)
 
 El logo cargado es src/logos/[NOMBRE-DEL-LOGO].png
 
-3. **Logo mapping:** Los logos de los gyms están **centralizados en un solo archivo**: `src/lib/gym-logos.ts`. Agregar el nuevo slug+logo en los diccionarios que correspondan:
+3. **Mappings centralizados:** Hay dos archivos en `src/lib/` que funcionan como diccionarios por slug y deben actualizarse al dar de alta un gym nuevo:
+
+   **`src/lib/gym-logos.ts`** — logos de cada gym. Agregar el nuevo slug+logo en los diccionarios que correspondan:
    - `GYM_LOGOS_SQUARE` — logo vertical/cuadrado. Se usa en la landing del gym, en el login, y en las imágenes compartibles de PRs.
    - `GYM_LOGOS_HORIZONTAL` — logo horizontal/wordmark. Se usa en el navbar.
 
-Si el gym no tiene alguno de los dos tipos de logo, no lo agregues a ese map — la app cae automáticamente a mostrar el nombre del gym como texto (incluidas las imágenes de PRs compartibles).
+   Si el gym no tiene alguno de los dos tipos de logo, no lo agregues a ese map — la app cae automáticamente a mostrar el nombre del gym como texto (incluidas las imágenes de PRs compartibles).
+
+   **`src/lib/gym-locations.ts`** — localidad de cada gym. Shape: `Record<string, string>`, valores con el formato `"Ciudad, Provincia"` (provincia con nombre completo, no abreviada). Agregar el nuevo slug con su localidad. Consumido por la landing general (`src/app/page.tsx`) y por la landing del propio gym (`src/app/[gymSlug]/page.tsx`). Si el slug no está en el map, la landing del gym omite la línea de localidad sin romper.
 
 4. **Verificar** que no se rompa nada: correr `npx prisma generate` y `npm run build` para asegurarte de que compila.
 
