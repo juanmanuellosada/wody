@@ -81,8 +81,8 @@ export async function sendDueReminderIfNeeded(
   userId: string,
   today: Date = getTodayArgentina()
 ): Promise<{ sent: boolean; reason: string }> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+  const user = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
     select: {
       role: true,
       blockedAt: true,

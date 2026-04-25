@@ -26,7 +26,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
 
   const [wods, groups, myStudents, gym] = await Promise.all([
     prisma.wod.findMany({
-      where: { teacherId },
+      where: { teacherId, deletedAt: null },
       orderBy: { date: "desc" },
       select: {
         id: true,
@@ -41,7 +41,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
       },
     }),
     prisma.group.findMany({
-      where: { teacherId },
+      where: { teacherId, deletedAt: null },
       orderBy: { name: "asc" },
       select: { id: true, name: true, students: { select: { id: true, name: true } } },
     }),

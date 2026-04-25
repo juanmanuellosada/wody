@@ -60,7 +60,7 @@ async function validateTarget(
   teacherId: string
 ): Promise<string | null> {
   if (target.type === "GROUP") {
-    const group = await prisma.group.findUnique({ where: { id: target.groupId } });
+    const group = await prisma.group.findFirst({ where: { id: target.groupId, deletedAt: null } });
     if (!group || group.teacherId !== teacherId) {
       return "Grupo no encontrado.";
     }
@@ -146,8 +146,8 @@ export async function updateWod(
   const { gymSlug } = session.user;
   const terms = await termsForSlug(gymSlug);
 
-  const wod = await prisma.wod.findUnique({
-    where: { id: wodId },
+  const wod = await prisma.wod.findFirst({
+    where: { id: wodId, deletedAt: null },
   });
 
   if (!wod || wod.teacherId !== teacherId) {
@@ -206,8 +206,8 @@ export async function copyWod(
   const { gymSlug } = session.user;
   const terms = await termsForSlug(gymSlug);
 
-  const sourceWod = await prisma.wod.findUnique({
-    where: { id: sourceWodId },
+  const sourceWod = await prisma.wod.findFirst({
+    where: { id: sourceWodId, deletedAt: null },
     select: { title: true, content: true, teacherId: true, targetType: true, targetGroupId: true, targetStudentId: true },
   });
 
@@ -262,8 +262,8 @@ export async function deleteWod(wodId: string): Promise<WodResult> {
   const { gymSlug } = session.user;
   const terms = await termsForSlug(gymSlug);
 
-  const wod = await prisma.wod.findUnique({
-    where: { id: wodId },
+  const wod = await prisma.wod.findFirst({
+    where: { id: wodId, deletedAt: null },
   });
 
   if (!wod || wod.teacherId !== teacherId) {

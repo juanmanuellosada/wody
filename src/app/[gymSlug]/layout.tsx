@@ -54,10 +54,14 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
   // student's next payment date used for the status banner.
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { blockedAt: true, nextPaymentDate: true, role: true },
+    select: { blockedAt: true, deletedAt: true, nextPaymentDate: true, role: true },
   });
 
   if (dbUser) {
+    if (dbUser.deletedAt !== null) {
+      redirect("/api/auth/kick?next=/");
+    }
+
     const status = getBlockStatus(
       {
         role: dbUser.role,

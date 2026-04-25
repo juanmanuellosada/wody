@@ -19,7 +19,7 @@ async function assertCanEditStudent(studentId: string) {
     return { ok: false as const, error: "No autorizado." };
   }
 
-  const student = await prisma.user.findUnique({ where: { id: studentId } });
+  const student = await prisma.user.findFirst({ where: { id: studentId, deletedAt: null } });
   if (
     !student ||
     student.gymId !== session.user.gymId ||

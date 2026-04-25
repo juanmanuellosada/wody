@@ -90,7 +90,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
   const [students, teacherLinks, teachers, gymConfig] = await Promise.all([
     isAdmin
       ? prisma.user.findMany({
-          where: { gymId, role: "STUDENT" },
+          where: { gymId, role: "STUDENT", deletedAt: null },
           orderBy: { nextPaymentDate: "asc" },
           select: {
             id: true,
@@ -106,6 +106,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
           where: {
             gymId,
             role: "STUDENT",
+            deletedAt: null,
             studentOf: { some: { teacherId: session.user.id } },
           },
           orderBy: { nextPaymentDate: "asc" },
@@ -124,7 +125,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
       select: { teacherId: true, studentId: true },
     }),
     prisma.user.findMany({
-      where: { gymId, OR: [{ role: "TEACHER" }, { role: "ADMIN" }] },
+      where: { gymId, deletedAt: null, OR: [{ role: "TEACHER" }, { role: "ADMIN" }] },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),

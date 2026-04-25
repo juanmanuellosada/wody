@@ -62,8 +62,8 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
   // GENERAL students: flag stays false, no teacher link at creation time.
 
   if (teacherIdToLink) {
-    const teacher = await prisma.user.findUnique({
-      where: { id: teacherIdToLink },
+    const teacher = await prisma.user.findFirst({
+      where: { id: teacherIdToLink, deletedAt: null },
       select: { gymId: true, role: true },
     });
     if (
@@ -142,8 +142,43 @@ export async function deleteUser(userId: string): Promise<UserResult> {
     return { success: false, error: "Usuario no encontrado." };
   }
 
-  // Cascade is handled by Prisma onDelete: Cascade on all relations
-  await prisma.user.delete({ where: { id: userId } });
+  // Idempotencia: si ya está borrado, no rehacemos la cascada.
+  if (user.deletedAt !== null) {
+    return { success: true };
+  }
+
+  const now = new Date();
+
+  if (user.role === "TEACHER" || user.role === "ADMIN") {
+    // Capturar IDs de grupos activos del profe ANTES de soft-deletarlos,
+    // para luego nullear el groupId de los alumnos que apuntaban a esos grupos.
+    const activeGroups = await prisma.group.findMany({
+      where: { teacherId: userId, deletedAt: null },
+      select: { id: true },
+    });
+    const deletedGroupIds = activeGroups.map((g) => g.id);
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: userId }, data: { deletedAt: now } }),
+      prisma.group.updateMany({ where: { teacherId: userId, deletedAt: null }, data: { deletedAt: now } }),
+      prisma.wod.updateMany({ where: { teacherId: userId, deletedAt: null }, data: { deletedAt: now } }),
+      prisma.teacherStudent.deleteMany({ where: { OR: [{ teacherId: userId }, { studentId: userId }] } }),
+      prisma.pushSubscription.deleteMany({ where: { userId } }),
+      prisma.accessLog.updateMany({ where: { decidedById: userId }, data: { decidedById: null } }),
+      ...(deletedGroupIds.length > 0
+        ? [prisma.user.updateMany({ where: { groupId: { in: deletedGroupIds } }, data: { groupId: null } })]
+        : []),
+    ]);
+  } else {
+    // STUDENT o ACCESS
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: userId }, data: { deletedAt: now } }),
+      prisma.teacherStudent.deleteMany({ where: { studentId: userId } }),
+      prisma.pushSubscription.deleteMany({ where: { userId } }),
+      prisma.wod.updateMany({ where: { targetStudentId: userId, deletedAt: null }, data: { targetStudentId: null } }),
+      prisma.accessLog.updateMany({ where: { decidedById: userId }, data: { decidedById: null } }),
+    ]);
+  }
 
   revalidatePath(gymPath(gymSlug, "/admin"));
   return { success: true };
@@ -162,12 +197,12 @@ export async function assignStudent(
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
-  const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
+  const teacher = await prisma.user.findFirst({ where: { id: teacherId, deletedAt: null } });
   if (!teacher || teacher.gymId !== gymId || (teacher.role !== "TEACHER" && teacher.role !== "ADMIN")) {
     return { success: false, error: "El profe no existe o no tiene el rol correcto." };
   }
 
-  const student = await prisma.user.findUnique({ where: { id: studentId } });
+  const student = await prisma.user.findFirst({ where: { id: studentId, deletedAt: null } });
   if (!student || student.gymId !== gymId || student.role !== "STUDENT") {
     return { success: false, error: "El alumno no existe o no tiene el rol correcto." };
   }
@@ -249,7 +284,7 @@ export async function updateStudent(
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
-  const student = await prisma.user.findUnique({ where: { id: studentId } });
+  const student = await prisma.user.findFirst({ where: { id: studentId, deletedAt: null } });
   if (!student || student.gymId !== gymId || student.role !== "STUDENT") {
     return { success: false, error: "Alumno no encontrado." };
   }
@@ -275,9 +310,9 @@ export async function updateStudent(
   if (data.email !== undefined) {
     const trimmed = data.email.trim().toLowerCase();
     if (!trimmed) return { success: false, error: "El email no puede estar vacío." };
-    // Check email uniqueness within gym
-    const existing = await prisma.user.findUnique({
-      where: { email_gymId: { email: trimmed, gymId } },
+    // Check email uniqueness within gym (only active users)
+    const existing = await prisma.user.findFirst({
+      where: { email: trimmed, gymId, deletedAt: null },
     });
     if (existing && existing.id !== studentId) {
       return { success: false, error: "Ya existe un usuario con ese email en este gym." };
@@ -330,7 +365,7 @@ export async function setUserBlocked(
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
   if (!user || user.gymId !== gymId) {
     return { success: false, error: "Usuario no encontrado." };
   }
@@ -360,7 +395,7 @@ export async function toggleStudentType(userId: string): Promise<UserResult> {
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
 
   if (!user || user.gymId !== gymId || user.role !== "STUDENT") {
     return { success: false, error: "Alumno no encontrado." };
@@ -400,7 +435,7 @@ export async function promoteTeacherToAdmin(formData: FormData): Promise<UserRes
     return { success: false, error: "El usuario es obligatorio." };
   }
 
-  const target = await prisma.user.findUnique({ where: { id: userId } });
+  const target = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
   if (!target) {
     return { success: false, error: "Usuario no encontrado." };
   }
@@ -443,8 +478,8 @@ export async function setCanCreateOwnRoutines(
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
-  const student = await prisma.user.findUnique({
-    where: { id: studentId },
+  const student = await prisma.user.findFirst({
+    where: { id: studentId, deletedAt: null },
     select: { gymId: true, role: true, studentType: true },
   });
 

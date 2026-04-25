@@ -39,12 +39,12 @@ export default async function AdminPage({ params }: Props) {
 
   const [users, allGroups, teacherStudentLinks, gymConfig] = await Promise.all([
     prisma.user.findMany({
-      where: { gymId },
+      where: { gymId, deletedAt: null },
       orderBy: [{ role: "asc" }, { name: "asc" }],
       select: { id: true, name: true, email: true, role: true, studentType: true, canCreateOwnRoutines: true, createdAt: true, groupId: true, nextPaymentDate: true, blockedAt: true, memberNumber: true },
     }),
     prisma.group.findMany({
-      where: { teacher: { gymId } },
+      where: { teacher: { gymId }, deletedAt: null },
       orderBy: [{ teacher: { name: "asc" } }, { name: "asc" }],
       select: {
         id: true,

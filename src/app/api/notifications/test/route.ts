@@ -15,8 +15,8 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const targetUserId = searchParams.get("userId") ?? session.user.id;
 
-  const target = await prisma.user.findUnique({
-    where: { id: targetUserId },
+  const target = await prisma.user.findFirst({
+    where: { id: targetUserId, deletedAt: null },
     select: { id: true, gymId: true, gym: { select: { name: true } } },
   });
 

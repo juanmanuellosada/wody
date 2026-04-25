@@ -81,7 +81,7 @@ export default async function WodFullPage({ params, searchParams }: Props) {
   if (wodId) {
     // Specific WOD by ID — verify the student has visibility on it
     wod = await prisma.wod.findFirst({
-      where: { id: wodId, ...visibleClause },
+      where: { id: wodId, deletedAt: null, ...visibleClause },
       select: { id: true, title: true, content: true, date: true, teacherId: true },
     });
     if (!wod) {
@@ -92,7 +92,7 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     // Prisma/pg timezone ambiguity with @db.Date columns
     const todayStr = toInputDate(getTodayArgentina());
     const visibleWods = await prisma.wod.findMany({
-      where: visibleClause,
+      where: { ...visibleClause, deletedAt: null },
       select: { id: true, title: true, content: true, date: true, teacherId: true },
     });
     wod = visibleWods.find((w) => toInputDate(w.date) === todayStr) ?? null;

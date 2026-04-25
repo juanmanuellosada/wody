@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
   const candidates = await prisma.user.findMany({
     where: {
       role: "STUDENT",
+      deletedAt: null,
       blockedAt: null,
       gym: { blockedAt: null },
       nextPaymentDate: { gte: today, lte: rangeEnd },

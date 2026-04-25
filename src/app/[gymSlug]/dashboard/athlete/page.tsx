@@ -120,7 +120,7 @@ export default async function StudentDashboardPage({ params }: Props) {
     : [];
 
   const allWods = await prisma.wod.findMany({
-    where: { OR: [...teacherWodClause, ...selfWodClause] },
+    where: { OR: [...teacherWodClause, ...selfWodClause], deletedAt: null },
     orderBy: { date: "desc" },
     select: { id: true, title: true, content: true, date: true },
   });

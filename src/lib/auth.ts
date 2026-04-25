@@ -46,8 +46,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Candidate users: filtered by gymSlug when provided, otherwise any gym.
         const candidates = await prisma.user.findMany({
           where: gymSlug
-            ? { email, gym: { slug: gymSlug } }
-            : { email },
+            ? { email, deletedAt: null, gym: { slug: gymSlug } }
+            : { email, deletedAt: null },
           include: { gym: true },
         });
 

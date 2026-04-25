@@ -31,8 +31,8 @@ export async function createCheckin(
     return { success: false, error: "Código vencido. Escaneá el QR de nuevo." };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+  const user = await prisma.user.findFirst({
+    where: { id: session.user.id, deletedAt: null },
     select: {
       id: true,
       role: true,
@@ -157,7 +157,7 @@ export async function lookupForKiosk(input: string): Promise<LookupResult> {
 
   if (trimmed.includes("@")) {
     user = await prisma.user.findFirst({
-      where: { gymId, email: trimmed.toLowerCase() },
+      where: { gymId, email: trimmed.toLowerCase(), deletedAt: null },
       select: {
         id: true,
         name: true,
@@ -169,7 +169,7 @@ export async function lookupForKiosk(input: string): Promise<LookupResult> {
     });
   } else if (/^\d{1,6}$/.test(trimmed)) {
     user = await prisma.user.findFirst({
-      where: { gymId, memberNumber: parseInt(trimmed, 10) },
+      where: { gymId, memberNumber: parseInt(trimmed, 10), deletedAt: null },
       select: {
         id: true,
         name: true,
@@ -219,8 +219,8 @@ export async function createManualCheckin(
     return { success: false, error: "No autorizado." };
   }
 
-  const target = await prisma.user.findUnique({
-    where: { id: userId },
+  const target = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
     select: { gymId: true },
   });
   if (!target || target.gymId !== session.user.gymId) {

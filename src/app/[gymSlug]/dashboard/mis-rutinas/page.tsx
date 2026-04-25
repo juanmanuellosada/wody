@@ -32,6 +32,7 @@ export default async function MyRoutinesPage({ params }: Props) {
         teacherId: userId,
         targetType: "STUDENT",
         targetStudentId: userId,
+        deletedAt: null,
       },
       orderBy: { date: "desc" },
       select: {

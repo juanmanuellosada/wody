@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 enum Role {
@@ -79,6 +80,7 @@ model User {
   createdAt       DateTime    @default(now())
   nextPaymentDate DateTime    @default(now()) @db.Date
   blockedAt       DateTime?
+  deletedAt       DateTime?
   lastDueNotifiedOn DateTime? @db.Date
   memberNumber    Int
 
@@ -96,21 +98,30 @@ model User {
   accessesAsUser    AccessLog[] @relation("AccessLogUser")
   accessesDecidedBy AccessLog[] @relation("AccessLogDecidedBy")
 
-  @@unique([email, gymId])
-  @@unique([gymId, memberNumber])
+  // Unicidades parciales (solo filas activas, deletedAt IS NULL).
+  // Los índices únicos totales fueron reemplazados por índices únicos parciales
+  // de PostgreSQL en la migration add_user_soft_delete. Prisma no soporta WHERE
+  // en @@unique, por eso se usan @@index no únicos aquí para mantener la
+  // ergonomía de queries (findUnique por email_gymId / gymId_memberNumber).
+  @@index([email, gymId])
+  @@index([gymId, memberNumber])
+  @@index([gymId, deletedAt])
 }
 
 model Group {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   teacherId String
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
 
   teacher  User   @relation("TeacherGroups", fields: [teacherId], references: [id], onDelete: Cascade)
   students User[] @relation("GroupStudents")
   wods     Wod[]  @relation("WodTargetGroup")
 
-  @@unique([teacherId, name])
+  // Unicidad parcial: solo entre grupos activos del mismo profe.
+  // El índice único parcial vive en la migration add_user_soft_delete.
+  @@index([teacherId, name])
 }
 
 model Wod {
@@ -124,6 +135,7 @@ model Wod {
   targetStudentId String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
 
   teacher       User   @relation("TeacherWods", fields: [teacherId], references: [id], onDelete: Cascade)
   targetGroup   Group? @relation("WodTargetGroup", fields: [targetGroupId], references: [id], onDelete: SetNull)

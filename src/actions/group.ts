@@ -63,7 +63,7 @@ export async function renameGroup(
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
 
-  const group = await prisma.group.findUnique({ where: { id: groupId } });
+  const group = await prisma.group.findFirst({ where: { id: groupId, deletedAt: null } });
 
   if (!group || (group.teacherId !== teacherId && session.user.role !== "ADMIN")) {
     return { success: false, error: "Grupo no encontrado." };
@@ -107,13 +107,18 @@ export async function deleteGroup(groupId: string): Promise<GroupResult> {
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
 
-  const group = await prisma.group.findUnique({ where: { id: groupId } });
+  const group = await prisma.group.findFirst({ where: { id: groupId, deletedAt: null } });
 
   if (!group || (group.teacherId !== teacherId && session.user.role !== "ADMIN")) {
     return { success: false, error: "Grupo no encontrado." };
   }
 
-  await prisma.group.delete({ where: { id: groupId } });
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.group.update({ where: { id: groupId }, data: { deletedAt: now } }),
+    prisma.user.updateMany({ where: { groupId }, data: { groupId: null } }),
+    prisma.wod.updateMany({ where: { targetGroupId: groupId }, data: { targetGroupId: null } }),
+  ]);
 
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
   revalidatePath(gymPath(gymSlug, "/admin"));
@@ -136,12 +141,12 @@ export async function assignStudentToGroup(
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
 
-  const group = await prisma.group.findUnique({ where: { id: groupId } });
+  const group = await prisma.group.findFirst({ where: { id: groupId, deletedAt: null } });
   if (!group || (group.teacherId !== teacherId && session.user.role !== "ADMIN")) {
     return { success: false, error: "Grupo no encontrado." };
   }
 
-  const student = await prisma.user.findUnique({ where: { id: studentId } });
+  const student = await prisma.user.findFirst({ where: { id: studentId, deletedAt: null } });
   if (!student || student.role !== "STUDENT") {
     return { success: false, error: "Alumno no encontrado." };
   }
@@ -184,7 +189,7 @@ export async function removeStudentFromGroup(
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
 
-  const student = await prisma.user.findUnique({ where: { id: studentId } });
+  const student = await prisma.user.findFirst({ where: { id: studentId, deletedAt: null } });
   if (!student || student.role !== "STUDENT") {
     return { success: false, error: "Alumno no encontrado." };
   }

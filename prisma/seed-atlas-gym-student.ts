@@ -13,16 +13,16 @@ async function main() {
     return;
   }
 
-  const admin = await prisma.user.findUnique({
-    where: { email_gymId: { email: "juanmalosada01@gmail.com", gymId: gym.id } },
+  const admin = await prisma.user.findFirst({
+    where: { email: "juanmalosada01@gmail.com", gymId: gym.id },
   });
   if (!admin) {
     console.log("No se encontró el admin en atlas-gym.");
     return;
   }
 
-  const existing = await prisma.user.findUnique({
-    where: { email_gymId: { email: STUDENT_EMAIL, gymId: gym.id } },
+  const existing = await prisma.user.findFirst({
+    where: { email: STUDENT_EMAIL, gymId: gym.id },
   });
   if (existing) {
     console.log(`El alumno '${STUDENT_EMAIL}' ya existe. Abortando.`);
