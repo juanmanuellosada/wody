@@ -48,19 +48,19 @@
 
 ## 5. Validación local
 
-- [ ] 5.1 Crear un profe de prueba con dos alumnos, un grupo y dos rutinas. Borrar al profe. Verificar:
+- [x] 5.1 Crear un profe de prueba con dos alumnos, un grupo y dos rutinas. Borrar al profe. Verificar:
   - su `deletedAt != null`,
   - sus rutinas `deletedAt != null`,
   - su grupo `deletedAt != null`,
   - filas de `TeacherStudent` desaparecen,
   - alumnos siguen activos y sin profe,
   - `groupId` de los alumnos quedó en `null`.
-- [ ] 5.2 Intentar loguearse como el profe borrado. Debe fallar con mismo mensaje que credencial inválida.
-- [ ] 5.3 Crear un nuevo usuario con el mismo email y `memberNumber` del profe borrado, en el mismo gym. Debe permitirse.
-- [ ] 5.4 Borrar un alumno con RMs e ingresos. Verificar que `RM` y `AccessLog` con `userId = alumno` siguen presentes y la única diferencia es `deletedAt` en `User`.
-- [ ] 5.5 Borrar un usuario `ACCESS`. Verificar que `AccessLog.decidedById` que apuntaban a él quedaron en `null`.
-- [ ] 5.6 Restaurar manualmente vía DB (`UPDATE "User" SET "deletedAt" = NULL WHERE id = ...`). Verificar que el usuario puede loguearse y aparece en listados.
-- [ ] 5.7 Verificar que el panel de admin, la lista de pagos y los listados de alumnos no muestran usuarios borrados.
+- [x] 5.2 Intentar loguearse como el profe borrado. Debe fallar con mismo mensaje que credencial inválida.
+- [x] 5.3 Crear un nuevo usuario con el mismo email y `memberNumber` del profe borrado, en el mismo gym. Debe permitirse.
+- [x] 5.4 Borrar un alumno con RMs e ingresos. Verificar que `RM` y `AccessLog` con `userId = alumno` siguen presentes y la única diferencia es `deletedAt` en `User`.
+- [x] 5.5 Borrar un usuario `ACCESS`. Verificar que `AccessLog.decidedById` que apuntaban a él quedaron en `null`.
+- [x] 5.6 Restaurar manualmente vía DB (`UPDATE "User" SET "deletedAt" = NULL WHERE id = ...`). Verificar que el usuario puede loguearse y aparece en listados.
+- [x] 5.7 Verificar que el panel de admin, la lista de pagos y los listados de alumnos no muestran usuarios borrados.
 
 ## 6. Limpieza y revisión
 
@@ -68,7 +68,7 @@
 - [x] 6.2 Confirmar que `npm run lint` pasa.
 - [x] 6.3 Revisar `git diff` y verificar que ningún `prisma.user.delete`, `prisma.group.delete`, `prisma.wod.delete` quedó en flujos de producto. Buscar con `grep -rn "\.delete(" src/`.
 - [x] 6.4 Actualizar `docs/` si algún flujo documentado mencionaba "borrar usuario" implicando borrado físico (revisar `docs/alta-nuevo-gym.md`, `docs/alta-nuevo-box.md`, `docs/control-accesos.md`).
-- [ ] 6.5 Commit en español siguiendo Conventional Commits, p. ej. `feat(user): borrado lógico de usuarios con cascada por rol`.
+- [x] 6.5 Commit en español siguiendo Conventional Commits, p. ej. `feat(user): borrado lógico de usuarios con cascada por rol`.
 
 ## 7. deleteGroup soft-delete + shadowDatabaseUrl
 
