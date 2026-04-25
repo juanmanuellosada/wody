@@ -1,14 +1,5 @@
 # Prompt para dar de alta un nuevo box en WODY
 
-Copiar, completar los datos, y pegar en una nueva conversación de Claude Code en el directorio del proyecto.
-
-Este prompt es para **boxes de CrossFit / funcional** (`kind: "BOX"`). Si vas a dar de alta un gimnasio tradicional, usá [`docs/alta-nuevo-gym.md`](./alta-nuevo-gym.md).
-
----
-
-## Prompt
-
-```
 Necesito dar de alta un nuevo box en WODY. Estos son los datos:
 
 ## Datos del gimnasio
@@ -54,52 +45,3 @@ Si el gym no tiene alguno de los dos tipos de logo, no lo agregues a ese map —
 4. **Verificar** que no se rompa nada: correr `npx prisma generate` y `npm run build` para asegurarte de que compila.
 
 No modifiques el schema de Prisma (ya soporta multi-gym y los dos kinds). No modifiques `src/lib/gym-terms.ts` (el helper ya maneja ambas terminologías). No borres datos existentes. Si creo alumnos, asignalos a sus profes correspondientes con TeacherStudent.
-```
-
----
-
-## Bloquear / desbloquear un gym
-
-El bloqueo de gym es manual vía SQL (no hay UI). Cuando `Gym.blockedAt` no es null, ningún usuario del gym puede loguearse y cualquier ruta bajo `/{slug}/*` redirige a `/`. Las sesiones vivas se firman fuera en el primer request después del bloqueo.
-
-```sql
--- Bloquear
-UPDATE "Gym" SET "blockedAt" = NOW() WHERE slug = 'slug-del-gym';
-
--- Desbloquear
-UPDATE "Gym" SET "blockedAt" = NULL WHERE slug = 'slug-del-gym';
-```
-
-## Tolerancia de auto-bloqueo por mora
-
-Cada gym tiene su propio umbral de días de atraso antes de que un alumno quede auto-bloqueado (`Gym.autoBlockAfterDays`, default `5` → se bloquea a partir del día 6). Se edita a mano:
-
-```sql
-UPDATE "Gym" SET "autoBlockAfterDays" = 10 WHERE slug = 'slug-del-gym';
-```
-
-## Cómo funciona la terminología BOX vs GYM
-
-La UI resuelve en runtime qué palabras mostrar según `Gym.kind`, vía el helper `gymTerms(kind)` en `src/lib/gym-terms.ts`:
-
-| `kind: "BOX"` | `kind: "GYM"` |
-|---|---|
-| WOD / WODs | Rutina / Rutinas |
-| RM / RMs | PR / PRs |
-| "Pasá por tu box" | "Pasá por tu gym" |
-| "el WOD" / "los WODs" | "la Rutina" / "las Rutinas" |
-
-No hace falta tocar código al dar de alta un box — basta con setear `kind: "BOX"` en el seed y todos los textos visibles quedan con terminología de CrossFit (dashboards, navbar, formularios, mensajes de error, notificaciones push, share de RMs, etc.).
-
-## Notas
-
-- El WhatsApp del profe e Instagram del gym no se guardan en la DB actualmente (no hay campo en el schema), pero quedan documentados para cuando se agregue esa funcionalidad.
-- El logo tiene que estar previamente en `src/logos/`. Si no lo tenés, el gym funciona igual mostrando el nombre como texto en la landing, login, navbar y en la imagen compartible de RMs.
-- Si el gym ya estaba como "Próximamente" en la landing (como Rompiendo Limites o Agustin), el prompt se encarga de activarlo cambiando el `<div>` por un `<Link>`.
-- El color de acentuación se guarda en `primaryColor` de la DB y se aplica automáticamente. El layout `src/app/[gymSlug]/layout.tsx` sobreescribe las CSS custom properties (`--color-red`, `--color-red-dark`, `--color-red-hover`) con el `primaryColor` del gym. Todos los componentes usan theme tokens de Tailwind (`brand-red`, `brand-red-dark`, `brand-red-active`) que resuelven a estas variables, así que cada gym tiene su propio color de acentuación sin cambios adicionales en el código.
-
----
-
-## Template genérico para futuros boxes
-
-Para dar de alta otro box, copiar el prompt de arriba y reemplazar los valores entre corchetes `[...]` con los datos reales del gym.
