@@ -7,6 +7,7 @@ import { BlockUserButton } from "@/components/BlockUserButton";
 import { ToggleStudentTypeButton } from "@/components/ToggleStudentTypeButton";
 import { AssignStudentForm } from "@/components/AssignStudentForm";
 import { EditStudentButton } from "@/components/EditStudentButton";
+import { PromoteTeacherButton } from "@/components/PromoteTeacherButton";
 import { GroupManager } from "@/components/group/GroupManager";
 import { Card } from "@/components/ui/Card";
 import { formatDateArg } from "@/lib/dates";
@@ -331,6 +332,11 @@ export default async function AdminPage({ params }: Props) {
                           allTeachers={allTeacherOptions}
                         />
                       )}
+                      {user.role === "TEACHER" && (
+                        <PromoteTeacherButton
+                          user={{ id: user.id, name: user.name, blockedAt: user.blockedAt }}
+                        />
+                      )}
                       <BlockUserButton
                         userId={user.id}
                         currentUserId={currentUserId}
@@ -427,6 +433,11 @@ export default async function AdminPage({ params }: Props) {
                       canCreateOwnRoutines={user.canCreateOwnRoutines}
                       assignedTeachers={teachersByStudentId.get(user.id) ?? []}
                       allTeachers={allTeacherOptions}
+                    />
+                  )}
+                  {user.role === "TEACHER" && (
+                    <PromoteTeacherButton
+                      user={{ id: user.id, name: user.name, blockedAt: user.blockedAt }}
                     />
                   )}
                   <BlockUserButton

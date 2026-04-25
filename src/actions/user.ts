@@ -385,6 +385,51 @@ export async function toggleStudentType(userId: string): Promise<UserResult> {
   return { success: true };
 }
 
+export async function promoteTeacherToAdmin(formData: FormData): Promise<UserResult> {
+  const session = await auth();
+
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const gymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+
+  const userId = (formData.get("userId") as string | null)?.trim();
+  if (!userId) {
+    return { success: false, error: "El usuario es obligatorio." };
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target) {
+    return { success: false, error: "Usuario no encontrado." };
+  }
+
+  if (target.gymId !== gymId) {
+    return { success: false, error: "Usuario no encontrado." };
+  }
+
+  if (target.role !== "TEACHER") {
+    return { success: false, error: "El usuario no tiene el rol de profe." };
+  }
+
+  if (target.blockedAt !== null) {
+    return { success: false, error: "El usuario está bloqueado, desbloquealo primero." };
+  }
+
+  if (target.id === session.user.id) {
+    return { success: false, error: "No podés promoverte a vos mismo." };
+  }
+
+  await prisma.user.update({
+    where: { id: target.id },
+    data: { role: "ADMIN" },
+  });
+
+  revalidatePath(gymPath(gymSlug, "/admin"));
+  return { success: true };
+}
+
 export async function setCanCreateOwnRoutines(
   studentId: string,
   value: boolean
