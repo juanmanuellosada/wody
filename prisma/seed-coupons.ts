@@ -167,6 +167,29 @@ const COUPONS: Array<{
     restrictions:
       "Aplican restricciones en fechas especiales y promos masivas como Cyber Monday, Black Friday, etc.",
   },
+  {
+    slug: "nutrilion-5-off",
+    name: "Nutrilion · 5%",
+    description:
+      "5% de descuento en toda la tienda. Sin mínimo de compra y sin tope de reintegro.",
+    instagramHandle: "nutrilion.dietetica",
+    instagramUrl: "https://www.instagram.com/nutrilion.dietetica",
+    logoKey: "nutrilion",
+    rule: CouponRule.UNLIMITED,
+    sortOrder: 100,
+  },
+  {
+    slug: "nutrilion-10-off",
+    name: "Nutrilion · 10%",
+    description:
+      "10% de descuento en toda la tienda. Mínimo de compra $30.000 y tope de reintegro de $10.000.",
+    instagramHandle: "nutrilion.dietetica",
+    instagramUrl: "https://www.instagram.com/nutrilion.dietetica",
+    logoKey: "nutrilion",
+    rule: CouponRule.UNLIMITED,
+    sortOrder: 101,
+    restrictions: "Mínimo de compra $30.000. Tope de reintegro $10.000.",
+  },
 ];
 
 async function main() {
