@@ -5,6 +5,7 @@ import becasual from "@/logos/becalsualf-ft.png";
 import bvSports from "@/logos/bv-sports.png";
 import ger from "@/logos/ger.png";
 import nutriteConLu from "@/logos/nutrite-con-lu.png";
+import nutrilion from "@/logos/nutrilion.png";
 import quinque from "@/logos/quinque.png";
 import rayOfLight from "@/logos/ray-of-light.png";
 import readyForWod from "@/logos/ready-for-wod.png";
@@ -16,6 +17,7 @@ export const COUPON_LOGOS: Record<string, StaticImageData> = {
   "bv-sports": bvSports,
   ger,
   "nutrite-con-lu": nutriteConLu,
+  nutrilion,
   quinque,
   "ray-of-light": rayOfLight,
   "ready-for-wod": readyForWod,

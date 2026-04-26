@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Check, Copy, ExternalLink, Ticket } from "lucide-react";
 import { InstagramIcon } from "@/components/icons/InstagramIcon";
 import type { DemoCoupon, CouponRule } from "./demoBeneficiosData";
+import { getCouponLogo } from "@/lib/coupon-logos";
 
 const RULE_LABEL: Record<CouponRule, string> = {
   ONCE_PER_USER: "Un solo uso",
@@ -11,12 +13,23 @@ const RULE_LABEL: Record<CouponRule, string> = {
   UNLIMITED: "Uso libre",
 };
 
-function MerchantAvatar({ name }: { name: string }) {
+function MerchantAvatar({ name, logoKey }: { name: string; logoKey: string | null }) {
+  const logo = getCouponLogo(logoKey);
   return (
-    <div className="w-16 h-16 flex-shrink-0 bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
-      <span className="text-xl font-heading font-black uppercase text-brand-red">
-        {name.charAt(0)}
-      </span>
+    <div className="w-16 h-16 flex-shrink-0 bg-white/[0.04] border border-white/[0.06] flex items-center justify-center overflow-hidden">
+      {logo ? (
+        <Image
+          src={logo}
+          alt={name}
+          width={64}
+          height={64}
+          className="w-full h-full object-contain p-1"
+        />
+      ) : (
+        <span className="text-xl font-heading font-black uppercase text-brand-red">
+          {name.charAt(0)}
+        </span>
+      )}
     </div>
   );
 }
@@ -39,7 +52,7 @@ function CouponCardDemo({ coupon }: { coupon: DemoCoupon }) {
   return (
     <article className="flex flex-col gap-4 p-6 bg-white/[0.03] border border-white/[0.08] hover:border-brand-red/30 transition-colors duration-300">
       <header className="flex items-start gap-4">
-        <MerchantAvatar name={coupon.name} />
+        <MerchantAvatar name={coupon.name} logoKey={coupon.logoKey} />
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white truncate">
             {coupon.name}

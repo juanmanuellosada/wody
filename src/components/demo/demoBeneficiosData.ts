@@ -11,6 +11,7 @@ export type DemoCoupon = {
   fixedCode: string | null;
   websiteUrl: string | null;
   restrictions: string | null;
+  logoKey: string | null;
 };
 
 export const demoBeneficios: DemoCoupon[] = [
@@ -25,6 +26,7 @@ export const demoBeneficios: DemoCoupon[] = [
     fixedCode: "WODY15",
     websiteUrl: "https://suplementosatlas.com.ar",
     restrictions: "No acumulable con otras promociones.",
+    logoKey: null,
   },
   {
     id: "b2",
@@ -37,6 +39,7 @@ export const demoBeneficios: DemoCoupon[] = [
     fixedCode: "KINE20",
     websiteUrl: "https://kinesis.com.ar",
     restrictions: "Válido una vez por usuario. Solo en tienda online.",
+    logoKey: null,
   },
   {
     id: "b3",
@@ -49,6 +52,7 @@ export const demoBeneficios: DemoCoupon[] = [
     fixedCode: null,
     websiteUrl: null,
     restrictions: "Solo válido para nuevos pacientes.",
+    logoKey: null,
   },
   {
     id: "b4",
@@ -61,6 +65,7 @@ export const demoBeneficios: DemoCoupon[] = [
     fixedCode: null,
     websiteUrl: null,
     restrictions: "Sujeto a disponibilidad de horarios. Solo presencial.",
+    logoKey: null,
   },
   {
     id: "b5",
@@ -73,6 +78,7 @@ export const demoBeneficios: DemoCoupon[] = [
     fixedCode: "WODY2X1",
     websiteUrl: null,
     restrictions: "De lunes a viernes. No válido feriados.",
+    logoKey: null,
   },
   {
     id: "b6",
@@ -85,6 +91,7 @@ export const demoBeneficios: DemoCoupon[] = [
     fixedCode: "WODY10",
     websiteUrl: "https://fierro.com.ar",
     restrictions: null,
+    logoKey: null,
   },
   {
     id: "b7",
@@ -97,6 +104,7 @@ export const demoBeneficios: DemoCoupon[] = [
     fixedCode: null,
     websiteUrl: null,
     restrictions: "Único turno disponible. Primero que llegue.",
+    logoKey: null,
   },
   {
     id: "b8",
@@ -109,6 +117,7 @@ export const demoBeneficios: DemoCoupon[] = [
     fixedCode: "WODY15",
     websiteUrl: "https://blackcoffee.com.ar",
     restrictions: null,
+    logoKey: null,
   },
   {
     id: "b9",
@@ -121,5 +130,32 @@ export const demoBeneficios: DemoCoupon[] = [
     fixedCode: "TAPE20",
     websiteUrl: "https://sporttape.com.ar",
     restrictions: "Solo la primera compra online.",
+    logoKey: null,
+  },
+  {
+    id: "b10",
+    slug: "nutrilion-5-off",
+    name: "Nutrilion Dietética",
+    description: "5% de descuento en toda la tienda. Sin mínimo de compra y sin tope de reintegro.",
+    instagramHandle: "nutrilion.dietetica",
+    instagramUrl: "https://www.instagram.com/nutrilion.dietetica/",
+    rule: "UNLIMITED",
+    fixedCode: null,
+    websiteUrl: null,
+    restrictions: null,
+    logoKey: "nutrilion",
+  },
+  {
+    id: "b11",
+    slug: "nutrilion-10-off",
+    name: "Nutrilion Dietética",
+    description: "10% de descuento en toda la tienda. Mínimo de compra $30.000 y tope de reintegro de $10.000.",
+    instagramHandle: "nutrilion.dietetica",
+    instagramUrl: "https://www.instagram.com/nutrilion.dietetica/",
+    rule: "UNLIMITED",
+    fixedCode: null,
+    websiteUrl: null,
+    restrictions: "Mínimo de compra $30.000. Tope de reintegro $10.000.",
+    logoKey: "nutrilion",
   },
 ];
