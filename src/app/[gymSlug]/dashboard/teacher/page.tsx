@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath, hasAccessControl } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
+import { formatMemberNumber } from "@/lib/memberNumber";
 import { WodManagerClient } from "@/components/wod/WodManagerClient";
 import { GroupManager } from "@/components/group/GroupManager";
 import { CheckinScannerButton } from "@/components/access/CheckinScannerButton";
@@ -24,7 +25,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
 
   const teacherId = session.user.id;
 
-  const [wods, groups, myStudents, gym] = await Promise.all([
+  const [wods, groups, myStudents, gym, teacher] = await Promise.all([
     prisma.wod.findMany({
       where: { teacherId, deletedAt: null },
       orderBy: { date: "desc" },
@@ -50,6 +51,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
       select: { student: { select: { id: true, name: true, studentType: true, groupId: true } } },
     }),
     prisma.gym.findUnique({ where: { slug: gymSlug }, select: { kind: true } }),
+    prisma.user.findUnique({ where: { id: teacherId }, select: { memberNumber: true } }),
   ]);
   const terms = gymTerms(gym?.kind ?? "BOX");
 
@@ -67,7 +69,19 @@ export default async function TeacherDashboardPage({ params }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
-      {hasAccessControl(gymSlug) && <CheckinScannerButton gymSlug={gymSlug} />}
+      {hasAccessControl(gymSlug) && (
+        <div className="flex flex-col gap-3">
+          <CheckinScannerButton gymSlug={gymSlug} />
+          <div className="border border-line bg-panel p-4 flex items-center justify-between gap-3">
+            <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-gray-500">
+              Tu número de socio
+            </p>
+            <p className="text-xl font-heading font-black text-white tabular-nums tracking-[0.15em]">
+              {formatMemberNumber(teacher?.memberNumber ?? 0)}
+            </p>
+          </div>
+        </div>
+      )}
       {/* Welcome header */}
       <div className="border border-line bg-panel p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
