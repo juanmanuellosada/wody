@@ -20,6 +20,8 @@ Videos promocionales de WODY hechos con [Remotion](https://www.remotion.dev/).
 - `npm run render:usuarios:gif` — idem a GIF
 - `npm run render:validar` — renderiza `ValidarPromo` a `out/validar.mp4`
 - `npm run render:validar:gif` — idem a GIF
+- `npm run render:logo` — renderiza `WodyLogoIntro` a `out/wody-logo.mp4`
+- `npm run render:logo:gif` — idem a GIF
 
 ## Composiciones
 
@@ -105,3 +107,21 @@ aliados explicándoles cómo validar un cupón WODY.
 Look and feel espejado de `src/app/validar/[codigo]/page.tsx`. El código y los
 datos de ejemplo (`WODY-8K4R-Z9P2`, Camila Torres, Rompiendo Limites, Quinque)
 están hardcodeados arriba del archivo — tocá ahí para cambiarlos.
+
+### `WodyLogoIntro`
+
+Bumper / intro de logo de 8s (1080×1920, 30fps) que anima la "O" del wordmark
+de WODY sobre fondo negro. Pensado para usar como intro o cierre en reels.
+
+| Escena | Frames | Duración | Contenido |
+|---|---|---|---|
+| Awakening | 0–30 | 1s | Negro absoluto. Desde el frame 10 aparece un punto de luz cream que pulsa y se expande |
+| Spin reveal | 30–90 | 2s | La "O" standalone (`wody-negro-512.png`) entra con spring scale + 720° de rotación con ease-out; glow radial se expande; motion blur con 2 copias offset |
+| Energy pulse | 90–150 | 2s | La "O" queda upright y pulsa en escala (1.0 ↔ 1.05) en seno, glow respira sincronizado |
+| Logo lock-in | 150–180 | 1s | Crossfade: la "O" standalone hace fade out mientras `wody-texto.png` hace fade in alineado |
+| Hold | 180–240 | 2s | Wordmark estático con glow suave respirando; últimos 10 frames bajan a ~85% de opacidad |
+
+Assets usados: `public/logos/wody-negro-512.png` (la O standalone) y
+`public/logos/wody-texto.png` (el wordmark completo). Si la "O" del wordmark no
+queda perfectamente alineada con la O standalone, ajustá las constantes de
+tamaño y posición en `src/WodyLogoIntro.tsx` abriendo Remotion Studio.

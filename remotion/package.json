@@ -22,7 +22,9 @@
     "render:rl": "remotion render RompiendoLimitesPromo out/rompiendo-limites.mp4",
     "render:rl:gif": "remotion render RompiendoLimitesPromo out/rompiendo-limites.gif",
     "render:unidos": "remotion render UnidosGaragePromo out/unidos-garage.mp4",
-    "render:unidos:gif": "remotion render UnidosGaragePromo out/unidos-garage.gif"
+    "render:unidos:gif": "remotion render UnidosGaragePromo out/unidos-garage.gif",
+    "render:logo": "remotion render WodyLogoIntro out/wody-logo.mp4",
+    "render:logo:gif": "remotion render WodyLogoIntro out/wody-logo.gif"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.400",

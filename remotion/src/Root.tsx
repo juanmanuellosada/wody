@@ -1,13 +1,14 @@
 import { Composition } from "remotion";
 import { AtlasPromo } from "./AtlasPromo";
-import { MilaFitPromo } from "./MilaFitPromo";
-import { RompiendoLimitesPromo } from "./RompiendoLimitesPromo";
-import { UnidosGaragePromo } from "./UnidosGaragePromo";
 import { CuponeraPromo } from "./CuponeraPromo";
-import { TimersPromo } from "./TimersPromo";
+import { MilaFitPromo } from "./MilaFitPromo";
 import { PagosPromo } from "./PagosPromo";
+import { RompiendoLimitesPromo } from "./RompiendoLimitesPromo";
+import { TimersPromo } from "./TimersPromo";
+import { UnidosGaragePromo } from "./UnidosGaragePromo";
 import { UsuariosPromo } from "./UsuariosPromo";
 import { ValidarPromo } from "./ValidarPromo";
+import { WodyLogoIntro } from "./WodyLogoIntro";
 
 export const Root = () => {
   return (
@@ -80,6 +81,14 @@ export const Root = () => {
         id="ValidarPromo"
         component={ValidarPromo}
         durationInFrames={900}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="WodyLogoIntro"
+        component={WodyLogoIntro}
+        durationInFrames={240}
         fps={30}
         width={1080}
         height={1920}
