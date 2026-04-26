@@ -14,7 +14,15 @@
     "render:usuarios": "remotion render UsuariosPromo out/usuarios.mp4",
     "render:usuarios:gif": "remotion render UsuariosPromo out/usuarios.gif",
     "render:validar": "remotion render ValidarPromo out/validar.mp4",
-    "render:validar:gif": "remotion render ValidarPromo out/validar.gif"
+    "render:validar:gif": "remotion render ValidarPromo out/validar.gif",
+    "render:atlas": "remotion render AtlasPromo out/atlas.mp4",
+    "render:atlas:gif": "remotion render AtlasPromo out/atlas.gif",
+    "render:mila": "remotion render MilaFitPromo out/mila-fit.mp4",
+    "render:mila:gif": "remotion render MilaFitPromo out/mila-fit.gif",
+    "render:rl": "remotion render RompiendoLimitesPromo out/rompiendo-limites.mp4",
+    "render:rl:gif": "remotion render RompiendoLimitesPromo out/rompiendo-limites.gif",
+    "render:unidos": "remotion render UnidosGaragePromo out/unidos-garage.mp4",
+    "render:unidos:gif": "remotion render UnidosGaragePromo out/unidos-garage.gif"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.400",
