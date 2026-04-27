@@ -19,16 +19,16 @@ interface Group {
   id: string;
   name: string;
   students: Student[];
+  availableToAdd: Student[];
 }
 
 interface GroupManagerProps {
   groups: Group[];
-  ungroupedStudents: Student[];
   hideCreate?: boolean;
   demo?: boolean;
 }
 
-export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: GroupManagerProps) {
+export function GroupManager({ groups, hideCreate, demo }: GroupManagerProps) {
   const [newGroupName, setNewGroupName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -81,11 +81,11 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
     });
   }
 
-  function handleRemove(studentId: string) {
+  function handleRemove(studentId: string, groupId: string) {
     if (demo) return;
     setError(null);
     startTransition(async () => {
-      const result = await removeStudentFromGroup(studentId);
+      const result = await removeStudentFromGroup(studentId, groupId);
       if (!result.success) setError(result.error);
     });
   }
@@ -207,7 +207,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
                       >
                         {student.name}
                         <button
-                          onClick={() => handleRemove(student.id)}
+                          onClick={() => handleRemove(student.id, group.id)}
                           disabled={isPending}
                           className="text-gray-600 hover:text-brand-red transition-colors duration-200 cursor-pointer"
                           title="Quitar del grupo"
@@ -220,7 +220,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
                 )}
 
                 {/* Add student to group */}
-                {ungroupedStudents.length > 0 && (
+                {group.availableToAdd.length > 0 && (
                   <div className="flex gap-2 items-center">
                     <select
                       id={`add-student-${group.id}`}
@@ -237,7 +237,7 @@ export function GroupManager({ groups, ungroupedStudents, hideCreate, demo }: Gr
                       <option value="" disabled>
                         Agregar alumno...
                       </option>
-                      {ungroupedStudents.map((s) => (
+                      {group.availableToAdd.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
                         </option>

@@ -34,7 +34,7 @@ export default async function StudentDashboardPage({ params }: Props) {
     }),
     prisma.user.findUnique({
       where: { id: studentId },
-      select: { memberNumber: true, groupId: true, studentType: true },
+      select: { memberNumber: true, studentType: true, groupMemberships: { select: { groupId: true } } },
     }),
     prisma.gym.findUnique({ where: { slug: gymSlug }, select: { kind: true } }),
   ]);
@@ -92,6 +92,7 @@ export default async function StudentDashboardPage({ params }: Props) {
   }
 
   const isPersonalized = student?.studentType === "PERSONALIZED";
+  const groupIds = student?.groupMemberships?.map((m) => m.groupId) ?? [];
 
   const teacherWodClause = teacherIds.length > 0
     ? [{
@@ -101,8 +102,8 @@ export default async function StudentDashboardPage({ params }: Props) {
           ...(isPersonalized
             ? [
                 { targetType: "PERSONALIZED" as const },
-                ...(student?.groupId
-                  ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
+                ...(groupIds.length > 0
+                  ? [{ targetType: "GROUP" as const, targetGroupId: { in: groupIds } }]
                   : []),
                 { targetType: "STUDENT" as const, targetStudentId: studentId },
               ]

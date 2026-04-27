@@ -41,7 +41,7 @@ export default async function AdminPage({ params }: Props) {
     prisma.user.findMany({
       where: { gymId, deletedAt: null },
       orderBy: [{ role: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, email: true, role: true, studentType: true, canCreateOwnRoutines: true, createdAt: true, groupId: true, nextPaymentDate: true, blockedAt: true, memberNumber: true },
+      select: { id: true, name: true, email: true, role: true, studentType: true, canCreateOwnRoutines: true, createdAt: true, groupMemberships: { select: { groupId: true } }, nextPaymentDate: true, blockedAt: true, memberNumber: true },
     }),
     prisma.group.findMany({
       where: { teacher: { gymId }, deletedAt: null },
@@ -51,7 +51,7 @@ export default async function AdminPage({ params }: Props) {
         name: true,
         teacherId: true,
         teacher: { select: { name: true } },
-        students: { select: { id: true, name: true } },
+        members: { select: { user: { select: { id: true, name: true } } } },
       },
     }),
     prisma.teacherStudent.findMany({
@@ -165,9 +165,8 @@ export default async function AdminPage({ params }: Props) {
         const teacherStudents = students.filter(
           (s) => s.studentType === "PERSONALIZED" && assignedStudentIds.includes(s.id)
         );
-        const ungrouped = teacherStudents.filter((s) => !s.groupId);
 
-        if (teacherGroups.length === 0 && ungrouped.length === 0) return null;
+        if (teacherGroups.length === 0 && teacherStudents.length === 0) return null;
 
         return (
           <section key={teacher.id}>
@@ -181,9 +180,11 @@ export default async function AdminPage({ params }: Props) {
               groups={teacherGroups.map((g) => ({
                 id: g.id,
                 name: g.name,
-                students: g.students,
+                students: g.members.map((m) => m.user),
+                availableToAdd: teacherStudents
+                  .filter((s) => !s.groupMemberships.some((m) => m.groupId === g.id))
+                  .map((s) => ({ id: s.id, name: s.name })),
               }))}
-              ungroupedStudents={ungrouped.map((s) => ({ id: s.id, name: s.name }))}
               hideCreate
             />
           </section>

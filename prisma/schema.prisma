@@ -76,7 +76,6 @@ model User {
   studentType     StudentType @default(PERSONALIZED)
   canCreateOwnRoutines Boolean @default(false)
   gymId           String
-  groupId         String?
   createdAt       DateTime    @default(now())
   nextPaymentDate DateTime    @default(now()) @db.Date
   blockedAt       DateTime?
@@ -85,7 +84,6 @@ model User {
   memberNumber    Int
 
   gym   Gym    @relation(fields: [gymId], references: [id])
-  group Group? @relation("GroupStudents", fields: [groupId], references: [id], onDelete: SetNull)
 
   wodsAsTeacher  Wod[]              @relation("TeacherWods")
   wodsTargetedTo Wod[]              @relation("WodTargetStudent")
@@ -93,6 +91,7 @@ model User {
   teacherOf      TeacherStudent[]   @relation("TeacherRel")
   studentOf      TeacherStudent[]   @relation("StudentRel")
   teacherGroups  Group[]            @relation("TeacherGroups")
+  groupMemberships GroupMember[]
   redemptions    CouponRedemption[]
   pushSubscriptions PushSubscription[]
   accessesAsUser    AccessLog[] @relation("AccessLogUser")
@@ -115,13 +114,24 @@ model Group {
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
-  teacher  User   @relation("TeacherGroups", fields: [teacherId], references: [id], onDelete: Cascade)
-  students User[] @relation("GroupStudents")
-  wods     Wod[]  @relation("WodTargetGroup")
+  teacher  User          @relation("TeacherGroups", fields: [teacherId], references: [id], onDelete: Cascade)
+  members  GroupMember[]
+  wods     Wod[]         @relation("WodTargetGroup")
 
   // Unicidad parcial: solo entre grupos activos del mismo profe.
   // El índice único parcial vive en la migration add_user_soft_delete.
   @@index([teacherId, name])
+}
+
+model GroupMember {
+  userId   String
+  groupId  String
+
+  user  User  @relation(fields: [userId],  references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
+  @@index([groupId])
 }
 
 model Wod {

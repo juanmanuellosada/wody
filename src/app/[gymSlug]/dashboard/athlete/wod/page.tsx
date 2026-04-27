@@ -40,13 +40,14 @@ export default async function WodFullPage({ params, searchParams }: Props) {
   const [student, gym] = await Promise.all([
     prisma.user.findUnique({
       where: { id: studentId },
-      select: { groupId: true, studentType: true },
+      select: { studentType: true, groupMemberships: { select: { groupId: true } } },
     }),
     prisma.gym.findUnique({ where: { slug: gymSlug }, select: { name: true, kind: true } }),
   ]);
   const terms = gymTerms(gym?.kind ?? "BOX");
 
   const isPersonalized = student?.studentType === "PERSONALIZED";
+  const groupIds = student?.groupMemberships?.map((m) => m.groupId) ?? [];
 
   const teacherWodClause = teacherIds.length > 0
     ? [{
@@ -56,8 +57,8 @@ export default async function WodFullPage({ params, searchParams }: Props) {
           ...(isPersonalized
             ? [
                 { targetType: "PERSONALIZED" as const },
-                ...(student?.groupId
-                  ? [{ targetType: "GROUP" as const, targetGroupId: student.groupId }]
+                ...(groupIds.length > 0
+                  ? [{ targetType: "GROUP" as const, targetGroupId: { in: groupIds } }]
                   : []),
                 { targetType: "STUDENT" as const, targetStudentId: studentId },
               ]

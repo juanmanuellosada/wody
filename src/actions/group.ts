@@ -116,7 +116,7 @@ export async function deleteGroup(groupId: string): Promise<GroupResult> {
   const now = new Date();
   await prisma.$transaction([
     prisma.group.update({ where: { id: groupId }, data: { deletedAt: now } }),
-    prisma.user.updateMany({ where: { groupId }, data: { groupId: null } }),
+    prisma.groupMember.deleteMany({ where: { groupId } }),
     prisma.wod.updateMany({ where: { targetGroupId: groupId }, data: { targetGroupId: null } }),
   ]);
 
@@ -164,9 +164,10 @@ export async function assignStudentToGroup(
     }
   }
 
-  await prisma.user.update({
-    where: { id: studentId },
-    data: { groupId },
+  await prisma.groupMember.upsert({
+    where: { userId_groupId: { userId: studentId, groupId } },
+    create: { userId: studentId, groupId },
+    update: {},
   });
 
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
@@ -175,7 +176,8 @@ export async function assignStudentToGroup(
 }
 
 export async function removeStudentFromGroup(
-  studentId: string
+  studentId: string,
+  groupId: string
 ): Promise<GroupResult> {
   const session = await auth();
 
@@ -189,24 +191,12 @@ export async function removeStudentFromGroup(
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
 
-  const student = await prisma.user.findFirst({ where: { id: studentId, deletedAt: null } });
-  if (!student || student.role !== "STUDENT") {
-    return { success: false, error: "Alumno no encontrado." };
+  const group = await prisma.group.findFirst({ where: { id: groupId, deletedAt: null } });
+  if (!group || (group.teacherId !== teacherId && session.user.role !== "ADMIN")) {
+    return { success: false, error: "Grupo no encontrado." };
   }
 
-  if (session.user.role !== "ADMIN") {
-    const link = await prisma.teacherStudent.findUnique({
-      where: { teacherId_studentId: { teacherId, studentId } },
-    });
-    if (!link) {
-      return { success: false, error: "Este alumno no está asignado a vos." };
-    }
-  }
-
-  await prisma.user.update({
-    where: { id: studentId },
-    data: { groupId: null },
-  });
+  await prisma.groupMember.deleteMany({ where: { userId: studentId, groupId } });
 
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
   revalidatePath(gymPath(gymSlug, "/admin"));

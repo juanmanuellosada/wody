@@ -37,6 +37,7 @@ const mockGroups = [
       { id: "s1", name: "Juan Pérez" },
       { id: "s2", name: "María García" },
     ],
+    availableToAdd: [{ id: "s3", name: "Lucas Rodríguez" }],
   },
   {
     id: "g2",
@@ -45,6 +46,7 @@ const mockGroups = [
     students: [
       { id: "s3", name: "Lucas Rodríguez" },
     ],
+    availableToAdd: [{ id: "s1", name: "Juan Pérez" }, { id: "s2", name: "María García" }],
   },
   {
     id: "g3",
@@ -53,6 +55,7 @@ const mockGroups = [
     students: [
       { id: "s5", name: "Tomás Fernández" },
     ],
+    availableToAdd: [],
   },
 ];
 
@@ -153,7 +156,6 @@ export default function DemoAdminPage() {
             </div>
             <GroupManager
               groups={groups}
-              ungroupedStudents={[]}
               hideCreate
               demo
             />

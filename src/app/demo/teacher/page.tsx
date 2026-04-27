@@ -23,6 +23,7 @@ const mockGroups = [
       { id: "s2", name: "María García" },
       { id: "s3", name: "Lucas Rodríguez" },
     ],
+    availableToAdd: [{ id: "s6", name: "Valentina Martínez" }],
   },
   {
     id: "g2",
@@ -31,11 +32,8 @@ const mockGroups = [
       { id: "s4", name: "Sofía López" },
       { id: "s5", name: "Tomás Fernández" },
     ],
+    availableToAdd: [{ id: "s6", name: "Valentina Martínez" }],
   },
-];
-
-const mockUngrouped = [
-  { id: "s6", name: "Valentina Martínez" },
 ];
 
 const mockWods = [
@@ -147,7 +145,6 @@ export default function DemoTeacherPage() {
         {/* Group manager */}
         <GroupManager
           groups={mockGroups}
-          ungroupedStudents={mockUngrouped}
           demo
         />
 

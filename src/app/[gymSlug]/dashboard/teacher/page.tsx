@@ -44,11 +44,11 @@ export default async function TeacherDashboardPage({ params }: Props) {
     prisma.group.findMany({
       where: { teacherId, deletedAt: null },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, students: { select: { id: true, name: true } } },
+      select: { id: true, name: true, members: { select: { user: { select: { id: true, name: true } } } } },
     }),
     prisma.teacherStudent.findMany({
       where: { teacherId },
-      select: { student: { select: { id: true, name: true, studentType: true, groupId: true } } },
+      select: { student: { select: { id: true, name: true, studentType: true, groupMemberships: { select: { groupId: true } } } } },
     }),
     prisma.gym.findUnique({ where: { slug: gymSlug }, select: { kind: true } }),
     prisma.user.findUnique({ where: { id: teacherId }, select: { memberNumber: true } }),
@@ -63,7 +63,11 @@ export default async function TeacherDashboardPage({ params }: Props) {
 
   const personalizedStudents = myStudents
     .filter((ts) => ts.student.studentType === "PERSONALIZED")
-    .map((ts) => ({ id: ts.student.id, name: ts.student.name }));
+    .map((ts) => ({
+      id: ts.student.id,
+      name: ts.student.name,
+      groupIds: ts.student.groupMemberships.map((m) => m.groupId),
+    }));
 
   const groupOptions = groups.map((g) => ({ id: g.id, name: g.name }));
 
@@ -116,11 +120,9 @@ export default async function TeacherDashboardPage({ params }: Props) {
         groups={groups.map((g) => ({
           id: g.id,
           name: g.name,
-          students: g.students,
+          students: g.members.map((m) => m.user),
+          availableToAdd: personalizedStudents.filter((s) => !s.groupIds.includes(g.id)),
         }))}
-        ungroupedStudents={personalizedStudents.filter(
-          (s) => !myStudents.find((ts) => ts.student.id === s.id && ts.student.groupId)
-        )}
       />
 
       {/* WOD manager */}

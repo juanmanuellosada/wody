@@ -166,7 +166,7 @@ export async function deleteUser(userId: string): Promise<UserResult> {
       prisma.pushSubscription.deleteMany({ where: { userId } }),
       prisma.accessLog.updateMany({ where: { decidedById: userId }, data: { decidedById: null } }),
       ...(deletedGroupIds.length > 0
-        ? [prisma.user.updateMany({ where: { groupId: { in: deletedGroupIds } }, data: { groupId: null } })]
+        ? [prisma.groupMember.deleteMany({ where: { groupId: { in: deletedGroupIds } } })]
         : []),
     ]);
   } else {
@@ -404,16 +404,21 @@ export async function toggleStudentType(userId: string): Promise<UserResult> {
   const newType: StudentType =
     user.studentType === "GENERAL" ? "PERSONALIZED" : "GENERAL";
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      studentType: newType,
-      // GENERAL students can't belong to groups ni crear sus propias rutinas
-      ...(newType === "GENERAL"
-        ? { groupId: null, canCreateOwnRoutines: false }
-        : {}),
-    },
-  });
+  if (newType === "GENERAL") {
+    // GENERAL students can't belong to groups ni crear sus propias rutinas
+    await prisma.$transaction([
+      prisma.groupMember.deleteMany({ where: { userId } }),
+      prisma.user.update({
+        where: { id: userId },
+        data: { studentType: newType, canCreateOwnRoutines: false },
+      }),
+    ]);
+  } else {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { studentType: newType },
+    });
+  }
 
   revalidatePath(gymPath(gymSlug, "/admin"));
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
