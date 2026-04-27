@@ -123,11 +123,28 @@ export default async function StudentDashboardPage({ params }: Props) {
   const allWods = await prisma.wod.findMany({
     where: { OR: [...teacherWodClause, ...selfWodClause], deletedAt: null },
     orderBy: { date: "desc" },
-    select: { id: true, title: true, content: true, date: true },
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      date: true,
+      teacherId: true,
+      targetType: true,
+      targetGroup: { select: { name: true } },
+    },
   });
 
-  const todayWods = allWods.filter((w) => toInputDate(w.date) === todayStr);
-  const historyWods = allWods.filter((w) => toInputDate(w.date) !== todayStr);
+  const wodsWithAssignment = allWods.map((w) => ({
+    ...w,
+    assignment: {
+      targetType: w.targetType as "ALL" | "PERSONALIZED" | "GROUP" | "STUDENT",
+      targetGroupName: w.targetGroup?.name ?? null,
+      isOwn: w.teacherId === studentId,
+    },
+  }));
+
+  const todayWods = wodsWithAssignment.filter((w) => toInputDate(w.date) === todayStr);
+  const historyWods = wodsWithAssignment.filter((w) => toInputDate(w.date) !== todayStr);
 
   return (
     <div className="flex flex-col gap-10">
@@ -147,7 +164,7 @@ export default async function StudentDashboardPage({ params }: Props) {
                 href={`${wodPath}?id=${wod.id}`}
                 className="block cursor-pointer group"
               >
-                <WodCard wod={wod} highlight />
+                <WodCard wod={wod} highlight assignment={wod.assignment} />
               </Link>
             ))}
           </div>

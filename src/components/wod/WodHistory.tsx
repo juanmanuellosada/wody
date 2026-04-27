@@ -8,8 +8,16 @@ import type { Wod } from "@prisma/client";
 import type { GymTerms } from "@/lib/gym-terms";
 import Link from "next/link";
 
+type WodWithAssignment = Pick<Wod, "id" | "title" | "content" | "date"> & {
+  assignment?: {
+    targetType: "ALL" | "PERSONALIZED" | "GROUP" | "STUDENT";
+    targetGroupName?: string | null;
+    isOwn: boolean;
+  };
+};
+
 interface WodHistoryProps {
-  wods: Pick<Wod, "id" | "title" | "content" | "date">[];
+  wods: WodWithAssignment[];
   wodPath: string;
   terms: GymTerms;
 }
@@ -68,6 +76,7 @@ export function WodHistory({ wods, wodPath, terms }: WodHistoryProps) {
             <WodCard
               key={wod.id}
               wod={wod}
+              assignment={wod.assignment}
               actions={
                 <Link
                   href={`${wodPath}?id=${wod.id}`}

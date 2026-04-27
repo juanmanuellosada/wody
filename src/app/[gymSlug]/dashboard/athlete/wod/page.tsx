@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getTodayArgentina, toInputDate, formatDateArg } from "@/lib/dates";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { ShareWodButton } from "@/components/wod/ShareWodButton";
+import { StudentWodBadge } from "@/components/wod/StudentWodBadge";
 import { gymPath } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import Link from "next/link";
@@ -83,7 +84,15 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     // Specific WOD by ID — verify the student has visibility on it
     wod = await prisma.wod.findFirst({
       where: { id: wodId, deletedAt: null, ...visibleClause },
-      select: { id: true, title: true, content: true, date: true, teacherId: true },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        date: true,
+        teacherId: true,
+        targetType: true,
+        targetGroup: { select: { name: true } },
+      },
     });
     if (!wod) {
       redirect(athletePath);
@@ -94,7 +103,15 @@ export default async function WodFullPage({ params, searchParams }: Props) {
     const todayStr = toInputDate(getTodayArgentina());
     const visibleWods = await prisma.wod.findMany({
       where: { ...visibleClause, deletedAt: null },
-      select: { id: true, title: true, content: true, date: true, teacherId: true },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        date: true,
+        teacherId: true,
+        targetType: true,
+        targetGroup: { select: { name: true } },
+      },
     });
     wod = visibleWods.find((w) => toInputDate(w.date) === todayStr) ?? null;
   }
@@ -160,7 +177,15 @@ export default async function WodFullPage({ params, searchParams }: Props) {
           )}
 
           {/* Separator */}
-          <div className="w-12 h-1 bg-brand-red mb-8" aria-hidden="true" />
+          <div className="w-12 h-1 bg-brand-red mb-6" aria-hidden="true" />
+
+          <div className="mb-8">
+            <StudentWodBadge
+              targetType={wod.targetType as "ALL" | "PERSONALIZED" | "GROUP" | "STUDENT"}
+              targetGroupName={wod.targetGroup?.name ?? null}
+              isOwn={wod.teacherId === studentId}
+            />
+          </div>
 
           {/* Content — large readable text */}
           <MarkdownRenderer

@@ -2,14 +2,20 @@ import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/Card";
 import { formatDateArg } from "@/lib/dates";
 import type { Wod } from "@prisma/client";
+import { StudentWodBadge } from "@/components/wod/StudentWodBadge";
 
 interface WodCardProps {
   wod: Pick<Wod, "id" | "title" | "content" | "date">;
   actions?: React.ReactNode;
   highlight?: boolean;
+  assignment?: {
+    targetType: "ALL" | "PERSONALIZED" | "GROUP" | "STUDENT";
+    targetGroupName?: string | null;
+    isOwn: boolean;
+  };
 }
 
-export function WodCard({ wod, actions, highlight = false }: WodCardProps) {
+export function WodCard({ wod, actions, highlight = false, assignment }: WodCardProps) {
   const dateLabel = formatDateArg(wod.date);
 
   return (
@@ -31,6 +37,13 @@ export function WodCard({ wod, actions, highlight = false }: WodCardProps) {
             <div className="flex items-center gap-2">{actions}</div>
           )}
         </div>
+        {assignment && (
+          <StudentWodBadge
+            targetType={assignment.targetType}
+            targetGroupName={assignment.targetGroupName}
+            isOwn={assignment.isOwn}
+          />
+        )}
       </CardHeader>
       <CardBody>
         <MarkdownRenderer content={wod.content} className="text-sm" />
