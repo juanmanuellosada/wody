@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
-import { Check, Copy, ExternalLink, Ticket } from "lucide-react";
+import { Ticket } from "lucide-react";
 import { InstagramIcon } from "@/components/icons/InstagramIcon";
-import type { DemoCoupon, CouponRule } from "./demoBeneficiosData";
+import type { AvailableCoupon } from "@/actions/coupon";
+import type { CouponRule } from "@prisma/client";
 import { getCouponLogo } from "@/lib/coupon-logos";
 
 const RULE_LABEL: Record<CouponRule, string> = {
@@ -34,20 +34,8 @@ function MerchantAvatar({ name, logoKey }: { name: string; logoKey: string | nul
   );
 }
 
-function CouponCardDemo({ coupon }: { coupon: DemoCoupon }) {
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy(code: string) {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // ignore
-    }
-  }
-
-  const badgeLabel = coupon.fixedCode ? "Tienda online" : RULE_LABEL[coupon.rule];
+function CouponCardDemo({ coupon }: { coupon: AvailableCoupon }) {
+  const badgeLabel = RULE_LABEL[coupon.rule];
 
   return (
     <article className="flex flex-col gap-4 p-6 bg-white/[0.03] border border-white/[0.08] hover:border-brand-red/30 transition-colors duration-300">
@@ -74,84 +62,32 @@ function CouponCardDemo({ coupon }: { coupon: DemoCoupon }) {
       )}
 
       <div className="mt-auto flex flex-col gap-3 border-t border-white/[0.05] pt-4">
-        {coupon.fixedCode ? (
-          <>
-            <button
-              type="button"
-              onClick={() => handleCopy(coupon.fixedCode!)}
-              className="group flex items-center justify-between gap-2 bg-black border border-brand-red/40 px-4 py-3 hover:border-brand-red transition-colors cursor-pointer"
-              aria-label="Copiar código"
-            >
-              <span className="font-heading font-black tracking-[0.2em] text-sm text-white">
-                {coupon.fixedCode}
-              </span>
-              {copied ? (
-                <Check size={16} className="text-brand-red" aria-hidden="true" />
-              ) : (
-                <Copy
-                  size={16}
-                  className="text-gray-500 group-hover:text-brand-red transition-colors"
-                  aria-hidden="true"
-                />
-              )}
-            </button>
+        <button
+          type="button"
+          className="inline-flex items-center justify-center gap-2 bg-brand-red text-white px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs"
+          aria-label="Obtener código (demo)"
+          disabled
+        >
+          <Ticket size={16} aria-hidden="true" />
+          <span>Obtener código</span>
+        </button>
 
-            {coupon.websiteUrl && (
-              <a
-                href={coupon.websiteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 bg-brand-red hover:bg-brand-red-dark text-white px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors"
-              >
-                <ExternalLink size={16} aria-hidden="true" />
-                <span>Ir a la tienda</span>
-              </a>
-            )}
-
-            <a
-              href={coupon.instagramUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white border border-edge hover:border-[#3A3A3A] px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors"
-            >
-              <InstagramIcon size={16} />
-              <span>@{coupon.instagramHandle}</span>
-            </a>
-
-            <p className="text-[10px] text-gray-600 font-body text-center leading-relaxed">
-              Aplicá el código al finalizar la compra.
-            </p>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center gap-2 bg-brand-red text-white px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs"
-              aria-label="Obtener código (demo)"
-              disabled
-            >
-              <Ticket size={16} aria-hidden="true" />
-              <span>Obtener código</span>
-            </button>
-
-            <a
-              href={coupon.instagramUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white border border-edge hover:border-[#3A3A3A] px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors"
-            >
-              <InstagramIcon size={16} />
-              <span>@{coupon.instagramHandle}</span>
-            </a>
-          </>
-        )}
+        <a
+          href={coupon.instagramUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white border border-edge hover:border-[#3A3A3A] px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors"
+        >
+          <InstagramIcon size={16} />
+          <span>@{coupon.instagramHandle}</span>
+        </a>
       </div>
     </article>
   );
 }
 
 interface Props {
-  coupons: DemoCoupon[];
+  coupons: AvailableCoupon[];
 }
 
 export function DemoBeneficiosView({ coupons }: Props) {
