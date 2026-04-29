@@ -135,7 +135,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
     }),
   ]);
 
-  const autoBlockAfterDays = gymConfig?.autoBlockAfterDays ?? 5;
+  const autoBlockAfterDays = gymConfig?.autoBlockAfterDays ?? 45;
 
   const teachersById = new Map(teachers.map((t) => [t.id, t]));
   const teachersByStudentId = new Map<string, { id: string; name: string }[]>();

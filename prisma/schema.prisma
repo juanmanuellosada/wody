@@ -61,7 +61,7 @@ model Gym {
   primaryColor       String?
   createdAt          DateTime  @default(now())
   blockedAt          DateTime?
-  autoBlockAfterDays Int       @default(20)
+  autoBlockAfterDays Int       @default(45)
   nextMemberNumber   Int       @default(1)
   users              User[]
   accessLogs         AccessLog[]

@@ -64,7 +64,7 @@ export default async function AdminPage({ params }: Props) {
     }),
   ]);
 
-  const autoBlockAfterDays = gymConfig?.autoBlockAfterDays ?? 5;
+  const autoBlockAfterDays = gymConfig?.autoBlockAfterDays ?? 45;
   const terms = gymTerms(gymConfig?.kind ?? "BOX");
 
   const teachers = users.filter(
