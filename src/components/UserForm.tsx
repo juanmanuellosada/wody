@@ -86,6 +86,7 @@ export function UserForm({ terms, teachers }: UserFormProps) {
         required
         minLength={6}
         disabled={isPending}
+        showPasswordToggle
       />
 
       <div className="flex flex-col gap-1.5">
