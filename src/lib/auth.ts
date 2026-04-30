@@ -18,6 +18,11 @@ class UserBlockedError extends CredentialsSignin {
   }
 }
 
+// User was invited but hasn't set a password yet (PENDING_ACTIVATION flow).
+class PendingActivationError extends CredentialsSignin {
+  code = "PENDING_ACTIVATION";
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   // 90 días: queremos que la PWA mantenga la sesión aunque el usuario
@@ -57,6 +62,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // most one candidate; without it, we scan across gyms (email+password
         // collisions between gyms are vanishingly unlikely in practice).
         for (const user of candidates) {
+          if (user.password === null) {
+            throw new PendingActivationError();
+          }
+
           const passwordValid = await compare(password, user.password);
           if (!passwordValid) continue;
 

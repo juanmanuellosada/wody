@@ -11,7 +11,7 @@ import { GYM_LOGOS_SQUARE } from "@/lib/gym-logos";
 
 interface LoginPageProps {
   params: Promise<{ gymSlug: string }>;
-  searchParams: Promise<{ blocked?: string }>;
+  searchParams: Promise<{ blocked?: string; flash?: string }>;
 }
 
 export async function generateMetadata({ params }: LoginPageProps): Promise<Metadata> {
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: LoginPageProps): Promise<Meta
 
 export default async function LoginPage({ params, searchParams }: LoginPageProps) {
   const { gymSlug } = await params;
-  const { blocked } = await searchParams;
+  const { blocked, flash } = await searchParams;
 
   const gym = await prisma.gym.findUnique({ where: { slug: gymSlug } });
   if (!gym) notFound();
@@ -90,6 +90,24 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
             role="alert"
           >
             Tu sesión fue cerrada. Ingresá de nuevo para ver el motivo.
+          </div>
+        )}
+
+        {flash === "activated" && (
+          <div
+            className="mb-4 px-4 py-3 text-sm font-heading font-bold text-green-500 border border-green-500/40 bg-green-500/5 uppercase tracking-wide"
+            role="status"
+          >
+            Cuenta activada. Iniciá sesión.
+          </div>
+        )}
+
+        {flash === "password_reset" && (
+          <div
+            className="mb-4 px-4 py-3 text-sm font-heading font-bold text-green-500 border border-green-500/40 bg-green-500/5 uppercase tracking-wide"
+            role="status"
+          >
+            Contraseña actualizada. Iniciá sesión.
           </div>
         )}
 

@@ -15,11 +15,13 @@ interface TeacherOption {
 interface UserFormProps {
   terms: GymTerms;
   teachers: TeacherOption[];
+  emailFlowEnabled?: boolean;
 }
 
-export function UserForm({ terms, teachers }: UserFormProps) {
+export function UserForm({ terms, teachers, emailFlowEnabled = false }: UserFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
+  const [successWarning, setSuccessWarning] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [selectedRole, setSelectedRole] = useState("");
   const [studentType, setStudentType] = useState("PERSONALIZED");
@@ -36,6 +38,7 @@ export function UserForm({ terms, teachers }: UserFormProps) {
     e.preventDefault();
     setError(null);
     setSuccessNumber(null);
+    setSuccessWarning(null);
 
     const form = e.currentTarget;
     const formData = new FormData(form);
@@ -48,6 +51,7 @@ export function UserForm({ terms, teachers }: UserFormProps) {
       const result = await createUser(formData);
       if (result.success) {
         setSuccessNumber(result.memberNumber);
+        setSuccessWarning("warning" in result ? result.warning : null);
         form.reset();
         setSelectedRole("");
         setStudentType("PERSONALIZED");
@@ -78,16 +82,18 @@ export function UserForm({ terms, teachers }: UserFormProps) {
         disabled={isPending}
       />
 
-      <Input
-        name="password"
-        label="Contraseña"
-        type="password"
-        placeholder="Minimo 6 caracteres"
-        required
-        minLength={6}
-        disabled={isPending}
-        showPasswordToggle
-      />
+      {!emailFlowEnabled && (
+        <Input
+          name="password"
+          label="Contraseña"
+          type="password"
+          placeholder="Minimo 6 caracteres"
+          required
+          minLength={6}
+          disabled={isPending}
+          showPasswordToggle
+        />
+      )}
 
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
@@ -178,16 +184,20 @@ export function UserForm({ terms, teachers }: UserFormProps) {
       )}
 
       {successNumber !== null && (
-        <div
-          className="flex items-center justify-between gap-3 border border-green-500/40 bg-green-500/5 px-4 py-3"
-          role="status"
-        >
-          <p className="text-xs font-heading font-bold text-green-500 uppercase tracking-wide">
-            Usuario creado
-          </p>
-          <p className="text-xs font-heading font-bold text-green-500 uppercase tracking-[0.15em]">
-            Nº de socio: {formatMemberNumber(successNumber)}
-          </p>
+        <div className="flex flex-col gap-2" role="status">
+          <div className="flex items-center justify-between gap-3 border border-green-500/40 bg-green-500/5 px-4 py-3">
+            <p className="text-xs font-heading font-bold text-green-500 uppercase tracking-wide">
+              {emailFlowEnabled ? "Usuario creado — mail de invitación enviado" : "Usuario creado"}
+            </p>
+            <p className="text-xs font-heading font-bold text-green-500 uppercase tracking-[0.15em]">
+              Nº de socio: {formatMemberNumber(successNumber)}
+            </p>
+          </div>
+          {successWarning && (
+            <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
+              {successWarning}
+            </p>
+          )}
         </div>
       )}
 

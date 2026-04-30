@@ -6,6 +6,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma, Role, StudentType } from "@prisma/client";
 import { gymPath } from "@/lib/gym";
+import { generateToken } from "@/lib/email/tokens";
+import { sendEmail } from "@/lib/email/send";
+import { InviteEmail } from "@/lib/email/templates/InviteEmail";
+import React from "react";
 
 export type UserResult =
   | { success: true }
@@ -13,6 +17,7 @@ export type UserResult =
 
 export type CreateUserResult =
   | { success: true; memberNumber: number }
+  | { success: true; memberNumber: number; warning: string }
   | { success: false; error: string };
 
 export async function createUser(formData: FormData): Promise<CreateUserResult> {
@@ -25,6 +30,8 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
+  const emailFlowEnabled = process.env.EMAIL_FLOW_ENABLED === "true";
+
   const name = (formData.get("name") as string | null)?.trim();
   const email = (formData.get("email") as string | null)?.trim().toLowerCase();
   const password = (formData.get("password") as string | null)?.trim();
@@ -35,8 +42,11 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
 
   if (!name) return { success: false, error: "El nombre es obligatorio." };
   if (!email) return { success: false, error: "El email es obligatorio." };
-  if (!password || password.length < 6) {
-    return { success: false, error: "La contraseña debe tener al menos 6 caracteres." };
+  if (!emailFlowEnabled) {
+    // Flujo viejo: requiere password
+    if (!password || password.length < 6) {
+      return { success: false, error: "La contraseña debe tener al menos 6 caracteres." };
+    }
   }
   if (role !== "ADMIN" && role !== "TEACHER" && role !== "STUDENT") {
     return { success: false, error: "El rol debe ser Admin, Profe o Alumno." };
@@ -75,13 +85,62 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
     }
   }
 
-  const hashedPassword = await hash(password, 10);
+  if (!emailFlowEnabled) {
+    // ── Flujo VIEJO (EMAIL_FLOW_ENABLED !== "true") ────────────────────────
+    const hashedPassword = await hash(password!, 10);
+
+    try {
+      const memberNumber = await prisma.$transaction(async (tx) => {
+        const gym = await tx.gym.update({
+          where: { id: gymId },
+          data: { nextMemberNumber: { increment: 1 } },
+          select: { nextMemberNumber: true },
+        });
+        const assigned = gym.nextMemberNumber - 1;
+        const created = await tx.user.create({
+          data: {
+            name,
+            email,
+            password: hashedPassword,
+            role: role as Role,
+            studentType: (role === "STUDENT" ? studentType : "PERSONALIZED") as StudentType,
+            canCreateOwnRoutines,
+            gymId,
+            memberNumber: assigned,
+          },
+        });
+        if (teacherIdToLink) {
+          await tx.teacherStudent.create({
+            data: { teacherId: teacherIdToLink, studentId: created.id },
+          });
+        }
+        return assigned;
+      });
+
+      revalidatePath(gymPath(gymSlug, "/admin"));
+      revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+      return { success: true, memberNumber };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        return { success: false, error: "Ya existe un usuario con ese email en este gym." };
+      }
+      throw error;
+    }
+  }
+
+  // ── Flujo NUEVO (EMAIL_FLOW_ENABLED === "true") ──────────────────────────
+  const token = generateToken();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  let memberNumber: number;
 
   try {
-    // Transacción: incrementa Gym.nextMemberNumber, crea el user con el
-    // número anterior y (si corresponde) crea el vínculo con el profe.
-    // Atómico para evitar colisiones si dos creaciones ocurren en paralelo.
-    const memberNumber = await prisma.$transaction(async (tx) => {
+    // Transacción: incrementa Gym.nextMemberNumber, crea User (sin password) y
+    // VerificationToken INVITE. Atómico para evitar colisiones en paralelo.
+    const result = await prisma.$transaction(async (tx) => {
       const gym = await tx.gym.update({
         where: { id: gymId },
         data: { nextMemberNumber: { increment: 1 } },
@@ -92,7 +151,8 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
         data: {
           name,
           email,
-          password: hashedPassword,
+          password: null,
+          emailVerifiedAt: null,
           role: role as Role,
           studentType: (role === "STUDENT" ? studentType : "PERSONALIZED") as StudentType,
           canCreateOwnRoutines,
@@ -105,12 +165,19 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
           data: { teacherId: teacherIdToLink, studentId: created.id },
         });
       }
+      await tx.verificationToken.create({
+        data: {
+          userId: created.id,
+          tokenHash: token.hash,
+          type: "INVITE",
+          expiresAt,
+          consumedAt: null,
+        },
+      });
       return assigned;
     });
 
-    revalidatePath(gymPath(gymSlug, "/admin"));
-    revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
-    return { success: true, memberNumber };
+    memberNumber = result;
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -120,6 +187,50 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
     }
     throw error;
   }
+
+  // Fuera de la transacción: cargar gym para el template y enviar el mail.
+  const gym = await prisma.gym.findUnique({
+    where: { id: gymId },
+    select: { name: true, primaryColor: true, logo: true, kind: true },
+  });
+  if (!gym) {
+    // No debería ocurrir, pero por robustez retornamos éxito con warning.
+    revalidatePath(gymPath(gymSlug, "/admin"));
+    revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+    return {
+      success: true,
+      memberNumber,
+      warning: "Usuario creado pero el mail de invitación no se pudo enviar — usá Reenviar invitación",
+    };
+  }
+
+  const activationUrl = `${process.env.APP_URL}/${gymSlug}/activar?token=${token.plain}`;
+
+  const emailResult = await sendEmail({
+    to: email,
+    gymId,
+    type: "INVITE",
+    subject: `Activá tu cuenta en ${gym.name}`,
+    react: React.createElement(InviteEmail, {
+      gym,
+      recipientName: name,
+      activationUrl,
+      expiresAt,
+    }),
+  });
+
+  revalidatePath(gymPath(gymSlug, "/admin"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+
+  if (!emailResult.ok) {
+    return {
+      success: true,
+      memberNumber,
+      warning: "Usuario creado pero el mail de invitación no se pudo enviar — usá Reenviar invitación",
+    };
+  }
+
+  return { success: true, memberNumber };
 }
 
 export async function deleteUser(userId: string): Promise<UserResult> {
@@ -519,5 +630,76 @@ export async function setCanCreateOwnRoutines(
 
   revalidatePath(gymPath(gymSlug, "/admin"));
   revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
+  return { success: true };
+}
+
+export async function resendInvitation(userId: string): Promise<UserResult> {
+  const session = await auth();
+
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const callerGymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { gym: { select: { id: true, slug: true, name: true, primaryColor: true, logo: true, kind: true } } },
+  });
+
+  if (!user || user.deletedAt !== null) {
+    return { success: false, error: "Usuario no encontrado." };
+  }
+
+  // Multi-tenant check: caller must belong to the same gym.
+  if (user.gymId !== callerGymId) {
+    return { success: false, error: "Usuario no encontrado." };
+  }
+
+  // Only resend to users that haven't activated yet.
+  if (user.password !== null) {
+    return { success: false, error: "Este usuario ya activó su cuenta." };
+  }
+
+  // Invalidate any existing INVITE tokens for this user.
+  await prisma.verificationToken.updateMany({
+    where: { userId, type: "INVITE", consumedAt: null },
+    data: { consumedAt: new Date() },
+  });
+
+  const token = generateToken();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await prisma.verificationToken.create({
+    data: {
+      userId,
+      tokenHash: token.hash,
+      type: "INVITE",
+      expiresAt,
+      consumedAt: null,
+    },
+  });
+
+  const activationUrl = `${process.env.APP_URL}/${gymSlug}/activar?token=${token.plain}`;
+
+  const emailResult = await sendEmail({
+    to: user.email,
+    gymId: user.gymId,
+    type: "INVITE",
+    subject: `Activá tu cuenta en ${user.gym.name}`,
+    react: React.createElement(InviteEmail, {
+      gym: user.gym,
+      recipientName: user.name,
+      activationUrl,
+      expiresAt,
+    }),
+  });
+
+  if (!emailResult.ok) {
+    return { success: false, error: "No se pudo enviar el mail de invitación. Intentá de nuevo." };
+  }
+
+  revalidatePath(gymPath(gymSlug, "/admin"));
   return { success: true };
 }

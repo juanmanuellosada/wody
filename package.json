@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.0.8",
     "@tailwindcss/typography": "^0.5.19",
     "@tiptap/extension-history": "^3.22.1",
     "@tiptap/extension-placeholder": "^3.22.2",
@@ -36,6 +38,8 @@
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-email": "^6.0.5",
+    "resend": "^6.12.2",
     "tiptap-markdown": "^0.9.0",
     "web-push": "^3.6.7"
   },

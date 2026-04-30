@@ -8,6 +8,7 @@ import { ToggleStudentTypeButton } from "@/components/ToggleStudentTypeButton";
 import { AssignStudentForm } from "@/components/AssignStudentForm";
 import { EditStudentButton } from "@/components/EditStudentButton";
 import { PromoteTeacherButton } from "@/components/PromoteTeacherButton";
+import { ResendInvitationButton } from "@/components/ResendInvitationButton";
 import { GroupManager } from "@/components/group/GroupManager";
 import { Card } from "@/components/ui/Card";
 import { formatDateArg } from "@/lib/dates";
@@ -36,12 +37,13 @@ export default async function AdminPage({ params }: Props) {
 
   const gymId = session.user.gymId;
   const currentUserId = session.user.id;
+  const emailFlowEnabled = process.env.EMAIL_FLOW_ENABLED === "true";
 
   const [users, allGroups, teacherStudentLinks, gymConfig] = await Promise.all([
     prisma.user.findMany({
       where: { gymId, deletedAt: null },
       orderBy: [{ role: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, email: true, role: true, studentType: true, canCreateOwnRoutines: true, createdAt: true, groupMemberships: { select: { groupId: true } }, nextPaymentDate: true, blockedAt: true, memberNumber: true },
+      select: { id: true, name: true, email: true, role: true, studentType: true, canCreateOwnRoutines: true, createdAt: true, groupMemberships: { select: { groupId: true } }, nextPaymentDate: true, blockedAt: true, memberNumber: true, password: true },
     }),
     prisma.group.findMany({
       where: { teacher: { gymId }, deletedAt: null },
@@ -136,7 +138,7 @@ export default async function AdminPage({ params }: Props) {
             </h2>
           </div>
           <div className="p-5">
-            <UserForm terms={terms} teachers={allTeacherOptions} />
+            <UserForm terms={terms} teachers={allTeacherOptions} emailFlowEnabled={emailFlowEnabled} />
           </div>
         </section>
 
@@ -338,6 +340,9 @@ export default async function AdminPage({ params }: Props) {
                           user={{ id: user.id, name: user.name, blockedAt: user.blockedAt }}
                         />
                       )}
+                      {user.password === null && (
+                        <ResendInvitationButton userId={user.id} userEmail={user.email} />
+                      )}
                       <BlockUserButton
                         userId={user.id}
                         currentUserId={currentUserId}
@@ -440,6 +445,9 @@ export default async function AdminPage({ params }: Props) {
                     <PromoteTeacherButton
                       user={{ id: user.id, name: user.name, blockedAt: user.blockedAt }}
                     />
+                  )}
+                  {user.password === null && (
+                    <ResendInvitationButton userId={user.id} userEmail={user.email} />
                   )}
                   <BlockUserButton
                     userId={user.id}

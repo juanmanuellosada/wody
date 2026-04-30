@@ -67,6 +67,11 @@ export async function login(formData: FormData): Promise<LoginResult> {
       switch (error.type) {
         case "CredentialsSignin": {
           const code = (error as unknown as { code?: string }).code ?? "";
+          if (code === "PENDING_ACTIVATION") {
+            // User exists but has no password yet (invited but not activated).
+            // The login UI checks for this exact string to show a specific message.
+            return { success: false, error: "PENDING_ACTIVATION" };
+          }
           const blockedMsg = renderBlockedMessage(code);
           return {
             success: false,

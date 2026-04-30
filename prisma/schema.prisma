@@ -52,6 +52,23 @@ enum AccessState {
   DENIED
 }
 
+enum VerificationTokenType {
+  INVITE
+  RESET
+}
+
+enum EmailLogType {
+  INVITE
+  RESET
+  QUOTA_ALERT_80
+  QUOTA_ALERT_95
+}
+
+enum EmailLogStatus {
+  SENT
+  FAILED
+}
+
 model Gym {
   id                 String    @id @default(cuid())
   name               String
@@ -65,12 +82,13 @@ model Gym {
   nextMemberNumber   Int       @default(1)
   users              User[]
   accessLogs         AccessLog[]
+  emailLogs          EmailLog[]
 }
 
 model User {
   id              String      @id @default(cuid())
   email           String
-  password        String
+  password        String?
   name            String
   role            Role
   studentType     StudentType @default(PERSONALIZED)
@@ -82,6 +100,7 @@ model User {
   deletedAt       DateTime?
   lastDueNotifiedOn DateTime? @db.Date
   memberNumber    Int
+  emailVerifiedAt DateTime?
 
   gym   Gym    @relation(fields: [gymId], references: [id])
 
@@ -93,9 +112,10 @@ model User {
   teacherGroups  Group[]            @relation("TeacherGroups")
   groupMemberships GroupMember[]
   redemptions    CouponRedemption[]
-  pushSubscriptions PushSubscription[]
-  accessesAsUser    AccessLog[] @relation("AccessLogUser")
-  accessesDecidedBy AccessLog[] @relation("AccessLogDecidedBy")
+  pushSubscriptions  PushSubscription[]
+  accessesAsUser     AccessLog[] @relation("AccessLogUser")
+  accessesDecidedBy  AccessLog[] @relation("AccessLogDecidedBy")
+  verificationTokens VerificationToken[]
 
   // Unicidades parciales (solo filas activas, deletedAt IS NULL).
   // Los índices únicos totales fueron reemplazados por índices únicos parciales
@@ -245,4 +265,34 @@ model CouponRedemption {
 
   @@index([userId, couponId])
   @@index([couponId, status])
+}
+
+model VerificationToken {
+  id          String                @id @default(cuid())
+  userId      String
+  tokenHash   String                @unique
+  type        VerificationTokenType
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime              @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model EmailLog {
+  id           String         @id @default(cuid())
+  gymId        String?
+  to           String
+  type         EmailLogType
+  resendId     String?
+  status       EmailLogStatus
+  errorMessage String?
+  sentAt       DateTime       @default(now())
+
+  gym Gym? @relation(fields: [gymId], references: [id], onDelete: SetNull)
+
+  @@index([sentAt, status])
+  @@index([type, sentAt])
 }
