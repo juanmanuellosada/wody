@@ -98,6 +98,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Account activation + password reset: public (token-based, no session required)
+  if (subPath === "/activar" || subPath === "/recuperar") {
+    return NextResponse.next();
+  }
+
   // Protected routes: unauthenticated → redirect to gym login
   if (!isAuthenticated) {
     return NextResponse.redirect(
