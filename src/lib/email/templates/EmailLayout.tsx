@@ -22,6 +22,12 @@ interface EmailLayoutProps {
 }
 
 export function EmailLayout({ gym, preview, children }: EmailLayoutProps) {
+  // Forzamos el host canónico (www.) para los assets del mail. wody.com.ar redirige 307
+  // a www.wody.com.ar, y Gmail/Outlook no siguen redirects en <img>, lo que rompe el render.
+  const baseUrl = process.env.APP_URL ?? "https://www.wody.com.ar";
+  const assetBaseUrl = baseUrl.replace("://wody.com.ar", "://www.wody.com.ar");
+  const wodyLogoUrl = `${assetBaseUrl}/logos/wody-negro.png`;
+
   return (
     <Html lang="es">
       <Head />
@@ -70,7 +76,7 @@ export function EmailLayout({ gym, preview, children }: EmailLayoutProps) {
               Enviado por
             </Text>
             <Img
-              src={`${process.env.APP_URL ?? "https://wody.com.ar"}/logos/wody-texto.png`}
+              src={wodyLogoUrl}
               alt="Wody"
               height={20}
               style={{ display: "inline-block" }}
