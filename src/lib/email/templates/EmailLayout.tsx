@@ -7,6 +7,7 @@ import {
   Html,
   Img,
   Preview,
+  Section,
   Text,
 } from "@react-email/components";
 import React from "react";
@@ -63,12 +64,26 @@ export function EmailLayout({ gym, preview, children }: EmailLayoutProps) {
 
           {/* Footer */}
           <Hr style={{ borderColor: "#e4e4e7", margin: "32px 0 16px 0" }} />
+
+          <Section style={{ textAlign: "center", margin: "0 0 12px 0" }}>
+            <Text style={{ fontSize: "12px", color: "#a1a1aa", margin: "0 0 4px 0" }}>
+              Enviado por
+            </Text>
+            <Img
+              src={`${process.env.APP_URL ?? "https://wody.com.ar"}/logos/wody-texto.png`}
+              alt="Wody"
+              height={20}
+              style={{ display: "inline-block" }}
+            />
+          </Section>
+
           <Text
             style={{
               fontSize: "12px",
               color: "#71717a",
               margin: "0",
               lineHeight: "1.5",
+              textAlign: "center",
             }}
           >
             {gym.name} · Este es un mail automático, no respondas a esta dirección. Si no esperabas este mensaje, ignoralo.

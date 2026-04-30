@@ -44,6 +44,8 @@ El logo cargado es src/logos/[NOMBRE-DEL-LOGO].png
 
    Si el gym no tiene alguno de los dos tipos de logo, no lo agregues a ese map — la app cae automáticamente a mostrar el nombre del gym como texto (incluidas las imágenes de PRs compartibles).
 
+   **Logo en mails transaccionales (opcional):** Si querés que el logo aparezca en los mails de reset de contraseña y otros mails del sistema, copiá el logo a `public/logos/{slug}.png` y seteá el campo `logo` del gym a `'${APP_URL}/logos/{slug}.png'` (URL absoluta, ej: `https://wody.com.ar/logos/atlas-gym.png`). Podés hacerlo vía SQL en Neon: `UPDATE "Gym" SET logo = 'https://wody.com.ar/logos/{slug}.png' WHERE slug = '{slug}';`. Si `logo` queda en `null`, el mail muestra el nombre del gym como texto — comportamiento válido y sin errores.
+
    **`src/lib/gym-locations.ts`** — localidad de cada gym. Shape: `Record<string, string>`, valores con el formato `"Ciudad, Provincia"` (provincia con nombre completo, no abreviada). Agregar el nuevo slug con su localidad. Consumido por la landing general (`src/app/page.tsx`) y por la landing del propio gym (`src/app/[gymSlug]/page.tsx`). Si el slug no está en el map, la landing del gym omite la línea de localidad sin romper.
 
 4. **Verificar** que no se rompa nada: correr `npx prisma generate` y `npm run build` para asegurarte de que compila.
