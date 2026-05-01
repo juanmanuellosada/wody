@@ -104,7 +104,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
       />
       <main
         className={[
-          "flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-10",
+          "flex-1 max-w-6xl mx-auto w-full px-4 py-8 sm:py-10",
           role === "STUDENT" ? "pb-28 sm:pb-10" : "",
         ].join(" ")}
       >
