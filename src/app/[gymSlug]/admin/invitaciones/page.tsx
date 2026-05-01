@@ -43,6 +43,17 @@ export default async function InvitacionesPage({ params, searchParams }: Props) 
   const gym = await prisma.gym.findUnique({ where: { slug: gymSlug }, select: { id: true, name: true } });
   if (!gym) notFound();
 
+  // Fetch active teachers/admins for the edit-before-approve form.
+  const teachers = await prisma.user.findMany({
+    where: {
+      gymId: gym.id,
+      deletedAt: null,
+      role: { in: ["TEACHER", "ADMIN"] },
+    },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
   const tab: "pending" | "approved" | "rejected" =
     tabParam === "approved" ? "approved" :
     tabParam === "rejected" ? "rejected" :
@@ -135,6 +146,8 @@ export default async function InvitacionesPage({ params, searchParams }: Props) 
                       requestId={req.id}
                       requestName={req.name}
                       requestEmail={req.email}
+                      requestTeacherId={req.teacher?.id ?? null}
+                      teachers={teachers}
                     />
                     <RejectJoinRequestButton
                       requestId={req.id}

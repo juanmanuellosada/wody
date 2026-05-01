@@ -105,10 +105,23 @@ export async function submitJoinRequest({
 
 // ── 3.2 — approveJoinRequest ──────────────────────────────────────────────────
 
+// Overrides the admin may supply when approving a join request.
+// Email and password are intentionally absent: they are never overrideable.
+type ApproveOverrides = {
+  name?: string;
+  studentType?: "GENERAL" | "PERSONALIZED";
+  teacherId?: string | null;
+  canCreateOwnRoutines?: boolean;
+};
+
+// Regla heredada de createUser (src/actions/user.ts:60-74).
+// Si esa regla cambia, actualizar también aquí.
 export async function approveJoinRequest({
   requestId,
+  overrides,
 }: {
   requestId: string;
+  overrides?: ApproveOverrides;
 }): Promise<JoinResult> {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") {
@@ -130,6 +143,43 @@ export async function approveJoinRequest({
     return { ok: false, error: "Esta solicitud ya fue procesada" };
   }
 
+  // Whitelist defensiva: leer explícitamente los 4 campos permitidos, ignorar el resto.
+  const safeOverrides = overrides
+    ? {
+        name: overrides.name,
+        studentType: overrides.studentType,
+        teacherId: overrides.teacherId,
+        canCreateOwnRoutines: overrides.canCreateOwnRoutines,
+      }
+    : undefined;
+
+  // Resolver los campos finales aplicando la regla heredada de createUser.
+  const studentType = safeOverrides?.studentType ?? "PERSONALIZED";
+  const isPersonalizedStudent = studentType === "PERSONALIZED";
+  const teacherIdToLink = isPersonalizedStudent
+    ? (safeOverrides?.teacherId !== undefined ? safeOverrides.teacherId : request.teacherId) ?? null
+    : null;
+  const requestedCanCreate = safeOverrides?.canCreateOwnRoutines ?? false;
+  const canCreateOwnRoutines = isPersonalizedStudent
+    ? (teacherIdToLink ? requestedCanCreate : true)
+    : false;
+  const finalName = safeOverrides?.name ?? request.name;
+
+  // Validar teacherIdToLink cuando no es null.
+  if (teacherIdToLink) {
+    const teacher = await prisma.user.findFirst({
+      where: { id: teacherIdToLink, deletedAt: null },
+      select: { gymId: true, role: true },
+    });
+    if (
+      !teacher ||
+      teacher.gymId !== request.gymId ||
+      (teacher.role !== "TEACHER" && teacher.role !== "ADMIN")
+    ) {
+      return { ok: false, error: "Profe inválido" };
+    }
+  }
+
   try {
     await prisma.$transaction(async (tx) => {
       // Auto-increment memberNumber from the gym counter (same pattern as createUser).
@@ -142,10 +192,12 @@ export async function approveJoinRequest({
 
       const created = await tx.user.create({
         data: {
-          name: request.name,
+          name: finalName,
           email: request.email,
           password: request.passwordHash,
           role: "STUDENT",
+          studentType,
+          canCreateOwnRoutines,
           gymId: request.gymId,
           memberNumber,
           emailVerifiedAt: new Date(),
@@ -153,9 +205,9 @@ export async function approveJoinRequest({
       });
 
       // Teacher link goes through TeacherStudent (many-to-many), not User.teacherId.
-      if (request.teacherId) {
+      if (teacherIdToLink) {
         await tx.teacherStudent.create({
-          data: { teacherId: request.teacherId, studentId: created.id },
+          data: { teacherId: teacherIdToLink, studentId: created.id },
         });
       }
 
@@ -165,6 +217,9 @@ export async function approveJoinRequest({
           status: "APPROVED",
           reviewedAt: new Date(),
           reviewedById: session.user.id,
+          // Persistir nombre y profe finales para que la pestaña "Aprobadas" sea un audit trail fiel.
+          name: finalName,
+          teacherId: teacherIdToLink,
         },
       });
     });
@@ -194,7 +249,7 @@ export async function approveJoinRequest({
     subject: `Cuenta aprobada en ${request.gym.name}`,
     react: React.createElement(JoinApprovedEmail, {
       gym: request.gym,
-      recipientName: request.name,
+      recipientName: finalName,
       loginUrl,
       installUrl,
     }),
