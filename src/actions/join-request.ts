@@ -183,7 +183,9 @@ export async function approveJoinRequest({
 
   // Send approval mail after the transaction commits. If it fails, the user
   // already exists and the request is already APPROVED — don't block the result.
-  const loginUrl = `${process.env.APP_URL ?? "https://www.wody.com.ar"}/${request.gym.slug}/login`;
+  const appUrl = process.env.APP_URL ?? "https://www.wody.com.ar";
+  const loginUrl = `${appUrl}/${request.gym.slug}/login`;
+  const installUrl = `${appUrl}/${request.gym.slug}/instalar`;
 
   await sendEmail({
     to: request.email,
@@ -194,6 +196,7 @@ export async function approveJoinRequest({
       gym: request.gym,
       recipientName: request.name,
       loginUrl,
+      installUrl,
     }),
   });
 

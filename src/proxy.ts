@@ -105,8 +105,8 @@ export async function proxy(request: NextRequest) {
     return passThrough();
   }
 
-  // Account activation + password reset + self-service join: public (no session required)
-  if (subPath === "/activar" || subPath === "/recuperar" || subPath === "/invitarme") {
+  // Account activation + password reset + self-service join + PWA install: public (no session required)
+  if (subPath === "/activar" || subPath === "/recuperar" || subPath === "/invitarme" || subPath === "/instalar") {
     return passThrough();
   }
 

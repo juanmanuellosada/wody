@@ -12,9 +12,10 @@ interface JoinApprovedEmailProps {
   gym: { name: string; primaryColor: string | null; logo: string | null; kind: GymKind };
   recipientName: string;
   loginUrl: string;
+  installUrl: string;
 }
 
-export function JoinApprovedEmail({ gym, recipientName, loginUrl }: JoinApprovedEmailProps) {
+export function JoinApprovedEmail({ gym, recipientName, loginUrl, installUrl }: JoinApprovedEmailProps) {
   const primaryColor = gym.primaryColor ?? DEFAULT_PRIMARY_COLOR;
 
   return (
@@ -34,7 +35,7 @@ export function JoinApprovedEmail({ gym, recipientName, loginUrl }: JoinApproved
         Hola {recipientName}, el admin de {gym.name} aprobó tu solicitud. Ya podés ingresar con la contraseña que elegiste cuando te registraste.
       </Text>
 
-      <Section style={{ textAlign: "center", margin: "0 0 24px 0" }}>
+      <Section style={{ textAlign: "center", margin: "0 0 12px 0" }}>
         <Button
           href={loginUrl}
           style={{
@@ -49,6 +50,25 @@ export function JoinApprovedEmail({ gym, recipientName, loginUrl }: JoinApproved
           }}
         >
           Ingresar a {gym.name}
+        </Button>
+      </Section>
+
+      <Section style={{ textAlign: "center", margin: "0 0 24px 0" }}>
+        <Button
+          href={installUrl}
+          style={{
+            backgroundColor: "transparent",
+            color: primaryColor,
+            padding: "10px 24px",
+            borderRadius: "6px",
+            fontWeight: "600",
+            fontSize: "14px",
+            textDecoration: "none",
+            display: "inline-block",
+            border: `1.5px solid ${primaryColor}`,
+          }}
+        >
+          Instalar la app
         </Button>
       </Section>
 

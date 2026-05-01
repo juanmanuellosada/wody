@@ -50,7 +50,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
   const pathname = headersList.get("x-pathname") ?? "";
   const subPath = pathname.replace(`/${gymSlug}`, "");
   const isPublicFlow =
-    subPath === "/invitarme" || subPath === "/activar" || subPath === "/recuperar";
+    subPath === "/invitarme" || subPath === "/activar" || subPath === "/recuperar" || subPath === "/instalar";
 
   // Not authenticated, session belongs to a different gym, or public flow page —
   // render children bare (login, gym landing, and public flows handle their own layout).
