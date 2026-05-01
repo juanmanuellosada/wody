@@ -123,15 +123,12 @@ export default async function LandingPage() {
             </a>
           </div>
 
-          <p className="mt-6 text-xs text-gray-600 font-body">
-            ¿Entrenás por tu cuenta?{" "}
-            <Link
-              href="/registro-personal"
-              className="text-gray-400 hover:text-white underline underline-offset-2 transition-colors duration-200"
-            >
-              Probá Wody Personal
-            </Link>
-          </p>
+          <Link
+            href="/registro-personal"
+            className="mt-4 inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-gray-300 text-sm border border-gray-700 hover:border-brand-red hover:text-white transition-all duration-200 cursor-pointer"
+          >
+            Usalo por tu cuenta
+          </Link>
         </div>
       </section>
 
