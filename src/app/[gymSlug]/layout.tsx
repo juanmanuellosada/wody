@@ -52,10 +52,16 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
 
   // One DB read covers both: the blocked check (every request) and the
   // student's next payment date used for the status banner.
-  const dbUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { blockedAt: true, deletedAt: true, nextPaymentDate: true, role: true },
-  });
+  // For ADMIN, also fetch the pending join requests count in parallel.
+  const [dbUser, pendingJoinRequestsCount] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { blockedAt: true, deletedAt: true, nextPaymentDate: true, role: true },
+    }),
+    role === "ADMIN"
+      ? prisma.joinRequest.count({ where: { gymId: gym.id, status: "PENDING" } })
+      : Promise.resolve(0),
+  ]);
 
   if (dbUser) {
     if (dbUser.deletedAt !== null) {
@@ -101,6 +107,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         onSignOut={handleSignOut}
         terms={gymTerms(gym.kind)}
         canCreateOwnRoutines={canCreateOwnRoutines}
+        pendingJoinRequestsCount={pendingJoinRequestsCount}
       />
       <main
         className={[

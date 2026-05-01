@@ -62,6 +62,13 @@ enum EmailLogType {
   RESET
   QUOTA_ALERT_80
   QUOTA_ALERT_95
+  JOIN_APPROVED
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum EmailLogStatus {
@@ -83,6 +90,7 @@ model Gym {
   users              User[]
   accessLogs         AccessLog[]
   emailLogs          EmailLog[]
+  joinRequests       JoinRequest[]
 }
 
 model User {
@@ -116,6 +124,8 @@ model User {
   accessesAsUser     AccessLog[] @relation("AccessLogUser")
   accessesDecidedBy  AccessLog[] @relation("AccessLogDecidedBy")
   verificationTokens VerificationToken[]
+  joinRequestsAsTeacher  JoinRequest[] @relation("JoinRequestTeacher")
+  joinRequestsReviewed   JoinRequest[] @relation("JoinRequestReviewer")
 
   // Unicidades parciales (solo filas activas, deletedAt IS NULL).
   // Los índices únicos totales fueron reemplazados por índices únicos parciales
@@ -279,6 +289,24 @@ model VerificationToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model JoinRequest {
+  id           String            @id @default(cuid())
+  gymId        String
+  gym          Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  name         String
+  email        String
+  passwordHash String
+  teacherId    String?
+  teacher      User?             @relation("JoinRequestTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  status       JoinRequestStatus @default(PENDING)
+  reviewedById String?
+  reviewedBy   User?             @relation("JoinRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  createdAt    DateTime          @default(now())
+
+  @@index([gymId, status, createdAt])
 }
 
 model EmailLog {

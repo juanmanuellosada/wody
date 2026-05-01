@@ -19,14 +19,22 @@ interface NavbarProps {
   onSignOut: () => void;
   terms: GymTerms;
   canCreateOwnRoutines?: boolean;
+  pendingJoinRequestsCount?: number;
+}
+
+interface NavLink {
+  href: string;
+  label: string;
+  badge?: number;
 }
 
 function getNavLinks(
   role: Role,
   gymSlug: string,
   terms: GymTerms,
-  canCreateOwnRoutines: boolean
-) {
+  canCreateOwnRoutines: boolean,
+  pendingJoinRequestsCount: number
+): NavLink[] {
   const accessControl = hasAccessControl(gymSlug);
   const myRoutinesLink = {
     href: gymPath(gymSlug, "/dashboard/mis-rutinas"),
@@ -36,6 +44,11 @@ function getNavLinks(
   if (role === "ADMIN") {
     return [
       { href: gymPath(gymSlug, "/admin"), label: "Panel Admin" },
+      {
+        href: gymPath(gymSlug, "/admin/invitaciones"),
+        label: "Invitaciones",
+        ...(pendingJoinRequestsCount > 0 ? { badge: pendingJoinRequestsCount } : {}),
+      },
       { href: gymPath(gymSlug, "/dashboard/teacher"), label: "Dashboard Profe" },
       ...(canCreateOwnRoutines ? [myRoutinesLink] : []),
       { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
@@ -75,10 +88,10 @@ function getNavLinks(
   ];
 }
 
-export function Navbar({ userName, role, gymSlug, gymName, onSignOut, terms, canCreateOwnRoutines = false }: NavbarProps) {
+export function Navbar({ userName, role, gymSlug, gymName, onSignOut, terms, canCreateOwnRoutines = false, pendingJoinRequestsCount = 0 }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
-  const links = getNavLinks(role, gymSlug, terms, canCreateOwnRoutines);
+  const links = getNavLinks(role, gymSlug, terms, canCreateOwnRoutines, pendingJoinRequestsCount);
 
   const roleLabel =
     role === "ADMIN"
@@ -128,13 +141,21 @@ export function Navbar({ userName, role, gymSlug, gymName, onSignOut, terms, can
               key={link.href}
               href={link.href}
               className={[
-                "text-xs font-heading font-bold uppercase tracking-[0.15em] transition-colors duration-200 relative py-1",
+                "text-xs font-heading font-bold uppercase tracking-[0.15em] transition-colors duration-200 relative py-1 flex items-center",
                 isActive(link.href)
                   ? "text-brand-red"
                   : "text-gray-400 hover:text-white",
               ].join(" ")}
             >
               {link.label}
+              {link.badge !== undefined && (
+                <span
+                  className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-red text-white text-[10px] font-bold ml-1.5 leading-none"
+                  aria-label={`${link.badge > 99 ? "99+" : link.badge} solicitudes pendientes`}
+                >
+                  {link.badge > 99 ? "99+" : link.badge}
+                </span>
+              )}
               {isActive(link.href) && (
                 <span
                   className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-red"
@@ -214,6 +235,14 @@ export function Navbar({ userName, role, gymSlug, gymName, onSignOut, terms, can
                 <span className="w-1.5 h-1.5 bg-brand-red mr-3 flex-shrink-0" aria-hidden="true" />
               )}
               {link.label}
+              {link.badge !== undefined && (
+                <span
+                  className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-red text-white text-[10px] font-bold ml-2 leading-none"
+                  aria-label={`${link.badge > 99 ? "99+" : link.badge} solicitudes pendientes`}
+                >
+                  {link.badge > 99 ? "99+" : link.badge}
+                </span>
+              )}
             </Link>
           ))}
           <button

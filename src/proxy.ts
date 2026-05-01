@@ -98,8 +98,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Account activation + password reset: public (token-based, no session required)
-  if (subPath === "/activar" || subPath === "/recuperar") {
+  // Account activation + password reset + self-service join: public (no session required)
+  if (subPath === "/activar" || subPath === "/recuperar" || subPath === "/invitarme") {
     return NextResponse.next();
   }
 

@@ -51,3 +51,18 @@ El logo cargado es src/logos/[NOMBRE-DEL-LOGO].png
 4. **Verificar** que no se rompa nada: correr `npx prisma generate` y `npm run build` para asegurarte de que compila.
 
 No modifiques el schema de Prisma (ya soporta multi-gym y los dos kinds). No modifiques `src/lib/gym-terms.ts` (el helper ya maneja ambas terminologías). No borres datos existentes. Si creo alumnos, asignalos a sus profes correspondientes con TeacherStudent.
+
+---
+
+## Auto-registro de alumnos
+
+Cada box tiene un link público `/{slug}/invitarme` que el admin puede compartir por redes sociales, WhatsApp o donde quiera. Desde ese link, los alumnos se registran solos sin que el admin tenga que cargar sus datos a mano.
+
+El formulario pide: nombre, email, contraseña (elegida por el alumno) y profe (opcional). Una vez enviado, la solicitud llega a la sección `/{slug}/admin/invitaciones` del panel del admin. En la navbar del admin aparece un badge con la cantidad de solicitudes pendientes.
+
+Desde esa sección el admin puede:
+
+- **Aprobar**: crea el alumno con la contraseña que eligió en el formulario y le manda un mail de bienvenida con el link al login del box. Ver `docs/emails-resend.md` para el flujo de mails transaccionales.
+- **Rechazar**: descarta la solicitud de forma silenciosa (sin notificar al solicitante).
+
+Para compartir el link rápidamente, usá el botón **Copiar** que aparece arriba de la lista de invitaciones: copia la URL completa al portapapeles.
