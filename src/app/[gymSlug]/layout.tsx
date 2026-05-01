@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
+import { headers } from "next/headers";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "@/components/layout/Navbar";
@@ -42,9 +43,18 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
     '--color-red-hover': `color-mix(in oklch, ${accent} 85%, white)`,
   } as React.CSSProperties;
 
-  // Not authenticated or session belongs to a different gym — render children bare
-  // (login page and gym landing handle their own layout)
-  if (!session?.user || session.user.gymSlug !== gymSlug) {
+  // Public token-based flows: render bare even if there's an active session.
+  // Si un usuario logueado abre el link de invitación o reset, queremos mostrar
+  // la página tal cual la verá un visitante anónimo (sin la navbar del gym).
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") ?? "";
+  const subPath = pathname.replace(`/${gymSlug}`, "");
+  const isPublicFlow =
+    subPath === "/invitarme" || subPath === "/activar" || subPath === "/recuperar";
+
+  // Not authenticated, session belongs to a different gym, or public flow page —
+  // render children bare (login, gym landing, and public flows handle their own layout).
+  if (!session?.user || session.user.gymSlug !== gymSlug || isPublicFlow) {
     return <div style={accentVars}>{children}</div>;
   }
 

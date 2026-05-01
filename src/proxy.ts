@@ -44,6 +44,13 @@ export async function proxy(request: NextRequest) {
   const { nextUrl } = request;
   const segments = nextUrl.pathname.split("/").filter(Boolean);
 
+  // Forward the pathname to layouts/pages via a custom header so they can
+  // condition rendering (e.g. hide chrome on public flows like /invitarme).
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", nextUrl.pathname);
+  const passThrough = () =>
+    NextResponse.next({ request: { headers: requestHeaders } });
+
   // Pass through: root "/", API, demo, and global routes (validar)
   if (
     segments.length === 0 ||
@@ -51,7 +58,7 @@ export async function proxy(request: NextRequest) {
     segments[0] === "demo" ||
     segments[0] === "validar"
   ) {
-    return NextResponse.next();
+    return passThrough();
   }
 
   const gymSlug = segments[0];
@@ -95,12 +102,12 @@ export async function proxy(request: NextRequest) {
       }
       return NextResponse.redirect(new URL(destination, nextUrl));
     }
-    return NextResponse.next();
+    return passThrough();
   }
 
   // Account activation + password reset + self-service join: public (no session required)
   if (subPath === "/activar" || subPath === "/recuperar" || subPath === "/invitarme") {
-    return NextResponse.next();
+    return passThrough();
   }
 
   // Protected routes: unauthenticated → redirect to gym login
@@ -119,7 +126,7 @@ export async function proxy(request: NextRequest) {
           : gymPath(gymSlug, "/dashboard/athlete");
       return NextResponse.redirect(new URL(destination, nextUrl));
     }
-    return NextResponse.next();
+    return passThrough();
   }
 
   if (subPath.startsWith("/dashboard/teacher")) {
@@ -128,7 +135,7 @@ export async function proxy(request: NextRequest) {
         new URL(gymPath(gymSlug, "/dashboard/athlete"), nextUrl)
       );
     }
-    return NextResponse.next();
+    return passThrough();
   }
 
   if (subPath.startsWith("/dashboard/athlete")) {
@@ -141,7 +148,7 @@ export async function proxy(request: NextRequest) {
           : gymPath(gymSlug, "/dashboard/teacher");
       return NextResponse.redirect(new URL(destination, nextUrl));
     }
-    return NextResponse.next();
+    return passThrough();
   }
 
   if (subPath.startsWith("/ingresos")) {
@@ -150,7 +157,7 @@ export async function proxy(request: NextRequest) {
         new URL(gymPath(gymSlug, "/dashboard/athlete"), nextUrl)
       );
     }
-    return NextResponse.next();
+    return passThrough();
   }
 
   if (subPath.startsWith("/checkin")) {
@@ -161,10 +168,10 @@ export async function proxy(request: NextRequest) {
         new URL(gymPath(gymSlug, "/ingresos"), nextUrl)
       );
     }
-    return NextResponse.next();
+    return passThrough();
   }
 
-  return NextResponse.next();
+  return passThrough();
 }
 
 export const config = {
