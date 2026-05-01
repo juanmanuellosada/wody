@@ -30,7 +30,10 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
-  const emailFlowEnabled = process.env.EMAIL_FLOW_ENABLED === "true";
+  const mode = formData.get("mode") as string | null;
+  if (mode !== "password" && mode !== "invite") {
+    return { success: false, error: "Modo inválido" };
+  }
 
   const name = (formData.get("name") as string | null)?.trim();
   const email = (formData.get("email") as string | null)?.trim().toLowerCase();
@@ -42,8 +45,7 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
 
   if (!name) return { success: false, error: "El nombre es obligatorio." };
   if (!email) return { success: false, error: "El email es obligatorio." };
-  if (!emailFlowEnabled) {
-    // Flujo viejo: requiere password
+  if (mode === "password") {
     if (!password || password.length < 6) {
       return { success: false, error: "La contraseña debe tener al menos 6 caracteres." };
     }
@@ -85,8 +87,8 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
     }
   }
 
-  if (!emailFlowEnabled) {
-    // ── Flujo VIEJO (EMAIL_FLOW_ENABLED !== "true") ────────────────────────
+  if (mode === "password") {
+    // ── Flujo con contraseña ───────────────────────────────────────────────
     const hashedPassword = await hash(password!, 10);
 
     try {
@@ -131,7 +133,7 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
     }
   }
 
-  // ── Flujo NUEVO (EMAIL_FLOW_ENABLED === "true") ──────────────────────────
+  // ── Flujo por invitación ─────────────────────────────────────────────────
   const token = generateToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 

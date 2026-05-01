@@ -51,18 +51,16 @@ En el dashboard de Vercel → proyecto Wody → **Settings → Environment Varia
 | `EMAIL_QUOTA_ALERT_TO` | `juanmalosada01@gmail.com` |
 | `EMAIL_QUOTA_MONTHLY_LIMIT` | `3000` |
 | `APP_URL` | `https://wody.com.ar` |
-| `EMAIL_FLOW_ENABLED` | `false` (cambiar a `true` después del smoke test) |
 
 ### 4. Smoke test
 
-1. Con `EMAIL_FLOW_ENABLED=false`, el flujo de alta sigue siendo el viejo (admin tipea password). Setear a `true` solo en Preview primero.
-2. En un gym propio, crear un alumno de prueba desde el panel de admin.
-3. Verificar que llega el mail de invitación y que el link de activación funciona.
-4. Activar la cuenta con una password nueva. Confirmar que el login funciona.
-5. Probar **recuperación de contraseña**: desde la pantalla de login → "¿Olvidaste tu contraseña?" → recibir mail → cambiar contraseña → login.
-6. Probar **reenviar invitación**: desde el panel de admin, fila del alumno → botón "Reenviar invitación".
+1. En un gym propio, crear un alumno de prueba desde el panel de admin usando la pestaña "Por invitación".
+2. Verificar que llega el mail de invitación y que el link de activación funciona.
+3. Activar la cuenta con una password nueva. Confirmar que el login funciona.
+4. Probar **recuperación de contraseña**: desde la pantalla de login → "¿Olvidaste tu contraseña?" → recibir mail → cambiar contraseña → login.
+5. Probar **reenviar invitación**: desde el panel de admin, fila del alumno → botón "Reenviar invitación".
+6. Probar la pestaña "Con contraseña": crear un alumno de prueba sin mail, verificar login directo.
 7. Revisar que el mail se ve bien en Gmail, Outlook y Apple Mail.
-8. Si todo cierra, activar `EMAIL_FLOW_ENABLED=true` en Production.
 
 ---
 
@@ -119,10 +117,7 @@ Si se proyecta llegar al tope:
 
 Si no se puede upgradear de inmediato y quedan muy pocos envíos disponibles:
 
-1. En Vercel → **Environment Variables** → cambiar `EMAIL_FLOW_ENABLED` a `"false"`.
-2. Hacer un **redeploy** (o esperar el siguiente deploy — las env vars no se recargan en caliente).
-3. Con el flag en `false`, el flujo de alta vuelve al comportamiento viejo: el admin tipea la contraseña del alumno manualmente al crearlo.
-4. Una vez resuelto el upgrade (o al inicio del mes siguiente con cuota renovada), volver `EMAIL_FLOW_ENABLED` a `"true"` y redeploy.
+Los admins pueden seguir dando de alta alumnos usando la opción **"Con contraseña"** en el form del panel de admin — no requiere enviar mail. Una vez resuelto el upgrade (o al inicio del mes siguiente con cuota renovada), volver a usar la opción "Por invitación".
 
 ---
 

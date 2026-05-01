@@ -64,4 +64,4 @@
 
 ## 10. Limpieza posterior (en cambio aparte)
 
-- [ ] 10.1 Crear cambio futuro `remove-manual-password-signup` para borrar el toggle `EMAIL_FLOW_ENABLED` y el código viejo de alta con password una vez que el rollout esté estable
+- [x] 10.1 Colapsado en este cambio: el toggle `EMAIL_FLOW_ENABLED` ya no existe, sustituido por selección por-alta en el form (pestañas "Por invitación" / "Con contraseña" en `UserForm`). Ambas modalidades conviven sin toggle de env.

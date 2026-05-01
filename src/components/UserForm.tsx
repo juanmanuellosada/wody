@@ -15,14 +15,15 @@ interface TeacherOption {
 interface UserFormProps {
   terms: GymTerms;
   teachers: TeacherOption[];
-  emailFlowEnabled?: boolean;
 }
 
-export function UserForm({ terms, teachers, emailFlowEnabled = false }: UserFormProps) {
+export function UserForm({ terms, teachers }: UserFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
+  const [successEmail, setSuccessEmail] = useState<string | null>(null);
   const [successWarning, setSuccessWarning] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [mode, setMode] = useState<"invite" | "password">("invite");
   const [selectedRole, setSelectedRole] = useState("");
   const [studentType, setStudentType] = useState("PERSONALIZED");
   const [teacherId, setTeacherId] = useState("");
@@ -38,20 +39,25 @@ export function UserForm({ terms, teachers, emailFlowEnabled = false }: UserForm
     e.preventDefault();
     setError(null);
     setSuccessNumber(null);
+    setSuccessEmail(null);
     setSuccessWarning(null);
 
     const form = e.currentTarget;
     const formData = new FormData(form);
+    formData.set("mode", mode);
     if (showStudentExtras) {
       formData.set("canCreateOwnRoutines", effectiveCanCreate ? "1" : "0");
       if (teacherId) formData.set("teacherId", teacherId);
     }
 
+    const emailValue = (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
+
     startTransition(async () => {
       const result = await createUser(formData);
       if (result.success) {
         setSuccessNumber(result.memberNumber);
-        setSuccessWarning("warning" in result ? result.warning : null);
+        setSuccessEmail(emailValue);
+        setSuccessWarning("warning" in result ? result.warning ?? null : null);
         form.reset();
         setSelectedRole("");
         setStudentType("PERSONALIZED");
@@ -65,6 +71,41 @@ export function UserForm({ terms, teachers, emailFlowEnabled = false }: UserForm
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {/* Mode selector */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+          Modo de alta
+        </label>
+        <div className="flex">
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => setMode("invite")}
+            className={[
+              "flex-1 px-4 py-2.5 text-xs font-heading font-bold uppercase tracking-[0.12em] border transition-colors duration-150 disabled:opacity-50",
+              mode === "invite"
+                ? "bg-brand-red/15 text-brand-red border-brand-red/40"
+                : "bg-elev text-gray-400 border-edge hover:text-white",
+            ].join(" ")}
+          >
+            Por invitación
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => setMode("password")}
+            className={[
+              "flex-1 px-4 py-2.5 text-xs font-heading font-bold uppercase tracking-[0.12em] border-y border-r transition-colors duration-150 disabled:opacity-50",
+              mode === "password"
+                ? "bg-brand-red/15 text-brand-red border-brand-red/40"
+                : "bg-elev text-gray-400 border-edge hover:text-white",
+            ].join(" ")}
+          >
+            Con contraseña
+          </button>
+        </div>
+      </div>
+
       <Input
         name="name"
         label="Nombre"
@@ -82,7 +123,11 @@ export function UserForm({ terms, teachers, emailFlowEnabled = false }: UserForm
         disabled={isPending}
       />
 
-      {!emailFlowEnabled && (
+      {mode === "invite" ? (
+        <p className="text-sm text-gray-400 font-body leading-snug">
+          Recibirá un mail con un link para definir su contraseña. El link expira en 7 días.
+        </p>
+      ) : (
         <Input
           name="password"
           label="Contraseña"
@@ -187,7 +232,11 @@ export function UserForm({ terms, teachers, emailFlowEnabled = false }: UserForm
         <div className="flex flex-col gap-2" role="status">
           <div className="flex items-center justify-between gap-3 border border-green-500/40 bg-green-500/5 px-4 py-3">
             <p className="text-xs font-heading font-bold text-green-500 uppercase tracking-wide">
-              {emailFlowEnabled ? "Usuario creado — mail de invitación enviado" : "Usuario creado"}
+              {successWarning
+                ? "Usuario creado pero el mail no salió. Usá 'Reenviar invitación'."
+                : mode === "invite"
+                ? `Usuario creado. Mail de invitación enviado a ${successEmail}.`
+                : "Usuario creado"}
             </p>
             <p className="text-xs font-heading font-bold text-green-500 uppercase tracking-[0.15em]">
               Nº de socio: {formatMemberNumber(successNumber)}

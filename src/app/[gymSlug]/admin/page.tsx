@@ -37,7 +37,6 @@ export default async function AdminPage({ params }: Props) {
 
   const gymId = session.user.gymId;
   const currentUserId = session.user.id;
-  const emailFlowEnabled = process.env.EMAIL_FLOW_ENABLED === "true";
 
   const [users, allGroups, teacherStudentLinks, gymConfig] = await Promise.all([
     prisma.user.findMany({
@@ -138,7 +137,7 @@ export default async function AdminPage({ params }: Props) {
             </h2>
           </div>
           <div className="p-5">
-            <UserForm terms={terms} teachers={allTeacherOptions} emailFlowEnabled={emailFlowEnabled} />
+            <UserForm terms={terms} teachers={allTeacherOptions} />
           </div>
         </section>
 
