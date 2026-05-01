@@ -122,6 +122,16 @@ export default async function LandingPage() {
               Contactanos
             </a>
           </div>
+
+          <p className="mt-6 text-xs text-gray-600 font-body">
+            ¿Entrenás por tu cuenta?{" "}
+            <Link
+              href="/registro-personal"
+              className="text-gray-400 hover:text-white underline underline-offset-2 transition-colors duration-200"
+            >
+              Probá Wody Personal
+            </Link>
+          </p>
         </div>
       </section>
 
