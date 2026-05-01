@@ -51,12 +51,13 @@ export async function proxy(request: NextRequest) {
   const passThrough = () =>
     NextResponse.next({ request: { headers: requestHeaders } });
 
-  // Pass through: root "/", API, demo, and global routes (validar)
+  // Pass through: root "/", API, demo, and global routes (validar, registro-personal)
   if (
     segments.length === 0 ||
     segments[0] === "api" ||
     segments[0] === "demo" ||
-    segments[0] === "validar"
+    segments[0] === "validar" ||
+    segments[0] === "registro-personal"
   ) {
     return passThrough();
   }
