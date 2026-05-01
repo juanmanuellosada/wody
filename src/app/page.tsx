@@ -102,7 +102,7 @@ export default async function LandingPage() {
             y el seguimiento de tus alumnos.
           </p>
 
-          <p className="text-sm text-gray-600 mb-10 font-body">
+          <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 mb-10 font-body">
             Para <RotatingTypewriter words={["crossfit", "gimnasio", "funcional", "GAP", "musculación", "calistenia"]} />
           </p>
 
