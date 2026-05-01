@@ -258,3 +258,13 @@ h1, h2, h3, h4, h5, h6 {
 .wody-pulse-overdue {
   animation: pulse-overdue 2.4s ease-in-out infinite;
 }
+
+/* Typewriter cursor blink */
+@keyframes wody-caret-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.wody-caret-blink {
+  animation: wody-caret-blink 1s steps(1) infinite;
+}

@@ -21,6 +21,7 @@ import atlasLogo from "@/logos/atlas-gym.png";
 import { GYM_LOCATIONS } from "@/lib/gym-locations";
 import { BenefitsSection } from "@/components/benefits/BenefitsSection";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
+import { RotatingTypewriter } from "@/components/marketing/RotatingTypewriter";
 
 export const metadata: Metadata = {
   title: "WODY — Gestión de rutinas para centros de entrenamiento",
@@ -102,7 +103,7 @@ export default async function LandingPage() {
           </p>
 
           <p className="text-sm text-gray-600 mb-10 font-body">
-            CrossFit, gimnasios, funcional, GAP y más.
+            Para <RotatingTypewriter words={["crossfit", "gimnasio", "funcional", "GAP", "musculación", "calistenia"]} />
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 items-center">
