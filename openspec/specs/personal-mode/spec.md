@@ -234,45 +234,21 @@ Para `createWod` invocado por un usuario personal:
 
 ---
 
-### Requirement: Operador de plataforma (`isPlatformAdmin`) y gestión de whitelist
+### Requirement: Flag `isPlatformAdmin` y gestión por DB de la whitelist
 
-El sistema SHALL agregar al modelo `User` un campo `isPlatformAdmin Boolean @default(false)`. Este flag SHALL ser ortogonal al `role` (no mutuamente excluyente con ADMIN/TEACHER/STUDENT/ACCESS).
+El sistema SHALL agregar al modelo `User` un campo `isPlatformAdmin Boolean @default(false)`. Este flag SHALL ser ortogonal al `role` (no mutuamente excluyente con ADMIN/TEACHER/STUDENT/ACCESS). El flag está reservado para autorización futura de operadores de plataforma; hoy no es consumido por ningún path de código.
 
-El sistema SHALL exponer una página `/admin/personal-whitelist` (fuera de `[gymSlug]`) que permite a usuarios con `isPlatformAdmin = true` listar, agregar y quitar emails de la whitelist. Server actions: `addToWhitelist({ email, note })`, `removeFromWhitelist({ email })`, `listWhitelist()`.
+La gestión de `PersonalAccessWhitelist` (alta, baja, listado de emails) SHALL realizarse exclusivamente vía operaciones directas sobre la base de datos. NO SHALL existir UI ni server actions para administrar la whitelist desde la app en este alcance.
 
-El acceso a esta página y a sus actions SHALL rechazarse para cualquier usuario que no tenga `isPlatformAdmin = true`, sin importar su `role`.
+#### Scenario: Operador agrega email vía DB
 
-El flag `isPlatformAdmin` SHALL ser seteado y reseteado únicamente por intervención manual sobre la base de datos. NO SHALL existir UI para promover usuarios a `isPlatformAdmin` desde la app.
+- **GIVEN** un operador con acceso a la base de datos
+- **WHEN** inserta una fila en `PersonalAccessWhitelist` con un email único en lowercase
+- **THEN** ese email queda autorizado a completar el flujo de registro personal (ver Requirement: Flujo público de registro personal con anti-enumeración)
 
-#### Scenario: Acceso autorizado a la gestión de whitelist
+#### Scenario: Operador remueve email vía DB
 
-- **GIVEN** un User con `isPlatformAdmin = true`
-- **WHEN** accede a `/admin/personal-whitelist`
-- **THEN** ve el listado de emails con `email`, `note`, `createdAt`, `consumedAt`, y puede agregar/quitar emails
-
-#### Scenario: Acceso rechazado a usuarios sin el flag
-
-- **GIVEN** un User con `isPlatformAdmin = false` (sin importar su `role`)
-- **WHEN** accede a `/admin/personal-whitelist` o invoca cualquiera de las actions de whitelist
-- **THEN** el sistema rechaza la operación con error de autorización
-
-#### Scenario: Agregar email a la whitelist
-
-- **GIVEN** un User con `isPlatformAdmin = true` y un email `nuevo@e.com` que no está en la whitelist
-- **WHEN** invoca `addToWhitelist({ email: "Nuevo@E.com", note: "amigo de la familia" })`
-- **THEN** el sistema crea una fila con `email = "nuevo@e.com"` (lowercase), `note = "amigo de la familia"`, `createdAt = now()`, `createdById = <id del operador>`, `consumedAt = null`
-
-#### Scenario: Agregar email duplicado
-
-- **GIVEN** un email ya presente en la whitelist
-- **WHEN** un operador invoca `addToWhitelist` con ese mismo email (o variante de capitalización)
-- **THEN** el sistema NO crea una fila duplicada
-- **AND** devuelve un error explícito o un no-op idempotente (a definir en implementación)
-
-#### Scenario: Quitar email de la whitelist
-
-- **GIVEN** un email en la whitelist (consumido o no)
-- **WHEN** un operador invoca `removeFromWhitelist({ email })`
-- **THEN** el sistema borra físicamente la fila de `PersonalAccessWhitelist`
-- **AND** NO afecta al User personal que pueda haber sido creado a partir de esa entrada (siguen existiendo y operativos)
+- **GIVEN** un email en la whitelist
+- **WHEN** el operador borra la fila
+- **THEN** el User personal asociado (si fue creado a partir de esa entrada) sigue existiendo y operativo
 
