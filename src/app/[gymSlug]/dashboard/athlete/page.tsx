@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import { WodCard } from "@/components/wod/WodCard";
 import { WodHistory } from "@/components/wod/WodHistory";
-import { gymPath, hasAccessControl } from "@/lib/gym";
+import { gymPath, hasAccessControl, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import { formatMemberNumber } from "@/lib/memberNumber";
 import { CheckinScannerButton } from "@/components/access/CheckinScannerButton";
@@ -18,6 +18,10 @@ interface Props {
 export default async function StudentDashboardPage({ params }: Props) {
   const { gymSlug } = await params;
   const session = await auth();
+
+  if (session?.user && isPersonalGym(session.user.gymKind)) {
+    redirect("/personal/dashboard/mis-rutinas");
+  }
 
   if (!session?.user || session.user.role !== "STUDENT") {
     redirect(gymPath(gymSlug, "/login"));

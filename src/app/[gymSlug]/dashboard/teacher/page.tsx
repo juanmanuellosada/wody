@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { gymPath, hasAccessControl } from "@/lib/gym";
+import { gymPath, hasAccessControl, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import { formatMemberNumber } from "@/lib/memberNumber";
 import { WodManagerClient } from "@/components/wod/WodManagerClient";
@@ -15,6 +15,10 @@ interface Props {
 export default async function TeacherDashboardPage({ params }: Props) {
   const { gymSlug } = await params;
   const session = await auth();
+
+  if (session?.user && isPersonalGym(session.user.gymKind)) {
+    redirect("/personal/dashboard/mis-rutinas");
+  }
 
   if (
     !session?.user ||

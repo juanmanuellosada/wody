@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { auth } from "@/lib/auth";
-import { gymPath, hasAccessControl } from "@/lib/gym";
+import { gymPath, hasAccessControl, isPersonalGym } from "@/lib/gym";
 import { generateCheckinToken, msUntilNextBucket } from "@/lib/checkin";
 import { KioskView } from "@/components/access/KioskView";
 
@@ -17,6 +17,10 @@ export default async function IngresosPage({ params }: Props) {
   const { gymSlug } = await params;
   if (!hasAccessControl(gymSlug)) notFound();
   const session = await auth();
+
+  if (session?.user && isPersonalGym(session.user.gymKind)) {
+    redirect("/personal/dashboard/mis-rutinas");
+  }
 
   if (
     !session?.user ||

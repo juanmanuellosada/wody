@@ -21,6 +21,7 @@ enum Role {
 enum GymKind {
   GYM
   BOX
+  PERSONAL
 }
 
 enum StudentType {
@@ -63,6 +64,7 @@ enum EmailLogType {
   QUOTA_ALERT_80
   QUOTA_ALERT_95
   JOIN_APPROVED
+  PERSONAL_WELCOME
 }
 
 enum JoinRequestStatus {
@@ -109,6 +111,7 @@ model User {
   lastDueNotifiedOn DateTime? @db.Date
   memberNumber    Int
   emailVerifiedAt DateTime?
+  isPlatformAdmin Boolean   @default(false)
 
   gym   Gym    @relation(fields: [gymId], references: [id])
 
@@ -126,6 +129,7 @@ model User {
   verificationTokens VerificationToken[]
   joinRequestsAsTeacher  JoinRequest[] @relation("JoinRequestTeacher")
   joinRequestsReviewed   JoinRequest[] @relation("JoinRequestReviewer")
+  whitelistEntriesCreated PersonalAccessWhitelist[] @relation("WhitelistCreatedBy")
 
   // Unicidades parciales (solo filas activas, deletedAt IS NULL).
   // Los índices únicos totales fueron reemplazados por índices únicos parciales
@@ -323,4 +327,15 @@ model EmailLog {
 
   @@index([sentAt, status])
   @@index([type, sentAt])
+}
+
+model PersonalAccessWhitelist {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  note        String?
+  createdAt   DateTime  @default(now())
+  createdById String?
+  consumedAt  DateTime?
+
+  createdBy User? @relation("WhitelistCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { gymPath } from "@/lib/gym";
+import { gymPath, isPersonalGym } from "@/lib/gym";
 import { formatDateArg, getTodayArgentina } from "@/lib/dates";
 import { Card } from "@/components/ui/Card";
 import { PayButton } from "@/components/PayButton";
@@ -76,6 +76,10 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
   const { status: statusParam } = await searchParams;
   const activeFilter = parseFilter(statusParam);
   const session = await auth();
+
+  if (session?.user && isPersonalGym(session.user.gymKind)) {
+    redirect("/personal/dashboard/mis-rutinas");
+  }
 
   if (
     !session?.user ||

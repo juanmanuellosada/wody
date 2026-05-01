@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { gymPath } from "@/lib/gym";
+import { gymPath, isPersonalGym } from "@/lib/gym";
 import type { Metadata } from "next";
 import { JoinLinkBox } from "./JoinLinkBox";
 import { ApproveJoinRequestButton } from "./ApproveJoinRequestButton";
@@ -36,6 +36,11 @@ export default async function InvitacionesPage({ params, searchParams }: Props) 
   const { tab: tabParam } = await searchParams;
 
   const session = await auth();
+
+  if (session?.user && isPersonalGym(session.user.gymKind)) {
+    redirect("/personal/dashboard/mis-rutinas");
+  }
+
   if (!session?.user || session.user.role !== "ADMIN" || session.user.gymSlug !== gymSlug) {
     redirect(gymPath(gymSlug, "/login"));
   }

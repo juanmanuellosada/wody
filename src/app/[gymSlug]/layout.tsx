@@ -8,7 +8,7 @@ import { InstallPwaButton } from "@/components/InstallPwaButton";
 import { NotificationPermissionButton } from "@/components/NotificationPermissionButton";
 import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
-import { gymPath, hasTeacherWhatsAppContact } from "@/lib/gym";
+import { gymPath, hasTeacherWhatsAppContact, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import { getBlockStatus } from "@/lib/blocking";
 import { sendDueReminderIfNeeded } from "@/lib/push";
@@ -107,6 +107,8 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
     await signOut({ redirectTo: gymPath(gymSlug, "/login") });
   }
 
+  const personalGym = isPersonalGym(gym.kind);
+
   return (
     <div className="min-h-screen flex flex-col bg-black" style={accentVars}>
       <Navbar
@@ -114,6 +116,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         role={role}
         gymSlug={gymSlug}
         gymName={gym.name}
+        gymKind={gym.kind}
         onSignOut={handleSignOut}
         terms={gymTerms(gym.kind)}
         canCreateOwnRoutines={canCreateOwnRoutines}
@@ -125,14 +128,14 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
           role === "STUDENT" ? "pb-28 sm:pb-10" : "",
         ].join(" ")}
       >
-        {student && (
+        {student && !personalGym && (
           <PaymentStatusBanner nextPaymentDate={student.nextPaymentDate} />
         )}
         <InstallPwaButton />
         {role === "STUDENT" && <NotificationPermissionButton />}
         {children}
       </main>
-      {role === "STUDENT" && hasTeacherWhatsAppContact(gymSlug) && <WhatsAppFab />}
+      {role === "STUDENT" && !personalGym && hasTeacherWhatsAppContact(gymSlug) && <WhatsAppFab />}
     </div>
   );
 }

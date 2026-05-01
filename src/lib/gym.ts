@@ -1,3 +1,9 @@
+import { GymKind } from "@prisma/client";
+
+export function isPersonalGym(kind: GymKind): boolean {
+  return kind === "PERSONAL";
+}
+
 /**
  * Build a gym-prefixed path.
  * gymPath("unidos-garage", "/dashboard/athlete") → "/unidos-garage/dashboard/athlete"

@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import type { Role } from "@prisma/client";
-import { gymPath, hasAccessControl } from "@/lib/gym";
+import type { GymKind, Role } from "@prisma/client";
+import { gymPath, hasAccessControl, isPersonalGym } from "@/lib/gym";
 import type { GymTerms } from "@/lib/gym-terms";
 
 import wodyBlanco from "@/logos/wody-blanco.png";
@@ -16,6 +16,7 @@ interface NavbarProps {
   role: Role;
   gymSlug: string;
   gymName: string;
+  gymKind: GymKind;
   onSignOut: () => void;
   terms: GymTerms;
   canCreateOwnRoutines?: boolean;
@@ -31,10 +32,19 @@ interface NavLink {
 function getNavLinks(
   role: Role,
   gymSlug: string,
+  gymKind: GymKind,
   terms: GymTerms,
   canCreateOwnRoutines: boolean,
   pendingJoinRequestsCount: number
 ): NavLink[] {
+  if (isPersonalGym(gymKind)) {
+    return [
+      { href: gymPath(gymSlug, "/dashboard/mis-rutinas"), label: "Mis WODs" },
+      { href: gymPath(gymSlug, "/dashboard/rms"), label: "Mis RMs" },
+      { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
+    ];
+  }
+
   const accessControl = hasAccessControl(gymSlug);
   const myRoutinesLink = {
     href: gymPath(gymSlug, "/dashboard/mis-rutinas"),
@@ -88,10 +98,10 @@ function getNavLinks(
   ];
 }
 
-export function Navbar({ userName, role, gymSlug, gymName, onSignOut, terms, canCreateOwnRoutines = false, pendingJoinRequestsCount = 0 }: NavbarProps) {
+export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, terms, canCreateOwnRoutines = false, pendingJoinRequestsCount = 0 }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
-  const links = getNavLinks(role, gymSlug, terms, canCreateOwnRoutines, pendingJoinRequestsCount);
+  const links = getNavLinks(role, gymSlug, gymKind, terms, canCreateOwnRoutines, pendingJoinRequestsCount);
 
   const roleLabel =
     role === "ADMIN"

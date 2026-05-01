@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { gymPath, hasAccessControl } from "@/lib/gym";
+import { gymPath, hasAccessControl, isPersonalGym } from "@/lib/gym";
 import { formatMemberNumber } from "@/lib/memberNumber";
 import { formatDateArg } from "@/lib/dates";
 
@@ -13,6 +13,10 @@ export default async function IngresosHistorialPage({ params }: Props) {
   const { gymSlug } = await params;
   if (!hasAccessControl(gymSlug)) notFound();
   const session = await auth();
+
+  if (session?.user && isPersonalGym(session.user.gymKind)) {
+    redirect("/personal/dashboard/mis-rutinas");
+  }
 
   if (
     !session?.user ||

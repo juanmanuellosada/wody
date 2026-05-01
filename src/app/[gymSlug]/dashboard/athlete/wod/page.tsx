@@ -5,7 +5,7 @@ import { getTodayArgentina, toInputDate, formatDateArg } from "@/lib/dates";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { ShareWodButton } from "@/components/wod/ShareWodButton";
 import { StudentWodBadge } from "@/components/wod/StudentWodBadge";
-import { gymPath } from "@/lib/gym";
+import { gymPath, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import Link from "next/link";
 
@@ -17,6 +17,10 @@ interface Props {
 export default async function WodFullPage({ params, searchParams }: Props) {
   const { gymSlug } = await params;
   const session = await auth();
+
+  if (session?.user && isPersonalGym(session.user.gymKind)) {
+    redirect("/personal/dashboard/mis-rutinas");
+  }
 
   if (!session?.user || session.user.role !== "STUDENT") {
     redirect(gymPath(gymSlug, "/login"));

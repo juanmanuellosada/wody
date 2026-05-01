@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { gymPath, hasAccessControl } from "@/lib/gym";
+import { gymPath, hasAccessControl, isPersonalGym } from "@/lib/gym";
 import { createCheckin } from "@/actions/access";
 import { CheckinStatusPoller } from "@/components/access/CheckinStatusPoller";
 
@@ -27,6 +27,10 @@ export default async function CheckinPage({ params, searchParams }: Props) {
       gymPath(gymSlug, token ? `/checkin?t=${token}` : "/checkin")
     );
     redirect(gymPath(gymSlug, `/login?next=${next}`));
+  }
+
+  if (isPersonalGym(session.user.gymKind)) {
+    redirect("/personal/dashboard/mis-rutinas");
   }
 
   if (!token) {

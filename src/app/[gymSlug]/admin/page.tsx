@@ -12,7 +12,7 @@ import { ResendInvitationButton } from "@/components/ResendInvitationButton";
 import { GroupManager } from "@/components/group/GroupManager";
 import { Card } from "@/components/ui/Card";
 import { formatDateArg } from "@/lib/dates";
-import { gymPath } from "@/lib/gym";
+import { gymPath, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import { getBlockStatus } from "@/lib/blocking";
 import { formatMemberNumber } from "@/lib/memberNumber";
@@ -30,6 +30,10 @@ const ROLE_LABEL: Record<string, string> = {
 export default async function AdminPage({ params }: Props) {
   const { gymSlug } = await params;
   const session = await auth();
+
+  if (session?.user && isPersonalGym(session.user.gymKind)) {
+    redirect("/personal/dashboard/mis-rutinas");
+  }
 
   if (!session?.user || session.user.role !== "ADMIN") {
     redirect(gymPath(gymSlug, "/login"));

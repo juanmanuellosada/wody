@@ -2,7 +2,7 @@ import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import type { Role, StudentType } from "@prisma/client";
+import type { Role, StudentType, GymKind } from "@prisma/client";
 import { getBlockStatus } from "@/lib/blocking";
 
 // Apply type augmentations
@@ -21,6 +21,11 @@ class UserBlockedError extends CredentialsSignin {
 // User was invited but hasn't set a password yet (PENDING_ACTIVATION flow).
 class PendingActivationError extends CredentialsSignin {
   code = "PENDING_ACTIVATION";
+}
+
+// Personal mode user hasn't confirmed their email yet.
+class PersonalUnverifiedError extends CredentialsSignin {
+  code = "personal_unverified";
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -53,7 +58,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: gymSlug
             ? { email, deletedAt: null, gym: { slug: gymSlug } }
             : { email, deletedAt: null },
-          include: { gym: true },
+          include: { gym: { select: { id: true, slug: true, kind: true, blockedAt: true, autoBlockAfterDays: true } } },
         });
 
         if (candidates.length === 0) return null;
@@ -90,6 +95,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             );
           }
 
+          // Personal mode: block login if email hasn't been confirmed yet.
+          // Traditional gym users may have emailVerifiedAt = null (invited flow) — not blocked here.
+          if (user.gym.kind === "PERSONAL" && user.emailVerifiedAt === null) {
+            throw new PersonalUnverifiedError();
+          }
+
           return {
             id: user.id,
             email: user.email,
@@ -99,6 +110,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             canCreateOwnRoutines: user.canCreateOwnRoutines,
             gymId: user.gym.id,
             gymSlug: user.gym.slug,
+            gymKind: user.gym.kind as GymKind,
+            isPlatformAdmin: user.isPlatformAdmin,
           };
         }
 
@@ -115,6 +128,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (token as Record<string, unknown>).canCreateOwnRoutines = user.canCreateOwnRoutines;
         (token as Record<string, unknown>).gymId = user.gymId;
         (token as Record<string, unknown>).gymSlug = user.gymSlug;
+        (token as Record<string, unknown>).gymKind = user.gymKind;
+        (token as Record<string, unknown>).isPlatformAdmin = user.isPlatformAdmin;
       }
       return token;
     },
@@ -128,6 +143,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         );
         session.user.gymId = (token as Record<string, unknown>).gymId as string;
         session.user.gymSlug = (token as Record<string, unknown>).gymSlug as string;
+        session.user.gymKind = (token as Record<string, unknown>).gymKind as GymKind;
+        session.user.isPlatformAdmin = Boolean(
+          (token as Record<string, unknown>).isPlatformAdmin
+        );
       }
       return session;
     },

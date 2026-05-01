@@ -1,4 +1,4 @@
-import type { Role, StudentType } from "@prisma/client";
+import type { Role, StudentType, GymKind } from "@prisma/client";
 import type { DefaultSession } from "next-auth";
 
 declare module "next-auth" {
@@ -10,6 +10,8 @@ declare module "next-auth" {
       canCreateOwnRoutines: boolean;
       gymId: string;
       gymSlug: string;
+      gymKind: GymKind;
+      isPlatformAdmin: boolean;
     } & DefaultSession["user"];
   }
 
@@ -19,6 +21,8 @@ declare module "next-auth" {
     canCreateOwnRoutines: boolean;
     gymId: string;
     gymSlug: string;
+    gymKind: GymKind;
+    isPlatformAdmin: boolean;
   }
 }
 
@@ -30,6 +34,8 @@ declare module "@auth/core/types" {
     canCreateOwnRoutines: boolean;
     gymId: string;
     gymSlug: string;
+    gymKind: GymKind;
+    isPlatformAdmin: boolean;
   }
 }
 
