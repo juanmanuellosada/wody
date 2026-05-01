@@ -111,7 +111,6 @@ model User {
   lastDueNotifiedOn DateTime? @db.Date
   memberNumber    Int
   emailVerifiedAt DateTime?
-  isPlatformAdmin Boolean   @default(false)
 
   gym   Gym    @relation(fields: [gymId], references: [id])
 

@@ -53,7 +53,6 @@ Alias de imports: `@/*` → `./src/*` (definido en `tsconfig.json`).
 | WOD | Workout of the Day — rutina diaria publicada por un profe |
 | RM / PR | Récord máximo / personal record (peso levantado por un alumno) |
 | Box / Gym | Instalación: `kind: "BOX"` (CrossFit) vs `kind: "GYM"` (tradicional) vs `kind: "PERSONAL"` (tenant compartido único, slug reservado `personal`; un usuario STUDENT con `canCreateOwnRoutines=true` gestiona sus propias rutinas y RMs sin profe asignado) |
-| isPlatformAdmin | `User.isPlatformAdmin`: flag reservado para operador de plataforma (Wody). Hoy sin uso en código; queda disponible para gating futuro. La `PersonalAccessWhitelist` se administra directamente vía DB. |
 | Ingresos | Control de accesos (check-in a la puerta) + historial |
 | Cupón | Beneficio / descuento con regla (`ONCE_PER_USER`, `ONCE_GLOBAL`, `UNLIMITED`) |
 | Group | Grupo de alumnos asignado a un profe |

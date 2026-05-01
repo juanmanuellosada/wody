@@ -111,7 +111,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             gymId: user.gym.id,
             gymSlug: user.gym.slug,
             gymKind: user.gym.kind as GymKind,
-            isPlatformAdmin: user.isPlatformAdmin,
           };
         }
 
@@ -129,7 +128,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (token as Record<string, unknown>).gymId = user.gymId;
         (token as Record<string, unknown>).gymSlug = user.gymSlug;
         (token as Record<string, unknown>).gymKind = user.gymKind;
-        (token as Record<string, unknown>).isPlatformAdmin = user.isPlatformAdmin;
       }
       return token;
     },
@@ -144,9 +142,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.gymId = (token as Record<string, unknown>).gymId as string;
         session.user.gymSlug = (token as Record<string, unknown>).gymSlug as string;
         session.user.gymKind = (token as Record<string, unknown>).gymKind as GymKind;
-        session.user.isPlatformAdmin = Boolean(
-          (token as Record<string, unknown>).isPlatformAdmin
-        );
       }
       return session;
     },

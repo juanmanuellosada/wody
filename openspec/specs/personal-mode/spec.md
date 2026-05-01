@@ -234,9 +234,7 @@ Para `createWod` invocado por un usuario personal:
 
 ---
 
-### Requirement: Flag `isPlatformAdmin` y gestión por DB de la whitelist
-
-El sistema SHALL agregar al modelo `User` un campo `isPlatformAdmin Boolean @default(false)`. Este flag SHALL ser ortogonal al `role` (no mutuamente excluyente con ADMIN/TEACHER/STUDENT/ACCESS). El flag está reservado para autorización futura de operadores de plataforma; hoy no es consumido por ningún path de código.
+### Requirement: Gestión de la whitelist por DB
 
 La gestión de `PersonalAccessWhitelist` (alta, baja, listado de emails) SHALL realizarse exclusivamente vía operaciones directas sobre la base de datos. NO SHALL existir UI ni server actions para administrar la whitelist desde la app en este alcance.
 

@@ -11,7 +11,6 @@ declare module "next-auth" {
       gymId: string;
       gymSlug: string;
       gymKind: GymKind;
-      isPlatformAdmin: boolean;
     } & DefaultSession["user"];
   }
 
@@ -22,7 +21,6 @@ declare module "next-auth" {
     gymId: string;
     gymSlug: string;
     gymKind: GymKind;
-    isPlatformAdmin: boolean;
   }
 }
 
@@ -35,7 +33,6 @@ declare module "@auth/core/types" {
     gymId: string;
     gymSlug: string;
     gymKind: GymKind;
-    isPlatformAdmin: boolean;
   }
 }
 
