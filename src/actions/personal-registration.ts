@@ -141,21 +141,27 @@ export async function submitPersonalRegistration({
 
   // Enqueue the welcome email outside the transaction and without awaiting,
   // so the response returns before the email is sent (timing parity).
-  const appUrl = process.env.APP_URL ?? "https://www.wody.com.ar";
-  const confirmUrl = `${appUrl}/registro-personal/confirmar/${tokenPlain}`;
-  const registerUrl = `${appUrl}/registro-personal`;
+  try {
+    const appUrl = process.env.APP_URL ?? "https://www.wody.com.ar";
+    const confirmUrl = `${appUrl}/registro-personal/confirmar/${tokenPlain}`;
+    const registerUrl = `${appUrl}/registro-personal`;
 
-  void sendEmail({
-    to: normalizedEmail,
-    gymId: null,
-    type: "PERSONAL_WELCOME",
-    subject: "Confirmá tu cuenta de Wody Personal",
-    react: React.createElement(PersonalWelcomeEmail, {
-      recipientName: trimmedName,
-      confirmUrl,
-      registerUrl,
-    }),
-  });
+    void sendEmail({
+      to: normalizedEmail,
+      gymId: null,
+      type: "PERSONAL_WELCOME",
+      subject: "Confirmá tu cuenta de Wody Personal",
+      react: React.createElement(PersonalWelcomeEmail, {
+        recipientName: trimmedName,
+        confirmUrl,
+        registerUrl,
+      }),
+    }).catch((err) => {
+      console.error("[personal-registration] email send failed:", err);
+    });
+  } catch (err) {
+    console.error("[personal-registration] post-transaction setup failed:", err);
+  }
 
   return { ok: true };
 }
