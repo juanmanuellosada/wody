@@ -234,6 +234,19 @@ Para `createWod` invocado por un usuario personal:
 
 ---
 
+### Requirement: Terminología de gimnasio tradicional para usuarios personales
+
+El sistema SHALL presentar terminología de gimnasio tradicional ("Rutina", "PR", etc.) — no terminología de CrossFit/box ("WOD", "RM") — a usuarios cuyo `gym.kind === "PERSONAL"`. La elección de terminología SHALL respetar el mismo helper que ya usa el código para diferenciar GYM de BOX, tratando PERSONAL como equivalente a GYM a efectos de copy visible.
+
+#### Scenario: Usuario personal ve "Mis rutinas" en el Navbar
+
+- **GIVEN** un User logueado con `gym.kind === "PERSONAL"`
+- **WHEN** se renderiza el Navbar
+- **THEN** el item de rutinas dice "Mis rutinas" (no "Mis WODs")
+- **AND** el item de récords dice "Mis PRs" (no "Mis RMs")
+
+---
+
 ### Requirement: Gestión de la whitelist por DB
 
 La gestión de `PersonalAccessWhitelist` (alta, baja, listado de emails) SHALL realizarse exclusivamente vía operaciones directas sobre la base de datos. NO SHALL existir UI ni server actions para administrar la whitelist desde la app en este alcance.

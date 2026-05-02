@@ -64,5 +64,5 @@ const GYM_TERMS: GymTerms = {
 };
 
 export function gymTerms(kind: GymKind): GymTerms {
-  return kind === "GYM" ? GYM_TERMS : BOX_TERMS;
+  return kind === "BOX" ? BOX_TERMS : GYM_TERMS;
 }
