@@ -128,8 +128,6 @@ model User {
   verificationTokens VerificationToken[]
   joinRequestsAsTeacher  JoinRequest[] @relation("JoinRequestTeacher")
   joinRequestsReviewed   JoinRequest[] @relation("JoinRequestReviewer")
-  whitelistEntriesCreated PersonalAccessWhitelist[] @relation("WhitelistCreatedBy")
-
   // Unicidades parciales (solo filas activas, deletedAt IS NULL).
   // Los índices únicos totales fueron reemplazados por índices únicos parciales
   // de PostgreSQL en la migration add_user_soft_delete. Prisma no soporta WHERE
@@ -333,8 +331,5 @@ model PersonalAccessWhitelist {
   email       String    @unique
   note        String?
   createdAt   DateTime  @default(now())
-  createdById String?
   consumedAt  DateTime?
-
-  createdBy User? @relation("WhitelistCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 }

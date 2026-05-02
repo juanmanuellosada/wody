@@ -30,7 +30,7 @@ El sistema NO SHALL permitir crear más de un `Gym` con `kind = PERSONAL`. La cr
 
 ### Requirement: Whitelist de acceso al modo personal
 
-El sistema SHALL mantener una tabla `PersonalAccessWhitelist` con los emails autorizados a registrarse en el modo personal. Cada fila SHALL tener `email` único (en lowercase), `note` opcional, `createdAt`, `createdById` opcional, `consumedAt` opcional.
+El sistema SHALL mantener una tabla `PersonalAccessWhitelist` con los emails autorizados a registrarse en el modo personal. Cada fila SHALL tener `email` único (en lowercase), `note` opcional, `createdAt`, `consumedAt` opcional.
 
 Solo emails presentes en `PersonalAccessWhitelist` con `consumedAt = null` SHALL poder consumir el flujo de registro personal y dar lugar a la creación de un `User`. Los emails que ya fueron consumidos (`consumedAt != null`) NO SHALL volver a generar un nuevo `User` aunque el formulario se reenvíe.
 
