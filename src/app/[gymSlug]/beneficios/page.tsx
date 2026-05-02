@@ -1,7 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { isPersonalGym } from "@/lib/gym";
 import { listAvailableCoupons } from "@/actions/coupon";
 import { CouponCard } from "@/components/benefits/CouponCard";
 
@@ -12,11 +9,6 @@ export const metadata: Metadata = {
 };
 
 export default async function BeneficiosPage() {
-  const session = await auth();
-  if (session?.user && isPersonalGym(session.user.gymKind)) {
-    redirect("/personal/dashboard/mis-rutinas");
-  }
-
   const coupons = await listAvailableCoupons();
 
   return (

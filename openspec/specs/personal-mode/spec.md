@@ -172,6 +172,7 @@ Cuando un usuario está logueado y `gym.kind === "PERSONAL"`, la UI SHALL mostra
 - "Mis WODs" (rutinas que el propio usuario crea y edita)
 - "Mis RMs"
 - "Cronómetros"
+- "Beneficios" (link a la sección de cupones)
 
 La UI NO SHALL mostrar para usuarios personales:
 
@@ -180,7 +181,6 @@ La UI NO SHALL mostrar para usuarios personales:
 - Dashboard Profe
 - Pagos
 - Ingresos / Control de accesos / Historial
-- Beneficios (cupones)
 - "Mi WOD" (la rutina del día asignada por un profe)
 - WhatsApp FAB
 - PaymentStatusBanner
@@ -189,8 +189,8 @@ La UI NO SHALL mostrar para usuarios personales:
 
 - **GIVEN** un User logueado con `gym.kind === "PERSONAL"`
 - **WHEN** se renderiza el Navbar
-- **THEN** el menú contiene exactamente los items "Mis WODs", "Mis RMs", "Cronómetros"
-- **AND** NO contiene Admin, Invitaciones, Dashboard Profe, Pagos, Ingresos, Beneficios, ni "Mi WOD"
+- **THEN** el menú contiene exactamente los items "Mis WODs", "Mis RMs", "Cronómetros", "Beneficios"
+- **AND** NO contiene Admin, Invitaciones, Dashboard Profe, Pagos, Ingresos, ni "Mi WOD"
 
 #### Scenario: Layout de un usuario personal
 

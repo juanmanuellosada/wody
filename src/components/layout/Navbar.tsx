@@ -42,6 +42,7 @@ function getNavLinks(
       { href: gymPath(gymSlug, "/dashboard/mis-rutinas"), label: "Mis WODs" },
       { href: gymPath(gymSlug, "/dashboard/rms"), label: "Mis RMs" },
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
+      { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
     ];
   }
 
