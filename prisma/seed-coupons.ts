@@ -198,7 +198,7 @@ const COUPONS: Array<{
     instagramUrl: "https://www.instagram.com/floransbelleza/",
     logoKey: "florans-belleza",
     rule: CouponRule.ONCE_PER_USER_PER_MONTH,
-    sortOrder: 110,
+    sortOrder: 5,
   },
 ];
 
