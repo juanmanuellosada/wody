@@ -126,7 +126,7 @@ model User {
   accessesAsUser     AccessLog[] @relation("AccessLogUser")
   accessesDecidedBy  AccessLog[] @relation("AccessLogDecidedBy")
   verificationTokens VerificationToken[]
-  joinRequestsAsTeacher  JoinRequest[] @relation("JoinRequestTeacher")
+  joinRequestTeachers    JoinRequestTeacher[] @relation("JoinRequestTeacherToUser")
   joinRequestsReviewed   JoinRequest[] @relation("JoinRequestReviewer")
   // Unicidades parciales (solo filas activas, deletedAt IS NULL).
   // Los índices únicos totales fueron reemplazados por índices únicos parciales
@@ -299,15 +299,27 @@ model JoinRequest {
   name         String
   email        String
   passwordHash String
-  teacherId    String?
-  teacher      User?             @relation("JoinRequestTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
   status       JoinRequestStatus @default(PENDING)
   reviewedById String?
   reviewedBy   User?             @relation("JoinRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewedAt   DateTime?
   createdAt    DateTime          @default(now())
 
+  teachers     JoinRequestTeacher[]
+
   @@index([gymId, status, createdAt])
+}
+
+model JoinRequestTeacher {
+  joinRequestId String
+  teacherId     String
+  createdAt     DateTime @default(now())
+
+  joinRequest JoinRequest @relation(fields: [joinRequestId], references: [id], onDelete: Cascade)
+  teacher     User        @relation("JoinRequestTeacherToUser", fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([joinRequestId, teacherId])
+  @@index([teacherId])
 }
 
 model EmailLog {

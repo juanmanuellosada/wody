@@ -15,7 +15,7 @@ export function JoinRequestForm({ gymSlug, teachers }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
-  const [teacherId, setTeacherId] = useState("");
+  const [teacherIds, setTeacherIds] = useState<string[]>([]);
   const [honeypot, setHoneypot] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +43,7 @@ export function JoinRequestForm({ gymSlug, teachers }: Props) {
         email,
         password,
         passwordConfirmation,
-        teacherId: teacherId || null,
+        teacherIds: teacherIds.length > 0 ? teacherIds : undefined,
         honeypot,
       });
       if (result.ok) {
@@ -122,28 +122,33 @@ export function JoinRequestForm({ gymSlug, teachers }: Props) {
       />
 
       {teachers.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="teacher-select"
-            className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-          >
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
             Profe (opcional)
-          </label>
-          <select
-            id="teacher-select"
-            name="teacherId"
-            value={teacherId}
-            onChange={(e) => setTeacherId(e.target.value)}
-            disabled={isPending}
-            className="bg-elev text-white font-body w-full border border-edge px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-          >
-            <option value="">Sin profe asignado</option>
+          </p>
+          <p className="text-xs text-gray-500 font-body">
+            Podés seleccionar uno o más profesores
+          </p>
+          <div className="flex flex-col gap-2">
             {teachers.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
+              <label key={t.id} className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={teacherIds.includes(t.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setTeacherIds((prev) => [...prev, t.id]);
+                    } else {
+                      setTeacherIds((prev) => prev.filter((id) => id !== t.id));
+                    }
+                  }}
+                  disabled={isPending}
+                  className="w-4 h-4 accent-brand-red cursor-pointer disabled:cursor-not-allowed"
+                />
+                <span className="text-sm font-body text-white">{t.name}</span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
       )}
 

@@ -14,7 +14,7 @@ interface Props {
   requestId: string;
   requestName: string;
   requestEmail: string;
-  requestTeacherId: string | null;
+  requestTeacherIds: string[];
   teachers: TeacherOption[];
 }
 
@@ -22,7 +22,7 @@ export function ApproveJoinRequestButton({
   requestId,
   requestName,
   requestEmail,
-  requestTeacherId,
+  requestTeacherIds,
   teachers,
 }: Props) {
   const router = useRouter();
@@ -34,19 +34,19 @@ export function ApproveJoinRequestButton({
   // Edit form state — defaults match the JoinRequest values.
   const [name, setName] = useState(requestName);
   const [studentType, setStudentType] = useState<"GENERAL" | "PERSONALIZED">("PERSONALIZED");
-  const [teacherId, setTeacherId] = useState<string>(requestTeacherId ?? "");
+  const [teacherIds, setTeacherIds] = useState<string[]>(requestTeacherIds);
   const [canCreateOwnRoutines, setCanCreateOwnRoutines] = useState(false);
 
   // Replicate UserForm.tsx:32-36 visibility/forced logic.
   const showStudentExtras = studentType === "PERSONALIZED";
-  const mustSelfManage = showStudentExtras && !teacherId;
+  const mustSelfManage = showStudentExtras && teacherIds.length === 0;
   const effectiveCanCreate = mustSelfManage ? true : canCreateOwnRoutines;
 
   function handleOpen() {
     // Reset edit form to current request defaults each time the modal opens.
     setName(requestName);
     setStudentType("PERSONALIZED");
-    setTeacherId(requestTeacherId ?? "");
+    setTeacherIds(requestTeacherIds);
     setCanCreateOwnRoutines(false);
     setEditOpen(false);
     setFeedback(null);
@@ -58,13 +58,13 @@ export function ApproveJoinRequestButton({
       let result;
       if (editOpen) {
         // Build overrides only from fields the admin can change.
-        const resolvedTeacherId = showStudentExtras ? (teacherId || null) : null;
+        const resolvedTeacherIds = showStudentExtras ? teacherIds : [];
         result = await approveJoinRequest({
           requestId,
           overrides: {
             name,
             studentType,
-            teacherId: resolvedTeacherId,
+            teacherIds: resolvedTeacherIds,
             canCreateOwnRoutines: effectiveCanCreate,
           },
         });
@@ -137,9 +137,10 @@ export function ApproveJoinRequestButton({
             <p className="text-sm font-heading font-bold text-white">{requestName}</p>
             {/* Email is always read-only and never part of the overrides payload. */}
             <p className="text-xs text-gray-400 font-body">{requestEmail}</p>
-            {requestTeacherId && !editOpen && (
+            {requestTeacherIds.length > 0 && !editOpen && (
               <p className="text-xs text-gray-500 font-heading">
-                Profe elegido: {teachers.find((t) => t.id === requestTeacherId)?.name ?? "—"}
+                Profe{requestTeacherIds.length > 1 ? "s" : ""} elegido{requestTeacherIds.length > 1 ? "s" : ""}:{" "}
+                {requestTeacherIds.map((id) => teachers.find((t) => t.id === id)?.name ?? id).join(", ")}
               </p>
             )}
           </div>
@@ -177,25 +178,32 @@ export function ApproveJoinRequestButton({
                 </select>
               </div>
 
-              {/* Teacher select — only for PERSONALIZED */}
-              {showStudentExtras && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+              {/* Teacher checkboxes — only for PERSONALIZED */}
+              {showStudentExtras && teachers.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
                     Profe (opcional)
-                  </label>
-                  <select
-                    value={teacherId}
-                    onChange={(e) => setTeacherId(e.target.value)}
-                    disabled={isPending || teachers.length === 0}
-                    className="bg-elev text-white font-body border border-edge px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
-                  >
-                    <option value="">Sin profe (se autogestiona)</option>
+                  </p>
+                  <div className="flex flex-col gap-2">
                     {teachers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
+                      <label key={t.id} className="flex items-center gap-3 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={teacherIds.includes(t.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setTeacherIds((prev) => [...prev, t.id]);
+                            } else {
+                              setTeacherIds((prev) => prev.filter((id) => id !== t.id));
+                            }
+                          }}
+                          disabled={isPending}
+                          className="w-4 h-4 accent-brand-red cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <span className="text-sm font-body text-white">{t.name}</span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 </div>
               )}
 

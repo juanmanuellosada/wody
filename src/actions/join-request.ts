@@ -20,7 +20,7 @@ export async function submitJoinRequest({
   email,
   password,
   passwordConfirmation,
-  teacherId,
+  teacherIds,
   honeypot,
 }: {
   gymSlug: string;
@@ -28,7 +28,7 @@ export async function submitJoinRequest({
   email: string;
   password: string;
   passwordConfirmation: string;
-  teacherId?: string | null;
+  teacherIds?: string[];
   honeypot?: string;
 }): Promise<JoinResult> {
   // Honeypot: silently succeed so the bot gets no signal.
@@ -56,19 +56,21 @@ export async function submitJoinRequest({
     return { ok: false, error: "Las contraseñas no coinciden" };
   }
 
-  if (teacherId) {
-    const teacher = await prisma.user.findUnique({
-      where: { id: teacherId },
-      select: { gymId: true, role: true, deletedAt: true },
+  const validTeacherIds: string[] = [];
+  if (teacherIds && teacherIds.length > 0) {
+    const validTeachers = await prisma.user.findMany({
+      where: {
+        id: { in: teacherIds },
+        gymId: gym.id,
+        deletedAt: null,
+        role: { in: ["TEACHER", "ADMIN"] },
+      },
+      select: { id: true },
     });
-    if (
-      !teacher ||
-      teacher.gymId !== gym.id ||
-      (teacher.role !== "TEACHER" && teacher.role !== "ADMIN") ||
-      teacher.deletedAt !== null
-    ) {
+    if (validTeachers.length !== teacherIds.length) {
       return { ok: false, error: "Profe inválido" };
     }
+    validTeacherIds.push(...validTeachers.map((t) => t.id));
   }
 
   // Anti-enumeration: silently succeed if email already exists.
@@ -93,8 +95,10 @@ export async function submitJoinRequest({
       name: trimmedName,
       email: normalizedEmail,
       passwordHash,
-      teacherId: teacherId ?? null,
       status: "PENDING",
+      teachers: validTeacherIds.length > 0
+        ? { create: validTeacherIds.map((id) => ({ teacherId: id })) }
+        : undefined,
     },
   });
 
@@ -110,7 +114,7 @@ export async function submitJoinRequest({
 type ApproveOverrides = {
   name?: string;
   studentType?: "GENERAL" | "PERSONALIZED";
-  teacherId?: string | null;
+  teacherIds?: string[];
   canCreateOwnRoutines?: boolean;
 };
 
@@ -130,7 +134,7 @@ export async function approveJoinRequest({
 
   const request = await prisma.joinRequest.findUnique({
     where: { id: requestId },
-    include: { gym: true },
+    include: { gym: true, teachers: { select: { teacherId: true } } },
   });
 
   if (!request) return { ok: false, error: "Solicitud no encontrada" };
@@ -148,7 +152,7 @@ export async function approveJoinRequest({
     ? {
         name: overrides.name,
         studentType: overrides.studentType,
-        teacherId: overrides.teacherId,
+        teacherIds: overrides.teacherIds,
         canCreateOwnRoutines: overrides.canCreateOwnRoutines,
       }
     : undefined;
@@ -156,26 +160,32 @@ export async function approveJoinRequest({
   // Resolver los campos finales aplicando la regla heredada de createUser.
   const studentType = safeOverrides?.studentType ?? "PERSONALIZED";
   const isPersonalizedStudent = studentType === "PERSONALIZED";
-  const teacherIdToLink = isPersonalizedStudent
-    ? (safeOverrides?.teacherId !== undefined ? safeOverrides.teacherId : request.teacherId) ?? null
-    : null;
+
+  // If overrides include teacherIds (even empty array), use that; otherwise fall back to request's teachers.
+  const resolvedTeacherIds: string[] = isPersonalizedStudent
+    ? (safeOverrides?.teacherIds !== undefined
+        ? safeOverrides.teacherIds
+        : request.teachers.map((t) => t.teacherId))
+    : [];
+
   const requestedCanCreate = safeOverrides?.canCreateOwnRoutines ?? false;
   const canCreateOwnRoutines = isPersonalizedStudent
-    ? (teacherIdToLink ? requestedCanCreate : true)
+    ? (resolvedTeacherIds.length > 0 ? requestedCanCreate : true)
     : false;
   const finalName = safeOverrides?.name ?? request.name;
 
-  // Validar teacherIdToLink cuando no es null.
-  if (teacherIdToLink) {
-    const teacher = await prisma.user.findFirst({
-      where: { id: teacherIdToLink, deletedAt: null },
-      select: { gymId: true, role: true },
+  // Validar cada teacherId cuando hay profes a vincular.
+  if (resolvedTeacherIds.length > 0) {
+    const validTeachers = await prisma.user.findMany({
+      where: {
+        id: { in: resolvedTeacherIds },
+        gymId: request.gymId,
+        deletedAt: null,
+        role: { in: ["TEACHER", "ADMIN"] },
+      },
+      select: { id: true },
     });
-    if (
-      !teacher ||
-      teacher.gymId !== request.gymId ||
-      (teacher.role !== "TEACHER" && teacher.role !== "ADMIN")
-    ) {
+    if (validTeachers.length !== resolvedTeacherIds.length) {
       return { ok: false, error: "Profe inválido" };
     }
   }
@@ -204,11 +214,21 @@ export async function approveJoinRequest({
         },
       });
 
-      // Teacher link goes through TeacherStudent (many-to-many), not User.teacherId.
-      if (teacherIdToLink) {
+      // Teacher links go through TeacherStudent (many-to-many), one entry per teacher.
+      for (const teacherId of resolvedTeacherIds) {
         await tx.teacherStudent.create({
-          data: { teacherId: teacherIdToLink, studentId: created.id },
+          data: { teacherId, studentId: created.id },
         });
+      }
+
+      // Update JoinRequestTeacher entries to reflect final teacher list.
+      if (safeOverrides?.teacherIds !== undefined) {
+        await tx.joinRequestTeacher.deleteMany({ where: { joinRequestId: request.id } });
+        if (resolvedTeacherIds.length > 0) {
+          await tx.joinRequestTeacher.createMany({
+            data: resolvedTeacherIds.map((id) => ({ joinRequestId: request.id, teacherId: id })),
+          });
+        }
       }
 
       await tx.joinRequest.update({
@@ -217,9 +237,7 @@ export async function approveJoinRequest({
           status: "APPROVED",
           reviewedAt: new Date(),
           reviewedById: session.user.id,
-          // Persistir nombre y profe finales para que la pestaña "Aprobadas" sea un audit trail fiel.
           name: finalName,
-          teacherId: teacherIdToLink,
         },
       });
     });

@@ -72,7 +72,7 @@ export default async function InvitacionesPage({ params, searchParams }: Props) 
   const requests = await prisma.joinRequest.findMany({
     where: { gymId: gym.id, status: statusFilter },
     include: {
-      teacher: { select: { id: true, name: true } },
+      teachers: { include: { teacher: { select: { id: true, name: true } } } },
       reviewedBy: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -128,9 +128,9 @@ export default async function InvitacionesPage({ params, searchParams }: Props) 
                 <div className="flex-1 flex flex-col gap-0.5 min-w-0">
                   <p className="text-sm font-heading font-bold text-white">{req.name}</p>
                   <p className="text-xs text-gray-400 font-body">{req.email}</p>
-                  {req.teacher && (
+                  {req.teachers.length > 0 && (
                     <p className="text-xs text-gray-500 font-heading">
-                      Profe: {req.teacher.name}
+                      Profe{req.teachers.length > 1 ? "s" : ""}: {req.teachers.map((jt) => jt.teacher.name).join(", ")}
                     </p>
                   )}
                   <p className="text-xs text-gray-600 font-heading mt-0.5">
@@ -151,7 +151,7 @@ export default async function InvitacionesPage({ params, searchParams }: Props) 
                       requestId={req.id}
                       requestName={req.name}
                       requestEmail={req.email}
-                      requestTeacherId={req.teacher?.id ?? null}
+                      requestTeacherIds={req.teachers.map((jt) => jt.teacher.id)}
                       teachers={teachers}
                     />
                     <RejectJoinRequestButton
