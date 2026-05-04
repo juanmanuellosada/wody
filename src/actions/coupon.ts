@@ -5,6 +5,13 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { Coupon, CouponRule, User } from "@prisma/client";
 
+/** Returns UTC Date for the first moment of the current calendar month in Argentina (UTC-3). */
+function getFirstDayOfCurrentMonthArg(): Date {
+  const argOffsetMs = -3 * 60 * 60 * 1000;
+  const argNow = new Date(Date.now() + argOffsetMs);
+  return new Date(Date.UTC(argNow.getUTCFullYear(), argNow.getUTCMonth(), 1));
+}
+
 export type AvailableCoupon = {
   id: string;
   slug: string;
@@ -92,9 +99,12 @@ export async function listAvailableCoupons(): Promise<AvailableCoupon[]> {
   const couponIds = coupons.map((c) => c.id);
   if (couponIds.length === 0) return [];
 
+  const firstDayOfMonth = getFirstDayOfCurrentMonthArg();
+
   // All this user's redemptions for these coupons.
   const userRedemptions = await prisma.couponRedemption.findMany({
     where: { userId, couponId: { in: couponIds } },
+    select: { couponId: true, status: true, code: true, consumedAt: true },
   });
 
   // Globally consumed redemptions for ONCE_GLOBAL coupons.
@@ -125,15 +135,16 @@ export async function listAvailableCoupons(): Promise<AvailableCoupon[]> {
   );
 
   return coupons
-    .map((c) => buildAvailable(c, userRedemptions, globalConsumedSet, userConsumedSlugs))
+    .map((c) => buildAvailable(c, userRedemptions, globalConsumedSet, userConsumedSlugs, firstDayOfMonth))
     .filter((entry): entry is AvailableCoupon => entry !== null);
 }
 
 function buildAvailable(
   c: Coupon,
-  userRedemptions: { couponId: string; status: "PENDING" | "CONSUMED"; code: string }[],
+  userRedemptions: { couponId: string; status: "PENDING" | "CONSUMED"; code: string; consumedAt: Date | null }[],
   globalConsumed: Set<string>,
-  userConsumedSlugs: Set<string>
+  userConsumedSlugs: Set<string>,
+  firstDayOfMonth: Date
 ): AvailableCoupon | null {
   const userForCoupon = userRedemptions.filter((r) => r.couponId === c.id);
   const userPending = userForCoupon.find((r) => r.status === "PENDING");
@@ -155,6 +166,14 @@ function buildAvailable(
   if (c.rule === "ONCE_PER_USER" && userConsumed) {
     blocked = true;
     blockedReason = "Ya canjeaste este beneficio.";
+  } else if (c.rule === "ONCE_PER_USER_PER_MONTH") {
+    const consumedThisMonth = userForCoupon.find(
+      (r) => r.status === "CONSUMED" && r.consumedAt !== null && r.consumedAt >= firstDayOfMonth
+    );
+    if (consumedThisMonth) {
+      blocked = true;
+      blockedReason = "Ya canjeaste este beneficio este mes.";
+    }
   } else if (c.rule === "ONCE_GLOBAL" && globalConsumed.has(c.id)) {
     if (!userPending) {
       blocked = true;
@@ -230,6 +249,21 @@ export async function generateRedemption(
     });
     if (prior) {
       return { success: false, error: "Ya canjeaste este beneficio." };
+    }
+  }
+
+  if (coupon.rule === "ONCE_PER_USER_PER_MONTH") {
+    const firstDayOfMonth = getFirstDayOfCurrentMonthArg();
+    const priorThisMonth = await prisma.couponRedemption.findFirst({
+      where: {
+        userId,
+        couponId: coupon.id,
+        status: "CONSUMED",
+        consumedAt: { gte: firstDayOfMonth },
+      },
+    });
+    if (priorThisMonth) {
+      return { success: false, error: "Ya canjeaste este beneficio este mes." };
     }
   }
 

@@ -38,6 +38,7 @@ enum WodTargetType {
 
 enum CouponRule {
   ONCE_PER_USER
+  ONCE_PER_USER_PER_MONTH
   ONCE_GLOBAL
   UNLIMITED
 }

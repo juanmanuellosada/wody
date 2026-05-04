@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "CouponRule" ADD VALUE 'ONCE_PER_USER_PER_MONTH';

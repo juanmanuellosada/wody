@@ -9,6 +9,7 @@ import { getCouponLogo } from "@/lib/coupon-logos";
 
 const RULE_LABEL: Record<CouponRule, string> = {
   ONCE_PER_USER: "Un solo uso",
+  ONCE_PER_USER_PER_MONTH: "1 uso por mes",
   ONCE_GLOBAL: "Único · Primero que llegue",
   UNLIMITED: "Uso libre",
 };

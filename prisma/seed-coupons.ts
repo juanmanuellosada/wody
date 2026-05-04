@@ -190,6 +190,16 @@ const COUPONS: Array<{
     sortOrder: 101,
     restrictions: "Mínimo de compra $30.000. Tope de reintegro $10.000.",
   },
+  {
+    slug: "florans-belleza",
+    name: "Floran's Belleza",
+    description: "10% de descuento en cualquier servicio.",
+    instagramHandle: "floransbelleza",
+    instagramUrl: "https://www.instagram.com/floransbelleza/",
+    logoKey: "florans-belleza",
+    rule: CouponRule.ONCE_PER_USER_PER_MONTH,
+    sortOrder: 110,
+  },
 ];
 
 async function main() {
