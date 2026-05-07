@@ -123,8 +123,8 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
     // ── Flujo con contraseña ───────────────────────────────────────────────
     const hashedPassword = await hash(password!, 10);
 
-    try {
-      const memberNumber = await prisma.$transaction(async (tx) => {
+    const runPasswordCreate = () =>
+      prisma.$transaction(async (tx) => {
         const gym = await tx.gym.update({
           where: { id: gymId },
           data: { nextMemberNumber: { increment: 1 } },
@@ -151,6 +151,8 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
         return assigned;
       });
 
+    try {
+      const memberNumber = await runPasswordCreate();
       revalidatePath(gymPath(gymSlug, "/admin"));
       revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
       return { success: true, memberNumber };
@@ -159,7 +161,37 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
-        return { success: false, error: "Ya existe un usuario con ese email en este gym." };
+        const target = (error.meta as { target?: string[] | string } | undefined)?.target;
+        const targetStr = Array.isArray(target) ? target.join(",") : (target ?? "");
+        if (targetStr.includes("memberNumber")) {
+          const maxRow = await prisma.user.aggregate({
+            where: { gymId, deletedAt: null },
+            _max: { memberNumber: true },
+          });
+          const correctNext = (maxRow._max.memberNumber ?? 0) + 1;
+          await prisma.gym.update({
+            where: { id: gymId },
+            data: { nextMemberNumber: correctNext },
+          });
+          try {
+            const memberNumber = await runPasswordCreate();
+            revalidatePath(gymPath(gymSlug, "/admin"));
+            revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+            return { success: true, memberNumber };
+          } catch (retryErr) {
+            if (
+              retryErr instanceof Prisma.PrismaClientKnownRequestError &&
+              retryErr.code === "P2002"
+            ) {
+              return { success: false, error: "El contador de números de socio del gym estaba desincronizado y el reintento también falló. Avisá al equipo técnico." };
+            }
+            throw retryErr;
+          }
+        } else if (targetStr.includes("email")) {
+          return { success: false, error: "Ya existe un usuario con ese email en este gym (creado en paralelo). Recargá la página." };
+        } else {
+          return { success: false, error: `Conflicto de unicidad inesperado: ${targetStr || "constraint desconocida"}.` };
+        }
       }
       throw error;
     }
@@ -171,10 +203,10 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
 
   let memberNumber: number;
 
-  try {
+  const runInviteCreate = () =>
     // Transacción: incrementa Gym.nextMemberNumber, crea User (sin password) y
     // VerificationToken INVITE. Atómico para evitar colisiones en paralelo.
-    const result = await prisma.$transaction(async (tx) => {
+    prisma.$transaction(async (tx) => {
       const gym = await tx.gym.update({
         where: { id: gymId },
         data: { nextMemberNumber: { increment: 1 } },
@@ -211,15 +243,44 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
       return assigned;
     });
 
-    memberNumber = result;
+  try {
+    memberNumber = await runInviteCreate();
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      return { success: false, error: "Ya existe un usuario con ese email en este gym." };
+      const target = (error.meta as { target?: string[] | string } | undefined)?.target;
+      const targetStr = Array.isArray(target) ? target.join(",") : (target ?? "");
+      if (targetStr.includes("memberNumber")) {
+        const maxRow = await prisma.user.aggregate({
+          where: { gymId, deletedAt: null },
+          _max: { memberNumber: true },
+        });
+        const correctNext = (maxRow._max.memberNumber ?? 0) + 1;
+        await prisma.gym.update({
+          where: { id: gymId },
+          data: { nextMemberNumber: correctNext },
+        });
+        try {
+          memberNumber = await runInviteCreate();
+        } catch (retryErr) {
+          if (
+            retryErr instanceof Prisma.PrismaClientKnownRequestError &&
+            retryErr.code === "P2002"
+          ) {
+            return { success: false, error: "El contador de números de socio del gym estaba desincronizado y el reintento también falló. Avisá al equipo técnico." };
+          }
+          throw retryErr;
+        }
+      } else if (targetStr.includes("email")) {
+        return { success: false, error: "Ya existe un usuario con ese email en este gym (creado en paralelo). Recargá la página." };
+      } else {
+        return { success: false, error: `Conflicto de unicidad inesperado: ${targetStr || "constraint desconocida"}.` };
+      }
+    } else {
+      throw error;
     }
-    throw error;
   }
 
   // Fuera de la transacción: cargar gym para el template y enviar el mail.

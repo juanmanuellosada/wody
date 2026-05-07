@@ -223,8 +223,8 @@ export async function approveJoinRequest({
     };
   }
 
-  try {
-    await prisma.$transaction(async (tx) => {
+  const runApprovalTransaction = () =>
+    prisma.$transaction(async (tx) => {
       // Auto-increment memberNumber from the gym counter (same pattern as createUser).
       const updatedGym = await tx.gym.update({
         where: { id: request.gymId },
@@ -274,17 +274,57 @@ export async function approveJoinRequest({
         },
       });
     });
+
+  try {
+    await runApprovalTransaction();
   } catch (e) {
     if (
       e instanceof Prisma.PrismaClientKnownRequestError &&
       e.code === "P2002"
     ) {
-      return {
-        ok: false,
-        error: "Ya existe un usuario con ese email en el gym. Rechazá la solicitud manualmente.",
-      };
+      const target = (e.meta as { target?: string[] | string } | undefined)?.target;
+      const targetStr = Array.isArray(target) ? target.join(",") : (target ?? "");
+
+      if (targetStr.includes("memberNumber")) {
+        // nextMemberNumber del gym desincronizado: recalculamos desde MAX y reintentamos una sola vez.
+        const maxRow = await prisma.user.aggregate({
+          where: { gymId: request.gymId, deletedAt: null },
+          _max: { memberNumber: true },
+        });
+        const correctNext = (maxRow._max.memberNumber ?? 0) + 1;
+        await prisma.gym.update({
+          where: { id: request.gymId },
+          data: { nextMemberNumber: correctNext },
+        });
+        try {
+          await runApprovalTransaction();
+        } catch (retryErr) {
+          if (
+            retryErr instanceof Prisma.PrismaClientKnownRequestError &&
+            retryErr.code === "P2002"
+          ) {
+            return {
+              ok: false,
+              error: "El contador de números de socio del gym estaba desincronizado y el reintento también falló. Avisá al equipo técnico.",
+            };
+          }
+          throw retryErr;
+        }
+      } else if (targetStr.includes("email")) {
+        // Race condition contra el pre-check.
+        return {
+          ok: false,
+          error: "Ya existe un usuario con ese email en el gym (creado en paralelo). Recargá la página.",
+        };
+      } else {
+        return {
+          ok: false,
+          error: `Conflicto de unicidad inesperado al crear el usuario (${targetStr || "constraint desconocida"}).`,
+        };
+      }
+    } else {
+      throw e;
     }
-    throw e;
   }
 
   // Send approval mail after the transaction commits. If it fails, the user
