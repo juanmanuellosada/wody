@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { approveJoinRequest } from "@/actions/join-request";
 
@@ -75,11 +76,9 @@ export function ApproveJoinRequestButton({
 
       if (result.ok) {
         const finalName = editOpen ? name : requestName;
-        setFeedback({ ok: true, msg: `Aprobada: ${finalName}` });
-        setTimeout(() => {
-          setOpen(false);
-          router.refresh();
-        }, 1500);
+        toast.success(`Aprobada: ${finalName}`);
+        setOpen(false);
+        router.refresh();
       } else {
         setFeedback({ ok: false, msg: result.error });
       }
@@ -236,13 +235,11 @@ export function ApproveJoinRequestButton({
             </div>
           )}
 
-          {/* Feedback (success or error) */}
-          {feedback && (
+          {/* Error feedback (los success se muestran en toast global) */}
+          {feedback && !feedback.ok && (
             <p
-              className={`text-xs font-heading font-bold uppercase tracking-wide ${
-                feedback.ok ? "text-emerald-400" : "text-brand-red"
-              }`}
-              role={feedback.ok ? "status" : "alert"}
+              className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide"
+              role="alert"
             >
               {feedback.msg}
             </p>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Barlow } from "next/font/google";
 import Script from "next/script";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const barlowCondensed = Barlow_Condensed({
@@ -54,6 +55,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-black text-white antialiased font-body">
         {children}
+        <Toaster theme="dark" position="top-center" richColors closeButton />
         <Script
           id="sw-register"
           strategy="afterInteractive"
