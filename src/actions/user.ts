@@ -87,6 +87,38 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
     }
   }
 
+  // Pre-check: si ya hay un User activo con ese email+gym, devolvemos info
+  // diagnóstica antes de tocar la transacción. Mismo razonamiento que en
+  // approveJoinRequest: el partial unique index solo aplica a deletedAt IS NULL.
+  const existingUser = await prisma.user.findFirst({
+    where: { email: email!, gymId, deletedAt: null },
+    select: {
+      name: true,
+      memberNumber: true,
+      role: true,
+      password: true,
+      blockedAt: true,
+    },
+  });
+  if (existingUser) {
+    const status = existingUser.password === null
+      ? "invitación pendiente de activar"
+      : existingUser.blockedAt !== null
+        ? "bloqueado"
+        : "activo";
+    const roleLabel = existingUser.role === "STUDENT"
+      ? "alumno"
+      : existingUser.role === "TEACHER"
+        ? "profe"
+        : existingUser.role === "ADMIN"
+          ? "admin"
+          : "acceso";
+    return {
+      success: false,
+      error: `Ya existe "${existingUser.name}" (#${existingUser.memberNumber}, ${roleLabel}, ${status}) con ese email en este gym. Buscalo en el panel: si es la misma persona, reenviale la invitación o cambiale la contraseña; si es un duplicado, eliminá el otro registro primero.`,
+    };
+  }
+
   if (mode === "password") {
     // ── Flujo con contraseña ───────────────────────────────────────────────
     const hashedPassword = await hash(password!, 10);

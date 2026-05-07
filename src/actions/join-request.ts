@@ -190,6 +190,39 @@ export async function approveJoinRequest({
     }
   }
 
+  // Pre-check: si ya hay un User activo con ese email+gym, no entramos a la
+  // transacción y devolvemos info diagnóstica. El partial unique index sólo
+  // aplica a filas con deletedAt IS NULL, así que ese es el único caso que
+  // puede gatillar P2002.
+  const existingUser = await prisma.user.findFirst({
+    where: { email: request.email, gymId: request.gymId, deletedAt: null },
+    select: {
+      name: true,
+      memberNumber: true,
+      role: true,
+      password: true,
+      blockedAt: true,
+    },
+  });
+  if (existingUser) {
+    const status = existingUser.password === null
+      ? "invitación pendiente de activar"
+      : existingUser.blockedAt !== null
+        ? "bloqueado"
+        : "activo";
+    const roleLabel = existingUser.role === "STUDENT"
+      ? "alumno"
+      : existingUser.role === "TEACHER"
+        ? "profe"
+        : existingUser.role === "ADMIN"
+          ? "admin"
+          : "acceso";
+    return {
+      ok: false,
+      error: `Ya existe un usuario con ese email en el gym: "${existingUser.name}" (#${existingUser.memberNumber}, ${roleLabel}, ${status}). Si es la misma persona, rechazá esta solicitud; si es un duplicado, eliminá el otro registro desde el panel y volvé a aprobar.`,
+    };
+  }
+
   try {
     await prisma.$transaction(async (tx) => {
       // Auto-increment memberNumber from the gym counter (same pattern as createUser).
