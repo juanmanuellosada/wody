@@ -16,6 +16,15 @@ export function JoinRequestForm({ gymSlug, teachers }: Props) {
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [teacherIds, setTeacherIds] = useState<string[]>([]);
+  const [nextPaymentDate, setNextPaymentDate] = useState(() => {
+    // Compute "today" in Argentina (UTC-3) at render time.
+    const nowUTC = new Date();
+    const argNow = new Date(nowUTC.getTime() - 3 * 60 * 60 * 1000);
+    const y = argNow.getUTCFullYear();
+    const m = String(argNow.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(argNow.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  });
   const [honeypot, setHoneypot] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +53,7 @@ export function JoinRequestForm({ gymSlug, teachers }: Props) {
         password,
         passwordConfirmation,
         teacherIds: teacherIds.length > 0 ? teacherIds : undefined,
+        nextPaymentDate,
         honeypot,
       });
       if (result.ok) {
@@ -151,6 +161,26 @@ export function JoinRequestForm({ gymSlug, teachers }: Props) {
           </div>
         </div>
       )}
+
+      <div className="flex flex-col gap-1.5">
+        <label
+          htmlFor="nextPaymentDate"
+          className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
+        >
+          Próxima fecha de pago
+        </label>
+        <input
+          id="nextPaymentDate"
+          type="date"
+          name="nextPaymentDate"
+          value={nextPaymentDate}
+          min={nextPaymentDate}
+          onChange={(e) => setNextPaymentDate(e.target.value)}
+          required
+          disabled={isPending}
+          className="bg-elev text-white font-body w-full border border-edge px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        />
+      </div>
 
       {error && (
         <div

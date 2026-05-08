@@ -294,17 +294,18 @@ model VerificationToken {
 }
 
 model JoinRequest {
-  id           String            @id @default(cuid())
-  gymId        String
-  gym          Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  name         String
-  email        String
-  passwordHash String
-  status       JoinRequestStatus @default(PENDING)
-  reviewedById String?
-  reviewedBy   User?             @relation("JoinRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedAt   DateTime?
-  createdAt    DateTime          @default(now())
+  id              String            @id @default(cuid())
+  gymId           String
+  gym             Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  name            String
+  email           String
+  passwordHash    String
+  nextPaymentDate DateTime          @db.Date
+  status          JoinRequestStatus @default(PENDING)
+  reviewedById    String?
+  reviewedBy      User?             @relation("JoinRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt      DateTime?
+  createdAt       DateTime          @default(now())
 
   teachers     JoinRequestTeacher[]
 

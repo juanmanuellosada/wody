@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { approveJoinRequest } from "@/actions/join-request";
+import { formatDateArg, toInputDate } from "@/lib/dates";
 
 interface TeacherOption {
   id: string;
@@ -16,6 +17,7 @@ interface Props {
   requestName: string;
   requestEmail: string;
   requestTeacherIds: string[];
+  requestNextPaymentDate: Date;
   teachers: TeacherOption[];
 }
 
@@ -24,6 +26,7 @@ export function ApproveJoinRequestButton({
   requestName,
   requestEmail,
   requestTeacherIds,
+  requestNextPaymentDate,
   teachers,
 }: Props) {
   const router = useRouter();
@@ -37,6 +40,17 @@ export function ApproveJoinRequestButton({
   const [studentType, setStudentType] = useState<"GENERAL" | "PERSONALIZED">("PERSONALIZED");
   const [teacherIds, setTeacherIds] = useState<string[]>(requestTeacherIds);
   const [canCreateOwnRoutines, setCanCreateOwnRoutines] = useState(false);
+  const [nextPaymentDate, setNextPaymentDate] = useState(toInputDate(requestNextPaymentDate));
+
+  // Compute "today" in Argentina (UTC-3) at render time for min attribute.
+  const todayMin = (() => {
+    const nowUTC = new Date();
+    const argNow = new Date(nowUTC.getTime() - 3 * 60 * 60 * 1000);
+    const y = argNow.getUTCFullYear();
+    const m = String(argNow.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(argNow.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  })();
 
   // Replicate UserForm.tsx:32-36 visibility/forced logic.
   const showStudentExtras = studentType === "PERSONALIZED";
@@ -49,6 +63,7 @@ export function ApproveJoinRequestButton({
     setStudentType("PERSONALIZED");
     setTeacherIds(requestTeacherIds);
     setCanCreateOwnRoutines(false);
+    setNextPaymentDate(toInputDate(requestNextPaymentDate));
     setEditOpen(false);
     setFeedback(null);
     setOpen(true);
@@ -67,6 +82,7 @@ export function ApproveJoinRequestButton({
             studentType,
             teacherIds: resolvedTeacherIds,
             canCreateOwnRoutines: effectiveCanCreate,
+            nextPaymentDate,
           },
         });
       } else {
@@ -146,6 +162,9 @@ export function ApproveJoinRequestButton({
                 {requestTeacherIds.map((id) => teachers.find((t) => t.id === id)?.name ?? id).join(", ")}
               </p>
             )}
+            <p className="text-xs text-gray-500 font-heading">
+              Próxima fecha de pago: {formatDateArg(requestNextPaymentDate)}
+            </p>
           </div>
 
           {/* Edit panel */}
@@ -232,6 +251,23 @@ export function ApproveJoinRequestButton({
                   </span>
                 </label>
               )}
+
+              {/* Next payment date */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+                  Próxima fecha de pago
+                </label>
+                <input
+                  type="date"
+                  name="nextPaymentDate"
+                  value={nextPaymentDate}
+                  min={todayMin}
+                  onChange={(e) => setNextPaymentDate(e.target.value)}
+                  required
+                  disabled={isPending}
+                  className="bg-elev text-white font-body border border-edge px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
+                />
+              </div>
             </div>
           )}
 

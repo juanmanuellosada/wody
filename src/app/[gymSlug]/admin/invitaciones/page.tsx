@@ -152,6 +152,7 @@ export default async function InvitacionesPage({ params, searchParams }: Props) 
                       requestName={req.name}
                       requestEmail={req.email}
                       requestTeacherIds={req.teachers.map((jt) => jt.teacher.id)}
+                      requestNextPaymentDate={req.nextPaymentDate}
                       teachers={teachers}
                     />
                     <RejectJoinRequestButton

@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import { gymPath } from "@/lib/gym";
 import { sendEmail } from "@/lib/email/send";
 import { JoinApprovedEmail } from "@/lib/email/templates/JoinApprovedEmail";
+import { getTodayArgentina, parseJoinRequestPaymentDate } from "@/lib/dates";
 import React from "react";
 
 type JoinResult = { ok: true } | { ok: false; error: string };
@@ -21,6 +22,7 @@ export async function submitJoinRequest({
   password,
   passwordConfirmation,
   teacherIds,
+  nextPaymentDate,
   honeypot,
 }: {
   gymSlug: string;
@@ -29,6 +31,7 @@ export async function submitJoinRequest({
   password: string;
   passwordConfirmation: string;
   teacherIds?: string[];
+  nextPaymentDate: string;
   honeypot?: string;
 }): Promise<JoinResult> {
   // Honeypot: silently succeed so the bot gets no signal.
@@ -73,6 +76,13 @@ export async function submitJoinRequest({
     validTeacherIds.push(...validTeachers.map((t) => t.id));
   }
 
+  // Validate nextPaymentDate (not subject to anti-enumeration — it's a content field).
+  const paymentDateResult = parseJoinRequestPaymentDate(nextPaymentDate);
+  if (!paymentDateResult.ok) {
+    return { ok: false, error: paymentDateResult.error };
+  }
+  const parsedPaymentDate = paymentDateResult.date;
+
   // Anti-enumeration: silently succeed if email already exists.
   const existingUser = await prisma.user.findFirst({
     where: { email: normalizedEmail, gymId: gym.id, deletedAt: null },
@@ -95,6 +105,7 @@ export async function submitJoinRequest({
       name: trimmedName,
       email: normalizedEmail,
       passwordHash,
+      nextPaymentDate: parsedPaymentDate,
       status: "PENDING",
       teachers: validTeacherIds.length > 0
         ? { create: validTeacherIds.map((id) => ({ teacherId: id })) }
@@ -116,6 +127,7 @@ type ApproveOverrides = {
   studentType?: "GENERAL" | "PERSONALIZED";
   teacherIds?: string[];
   canCreateOwnRoutines?: boolean;
+  nextPaymentDate?: string;
 };
 
 // Regla heredada de createUser (src/actions/user.ts:60-74).
@@ -147,13 +159,14 @@ export async function approveJoinRequest({
     return { ok: false, error: "Esta solicitud ya fue procesada" };
   }
 
-  // Whitelist defensiva: leer explícitamente los 4 campos permitidos, ignorar el resto.
+  // Whitelist defensiva: leer explícitamente los 5 campos permitidos, ignorar el resto.
   const safeOverrides = overrides
     ? {
         name: overrides.name,
         studentType: overrides.studentType,
         teacherIds: overrides.teacherIds,
         canCreateOwnRoutines: overrides.canCreateOwnRoutines,
+        nextPaymentDate: overrides.nextPaymentDate,
       }
     : undefined;
 
@@ -173,6 +186,29 @@ export async function approveJoinRequest({
     ? (resolvedTeacherIds.length > 0 ? requestedCanCreate : true)
     : false;
   const finalName = safeOverrides?.name ?? request.name;
+
+  // Resolve and validate nextPaymentDate.
+  let finalNextPaymentDate: Date;
+  if (safeOverrides?.nextPaymentDate !== undefined) {
+    const result = parseJoinRequestPaymentDate(safeOverrides.nextPaymentDate);
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
+    finalNextPaymentDate = result.date;
+  } else {
+    finalNextPaymentDate = request.nextPaymentDate;
+  }
+  // Re-validate resolved date — the request may have been submitted long ago.
+  const today = getTodayArgentina();
+  if (finalNextPaymentDate < today) {
+    const isFromOverride = safeOverrides?.nextPaymentDate !== undefined;
+    return {
+      ok: false,
+      error: isFromOverride
+        ? "La fecha de pago no puede ser anterior a hoy"
+        : "La fecha de pago no puede ser anterior a hoy. Editala antes de aprobar.",
+    };
+  }
 
   // Validar cada teacherId cuando hay profes a vincular.
   if (resolvedTeacherIds.length > 0) {
@@ -244,6 +280,7 @@ export async function approveJoinRequest({
           gymId: request.gymId,
           memberNumber,
           emailVerifiedAt: new Date(),
+          nextPaymentDate: finalNextPaymentDate,
         },
       });
 
@@ -264,6 +301,8 @@ export async function approveJoinRequest({
         }
       }
 
+      // Persist the final resolved values back to JoinRequest as audit trail
+      // (same pattern as name and teacherIds — snapshot of what was actually agreed upon).
       await tx.joinRequest.update({
         where: { id: request.id },
         data: {
@@ -271,6 +310,7 @@ export async function approveJoinRequest({
           reviewedAt: new Date(),
           reviewedById: session.user.id,
           name: finalName,
+          nextPaymentDate: finalNextPaymentDate,
         },
       });
     });

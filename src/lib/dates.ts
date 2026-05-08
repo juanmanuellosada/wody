@@ -45,6 +45,42 @@ export function toInputDate(date: Date): string {
 }
 
 /**
+ * Parses a YYYY-MM-DD string as UTC midnight and validates it is ≥ today (Argentina).
+ * Returns `{ ok: true, date }` or `{ ok: false, error }` with a user-facing message.
+ * Used by both submitJoinRequest and approveJoinRequest.
+ */
+export function parseJoinRequestPaymentDate(
+  input: string | undefined | null,
+): { ok: true; date: Date } | { ok: false; error: string } {
+  if (!input || input.trim() === "") {
+    return { ok: false, error: "La fecha de pago es obligatoria" };
+  }
+
+  const parsed = new Date(`${input.trim()}T00:00:00.000Z`);
+  if (isNaN(parsed.getTime())) {
+    return { ok: false, error: "Fecha de pago inválida" };
+  }
+
+  // Reject dates that don't strictly match YYYY-MM-DD (e.g. "2026-13-99" parses but is wrong)
+  const [year, month, day] = input.trim().split("-").map(Number);
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (
+    check.getUTCFullYear() !== year ||
+    check.getUTCMonth() + 1 !== month ||
+    check.getUTCDate() !== day
+  ) {
+    return { ok: false, error: "Fecha de pago inválida" };
+  }
+
+  const today = getTodayArgentina();
+  if (parsed < today) {
+    return { ok: false, error: "La fecha de pago no puede ser anterior a hoy" };
+  }
+
+  return { ok: true, date: parsed };
+}
+
+/**
  * Adds one calendar month to a date, clamping the day to the last day of the
  * target month when needed (e.g. Jan 31 → Feb 28). Returns UTC midnight.
  */
