@@ -268,3 +268,9 @@ h1, h2, h3, h4, h5, h6 {
 .wody-caret-blink {
   animation: wody-caret-blink 1s steps(1) infinite;
 }
+
+/* Hide Edge/IE native password reveal button — the Input component provides its own toggle */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
