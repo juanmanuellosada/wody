@@ -6,7 +6,7 @@ import backerei from "@/logos/backerei.png";
 import becasual from "@/logos/becalsualf-ft.png";
 import bvSports from "@/logos/bv-sports.png";
 import deliciasMias from "@/logos/delicias-mias.png";
-import floransBelleza from "@/logos/florans-belleza.jpeg";
+import floransBelleza from "@/logos/florans-belleza.png";
 import ger from "@/logos/ger.png";
 import nutriteConLu from "@/logos/nutrite-con-lu.png";
 import nutrilion from "@/logos/nutrilion.png";
