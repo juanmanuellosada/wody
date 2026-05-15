@@ -1,5 +1,6 @@
 import type { StaticImageData } from "next/image";
 
+import ambar from "@/logos/ambar.jpg";
 import atr from "@/logos/atr.png";
 import backerei from "@/logos/backerei.png";
 import becasual from "@/logos/becalsualf-ft.png";
@@ -15,6 +16,7 @@ import readyForWod from "@/logos/ready-for-wod.png";
 import tica from "@/logos/tica.png";
 
 export const COUPON_LOGOS: Record<string, StaticImageData> = {
+  ambar,
   atr,
   backerei,
   "becalsualf-ft": becasual,

@@ -221,6 +221,28 @@ const COUPONS: Array<{
     rule: CouponRule.UNLIMITED,
     sortOrder: 120,
   },
+  {
+    slug: "ambar-tienda-natural-5",
+    name: "Ámbar Tienda Natural · 5%",
+    description:
+      "5% de descuento en toda la tienda. Sin mínimo de compra y sin tope de reintegro.",
+    instagramHandle: "ambartiendanatural",
+    instagramUrl: "https://www.instagram.com/ambartiendanatural/",
+    logoKey: "ambar",
+    rule: CouponRule.UNLIMITED,
+    sortOrder: 130,
+  },
+  {
+    slug: "ambar-tienda-natural-10",
+    name: "Ámbar Tienda Natural · 10%",
+    description:
+      "10% de descuento en toda la tienda. Mínimo de compra $30.000 y tope de reintegro de $10.000.",
+    instagramHandle: "ambartiendanatural",
+    instagramUrl: "https://www.instagram.com/ambartiendanatural/",
+    logoKey: "ambar",
+    rule: CouponRule.UNLIMITED,
+    sortOrder: 131,
+  },
 ];
 
 async function main() {
