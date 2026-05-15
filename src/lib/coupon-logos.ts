@@ -1,8 +1,10 @@
 import type { StaticImageData } from "next/image";
 
 import atr from "@/logos/atr.png";
+import backerei from "@/logos/backerei.png";
 import becasual from "@/logos/becalsualf-ft.png";
 import bvSports from "@/logos/bv-sports.png";
+import deliciasMias from "@/logos/delicias-mias.png";
 import floransBelleza from "@/logos/florans-belleza.jpeg";
 import ger from "@/logos/ger.png";
 import nutriteConLu from "@/logos/nutrite-con-lu.png";
@@ -14,8 +16,10 @@ import tica from "@/logos/tica.png";
 
 export const COUPON_LOGOS: Record<string, StaticImageData> = {
   atr,
+  backerei,
   "becalsualf-ft": becasual,
   "bv-sports": bvSports,
+  "delicias-mias": deliciasMias,
   "florans-belleza": floransBelleza,
   ger,
   "nutrite-con-lu": nutriteConLu,

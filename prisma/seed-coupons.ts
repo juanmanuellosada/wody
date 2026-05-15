@@ -77,7 +77,7 @@ const COUPONS: Array<{
     slug: "quinque-recurrente",
     name: "Quinque · Clientes",
     description:
-      "10% de descuento en compras posteriores. Productos integrales, monto mínimo $10.000.",
+      "15% de descuento en compras posteriores. Productos integrales, monto mínimo $10.000.",
     instagramHandle: "quinque.pasteleria",
     instagramUrl: "https://www.instagram.com/quinque.pasteleria",
     logoKey: "quinque",
@@ -199,6 +199,27 @@ const COUPONS: Array<{
     logoKey: "florans-belleza",
     rule: CouponRule.ONCE_PER_USER_PER_MONTH,
     sortOrder: 5,
+  },
+  {
+    slug: "backerei-pasteleria-fina",
+    name: "Backerei Pastelería Fina",
+    description: "15% de descuento. Entregas en zona norte.",
+    instagramHandle: "backerei.pasteleriafina",
+    instagramUrl: "https://www.instagram.com/backerei.pasteleriafina",
+    logoKey: "backerei",
+    rule: CouponRule.UNLIMITED,
+    sortOrder: 110,
+  },
+  {
+    slug: "delicias-mias-by-flor",
+    name: "Delicias Mías By Flor",
+    description:
+      "10% de descuento en panes y productos integrales a partir de 2 unidades.",
+    instagramHandle: "deliciasmias.byflor",
+    instagramUrl: "https://www.instagram.com/deliciasmias.byflor",
+    logoKey: "delicias-mias",
+    rule: CouponRule.UNLIMITED,
+    sortOrder: 120,
   },
 ];
 
