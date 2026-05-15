@@ -1,6 +1,6 @@
 import type { StaticImageData } from "next/image";
 
-import ambar from "@/logos/ambar.jpg";
+import ambar from "@/logos/ambar.png";
 import atr from "@/logos/atr.png";
 import backerei from "@/logos/backerei.png";
 import becasual from "@/logos/becalsualf-ft.png";
