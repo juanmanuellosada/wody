@@ -50,10 +50,14 @@ function initialState(
 ) {
   const id = preSelectedStudentId ?? "";
   const student = students.find((s) => s.id === id);
+  const hasStudent = !!student;
   return {
     studentId: id,
     amount: student?.lastAmount != null ? String(student.lastAmount) : "",
     nextDate: student?.suggestedNextDate ?? "",
+    /** Pre-fill date/method only when a student is already selected at open time */
+    paidAt: hasStudent ? todayUTC() : "",
+    paymentMethod: hasStudent ? ("EFECTIVO" as PaymentMethod) : ("" as PaymentMethod | ""),
   };
 }
 
@@ -175,6 +179,8 @@ function DialogForm({
   defaultStudentId,
   defaultAmount,
   defaultNextDate,
+  defaultPaidAt,
+  defaultPaymentMethod,
 }: {
   students: PaymentStudent[];
   onClose: () => void;
@@ -182,12 +188,14 @@ function DialogForm({
   defaultStudentId: string;
   defaultAmount: string;
   defaultNextDate: string;
+  defaultPaidAt: string;
+  defaultPaymentMethod: PaymentMethod | "";
 }) {
   const [studentId, setStudentId] = useState(defaultStudentId);
   const [amount, setAmount] = useState(defaultAmount);
   const [nextDate, setNextDate] = useState(defaultNextDate);
-  const [paidAt, setPaidAt] = useState(todayUTC());
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO");
+  const [paidAt, setPaidAt] = useState(defaultPaidAt);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">(defaultPaymentMethod);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [duplicatePending, setDuplicatePending] = useState<DuplicateInfo | null>(null);
@@ -200,13 +208,18 @@ function DialogForm({
     if (student) {
       setAmount(student.lastAmount != null ? String(student.lastAmount) : "");
       setNextDate(student.suggestedNextDate);
+      // Fill date and method defaults only on first student selection
+      setPaidAt((prev) => prev || todayUTC());
+      setPaymentMethod((prev) => prev || "EFECTIVO");
     } else {
       setAmount("");
       setNextDate("");
+      setPaidAt("");
+      setPaymentMethod("");
     }
   }
 
-  function validate(): { ok: false } | { ok: true; parsedAmount: number } {
+  function validate(): { ok: false } | { ok: true; parsedAmount: number; resolvedMethod: PaymentMethod } {
     if (!studentId) {
       setError("Seleccioná un alumno.");
       return { ok: false };
@@ -224,7 +237,11 @@ function DialogForm({
       setError("Ingresá la fecha del pago.");
       return { ok: false };
     }
-    return { ok: true, parsedAmount };
+    if (!paymentMethod) {
+      setError("Seleccioná el método de pago.");
+      return { ok: false };
+    }
+    return { ok: true, parsedAmount, resolvedMethod: paymentMethod };
   }
 
   function handleConfirm() {
@@ -239,7 +256,7 @@ function DialogForm({
     startTransition(async () => {
       const result = await registerPayment(studentId, v.parsedAmount, nextDate, {
         paidAtStr: paidAt,
-        paymentMethod,
+        paymentMethod: v.resolvedMethod,
         confirmedDuplicate: false,
       });
       if (!result.success && "requiresConfirmation" in result) {
@@ -260,7 +277,7 @@ function DialogForm({
     startTransition(async () => {
       const result = await registerPayment(studentId, v.parsedAmount, nextDate, {
         paidAtStr: paidAt,
-        paymentMethod,
+        paymentMethod: v.resolvedMethod,
         confirmedDuplicate: true,
       });
       if (!result.success) {
@@ -370,36 +387,53 @@ function DialogForm({
             </div>
           </div>
 
-          {/* Payment date — editable, default today, no future dates */}
-          <DatePicker
-            value={paidAt}
-            onChange={(d) => {
-              const today = todayUTC();
-              if (d > today) return; // silently block future dates
-              setPaidAt(d);
-            }}
-            disabled={isPending}
-            label="Fecha del pago"
-            max={todayUTC()}
-          />
+          {/* Payment date — empty until student is selected */}
+          {paidAt ? (
+            <DatePicker
+              value={paidAt}
+              onChange={(d) => {
+                const today = todayUTC();
+                if (d > today) return; // silently block future dates
+                setPaidAt(d);
+              }}
+              disabled={isPending}
+              label="Fecha del pago"
+              max={todayUTC()}
+            />
+          ) : (
+            <div>
+              <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
+                Fecha del pago
+              </label>
+              <p className="text-xs text-gray-600 font-body italic">
+                Seleccioná un alumno para ingresar la fecha.
+              </p>
+            </div>
+          )}
 
-          {/* Payment method — required */}
+          {/* Payment method — empty until student is selected */}
           <div>
             <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
               Método de pago
             </label>
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-              disabled={isPending}
-              className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200 disabled:opacity-50 cursor-pointer"
-            >
-              {PAYMENT_METHODS.map((m) => (
-                <option key={m} value={m}>
-                  {PAYMENT_METHOD_LABELS[m]}
-                </option>
-              ))}
-            </select>
+            {paymentMethod ? (
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                disabled={isPending}
+                className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200 disabled:opacity-50 cursor-pointer"
+              >
+                {PAYMENT_METHODS.map((m) => (
+                  <option key={m} value={m}>
+                    {PAYMENT_METHOD_LABELS[m]}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-xs text-gray-600 font-body italic">
+                Seleccioná un alumno para elegir el método.
+              </p>
+            )}
           </div>
 
           {/* Next payment date */}
@@ -467,7 +501,7 @@ export function RegisterPaymentDialog({
 }: Props) {
   if (!open) return null;
 
-  const { studentId, amount, nextDate } = initialState(
+  const { studentId, amount, nextDate, paidAt, paymentMethod } = initialState(
     students,
     preSelectedStudentId
   );
@@ -480,6 +514,8 @@ export function RegisterPaymentDialog({
       defaultStudentId={studentId}
       defaultAmount={amount}
       defaultNextDate={nextDate}
+      defaultPaidAt={paidAt}
+      defaultPaymentMethod={paymentMethod}
     />
   );
 }
