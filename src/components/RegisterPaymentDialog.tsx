@@ -236,16 +236,26 @@ function DialogForm({
             <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
               Importe
             </label>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              disabled={isPending}
-              placeholder="Ej: 15000"
-              className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200 placeholder:text-gray-600"
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-body pointer-events-none select-none">
+                $
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  // Allow empty, digits, and at most 2 decimal places
+                  if (raw === "" || /^\d*([.,]\d{0,2})?$/.test(raw)) {
+                    setAmount(raw);
+                  }
+                }}
+                disabled={isPending}
+                placeholder="Ej: 15000"
+                className="w-full bg-elev border border-edge text-white text-sm font-body pl-7 pr-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200 placeholder:text-gray-600"
+              />
+            </div>
           </div>
 
           {/* Next payment date */}
