@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { EditStudentButton } from "@/components/EditStudentButton";
 import { BlockUserButton } from "@/components/BlockUserButton";
 import { getBlockStatus } from "@/lib/blocking";
-import { RegisterPaymentButton, RegisterPaymentRowButton } from "@/components/RegisterPaymentSection";
+import { RegisterPaymentRowButton } from "@/components/RegisterPaymentSection";
 import { PaymentStatsPanel } from "@/components/PaymentStatsPanel";
 import type { PaymentStudent } from "@/components/RegisterPaymentDialog";
 import type { PaymentStatsFilters } from "@/lib/payment-stats";
@@ -19,12 +19,9 @@ interface Props {
   params: Promise<{ gymSlug: string }>;
   searchParams: Promise<{
     status?: string;
-    statsMode?: string;
-    statsMonth?: string;
     statsFrom?: string;
     statsTo?: string;
-    statsTeacherId?: string;
-    statsStudentId?: string;
+    statsTeacherIds?: string;
   }>;
 }
 
@@ -35,54 +32,25 @@ function parseFilter(value: string | undefined): StatusFilter {
   return "all";
 }
 
-/** Returns YYYY-MM for the current month in Argentina time. */
-function currentMonthYM(): string {
-  const now = getTodayArgentina();
-  const y = now.getUTCFullYear();
-  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
-
-/** Parses stats filter params and derives the UTC date range for the period. */
+/** Parses stats filter params (always range mode). Defaults to current full month. */
 function parseStatsFilters(sp: {
-  statsMode?: string;
-  statsMonth?: string;
   statsFrom?: string;
   statsTo?: string;
-  statsTeacherId?: string;
-  statsStudentId?: string;
+  statsTeacherIds?: string;
 }): {
-  mode: "month" | "range";
-  month: string;
   from: Date;
   to: Date;
   fromStr: string;
   toStr: string;
-  teacherId: string;
-  studentId: string;
+  teacherIds: string[];
 } {
-  const mode: "month" | "range" = sp.statsMode === "range" ? "range" : "month";
-  const teacherId = sp.statsTeacherId ?? "";
-  const studentId = sp.statsStudentId ?? "";
-
-  if (mode === "month") {
-    const ym = /^\d{4}-\d{2}$/.test(sp.statsMonth ?? "") ? sp.statsMonth! : currentMonthYM();
-    const [y, m] = ym.split("-").map(Number);
-    const from = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
-    // Last ms of the last day of the month
-    const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
-    const to = new Date(Date.UTC(y, m - 1, lastDay, 23, 59, 59, 999));
-    const fromStr = `${ym}-01`;
-    const toStr = `${ym}-${String(lastDay).padStart(2, "0")}`;
-    return { mode, month: ym, from, to, fromStr, toStr, teacherId, studentId };
-  }
-
-  // range mode
   const today = getTodayArgentina();
-  const defaultFromStr = toInputDate(
-    new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))
-  );
-  const defaultToStr = toInputDate(today);
+  const firstOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const lastDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)).getUTCDate();
+  const lastOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), lastDay));
+
+  const defaultFromStr = toInputDate(firstOfMonth);
+  const defaultToStr = toInputDate(lastOfMonth);
 
   const fromStr =
     /^\d{4}-\d{2}-\d{2}$/.test(sp.statsFrom ?? "") ? sp.statsFrom! : defaultFromStr;
@@ -91,9 +59,13 @@ function parseStatsFilters(sp: {
 
   const from = new Date(`${fromStr}T00:00:00.000Z`);
   const to = new Date(`${toStr}T23:59:59.999Z`);
-  const month = currentMonthYM();
 
-  return { mode, month, from, to, fromStr, toStr, teacherId, studentId };
+  // statsTeacherIds is a comma-separated string (e.g. "id1,id2,id3") or absent
+  const teacherIds: string[] = sp.statsTeacherIds
+    ? sp.statsTeacherIds.split(",").filter(Boolean)
+    : [];
+
+  return { from, to, fromStr, toStr, teacherIds };
 }
 
 type PaymentRow = {
@@ -147,22 +119,12 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
   const { gymSlug } = await params;
   const {
     status: statusParam,
-    statsMode,
-    statsMonth,
     statsFrom,
     statsTo,
-    statsTeacherId,
-    statsStudentId,
+    statsTeacherIds,
   } = await searchParams;
   const activeFilter = parseFilter(statusParam);
-  const statsParsed = parseStatsFilters({
-    statsMode,
-    statsMonth,
-    statsFrom,
-    statsTo,
-    statsTeacherId,
-    statsStudentId,
-  });
+  const statsParsed = parseStatsFilters({ statsFrom, statsTo, statsTeacherIds });
   const session = await auth();
 
   if (session?.user && isPersonalGym(session.user.gymKind)) {
@@ -286,25 +248,35 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
   const filterHref = (f: StatusFilter) =>
     f === "all" ? basePath : `${basePath}?status=${f}`;
 
-  // Build stats filters object (Grupo 4)
+  // Build stats filters object
   const statsFilters: PaymentStatsFilters = {
     gymId,
     role: isAdmin ? "ADMIN" : "TEACHER",
     userId: isAdmin ? undefined : session.user.id,
     from: statsParsed.from,
     to: statsParsed.to,
-    teacherId: isAdmin && statsParsed.teacherId ? statsParsed.teacherId : undefined,
-    studentId: statsParsed.studentId || undefined,
+    teacherIds: isAdmin && statsParsed.teacherIds.length > 0 ? statsParsed.teacherIds : undefined,
   };
 
-  // Student list for stats filters (role-scoped)
-  const statsStudents = students.map((s) => ({ id: s.id, name: s.name }));
   // Teacher list for stats filters (only ADMIN can filter by teacher)
   const statsTeachers = isAdmin ? teachers : [];
 
   return (
     <div className="flex flex-col gap-10">
-      {/* Header */}
+      {/* Panel de estadísticas + botón Registrar pago */}
+      <PaymentStatsPanel
+        filters={statsFilters}
+        teachers={statsTeachers}
+        isAdmin={isAdmin}
+        paymentStudents={paymentStudents}
+        activeFilters={{
+          from: statsParsed.fromStr,
+          to: statsParsed.toStr,
+          teacherIds: statsParsed.teacherIds,
+        }}
+      />
+
+      {/* Header + tarjetas de estado */}
       <div className="border border-line bg-panel p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -375,29 +347,6 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
           </div>
         </div>
       </div>
-
-      {/* Panel de estadísticas (Grupos 4 y 5) */}
-      <PaymentStatsPanel
-        filters={statsFilters}
-        teachers={statsTeachers}
-        students={statsStudents}
-        isAdmin={isAdmin}
-        activeFilters={{
-          mode: statsParsed.mode,
-          month: statsParsed.month,
-          from: statsParsed.fromStr,
-          to: statsParsed.toStr,
-          teacherId: statsParsed.teacherId,
-          studentId: statsParsed.studentId,
-        }}
-      />
-
-      {/* Registrar pago button */}
-      {rows.length > 0 && (
-        <div className="flex justify-end">
-          <RegisterPaymentButton students={paymentStudents} />
-        </div>
-      )}
 
       {rows.length === 0 ? (
         <p className="text-sm text-gray-500 font-body italic">

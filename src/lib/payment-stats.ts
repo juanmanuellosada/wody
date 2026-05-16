@@ -25,16 +25,13 @@ export interface PaymentStatsFilters {
   from: Date;
   /** Fin del período seleccionado (inclusive), UTC. */
   to: Date;
-  /** Filtrar por profesor (solo válido para ADMIN). */
-  teacherId?: string;
-  /** Filtrar por alumno. */
-  studentId?: string;
+  /** Filtrar por uno o varios profesores (solo válido para ADMIN). */
+  teacherIds?: string[];
 }
 
 export interface PeriodStats {
   total: number;
   count: number;
-  average: number;
 }
 
 export interface PaymentStats {
@@ -55,14 +52,14 @@ export interface MonthlyPoint {
 
 /**
  * Resuelve el conjunto de studentIds según el alcance por rol y los filtros
- * adicionales (teacherId, studentId).
+ * adicionales (teacherIds).
  * Retorna undefined cuando no hay restricción de studentId (ADMIN sin filtros)
  * y el array cuando hay que filtrar.
  */
 async function resolveStudentScope(
   filters: PaymentStatsFilters
 ): Promise<string[] | undefined> {
-  const { gymId, role, userId, teacherId, studentId } = filters;
+  const { gymId, role, userId, teacherIds } = filters;
 
   // Restricción base por rol
   let baseStudentIds: string[] | undefined;
@@ -77,27 +74,17 @@ async function resolveStudentScope(
   }
   // ADMIN sin filtros extra: undefined (= todo el gym)
 
-  // Aplicar filtro adicional por teacherId (solo ADMIN puede pasar esto)
-  if (teacherId) {
+  // Aplicar filtro adicional por teacherIds (solo ADMIN puede pasar esto)
+  if (teacherIds && teacherIds.length > 0) {
     const links = await prisma.teacherStudent.findMany({
-      where: { teacherId, teacher: { gymId } },
+      where: { teacherId: { in: teacherIds }, teacher: { gymId } },
       select: { studentId: true },
     });
-    const teacherStudentIds = links.map((l) => l.studentId);
+    const teacherStudentIds = [...new Set(links.map((l) => l.studentId))];
     baseStudentIds =
       baseStudentIds !== undefined
         ? baseStudentIds.filter((id) => teacherStudentIds.includes(id))
         : teacherStudentIds;
-  }
-
-  // Aplicar filtro adicional por studentId
-  if (studentId) {
-    if (baseStudentIds !== undefined) {
-      // Verificar que el studentId esté dentro del scope
-      baseStudentIds = baseStudentIds.includes(studentId) ? [studentId] : [];
-    } else {
-      baseStudentIds = [studentId];
-    }
   }
 
   return baseStudentIds;
@@ -124,7 +111,7 @@ async function computePeriodStats(
 ): Promise<PeriodStats> {
   // If scope is empty array, return zeros immediately
   if (studentIds !== undefined && studentIds.length === 0) {
-    return { total: 0, count: 0, average: 0 };
+    return { total: 0, count: 0 };
   }
 
   const where = buildWhereClause(gymId, from, to, studentIds);
@@ -136,9 +123,8 @@ async function computePeriodStats(
 
   const total = Number(agg._sum.amount ?? 0);
   const count = agg._count.id;
-  const average = count > 0 ? total / count : 0;
 
-  return { total, count, average };
+  return { total, count };
 }
 
 /**

@@ -10,18 +10,19 @@ import {
 interface Props {
   students: PaymentStudent[];
   demo?: boolean;
+  size?: "sm" | "md" | "lg";
 }
 
 /**
  * "Registrar pago" button (top of the payments section) + dialog.
  * Rendered as a Client Component inside the Server Component page.
  */
-export function RegisterPaymentButton({ students, demo }: Props) {
+export function RegisterPaymentButton({ students, demo, size = "sm" }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <Button variant="primary" size="sm" onClick={() => setOpen(true)}>
+      <Button variant="primary" size={size} onClick={() => setOpen(true)}>
         Registrar pago
       </Button>
       <RegisterPaymentDialog

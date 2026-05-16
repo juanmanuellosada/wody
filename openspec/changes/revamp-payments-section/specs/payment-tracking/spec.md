@@ -16,17 +16,22 @@ El sistema SHALL persistir cada cobro como un registro `Payment` independiente, 
 
 ### Requirement: Flujo "Registrar pago"
 
-El sistema SHALL ofrecer un botón "Registrar pago" arriba de la sección de pagos y un acceso equivalente en cada fila de la lista de alumnos. Ambos abren el mismo popup con los campos alumno, importe y próxima fecha de pago. El flujo "Marcar pagado" por fila SHALL dejar de existir.
+El sistema SHALL ofrecer un botón "Registrar pago" prominente en el bloque de estadísticas y un acceso equivalente en cada fila de la lista de alumnos. Ambos abren el mismo popup con los campos alumno, importe y próxima fecha de pago. El flujo "Marcar pagado" por fila SHALL dejar de existir.
 
 #### Scenario: Registrar pago desde el botón principal
 
-- **WHEN** el usuario abre el popup desde el botón "Registrar pago" de arriba de la sección
-- **THEN** el popup muestra un selector de alumno sin pre-seleccionar, un campo de importe y un campo de próxima fecha de pago
+- **WHEN** el usuario abre el popup desde el botón "Registrar pago" del bloque de estadísticas
+- **THEN** el popup muestra un buscador de alumno sin pre-seleccionar, un campo de importe y un campo de próxima fecha de pago
+
+#### Scenario: Buscador de alumno con typeahead
+
+- **WHEN** el usuario escribe en el campo de alumno del popup
+- **THEN** la lista de alumnos se filtra en tiempo real por nombre y el usuario puede elegir uno haciendo clic en la coincidencia; al elegir, se mantiene el pre-llenado de importe y fecha
 
 #### Scenario: Registrar pago desde una fila
 
 - **WHEN** el usuario abre el popup desde el acceso de la fila de un alumno
-- **THEN** el popup se abre con ese alumno ya pre-seleccionado
+- **THEN** el popup se abre con ese alumno ya pre-seleccionado en el buscador
 
 #### Scenario: El importe se pre-llena con el último pago del alumno
 
@@ -73,32 +78,27 @@ El sistema SHALL conservar la edición manual del `nextPaymentDate` de un alumno
 
 ### Requirement: Estadísticas de recaudación
 
-La sección `/[gymSlug]/pagos` SHALL mostrar un panel de estadísticas arriba de la lista de alumnos. El panel SHALL exponer la recaudación total, la cantidad de pagos, el ticket promedio del período y un gráfico de evolución mensual de la recaudación. El panel SHALL permitir filtrar por período, por profesor y por alumno, y comparar el período seleccionado contra el período anterior.
+La sección `/[gymSlug]/pagos` SHALL mostrar un panel de estadísticas arriba de la lista de alumnos. El panel SHALL exponer la recaudación total y la cantidad de pagos del período, junto con un gráfico de evolución mensual de la recaudación. El panel SHALL permitir filtrar por período (siempre un rango de fechas) y por profesor, y comparar el período seleccionado contra el período anterior.
 
 #### Scenario: Métricas del período seleccionado
 
 - **WHEN** el usuario consulta el panel con un período seleccionado
-- **THEN** el panel muestra la suma de importes, la cantidad de pagos y el ticket promedio de los pagos cuyo `paidAt` cae en ese período
+- **THEN** el panel muestra la suma de importes y la cantidad de pagos cuyo `paidAt` cae en ese período
 
-#### Scenario: Vista mensual por defecto y rango personalizado
+#### Scenario: Rango de fechas por defecto (mes actual completo)
 
 - **WHEN** el usuario abre la sección de pagos sin elegir un período
-- **THEN** el panel muestra el mes en curso por defecto, y el usuario PUEDE seleccionar un rango de fechas personalizado
+- **THEN** el panel muestra como período por defecto el mes en curso completo (primer día → último día del mes actual), y el usuario PUEDE ajustar el rango con los controles de fecha Desde / Hasta
 
 #### Scenario: Comparación contra el período anterior
 
 - **WHEN** el panel muestra las métricas de un período
 - **THEN** también muestra la variación respecto del período inmediatamente anterior de la misma duración
 
-#### Scenario: Filtro por profesor
+#### Scenario: Filtro por profesor (uno o varios)
 
-- **WHEN** el usuario filtra las estadísticas por un profesor
-- **THEN** el panel considera solo los pagos de los alumnos asignados a ese profesor según la relación `TeacherStudent` vigente
-
-#### Scenario: Filtro por alumno
-
-- **WHEN** el usuario filtra las estadísticas por un alumno
-- **THEN** el panel considera solo los pagos de ese alumno
+- **WHEN** el usuario selecciona uno o varios profesores en el filtro
+- **THEN** el panel considera solo los pagos de los alumnos asignados a cualquiera de los profesores seleccionados según la relación `TeacherStudent` vigente; sin selección el panel considera todos los alumnos del gym
 
 ### Requirement: Alcance de pagos por rol
 
