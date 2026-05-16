@@ -3,18 +3,29 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath, isPersonalGym } from "@/lib/gym";
-import { formatDateArg, getTodayArgentina } from "@/lib/dates";
+import { formatDateArg, getTodayArgentina, addOneMonth, toInputDate } from "@/lib/dates";
 import { Card } from "@/components/ui/Card";
-import { PayButton } from "@/components/PayButton";
 import { EditStudentButton } from "@/components/EditStudentButton";
 import { BlockUserButton } from "@/components/BlockUserButton";
 import { getBlockStatus } from "@/lib/blocking";
+import { RegisterPaymentButton, RegisterPaymentRowButton } from "@/components/RegisterPaymentSection";
+import { PaymentStatsPanel } from "@/components/PaymentStatsPanel";
+import type { PaymentStudent } from "@/components/RegisterPaymentDialog";
+import type { PaymentStatsFilters } from "@/lib/payment-stats";
 
 type StatusFilter = "all" | "overdue" | "due-soon" | "ok";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    statsMode?: string;
+    statsMonth?: string;
+    statsFrom?: string;
+    statsTo?: string;
+    statsTeacherId?: string;
+    statsStudentId?: string;
+  }>;
 }
 
 function parseFilter(value: string | undefined): StatusFilter {
@@ -22,6 +33,67 @@ function parseFilter(value: string | undefined): StatusFilter {
     return value;
   }
   return "all";
+}
+
+/** Returns YYYY-MM for the current month in Argentina time. */
+function currentMonthYM(): string {
+  const now = getTodayArgentina();
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+/** Parses stats filter params and derives the UTC date range for the period. */
+function parseStatsFilters(sp: {
+  statsMode?: string;
+  statsMonth?: string;
+  statsFrom?: string;
+  statsTo?: string;
+  statsTeacherId?: string;
+  statsStudentId?: string;
+}): {
+  mode: "month" | "range";
+  month: string;
+  from: Date;
+  to: Date;
+  fromStr: string;
+  toStr: string;
+  teacherId: string;
+  studentId: string;
+} {
+  const mode: "month" | "range" = sp.statsMode === "range" ? "range" : "month";
+  const teacherId = sp.statsTeacherId ?? "";
+  const studentId = sp.statsStudentId ?? "";
+
+  if (mode === "month") {
+    const ym = /^\d{4}-\d{2}$/.test(sp.statsMonth ?? "") ? sp.statsMonth! : currentMonthYM();
+    const [y, m] = ym.split("-").map(Number);
+    const from = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
+    // Last ms of the last day of the month
+    const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const to = new Date(Date.UTC(y, m - 1, lastDay, 23, 59, 59, 999));
+    const fromStr = `${ym}-01`;
+    const toStr = `${ym}-${String(lastDay).padStart(2, "0")}`;
+    return { mode, month: ym, from, to, fromStr, toStr, teacherId, studentId };
+  }
+
+  // range mode
+  const today = getTodayArgentina();
+  const defaultFromStr = toInputDate(
+    new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))
+  );
+  const defaultToStr = toInputDate(today);
+
+  const fromStr =
+    /^\d{4}-\d{2}-\d{2}$/.test(sp.statsFrom ?? "") ? sp.statsFrom! : defaultFromStr;
+  const toStr =
+    /^\d{4}-\d{2}-\d{2}$/.test(sp.statsTo ?? "") ? sp.statsTo! : defaultToStr;
+
+  const from = new Date(`${fromStr}T00:00:00.000Z`);
+  const to = new Date(`${toStr}T23:59:59.999Z`);
+  const month = currentMonthYM();
+
+  return { mode, month, from, to, fromStr, toStr, teacherId, studentId };
 }
 
 type PaymentRow = {
@@ -73,8 +145,24 @@ function statusClasses(s: Status): string {
 
 export default async function PaymentsPage({ params, searchParams }: Props) {
   const { gymSlug } = await params;
-  const { status: statusParam } = await searchParams;
+  const {
+    status: statusParam,
+    statsMode,
+    statsMonth,
+    statsFrom,
+    statsTo,
+    statsTeacherId,
+    statsStudentId,
+  } = await searchParams;
   const activeFilter = parseFilter(statusParam);
+  const statsParsed = parseStatsFilters({
+    statsMode,
+    statsMonth,
+    statsFrom,
+    statsTo,
+    statsTeacherId,
+    statsStudentId,
+  });
   const session = await auth();
 
   if (session?.user && isPersonalGym(session.user.gymKind)) {
@@ -91,7 +179,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
   const gymId = session.user.gymId;
   const isAdmin = session.user.role === "ADMIN";
 
-  const [students, teacherLinks, teachers, gymConfig] = await Promise.all([
+  const [students, teacherLinks, teachers, gymConfig, lastPayments] = await Promise.all([
     isAdmin
       ? prisma.user.findMany({
           where: { gymId, role: "STUDENT", deletedAt: null },
@@ -137,6 +225,12 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
       where: { id: gymId },
       select: { autoBlockAfterDays: true },
     }),
+    // Last payment per student (for pre-filling the popup amount)
+    prisma.payment.findMany({
+      where: { gymId },
+      orderBy: { paidAt: "desc" },
+      select: { studentId: true, amount: true, paidAt: true },
+    }),
   ]);
 
   const autoBlockAfterDays = gymConfig?.autoBlockAfterDays ?? 45;
@@ -157,6 +251,22 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
     assignedTeachers: teachersByStudentId.get(s.id) ?? [],
   }));
 
+  // Build last-amount map: first occurrence per studentId in the desc-ordered list
+  const lastAmountByStudentId = new Map<string, number>();
+  for (const p of lastPayments) {
+    if (!lastAmountByStudentId.has(p.studentId)) {
+      lastAmountByStudentId.set(p.studentId, Number(p.amount));
+    }
+  }
+
+  // PaymentStudent list scoped to visible students (already filtered by role above)
+  const paymentStudents: PaymentStudent[] = students.map((s) => ({
+    id: s.id,
+    name: s.name,
+    suggestedNextDate: toInputDate(addOneMonth(s.nextPaymentDate)),
+    lastAmount: lastAmountByStudentId.get(s.id) ?? null,
+  }));
+
   const overdueCount = rows.filter(
     (r) => computeStatus(r.nextPaymentDate, today).kind === "overdue"
   ).length;
@@ -175,6 +285,22 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
   const basePath = gymPath(gymSlug, "/pagos");
   const filterHref = (f: StatusFilter) =>
     f === "all" ? basePath : `${basePath}?status=${f}`;
+
+  // Build stats filters object (Grupo 4)
+  const statsFilters: PaymentStatsFilters = {
+    gymId,
+    role: isAdmin ? "ADMIN" : "TEACHER",
+    userId: isAdmin ? undefined : session.user.id,
+    from: statsParsed.from,
+    to: statsParsed.to,
+    teacherId: isAdmin && statsParsed.teacherId ? statsParsed.teacherId : undefined,
+    studentId: statsParsed.studentId || undefined,
+  };
+
+  // Student list for stats filters (role-scoped)
+  const statsStudents = students.map((s) => ({ id: s.id, name: s.name }));
+  // Teacher list for stats filters (only ADMIN can filter by teacher)
+  const statsTeachers = isAdmin ? teachers : [];
 
   return (
     <div className="flex flex-col gap-10">
@@ -249,6 +375,29 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Panel de estadísticas (Grupos 4 y 5) */}
+      <PaymentStatsPanel
+        filters={statsFilters}
+        teachers={statsTeachers}
+        students={statsStudents}
+        isAdmin={isAdmin}
+        activeFilters={{
+          mode: statsParsed.mode,
+          month: statsParsed.month,
+          from: statsParsed.fromStr,
+          to: statsParsed.toStr,
+          teacherId: statsParsed.teacherId,
+          studentId: statsParsed.studentId,
+        }}
+      />
+
+      {/* Registrar pago button */}
+      {rows.length > 0 && (
+        <div className="flex justify-end">
+          <RegisterPaymentButton students={paymentStudents} />
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <p className="text-sm text-gray-500 font-body italic">
@@ -332,9 +481,9 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center justify-end gap-2 flex-wrap">
-                          <PayButton
+                          <RegisterPaymentRowButton
+                            students={paymentStudents}
                             studentId={row.id}
-                            studentName={row.name}
                           />
                           <EditStudentButton
                             studentId={row.id}
@@ -421,9 +570,9 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap justify-end">
-                        <PayButton
+                        <RegisterPaymentRowButton
+                          students={paymentStudents}
                           studentId={row.id}
-                          studentName={row.name}
                         />
                         <EditStudentButton
                           studentId={row.id}

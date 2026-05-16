@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { formatDateArg, getTodayArgentina } from "@/lib/dates";
+import { formatDateArg, getTodayArgentina, addOneMonth, toInputDate } from "@/lib/dates";
 import { Card } from "@/components/ui/Card";
-import { PayButton } from "@/components/PayButton";
 import { EditStudentButton } from "@/components/EditStudentButton";
+import { RegisterPaymentButton, RegisterPaymentRowButton } from "@/components/RegisterPaymentSection";
+import type { PaymentStudent } from "@/components/RegisterPaymentDialog";
 
 type StatusFilter = "all" | "overdue" | "due-soon" | "ok";
 
@@ -83,6 +84,14 @@ export function DemoPagosView({
   const filterHref = (f: StatusFilter) =>
     f === "all" ? basePath : `${basePath}?status=${f}`;
 
+  // Demo payment students (no prior payments in demo, suggestedNextDate = nextPaymentDate + 1 month)
+  const demoPaymentStudents: PaymentStudent[] = rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    suggestedNextDate: toInputDate(addOneMonth(r.nextPaymentDate)),
+    lastAmount: null,
+  }));
+
   return (
     <div className="flex flex-col gap-10">
       <div className="border border-line bg-panel p-6 sm:p-8">
@@ -156,6 +165,13 @@ export function DemoPagosView({
         </div>
       </div>
 
+      {/* Registrar pago button */}
+      {rows.length > 0 && (
+        <div className="flex justify-end">
+          <RegisterPaymentButton students={demoPaymentStudents} demo />
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <p className="text-sm text-gray-500 font-body italic">{emptyMessage}</p>
       ) : visibleRows.length === 0 ? (
@@ -211,9 +227,9 @@ export function DemoPagosView({
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center justify-end gap-2">
-                          <PayButton
+                          <RegisterPaymentRowButton
+                            students={demoPaymentStudents}
                             studentId={row.id}
-                            studentName={row.name}
                             demo
                           />
                           <EditStudentButton
@@ -270,9 +286,9 @@ export function DemoPagosView({
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <PayButton
+                        <RegisterPaymentRowButton
+                          students={demoPaymentStudents}
                           studentId={row.id}
-                          studentName={row.name}
                           demo
                         />
                         <EditStudentButton

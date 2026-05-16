@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath } from "@/lib/gym";
-import { addOneMonth } from "@/lib/dates";
 
 export type PaymentResult =
   | { success: true }
@@ -48,23 +47,6 @@ function revalidatePaymentViews(gymSlug: string) {
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
 }
 
-export async function markStudentAsPaid(
-  studentId: string
-): Promise<PaymentResult> {
-  const check = await assertCanEditStudent(studentId);
-  if (!check.ok) return { success: false, error: check.error };
-
-  const nextDate = addOneMonth(check.student.nextPaymentDate);
-
-  await prisma.user.update({
-    where: { id: studentId },
-    data: { nextPaymentDate: nextDate },
-  });
-
-  revalidatePaymentViews(check.session.user.gymSlug);
-  return { success: true };
-}
-
 export async function setStudentPaymentDate(
   studentId: string,
   dateStr: string
@@ -87,5 +69,92 @@ export async function setStudentPaymentDate(
   });
 
   revalidatePaymentViews(check.session.user.gymSlug);
+  return { success: true };
+}
+
+/** Registrar un pago: crea Payment + actualiza nextPaymentDate atómicamente. */
+export async function registerPayment(
+  studentId: string,
+  amount: number,
+  nextPaymentDateStr: string
+): Promise<PaymentResult> {
+  if (amount <= 0 || !Number.isFinite(amount)) {
+    return { success: false, error: "El importe debe ser mayor a cero." };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(nextPaymentDateStr)) {
+    return { success: false, error: "Fecha de próximo pago inválida." };
+  }
+
+  const nextPaymentDate = new Date(`${nextPaymentDateStr}T00:00:00.000Z`);
+  if (Number.isNaN(nextPaymentDate.getTime())) {
+    return { success: false, error: "Fecha de próximo pago inválida." };
+  }
+
+  const check = await assertCanEditStudent(studentId);
+  if (!check.ok) return { success: false, error: check.error };
+
+  await prisma.$transaction([
+    prisma.payment.create({
+      data: {
+        gymId: check.student.gymId,
+        studentId,
+        amount,
+        paidAt: new Date(),
+        recordedById: check.session.user.id,
+      },
+    }),
+    prisma.user.update({
+      where: { id: studentId },
+      data: { nextPaymentDate },
+    }),
+  ]);
+
+  revalidatePaymentViews(check.session.user.gymSlug);
+  return { success: true };
+}
+
+/** Editar el importe de un pago existente. Solo ADMIN. */
+export async function updatePayment(
+  paymentId: string,
+  amount: number
+): Promise<PaymentResult> {
+  if (amount <= 0 || !Number.isFinite(amount)) {
+    return { success: false, error: "El importe debe ser mayor a cero." };
+  }
+
+  const session = await auth();
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "Solo administradores pueden editar pagos." };
+  }
+
+  const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+  if (!payment || payment.gymId !== session.user.gymId) {
+    return { success: false, error: "Pago no encontrado." };
+  }
+
+  await prisma.payment.update({
+    where: { id: paymentId },
+    data: { amount },
+  });
+
+  revalidatePaymentViews(session.user.gymSlug);
+  return { success: true };
+}
+
+/** Eliminar un pago. Solo ADMIN. No modifica nextPaymentDate. */
+export async function deletePayment(paymentId: string): Promise<PaymentResult> {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "Solo administradores pueden eliminar pagos." };
+  }
+
+  const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+  if (!payment || payment.gymId !== session.user.gymId) {
+    return { success: false, error: "Pago no encontrado." };
+  }
+
+  await prisma.payment.delete({ where: { id: paymentId } });
+
+  revalidatePaymentViews(session.user.gymSlug);
   return { success: true };
 }

@@ -94,6 +94,7 @@ model Gym {
   accessLogs         AccessLog[]
   emailLogs          EmailLog[]
   joinRequests       JoinRequest[]
+  payments           Payment[]
 }
 
 model User {
@@ -129,6 +130,8 @@ model User {
   verificationTokens VerificationToken[]
   joinRequestTeachers    JoinRequestTeacher[] @relation("JoinRequestTeacherToUser")
   joinRequestsReviewed   JoinRequest[] @relation("JoinRequestReviewer")
+  paymentsAsPayer        Payment[] @relation("PaymentStudent")
+  paymentsRecorded       Payment[] @relation("PaymentRecordedBy")
   // Unicidades parciales (solo filas activas, deletedAt IS NULL).
   // Los índices únicos totales fueron reemplazados por índices únicos parciales
   // de PostgreSQL en la migration add_user_soft_delete. Prisma no soporta WHERE
@@ -346,4 +349,22 @@ model PersonalAccessWhitelist {
   note        String?
   createdAt   DateTime  @default(now())
   consumedAt  DateTime?
+}
+
+model Payment {
+  id           String   @id @default(cuid())
+  gymId        String
+  studentId    String
+  amount       Decimal  @db.Decimal(12, 2)
+  paidAt       DateTime
+  recordedById String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  gym        Gym  @relation(fields: [gymId],        references: [id], onDelete: Cascade)
+  student    User @relation("PaymentStudent",    fields: [studentId],    references: [id], onDelete: Restrict)
+  recordedBy User @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([gymId, paidAt])
+  @@index([studentId])
 }
