@@ -38,7 +38,7 @@
 - [x] 6.1 Confirmar que no quedan referencias a `PayButton` ni a `markStudentAsPaid` en el código
 - [x] 6.2 Verificar la conversión de `Prisma.Decimal` a `number` en todo borde server→Client Component
 - [x] 6.3 Correr `npm run lint` y `npm run build` sin errores
-- [ ] 6.4 Probar el flujo completo: registrar pago (botón y fila), editar, eliminar, filtros de estadísticas y aislamiento multi-tenant por `gymId`
+- [x] 6.4 Probar el flujo completo: registrar pago (botón y fila), editar, eliminar, filtros de estadísticas y aislamiento multi-tenant por `gymId`
 
 ## 7. Extensión: fecha de pago, método de pago y guardia de duplicados
 
