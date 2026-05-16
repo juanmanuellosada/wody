@@ -11,7 +11,7 @@ import { getBlockStatus } from "@/lib/blocking";
 import { RegisterPaymentRowButton } from "@/components/RegisterPaymentSection";
 import { PaymentStatsPanel } from "@/components/PaymentStatsPanel";
 import type { PaymentStudent } from "@/components/RegisterPaymentDialog";
-import type { PaymentStatsFilters } from "@/lib/payment-stats";
+import type { PaymentStatsFilters, PaymentMethod } from "@/lib/payment-stats";
 
 type StatusFilter = "all" | "overdue" | "due-soon" | "ok";
 
@@ -22,6 +22,7 @@ interface Props {
     statsFrom?: string;
     statsTo?: string;
     statsTeacherIds?: string;
+    statsMethods?: string;
   }>;
 }
 
@@ -32,17 +33,21 @@ function parseFilter(value: string | undefined): StatusFilter {
   return "all";
 }
 
+const VALID_METHODS: PaymentMethod[] = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADO_PAGO"];
+
 /** Parses stats filter params (always range mode). Defaults to current full month. */
 function parseStatsFilters(sp: {
   statsFrom?: string;
   statsTo?: string;
   statsTeacherIds?: string;
+  statsMethods?: string;
 }): {
   from: Date;
   to: Date;
   fromStr: string;
   toStr: string;
   teacherIds: string[];
+  methodIds: PaymentMethod[];
 } {
   const today = getTodayArgentina();
   const firstOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
@@ -65,7 +70,14 @@ function parseStatsFilters(sp: {
     ? sp.statsTeacherIds.split(",").filter(Boolean)
     : [];
 
-  return { from, to, fromStr, toStr, teacherIds };
+  // statsMethods is a comma-separated string of PaymentMethod values
+  const methodIds: PaymentMethod[] = sp.statsMethods
+    ? (sp.statsMethods.split(",").filter((m): m is PaymentMethod =>
+        VALID_METHODS.includes(m as PaymentMethod)
+      ))
+    : [];
+
+  return { from, to, fromStr, toStr, teacherIds, methodIds };
 }
 
 type PaymentRow = {
@@ -122,9 +134,10 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
     statsFrom,
     statsTo,
     statsTeacherIds,
+    statsMethods,
   } = await searchParams;
   const activeFilter = parseFilter(statusParam);
-  const statsParsed = parseStatsFilters({ statsFrom, statsTo, statsTeacherIds });
+  const statsParsed = parseStatsFilters({ statsFrom, statsTo, statsTeacherIds, statsMethods });
   const session = await auth();
 
   if (session?.user && isPersonalGym(session.user.gymKind)) {
@@ -256,6 +269,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
     from: statsParsed.from,
     to: statsParsed.to,
     teacherIds: isAdmin && statsParsed.teacherIds.length > 0 ? statsParsed.teacherIds : undefined,
+    methodIds: statsParsed.methodIds.length > 0 ? statsParsed.methodIds : undefined,
   };
 
   // Teacher list for stats filters (only ADMIN can filter by teacher)
@@ -273,6 +287,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
           from: statsParsed.fromStr,
           to: statsParsed.toStr,
           teacherIds: statsParsed.teacherIds,
+          methodIds: statsParsed.methodIds,
         }}
       />
 

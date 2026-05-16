@@ -98,7 +98,7 @@ export function StudentEditor({
       if (paymentChanged) {
         const result = await setStudentPaymentDate(studentId, paymentDate);
         if (!result.success) {
-          setError(result.error);
+          setError("error" in result ? result.error : "Error al actualizar la fecha.");
           return;
         }
       }

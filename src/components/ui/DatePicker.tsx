@@ -7,6 +7,8 @@ interface DatePickerProps {
   onChange: (value: string) => void;
   disabled?: boolean;
   label?: string;
+  /** Maximum selectable date as YYYY-MM-DD. Days after this date are disabled. */
+  max?: string;
 }
 
 const DAYS_SHORT = ["LU", "MA", "MI", "JU", "VI", "SA", "DO"];
@@ -39,7 +41,7 @@ function getFirstDayOfWeek(year: number, month: number): number {
   return d === 0 ? 6 : d - 1;
 }
 
-export function DatePicker({ value, onChange, disabled = false, label }: DatePickerProps) {
+export function DatePicker({ value, onChange, disabled = false, label, max }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const { year, month } = parseDate(value);
   const [viewYear, setViewYear] = useState(year);
@@ -204,22 +206,28 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
               const day = i + 1;
               const isSelected = isSelectedMonth && selectedParsed.day === day;
               const isToday = isTodayMonth && now.getDate() === day;
+              const dayStr = formatYMD(viewYear, viewMonth, day);
+              const isAfterMax = max ? dayStr > max : false;
 
               return (
                 <button
                   key={day}
                   type="button"
-                  onClick={() => selectDay(day)}
+                  onClick={() => !isAfterMax && selectDay(day)}
+                  disabled={isAfterMax}
                   className={[
-                    "h-8 flex items-center justify-center text-xs font-heading font-bold cursor-pointer transition-all duration-150",
-                    isSelected
-                      ? "bg-brand-red text-white"
+                    "h-8 flex items-center justify-center text-xs font-heading font-bold transition-all duration-150",
+                    isAfterMax
+                      ? "text-gray-700 cursor-not-allowed"
+                      : isSelected
+                      ? "bg-brand-red text-white cursor-pointer"
                       : isToday
-                      ? "text-brand-red border border-brand-red/30"
-                      : "text-gray-300 hover:bg-elev hover:text-white",
+                      ? "text-brand-red border border-brand-red/30 cursor-pointer"
+                      : "text-gray-300 hover:bg-elev hover:text-white cursor-pointer",
                   ].join(" ")}
                   aria-label={`${day} de ${MONTHS[viewMonth]} ${viewYear}`}
                   aria-pressed={isSelected}
+                  aria-disabled={isAfterMax}
                 >
                   {day}
                 </button>
@@ -231,11 +239,12 @@ export function DatePicker({ value, onChange, disabled = false, label }: DatePic
           <div className="border-t border-line px-3 py-2">
             <button
               type="button"
+              disabled={max ? todayStr > max : false}
               onClick={() => {
                 onChange(todayStr);
                 setOpen(false);
               }}
-              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-brand-red transition-colors duration-200 cursor-pointer"
+              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-brand-red transition-colors duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-500"
             >
               Hoy
             </button>

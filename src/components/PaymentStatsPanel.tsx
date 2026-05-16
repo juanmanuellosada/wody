@@ -9,7 +9,7 @@ import { PaymentEvolutionChart } from "@/components/PaymentEvolutionChart";
 import { PaymentFilters } from "@/components/PaymentFilters";
 import { PaymentHistorySection } from "@/components/PaymentHistorySection";
 import { RegisterPaymentButton } from "@/components/RegisterPaymentSection";
-import type { PaymentStatsFilters } from "@/lib/payment-stats";
+import type { PaymentStatsFilters, PaymentMethod } from "@/lib/payment-stats";
 import type { PaymentStudent } from "@/components/RegisterPaymentDialog";
 
 interface Teacher {
@@ -27,6 +27,7 @@ interface Props {
     from: string;
     to: string;
     teacherIds: string[];
+    methodIds: PaymentMethod[];
   };
 }
 

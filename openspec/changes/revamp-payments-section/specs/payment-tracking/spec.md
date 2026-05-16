@@ -2,12 +2,12 @@
 
 ### Requirement: Registro persistente de pagos
 
-El sistema SHALL persistir cada cobro como un registro `Payment` independiente, con importe, fecha de registro (`paidAt`), alumno, gym y usuario que lo cargó (`recordedById`). Un alumno PUEDE tener múltiples pagos a lo largo del tiempo.
+El sistema SHALL persistir cada cobro como un registro `Payment` independiente, con importe, fecha de pago (`paidAt`), método de pago (opcional), alumno, gym y usuario que lo cargó (`recordedById`). Un alumno PUEDE tener múltiples pagos a lo largo del tiempo.
 
 #### Scenario: Un pago queda registrado con todos sus datos
 
 - **WHEN** un `ADMIN` o `TEACHER` registra un pago de un alumno
-- **THEN** el sistema crea un `Payment` con el importe, la fecha del momento del registro, el `gymId` del gym, el `studentId` del alumno y el `recordedById` del usuario que lo cargó
+- **THEN** el sistema crea un `Payment` con el importe, la fecha de pago indicada (o la fecha actual si no se indicó una), el método de pago (si fue provisto), el `gymId` del gym, el `studentId` del alumno y el `recordedById` del usuario que lo cargó
 
 #### Scenario: El historial conserva pagos previos
 
@@ -43,10 +43,27 @@ El sistema SHALL ofrecer un botón "Registrar pago" prominente en el bloque de e
 - **WHEN** se selecciona un alumno
 - **THEN** el campo de próxima fecha de pago se pre-llena con el `nextPaymentDate` actual del alumno más un mes, y el usuario PUEDE editarlo
 
+#### Scenario: Campo "Fecha del pago" editable, default hoy, sin fechas futuras
+
+- **WHEN** el usuario abre el popup
+- **THEN** el campo "Fecha del pago" se inicializa con la fecha de hoy; el usuario PUEDE retroceder la fecha para registrar pagos del pasado; los días futuros están deshabilitados en el calendario y la server action rechaza fechas futuras
+
+#### Scenario: Campo "Método de pago" obligatorio para pagos nuevos
+
+- **WHEN** el usuario abre el popup
+- **THEN** el campo "Método de pago" se inicializa en "Efectivo" y el usuario DEBE seleccionar uno de los valores disponibles: Efectivo, Transferencia, Tarjeta (débito/crédito), Mercado Pago
+
+#### Scenario: Guardia de pago duplicado
+
+- **WHEN** el usuario confirma el popup y el alumno ya tiene un `Payment` con `paidAt` en el mismo día calendario
+- **THEN** el sistema NO crea el pago y muestra una pantalla de confirmación indicando "Ya hay un pago de {nombre} con fecha {fecha}. ¿Registrar otro de todas formas?"
+- **WHEN** el usuario confirma la pantalla de confirmación
+- **THEN** el sistema crea el segundo pago independientemente del duplicado
+
 #### Scenario: Confirmar crea el pago y corre el vencimiento atómicamente
 
-- **WHEN** el usuario confirma el popup con un alumno, un importe y una próxima fecha válidos
-- **THEN** el sistema crea el `Payment` y actualiza `nextPaymentDate` del alumno a la próxima fecha indicada, dentro de una única transacción que se revierte por completo si alguna parte falla
+- **WHEN** el usuario confirma el popup con un alumno, un importe, una fecha del pago válida, un método de pago y una próxima fecha válidos
+- **THEN** el sistema crea el `Payment` (con fecha y método) y actualiza `nextPaymentDate` del alumno a la próxima fecha indicada, dentro de una única transacción que se revierte por completo si alguna parte falla
 
 ### Requirement: Corrección y eliminación de pagos
 
@@ -99,6 +116,11 @@ La sección `/[gymSlug]/pagos` SHALL mostrar un panel de estadísticas arriba de
 
 - **WHEN** el usuario selecciona uno o varios profesores en el filtro
 - **THEN** el panel considera solo los pagos de los alumnos asignados a cualquiera de los profesores seleccionados según la relación `TeacherStudent` vigente; sin selección el panel considera todos los alumnos del gym
+
+#### Scenario: Filtro por método de pago (uno o varios)
+
+- **WHEN** el usuario selecciona uno o varios métodos de pago en el filtro (pills multi-select, search param `statsMethods` coma-separado)
+- **THEN** el panel considera solo los pagos cuyo `paymentMethod` coincide con alguno de los seleccionados; los pagos con `paymentMethod` null no matchean ningún filtro de método concreto; sin selección el panel considera todos los métodos
 
 ### Requirement: Alcance de pagos por rol
 

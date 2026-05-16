@@ -31,10 +31,10 @@ Dinero con `@db.Decimal(12, 2)`, no `Float` (errores de redondeo) ni `Int` de ce
 ### 3. Registrar pago = transacción atómica
 `registerPayment` corre dentro de `prisma.$transaction`: crea el `Payment` y actualiza `User.nextPaymentDate`. Si una falla, no queda un cobro sin correr la fecha ni una fecha corrida sin cobro.
 
-### 4. `paidAt` = momento del registro
-El popup tiene tres campos (alumno, importe, próxima fecha) — no incluye "fecha del pago". `paidAt` se setea al momento de confirmar y las estadísticas agrupan por ese valor. Es la fecha de "cuándo entró la plata según el sistema", suficiente para recaudación mensual.
+### 4. `paidAt` = editable por el usuario, default hoy
+El popup expone un campo "Fecha del pago" inicializado con la fecha de hoy (UTC). El usuario puede retroceder la fecha para registrar pagos atrasados o del pasado. Se rechazan fechas futuras, tanto en la UI (el `DatePicker` deshabilita los días posteriores a hoy) como en la server action (validación server-side). Esto resuelve la alternativa diferida de la versión anterior.
 
-*Alternativa diferida:* un campo de fecha editable para cargar pagos atrasados. Se puede sumar después sin romper nada.
+*Open Question resuelta:* el campo de fecha editable para pagos atrasados fue implementado en esta extensión.
 
 ### 5. Edición manual de fecha ≠ pago
 `setStudentPaymentDate` (en `StudentEditor`) se conserva como corrección administrativa: mueve `nextPaymentDate` sin crear un `Payment`. No cuenta como ingreso. La distinción es deliberada: "Registrar pago" es plata real, mover la fecha es corregir un error.
@@ -68,7 +68,18 @@ Se adopta `recharts` para el gráfico de evolución mensual: misma librería que
 3. Desplegar acciones y UI nuevas; eliminar `PayButton` / `markStudentAsPaid`.
 4. **Rollback:** revertir el código y `DROP TABLE "Payment"` — no hay datos en riesgo porque la tabla es nueva.
 
+### 10. `PaymentMethod` como enum Prisma nullable
+
+Se agrega el enum `PaymentMethod` con valores `EFECTIVO`, `TRANSFERENCIA`, `TARJETA`, `MERCADO_PAGO`. La columna `paymentMethod` en `Payment` es nullable (`PaymentMethod?`) para no romper filas existentes sin método cargado: las filas con `null` quedan como "sin especificar" y no matchean ningún filtro de método concreto.
+
+El campo es obligatorio para pagos nuevos desde el popup (UI requiere selección; default `EFECTIVO`), pero la server action admite `null` para mantener compatibilidad con usos programáticos futuros.
+
+### 11. Guardia de pago duplicado
+
+`registerPayment` verifica si ya existe un `Payment` del mismo alumno con `paidAt` en el mismo día calendario (UTC) antes de crear. Si existe, retorna `{ success: false, requiresConfirmation: true, duplicateInfo }` en lugar del estado normal. El popup muestra una pantalla de confirmación y re-llama con `confirmedDuplicate: true`. Si el usuario confirma, el pago se crea sin más chequeo.
+
+Alternativa descartada: validación solo en UI — descartada porque no protege contra doble submit en condiciones de red o llamadas directas a la action.
+
 ## Open Questions
 
-- ¿Conviene exponer más adelante un campo de fecha editable en el popup para cargar pagos atrasados? (Diferido, decisión 4.)
 - ¿El panel de estadísticas necesita exportar a CSV? No en esta iteración; evaluar según uso.

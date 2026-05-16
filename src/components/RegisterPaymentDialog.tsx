@@ -4,6 +4,7 @@ import { useState, useTransition, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { registerPayment } from "@/actions/payment";
+import type { PaymentMethod } from "@/actions/payment";
 
 export interface PaymentStudent {
   id: string;
@@ -24,6 +25,25 @@ interface Props {
   demo?: boolean;
 }
 
+/** Today as YYYY-MM-DD in UTC */
+function todayUTC(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  EFECTIVO: "Efectivo",
+  TRANSFERENCIA: "Transferencia",
+  TARJETA: "Tarjeta (débito/crédito)",
+  MERCADO_PAGO: "Mercado Pago",
+};
+
+const PAYMENT_METHODS: PaymentMethod[] = [
+  "EFECTIVO",
+  "TRANSFERENCIA",
+  "TARJETA",
+  "MERCADO_PAGO",
+];
+
 function initialState(
   students: PaymentStudent[],
   preSelectedStudentId: string | undefined
@@ -32,7 +52,6 @@ function initialState(
   const student = students.find((s) => s.id === id);
   return {
     studentId: id,
-    studentName: student?.name ?? "",
     amount: student?.lastAmount != null ? String(student.lastAmount) : "",
     nextDate: student?.suggestedNextDate ?? "",
   };
@@ -140,6 +159,11 @@ function StudentSearch({
   );
 }
 
+interface DuplicateInfo {
+  studentName: string;
+  paidAt: string;
+}
+
 /**
  * Inner form — remounted via `key` each time the dialog opens, so initial
  * state is always derived from the latest props without an effect.
@@ -162,12 +186,16 @@ function DialogForm({
   const [studentId, setStudentId] = useState(defaultStudentId);
   const [amount, setAmount] = useState(defaultAmount);
   const [nextDate, setNextDate] = useState(defaultNextDate);
+  const [paidAt, setPaidAt] = useState(todayUTC());
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [duplicatePending, setDuplicatePending] = useState<DuplicateInfo | null>(null);
 
   function handleStudentChange(id: string) {
     setStudentId(id);
     setError(null);
+    setDuplicatePending(null);
     const student = students.find((s) => s.id === id);
     if (student) {
       setAmount(student.lastAmount != null ? String(student.lastAmount) : "");
@@ -178,33 +206,117 @@ function DialogForm({
     }
   }
 
-  function handleConfirm() {
+  function validate(): { ok: false } | { ok: true; parsedAmount: number } {
     if (!studentId) {
       setError("Seleccioná un alumno.");
-      return;
+      return { ok: false };
     }
     const parsedAmount = parseFloat(amount.replace(",", "."));
     if (!amount.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
       setError("El importe debe ser mayor a cero.");
-      return;
+      return { ok: false };
     }
     if (!nextDate) {
       setError("Ingresá la próxima fecha de pago.");
-      return;
+      return { ok: false };
     }
+    if (!paidAt) {
+      setError("Ingresá la fecha del pago.");
+      return { ok: false };
+    }
+    return { ok: true, parsedAmount };
+  }
+
+  function handleConfirm() {
+    const v = validate();
+    if (!v.ok) return;
     if (demo) {
       onClose();
       return;
     }
     setError(null);
+    setDuplicatePending(null);
     startTransition(async () => {
-      const result = await registerPayment(studentId, parsedAmount, nextDate);
-      if (!result.success) {
+      const result = await registerPayment(studentId, v.parsedAmount, nextDate, {
+        paidAtStr: paidAt,
+        paymentMethod,
+        confirmedDuplicate: false,
+      });
+      if (!result.success && "requiresConfirmation" in result) {
+        setDuplicatePending(result.duplicateInfo);
+      } else if (!result.success && "error" in result) {
         setError(result.error);
+      } else if (result.success) {
+        onClose();
+      }
+    });
+  }
+
+  function handleConfirmDuplicate() {
+    const v = validate();
+    if (!v.ok) return;
+    setError(null);
+    setDuplicatePending(null);
+    startTransition(async () => {
+      const result = await registerPayment(studentId, v.parsedAmount, nextDate, {
+        paidAtStr: paidAt,
+        paymentMethod,
+        confirmedDuplicate: true,
+      });
+      if (!result.success) {
+        setError("error" in result ? result.error : "Error al registrar el pago.");
       } else {
         onClose();
       }
     });
+  }
+
+  if (duplicatePending) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div className="bg-panel border border-edge p-6 w-full max-w-md mx-4 flex flex-col gap-4">
+          <h3 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
+            Pago duplicado
+          </h3>
+          <p className="text-sm font-body text-gray-300">
+            Ya hay un pago de{" "}
+            <span className="text-white font-bold">{duplicatePending.studentName}</span>{" "}
+            con fecha{" "}
+            <span className="text-white font-bold">{duplicatePending.paidAt}</span>.
+            ¿Registrar otro de todas formas?
+          </p>
+          {error && (
+            <p
+              className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide"
+              role="alert"
+            >
+              {error}
+            </p>
+          )}
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setDuplicatePending(null)}
+              disabled={isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleConfirmDuplicate}
+              loading={isPending}
+            >
+              Registrar igual
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -258,18 +370,50 @@ function DialogForm({
             </div>
           </div>
 
+          {/* Payment date — editable, default today, no future dates */}
+          <DatePicker
+            value={paidAt}
+            onChange={(d) => {
+              const today = todayUTC();
+              if (d > today) return; // silently block future dates
+              setPaidAt(d);
+            }}
+            disabled={isPending}
+            label="Fecha del pago"
+            max={todayUTC()}
+          />
+
+          {/* Payment method — required */}
+          <div>
+            <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
+              Método de pago
+            </label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+              disabled={isPending}
+              className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200 disabled:opacity-50 cursor-pointer"
+            >
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {PAYMENT_METHOD_LABELS[m]}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Next payment date */}
           {nextDate ? (
             <DatePicker
               value={nextDate}
               onChange={setNextDate}
               disabled={isPending}
-              label="Próxima fecha de pago"
+              label="Próximo vencimiento"
             />
           ) : (
             <div>
               <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-                Próxima fecha de pago
+                Próximo vencimiento
               </label>
               <p className="text-xs text-gray-600 font-body italic">
                 Seleccioná un alumno para ver la fecha sugerida.

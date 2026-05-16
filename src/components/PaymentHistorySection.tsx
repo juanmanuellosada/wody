@@ -4,12 +4,19 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { updatePayment, deletePayment } from "@/actions/payment";
-import type { PaymentRecord } from "@/lib/payment-stats";
+import type { PaymentRecord, PaymentMethod } from "@/lib/payment-stats";
 
 interface Props {
   payments: PaymentRecord[];
   isAdmin: boolean;
 }
+
+const METHOD_LABEL: Record<PaymentMethod, string> = {
+  EFECTIVO: "Efectivo",
+  TRANSFERENCIA: "Transferencia",
+  TARJETA: "Tarjeta",
+  MERCADO_PAGO: "Mercado Pago",
+};
 
 function formatDateDisplay(isoString: string): string {
   const d = new Date(isoString);
@@ -39,7 +46,7 @@ function EditAmountDialog({ payment, onClose }: EditDialogProps) {
     startTransition(async () => {
       const result = await updatePayment(payment.id, parsed);
       if (!result.success) {
-        setError(result.error);
+        setError("error" in result ? result.error : "Error al editar el pago.");
       } else {
         onClose();
       }
@@ -118,7 +125,7 @@ export function PaymentHistorySection({ payments, isAdmin }: Props) {
     startDeleteTransition(async () => {
       const result = await deletePayment(deleteTarget.id);
       if (!result.success) {
-        setDeleteError(result.error);
+        setDeleteError("error" in result ? result.error : "Error al eliminar el pago.");
       } else {
         setDeleteTarget(null);
       }
@@ -152,7 +159,7 @@ export function PaymentHistorySection({ payments, isAdmin }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-panel">
-              {["Alumno", "Fecha", "Importe", "Registrado por", ...(isAdmin ? [""] : [])].map((h) => (
+              {["Alumno", "Fecha", "Importe", "Método", "Registrado por", ...(isAdmin ? [""] : [])].map((h) => (
                 <th
                   key={h}
                   className="text-left text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 px-4 py-3 border-b border-line"
@@ -173,6 +180,9 @@ export function PaymentHistorySection({ payments, isAdmin }: Props) {
                 </td>
                 <td className="px-4 py-3 text-white font-heading font-bold tabular-nums">
                   ${p.amount.toLocaleString("es-AR", { minimumFractionDigits: 0 })}
+                </td>
+                <td className="px-4 py-3 text-gray-400 font-body text-xs">
+                  {p.paymentMethod ? METHOD_LABEL[p.paymentMethod] : "—"}
                 </td>
                 <td className="px-4 py-3 text-gray-500 font-body text-xs">
                   {p.recordedByName}
@@ -220,7 +230,7 @@ export function PaymentHistorySection({ payments, isAdmin }: Props) {
               </p>
             </div>
             <p className="text-gray-600 text-xs font-body">
-              Registrado por {p.recordedByName}
+              {p.paymentMethod ? METHOD_LABEL[p.paymentMethod] : "Sin método"} · Registrado por {p.recordedByName}
             </p>
             {isAdmin && (
               <div className="flex gap-2 justify-end">

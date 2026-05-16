@@ -74,6 +74,13 @@ enum JoinRequestStatus {
   REJECTED
 }
 
+enum PaymentMethod {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA
+  MERCADO_PAGO
+}
+
 enum EmailLogStatus {
   SENT
   FAILED
@@ -352,14 +359,15 @@ model PersonalAccessWhitelist {
 }
 
 model Payment {
-  id           String   @id @default(cuid())
-  gymId        String
-  studentId    String
-  amount       Decimal  @db.Decimal(12, 2)
-  paidAt       DateTime
-  recordedById String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String         @id @default(cuid())
+  gymId         String
+  studentId     String
+  amount        Decimal        @db.Decimal(12, 2)
+  paidAt        DateTime
+  paymentMethod PaymentMethod?
+  recordedById  String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   gym        Gym  @relation(fields: [gymId],        references: [id], onDelete: Cascade)
   student    User @relation("PaymentStudent",    fields: [studentId],    references: [id], onDelete: Restrict)

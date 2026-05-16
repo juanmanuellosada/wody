@@ -39,3 +39,18 @@
 - [x] 6.2 Verificar la conversión de `Prisma.Decimal` a `number` en todo borde server→Client Component
 - [x] 6.3 Correr `npm run lint` y `npm run build` sin errores
 - [ ] 6.4 Probar el flujo completo: registrar pago (botón y fila), editar, eliminar, filtros de estadísticas y aislamiento multi-tenant por `gymId`
+
+## 7. Extensión: fecha de pago, método de pago y guardia de duplicados
+
+- [x] 7.1 Agregar enum `PaymentMethod` (`EFECTIVO`, `TRANSFERENCIA`, `TARJETA`, `MERCADO_PAGO`) a `prisma/schema.prisma` y columna nullable `paymentMethod` en `Payment`
+- [x] 7.2 Correr `prisma generate` y crear migración `20260516000001_add_payment_method` con el SQL generado por `prisma migrate diff`
+- [x] 7.3 Registrar la migración anterior con `prisma migrate resolve --applied 20260516000000_add_payment_model` y aplicar la nueva con `prisma migrate deploy` (ambas exitosas)
+- [x] 7.4 Actualizar `registerPayment` en `src/actions/payment.ts`: aceptar `paidAtStr` (YYYY-MM-DD, default hoy, rechaza futuras) y `paymentMethod`; guardia de duplicado que retorna `requiresConfirmation` si ya existe un pago del mismo alumno el mismo día
+- [x] 7.5 Agregar soporte de prop `max` (YYYY-MM-DD) en `src/components/ui/DatePicker.tsx` para deshabilitar días futuros
+- [x] 7.6 Actualizar `RegisterPaymentDialog.tsx`: campo "Fecha del pago" (editable, default hoy, `max=today`), campo "Método de pago" (select obligatorio, default Efectivo), renombrar "Próxima fecha de pago" → "Próximo vencimiento", pantalla de confirmación de duplicado
+- [x] 7.7 Actualizar `PaymentStatsFilters` en `src/lib/payment-stats.ts`: agregar `methodIds?: PaymentMethod[]`; filtrar por método en `buildWhereClause`, `computePeriodStats`, `getPaymentStats`, `getMonthlyEvolution` y `getPaymentHistory`; exponer `paymentMethod` en `PaymentRecord`
+- [x] 7.8 Actualizar `PaymentFilters.tsx`: agregar multi-select de método (pills, search param `statsMethods` coma-separado); actualizar `Props.current` para incluir `methodIds`
+- [x] 7.9 Actualizar `PaymentStatsPanel.tsx`: pasar `methodIds` en `activeFilters`
+- [x] 7.10 Actualizar `PaymentHistorySection.tsx`: mostrar método de pago en tabla y tarjetas móviles; usar narrowing correcto en resultados `PaymentResult`
+- [x] 7.11 Actualizar `src/app/[gymSlug]/pagos/page.tsx`: parsear `statsMethods` de searchParams, pasarlo a `statsFilters` y `activeFilters`
+- [x] 7.12 Correr `npm run lint` y `npm run build` sin errores — ambos exitosos

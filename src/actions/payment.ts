@@ -5,9 +5,12 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath } from "@/lib/gym";
 
+export type PaymentMethod = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA" | "MERCADO_PAGO";
+
 export type PaymentResult =
   | { success: true }
-  | { success: false; error: string };
+  | { success: false; error: string }
+  | { success: false; requiresConfirmation: true; duplicateInfo: { studentName: string; paidAt: string } };
 
 async function assertCanEditStudent(studentId: string) {
   const session = await auth();
@@ -72,11 +75,22 @@ export async function setStudentPaymentDate(
   return { success: true };
 }
 
-/** Registrar un pago: crea Payment + actualiza nextPaymentDate atómicamente. */
+/** Registrar un pago: crea Payment + actualiza nextPaymentDate atómicamente.
+ *
+ * Si hay un pago existente del mismo alumno el mismo día calendario (según `paidAt`)
+ * y `confirmedDuplicate` es false (o no se pasa), la acción devuelve
+ * `{ success: false, requiresConfirmation: true, duplicateInfo }` en lugar de crear el pago.
+ * El popup debe mostrar una confirmación y llamar de nuevo con `confirmedDuplicate: true`.
+ */
 export async function registerPayment(
   studentId: string,
   amount: number,
-  nextPaymentDateStr: string
+  nextPaymentDateStr: string,
+  options?: {
+    paidAtStr?: string;      // YYYY-MM-DD; defaults to today
+    paymentMethod?: PaymentMethod;
+    confirmedDuplicate?: boolean;
+  }
 ): Promise<PaymentResult> {
   if (amount <= 0 || !Number.isFinite(amount)) {
     return { success: false, error: "El importe debe ser mayor a cero." };
@@ -90,8 +104,56 @@ export async function registerPayment(
     return { success: false, error: "Fecha de próximo pago inválida." };
   }
 
+  // paidAt: use provided date (start of day UTC) or now
+  let paidAt: Date;
+  if (options?.paidAtStr) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(options.paidAtStr)) {
+      return { success: false, error: "Fecha del pago inválida." };
+    }
+    paidAt = new Date(`${options.paidAtStr}T00:00:00.000Z`);
+    if (Number.isNaN(paidAt.getTime())) {
+      return { success: false, error: "Fecha del pago inválida." };
+    }
+    // Reject future dates (compare calendar date in UTC)
+    const todayUTC = new Date();
+    todayUTC.setUTCHours(0, 0, 0, 0);
+    if (paidAt.getTime() > todayUTC.getTime()) {
+      return { success: false, error: "La fecha del pago no puede ser futura." };
+    }
+  } else {
+    paidAt = new Date();
+  }
+
   const check = await assertCanEditStudent(studentId);
   if (!check.ok) return { success: false, error: check.error };
+
+  // Duplicate guard: look for any payment by this student on the same calendar day
+  if (!options?.confirmedDuplicate) {
+    const dayStart = new Date(
+      Date.UTC(paidAt.getUTCFullYear(), paidAt.getUTCMonth(), paidAt.getUTCDate())
+    );
+    const dayEnd = new Date(
+      Date.UTC(paidAt.getUTCFullYear(), paidAt.getUTCMonth(), paidAt.getUTCDate(), 23, 59, 59, 999)
+    );
+    const existing = await prisma.payment.findFirst({
+      where: {
+        studentId,
+        gymId: check.student.gymId,
+        paidAt: { gte: dayStart, lte: dayEnd },
+      },
+    });
+    if (existing) {
+      const dateLabel = dayStart.toISOString().slice(0, 10);
+      return {
+        success: false,
+        requiresConfirmation: true,
+        duplicateInfo: {
+          studentName: check.student.name,
+          paidAt: dateLabel,
+        },
+      };
+    }
+  }
 
   await prisma.$transaction([
     prisma.payment.create({
@@ -99,7 +161,8 @@ export async function registerPayment(
         gymId: check.student.gymId,
         studentId,
         amount,
-        paidAt: new Date(),
+        paidAt,
+        paymentMethod: options?.paymentMethod ?? null,
         recordedById: check.session.user.id,
       },
     }),

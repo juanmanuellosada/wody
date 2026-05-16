@@ -4,6 +4,8 @@
  * Todos los Decimal se convierten a number antes de retornar.
  */
 
+export type PaymentMethod = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA" | "MERCADO_PAGO";
+
 export interface PaymentRecord {
   id: string;
   studentId: string;
@@ -11,6 +13,7 @@ export interface PaymentRecord {
   amount: number;
   paidAt: string; // ISO string, serializable
   recordedByName: string;
+  paymentMethod: PaymentMethod | null;
 }
 
 import { prisma } from "@/lib/prisma";
@@ -27,6 +30,8 @@ export interface PaymentStatsFilters {
   to: Date;
   /** Filtrar por uno o varios profesores (solo válido para ADMIN). */
   teacherIds?: string[];
+  /** Filtrar por uno o varios métodos de pago. Filas con paymentMethod null no matchean. */
+  methodIds?: PaymentMethod[];
 }
 
 export interface PeriodStats {
@@ -94,12 +99,16 @@ function buildWhereClause(
   gymId: string,
   from: Date,
   to: Date,
-  studentIds: string[] | undefined
+  studentIds: string[] | undefined,
+  methodIds?: PaymentMethod[]
 ) {
   return {
     gymId,
     paidAt: { gte: from, lte: to },
     ...(studentIds !== undefined ? { studentId: { in: studentIds } } : {}),
+    ...(methodIds && methodIds.length > 0
+      ? { paymentMethod: { in: methodIds } }
+      : {}),
   };
 }
 
@@ -107,14 +116,15 @@ async function computePeriodStats(
   gymId: string,
   from: Date,
   to: Date,
-  studentIds: string[] | undefined
+  studentIds: string[] | undefined,
+  methodIds?: PaymentMethod[]
 ): Promise<PeriodStats> {
   // If scope is empty array, return zeros immediately
   if (studentIds !== undefined && studentIds.length === 0) {
     return { total: 0, count: 0 };
   }
 
-  const where = buildWhereClause(gymId, from, to, studentIds);
+  const where = buildWhereClause(gymId, from, to, studentIds, methodIds);
   const agg = await prisma.payment.aggregate({
     where,
     _sum: { amount: true },
@@ -152,8 +162,8 @@ export async function getPaymentStats(
   const prev = previousPeriod(filters.from, filters.to);
 
   const [current, previous] = await Promise.all([
-    computePeriodStats(filters.gymId, filters.from, filters.to, studentIds),
-    computePeriodStats(filters.gymId, prev.from, prev.to, studentIds),
+    computePeriodStats(filters.gymId, filters.from, filters.to, studentIds, filters.methodIds),
+    computePeriodStats(filters.gymId, prev.from, prev.to, studentIds, filters.methodIds),
   ]);
 
   return {
@@ -182,49 +192,25 @@ export async function getMonthlyEvolution(
     return [];
   }
 
-  // Build the raw query conditionally
-  const hasStudentFilter = studentIds !== undefined;
+  // Use findMany + group in app layer to avoid complex raw SQL branching with method filter.
+  // This is acceptable: the result set is bounded by period + gym scope.
+  const payments = await prisma.payment.findMany({
+    where: buildWhereClause(filters.gymId, filters.from, filters.to, studentIds, filters.methodIds),
+    select: { paidAt: true, amount: true },
+    orderBy: { paidAt: "asc" },
+  });
 
-  type RawRow = { month: string; total: string; count: bigint };
-
-  let rows: RawRow[];
-
-  if (hasStudentFilter) {
-    rows = await prisma.$queryRaw<RawRow[]>`
-      SELECT
-        to_char("paidAt" AT TIME ZONE 'UTC', 'YYYY-MM') AS month,
-        SUM(amount)::text AS total,
-        COUNT(id) AS count
-      FROM "Payment"
-      WHERE
-        "gymId" = ${filters.gymId}
-        AND "paidAt" >= ${filters.from}
-        AND "paidAt" <= ${filters.to}
-        AND "studentId" = ANY(${studentIds}::text[])
-      GROUP BY 1
-      ORDER BY 1 ASC
-    `;
-  } else {
-    rows = await prisma.$queryRaw<RawRow[]>`
-      SELECT
-        to_char("paidAt" AT TIME ZONE 'UTC', 'YYYY-MM') AS month,
-        SUM(amount)::text AS total,
-        COUNT(id) AS count
-      FROM "Payment"
-      WHERE
-        "gymId" = ${filters.gymId}
-        AND "paidAt" >= ${filters.from}
-        AND "paidAt" <= ${filters.to}
-      GROUP BY 1
-      ORDER BY 1 ASC
-    `;
+  // Group by "YYYY-MM"
+  const byMonth = new Map<string, { total: number; count: number }>();
+  for (const p of payments) {
+    const month = p.paidAt.toISOString().slice(0, 7);
+    const prev = byMonth.get(month) ?? { total: 0, count: 0 };
+    byMonth.set(month, { total: prev.total + Number(p.amount), count: prev.count + 1 });
   }
 
-  return rows.map((r) => ({
-    month: r.month,
-    total: Number(r.total),
-    count: Number(r.count),
-  }));
+  return Array.from(byMonth.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, { total, count }]) => ({ month, total, count }));
 }
 
 /**
@@ -242,13 +228,14 @@ export async function getPaymentHistory(
   }
 
   const payments = await prisma.payment.findMany({
-    where: buildWhereClause(filters.gymId, filters.from, filters.to, studentIds),
+    where: buildWhereClause(filters.gymId, filters.from, filters.to, studentIds, filters.methodIds),
     orderBy: { paidAt: "desc" },
     select: {
       id: true,
       studentId: true,
       amount: true,
       paidAt: true,
+      paymentMethod: true,
       student: { select: { name: true } },
       recordedBy: { select: { name: true } },
     },
@@ -261,5 +248,6 @@ export async function getPaymentHistory(
     amount: Number(p.amount),
     paidAt: p.paidAt.toISOString(),
     recordedByName: p.recordedBy.name,
+    paymentMethod: p.paymentMethod as PaymentMethod | null,
   }));
 }

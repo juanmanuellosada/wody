@@ -3,6 +3,21 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { DatePicker } from "@/components/ui/DatePicker";
+import type { PaymentMethod } from "@/lib/payment-stats";
+
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  EFECTIVO: "Efectivo",
+  TRANSFERENCIA: "Transferencia",
+  TARJETA: "Tarjeta",
+  MERCADO_PAGO: "Mercado Pago",
+};
+
+const ALL_METHODS: PaymentMethod[] = [
+  "EFECTIVO",
+  "TRANSFERENCIA",
+  "TARJETA",
+  "MERCADO_PAGO",
+];
 
 interface Teacher {
   id: string;
@@ -17,6 +32,7 @@ interface Props {
     from: string;  // YYYY-MM-DD
     to: string;    // YYYY-MM-DD
     teacherIds: string[];
+    methodIds: PaymentMethod[];
   };
 }
 
@@ -76,6 +92,17 @@ export function PaymentFilters({ teachers, isAdmin, current }: Props) {
 
   function handleClearTeachers() {
     navigate({ statsTeacherIds: [] });
+  }
+
+  function handleMethodToggle(method: PaymentMethod) {
+    const next = current.methodIds.includes(method)
+      ? current.methodIds.filter((m) => m !== method)
+      : [...current.methodIds, method];
+    navigate({ statsMethods: next });
+  }
+
+  function handleClearMethods() {
+    navigate({ statsMethods: [] });
   }
 
   return (
@@ -139,6 +166,45 @@ export function PaymentFilters({ teachers, isAdmin, current }: Props) {
           </div>
         </div>
       )}
+
+      {/* Method multi-select */}
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
+          Método
+        </span>
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <button
+            type="button"
+            onClick={handleClearMethods}
+            className={[
+              "px-3 text-[10px] font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200 cursor-pointer min-h-[44px]",
+              current.methodIds.length === 0
+                ? "bg-brand-red/15 border-brand-red/60 text-brand-red"
+                : "border-edge text-gray-500 hover:text-white hover:border-edge",
+            ].join(" ")}
+          >
+            Todos
+          </button>
+          {ALL_METHODS.map((m) => {
+            const active = current.methodIds.includes(m);
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => handleMethodToggle(m)}
+                className={[
+                  "px-3 text-[10px] font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200 cursor-pointer min-h-[44px]",
+                  active
+                    ? "bg-brand-red/15 border-brand-red/60 text-brand-red"
+                    : "border-edge text-gray-500 hover:text-white hover:border-edge",
+                ].join(" ")}
+              >
+                {PAYMENT_METHOD_LABELS[m]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
     </div>
   );
