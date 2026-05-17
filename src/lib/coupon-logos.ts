@@ -2,6 +2,7 @@ import type { StaticImageData } from "next/image";
 
 import ambar from "@/logos/ambar.png";
 import atr from "@/logos/atr.png";
+import kaori from "@/logos/kaori.png";
 import backerei from "@/logos/backerei.png";
 import becasual from "@/logos/becalsualf-ft.png";
 import bvSports from "@/logos/bv-sports.png";
@@ -24,6 +25,7 @@ export const COUPON_LOGOS: Record<string, StaticImageData> = {
   "delicias-mias": deliciasMias,
   "florans-belleza": floransBelleza,
   ger,
+  kaori,
   "nutrite-con-lu": nutriteConLu,
   nutrilion,
   quinque,

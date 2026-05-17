@@ -222,6 +222,16 @@ const COUPONS: Array<{
     sortOrder: 120,
   },
   {
+    slug: "kaori-hogar",
+    name: "Kaori Hogar",
+    description: "10% de descuento. Compra mínima de 2 productos.",
+    instagramHandle: "kaori_hogar",
+    instagramUrl: "https://www.instagram.com/kaori_hogar/",
+    logoKey: "kaori",
+    rule: CouponRule.UNLIMITED,
+    sortOrder: 125,
+  },
+  {
     slug: "ambar-tienda-natural-5",
     name: "Ámbar Tienda Natural · 5%",
     description:
