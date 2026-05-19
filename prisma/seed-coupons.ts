@@ -22,7 +22,7 @@ const COUPONS: Array<{
     slug: "nutrite-con-lu",
     name: "Nutrite con Lu",
     description:
-      "Bioimpedancia de regalo con tu consulta nutricional. La consulta se abona y de regalo te hacen la bioimpedancia sin costo extra.",
+      "Bioimpedancia de regalo con tu consulta nutricional. La consulta se abona y de regalo te hacen la bioimpedancia sin costo extra. Los Polvorines.",
     instagramHandle: "nutriteconlu",
     instagramUrl: "https://www.instagram.com/nutriteconlu",
     logoKey: "nutrite-con-lu",
@@ -32,7 +32,7 @@ const COUPONS: Array<{
   {
     slug: "ready-for-wod",
     name: "Ready For Wod · Primera compra",
-    description: "10% de descuento en tu primera compra.",
+    description: "10% de descuento en tu primera compra. Zona Norte. Envíos a domicilio.",
     instagramHandle: "readyforwod",
     instagramUrl: "https://www.instagram.com/readyforwod",
     logoKey: "ready-for-wod",
@@ -54,7 +54,7 @@ const COUPONS: Array<{
   {
     slug: "german-masajista",
     name: "German Masajista",
-    description: "25% de descuento en masajes deportivos o relajantes.",
+    description: "25% de descuento en masajes deportivos o relajantes. Grand Bourg.",
     instagramHandle: "masajista.ger",
     instagramUrl: "https://www.instagram.com/masajista.ger",
     logoKey: "ger",
@@ -65,7 +65,7 @@ const COUPONS: Array<{
     slug: "quinque",
     name: "Quinque · Primera compra",
     description:
-      "15% de descuento en tu primera compra. Productos integrales, monto mínimo $10.000. Pastelería saludable.",
+      "15% de descuento en tu primera compra. Productos integrales, monto mínimo $10.000. Pastelería saludable. Los Polvorines. Envíos a domicilio.",
     instagramHandle: "quinque.pasteleria",
     instagramUrl: "https://www.instagram.com/quinque.pasteleria",
     logoKey: "quinque",
@@ -99,7 +99,7 @@ const COUPONS: Array<{
   {
     slug: "becasual-ft",
     name: "Becasual FT",
-    description: "10% de descuento a partir de 2 prendas.",
+    description: "10% de descuento a partir de 2 prendas. Malvinas Argentinas. Puntos de encuentro y envíos.",
     instagramHandle: "becasual.ft",
     instagramUrl: "https://www.instagram.com/becasual.ft",
     logoKey: "becalsualf-ft",
@@ -109,7 +109,7 @@ const COUPONS: Array<{
   {
     slug: "buena-vibra-sport",
     name: "Buena Vibra Sport",
-    description: "10% de descuento en indumentaria deportiva.",
+    description: "10% de descuento en indumentaria deportiva. Tigre, Buenos Aires. Envíos.",
     instagramHandle: "buenavibrasport",
     instagramUrl: "https://www.instagram.com/buenavibrasport",
     logoKey: "bv-sports",
@@ -120,7 +120,7 @@ const COUPONS: Array<{
     slug: "ray-of-light-cursos-anuales",
     name: "Ray of Light · Cursos anuales",
     description:
-      "Abril y Mayo: todavía estás a tiempo de sumarte a los cursos anuales. Sin abonar matrícula.",
+      "Abril y Mayo: todavía estás a tiempo de sumarte a los cursos anuales. Sin abonar matrícula. Villa de Mayo.",
     instagramHandle: "rayoflight.classes",
     instagramUrl: "https://www.instagram.com/rayoflight.classes",
     logoKey: "ray-of-light",
@@ -133,7 +133,7 @@ const COUPONS: Array<{
   {
     slug: "ray-of-light-clase-particular",
     name: "Ray of Light · Primera clase particular",
-    description: "10% de descuento en tu primera clase particular.",
+    description: "10% de descuento en tu primera clase particular. Villa de Mayo.",
     instagramHandle: "rayoflight.classes",
     instagramUrl: "https://www.instagram.com/rayoflight.classes",
     logoKey: "ray-of-light",
@@ -144,7 +144,7 @@ const COUPONS: Array<{
   {
     slug: "ray-of-light-clase-online",
     name: "Ray of Light · Primera clase online",
-    description: "10% de descuento en tu primera clase online.",
+    description: "10% de descuento en tu primera clase online. Villa de Mayo.",
     instagramHandle: "rayoflight.classes",
     instagramUrl: "https://www.instagram.com/rayoflight.classes",
     logoKey: "ray-of-light",
@@ -156,7 +156,7 @@ const COUPONS: Array<{
     slug: "tica-clothes",
     name: "Tica",
     description:
-      "10% de descuento en ticaclothes.com.ar.",
+      "10% de descuento en ticaclothes.com.ar. Envíos a todo el país.",
     instagramHandle: "ticaclothess",
     instagramUrl: "https://www.instagram.com/ticaclothess",
     logoKey: "tica",
@@ -171,7 +171,7 @@ const COUPONS: Array<{
     slug: "nutrilion-5-off",
     name: "Nutrilion · 5%",
     description:
-      "5% de descuento en toda la tienda. Sin mínimo de compra y sin tope de reintegro.",
+      "5% de descuento en toda la tienda. Sin mínimo de compra y sin tope de reintegro. Los Polvorines.",
     instagramHandle: "nutrilion.dietetica",
     instagramUrl: "https://www.instagram.com/nutrilion.dietetica",
     logoKey: "nutrilion",
@@ -182,7 +182,7 @@ const COUPONS: Array<{
     slug: "nutrilion-10-off",
     name: "Nutrilion · 10%",
     description:
-      "10% de descuento en toda la tienda. Mínimo de compra $30.000 y tope de reintegro de $10.000.",
+      "10% de descuento en toda la tienda. Mínimo de compra $30.000 y tope de reintegro de $10.000. Los Polvorines.",
     instagramHandle: "nutrilion.dietetica",
     instagramUrl: "https://www.instagram.com/nutrilion.dietetica",
     logoKey: "nutrilion",
@@ -193,7 +193,7 @@ const COUPONS: Array<{
   {
     slug: "florans-belleza",
     name: "Floran's Belleza",
-    description: "10% de descuento en cualquier servicio.",
+    description: "10% de descuento en cualquier servicio. Villa de Mayo.",
     instagramHandle: "floransbelleza",
     instagramUrl: "https://www.instagram.com/floransbelleza/",
     logoKey: "florans-belleza",
@@ -203,7 +203,7 @@ const COUPONS: Array<{
   {
     slug: "backerei-pasteleria-fina",
     name: "Backerei Pastelería Fina",
-    description: "15% de descuento. Entregas en zona norte.",
+    description: "15% de descuento. Entregas en Zona Norte.",
     instagramHandle: "backerei.pasteleriafina",
     instagramUrl: "https://www.instagram.com/backerei.pasteleriafina",
     logoKey: "backerei",
@@ -214,7 +214,7 @@ const COUPONS: Array<{
     slug: "delicias-mias-by-flor",
     name: "Delicias Mías By Flor",
     description:
-      "10% de descuento en panes y productos integrales a partir de 2 unidades.",
+      "10% de descuento en panes y productos integrales a partir de 2 unidades. Grand Bourg y San Miguel. Envíos.",
     instagramHandle: "deliciasmias.byflor",
     instagramUrl: "https://www.instagram.com/deliciasmias.byflor",
     logoKey: "delicias-mias",
@@ -224,7 +224,7 @@ const COUPONS: Array<{
   {
     slug: "kaori-hogar",
     name: "Kaori Hogar",
-    description: "10% de descuento. Compra mínima de 2 productos.",
+    description: "10% de descuento. Compra mínima de 2 productos. San Miguel y San Isidro. Envíos.",
     instagramHandle: "kaori_hogar",
     instagramUrl: "https://www.instagram.com/kaori_hogar/",
     logoKey: "kaori",
@@ -235,7 +235,7 @@ const COUPONS: Array<{
     slug: "ambar-tienda-natural-5",
     name: "Ámbar Tienda Natural · 5%",
     description:
-      "5% de descuento en toda la tienda. Sin mínimo de compra y sin tope de reintegro.",
+      "5% de descuento en toda la tienda. Sin mínimo de compra y sin tope de reintegro. Los Polvorines.",
     instagramHandle: "ambartiendanatural",
     instagramUrl: "https://www.instagram.com/ambartiendanatural/",
     logoKey: "ambar",
@@ -246,12 +246,45 @@ const COUPONS: Array<{
     slug: "ambar-tienda-natural-10",
     name: "Ámbar Tienda Natural · 10%",
     description:
-      "10% de descuento en toda la tienda. Mínimo de compra $30.000 y tope de reintegro de $10.000.",
+      "10% de descuento en toda la tienda. Mínimo de compra $30.000 y tope de reintegro de $10.000. Los Polvorines.",
     instagramHandle: "ambartiendanatural",
     instagramUrl: "https://www.instagram.com/ambartiendanatural/",
     logoKey: "ambar",
     rule: CouponRule.UNLIMITED,
     sortOrder: 131,
+  },
+  {
+    slug: "buena-vibra-ceramica-talleres",
+    name: "Buena Vibra Cerámica · Talleres",
+    description: "10% de descuento en tu primer mes de talleres o tu primer workshop. San Miguel.",
+    instagramHandle: "buenavibra.ceramica",
+    instagramUrl: "https://www.instagram.com/buenavibra.ceramica/",
+    logoKey: "buena-vibra-ceramica",
+    rule: CouponRule.ONCE_PER_USER,
+    sortOrder: 140,
+    hideWhenConsumed: true,
+  },
+  {
+    slug: "buena-vibra-ceramica-piezas",
+    name: "Buena Vibra Cerámica · Piezas",
+    description: "10% de descuento en piezas de cerámica. Envíos a todo el país.",
+    instagramHandle: "buenavibra.ceramica",
+    instagramUrl: "https://www.instagram.com/buenavibra.ceramica/",
+    logoKey: "buena-vibra-ceramica",
+    rule: CouponRule.ONCE_PER_USER,
+    sortOrder: 141,
+    hideWhenConsumed: true,
+  },
+  {
+    slug: "aura-verde-by-jenn",
+    name: "Aura Verde By Jenn",
+    description: "20% de descuento en tu primera sesión de tratamientos faciales. Boulogne, Sourdeaux y a domicilio.",
+    instagramHandle: "auraverde__byjenn",
+    instagramUrl: "https://www.instagram.com/auraverde__byjenn",
+    logoKey: "aura-verde",
+    rule: CouponRule.ONCE_PER_USER,
+    sortOrder: 150,
+    hideWhenConsumed: true,
   },
 ];
 
