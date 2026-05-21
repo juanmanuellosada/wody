@@ -13,7 +13,7 @@ import {
 } from "@/actions/user";
 import { setStudentPaymentDate } from "@/actions/payment";
 import { toInputDate } from "@/lib/dates";
-import type { StudentType } from "@prisma/client";
+import type { AccountKind, StudentType } from "@prisma/client";
 
 interface TeacherOption {
   id: string;
@@ -23,7 +23,8 @@ interface TeacherOption {
 interface StudentEditorProps {
   studentId: string;
   currentName: string;
-  currentEmail: string;
+  currentEmail: string | null;
+  accountKind?: AccountKind;
   currentPaymentDate?: Date;
   currentBlocked?: boolean;
   currentStudentType: StudentType;
@@ -41,6 +42,7 @@ export function StudentEditor({
   studentId,
   currentName,
   currentEmail,
+  accountKind,
   currentPaymentDate,
   currentBlocked = false,
   currentStudentType,
@@ -53,8 +55,9 @@ export function StudentEditor({
   onClose,
   demo,
 }: StudentEditorProps) {
+  const isLite = accountKind === "LITE";
   const [name, setName] = useState(currentName);
-  const [email, setEmail] = useState(currentEmail);
+  const [email, setEmail] = useState(currentEmail ?? "");
   const [password, setPassword] = useState("");
   const [blocked, setBlocked] = useState(currentBlocked);
   const [canCreate, setCanCreate] = useState(currentCanCreateOwnRoutines);
@@ -80,8 +83,8 @@ export function StudentEditor({
     setError(null);
     const data: { name?: string; email?: string; password?: string } = {};
     if (name.trim() !== currentName) data.name = name;
-    if (email.trim() !== currentEmail) data.email = email;
-    if (password.trim()) data.password = password;
+    if (!isLite && email.trim() !== (currentEmail ?? "")) data.email = email;
+    if (!isLite && password.trim()) data.password = password;
 
     const paymentChanged =
       currentPaymentDate !== undefined &&
@@ -203,31 +206,39 @@ export function StudentEditor({
               className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
             />
           </div>
-          <div>
-            <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isPending}
-              className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-              Nueva Contraseña
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Dejar vacío para no cambiar"
-              disabled={isPending}
-              className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
-            />
-          </div>
+          {isLite ? (
+            <p className="text-xs text-amber-400/80 font-body leading-snug border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+              Alumno lite — sin email ni contraseña. Usá &quot;Convertir a cuenta completa&quot; para asignarle acceso a la app.
+            </p>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isPending}
+                  className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
+                  Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Dejar vacío para no cambiar"
+                  disabled={isPending}
+                  className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 placeholder:text-gray-600 focus:outline-none focus:border-brand-red transition-colors duration-200"
+                />
+              </div>
+            </>
+          )}
           {currentPaymentDate && (
             <DatePicker
               value={paymentDate}

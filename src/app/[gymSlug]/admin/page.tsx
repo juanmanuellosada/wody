@@ -16,9 +16,11 @@ import { gymPath, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import { getBlockStatus } from "@/lib/blocking";
 import { formatMemberNumber } from "@/lib/memberNumber";
+import { UpgradeLiteDialogButton } from "@/components/UpgradeLiteDialogButton";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
+  searchParams?: Promise<{ filter?: string }>;
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -27,8 +29,9 @@ const ROLE_LABEL: Record<string, string> = {
   STUDENT: "Alumno",
 };
 
-export default async function AdminPage({ params }: Props) {
+export default async function AdminPage({ params, searchParams }: Props) {
   const { gymSlug } = await params;
+  const { filter = "all" } = (await searchParams) ?? {};
   const session = await auth();
 
   if (session?.user && isPersonalGym(session.user.gymKind)) {
@@ -46,7 +49,7 @@ export default async function AdminPage({ params }: Props) {
     prisma.user.findMany({
       where: { gymId, deletedAt: null },
       orderBy: [{ role: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, email: true, role: true, studentType: true, canCreateOwnRoutines: true, createdAt: true, groupMemberships: { select: { groupId: true } }, nextPaymentDate: true, blockedAt: true, memberNumber: true, password: true },
+      select: { id: true, name: true, email: true, role: true, studentType: true, canCreateOwnRoutines: true, createdAt: true, groupMemberships: { select: { groupId: true } }, nextPaymentDate: true, blockedAt: true, memberNumber: true, password: true, accountKind: true },
     }),
     prisma.group.findMany({
       where: { teacher: { gymId }, deletedAt: null },
@@ -88,10 +91,16 @@ export default async function AdminPage({ params }: Props) {
   }
   const allTeacherOptions = teachers.map((t) => ({ id: t.id, name: t.name }));
 
-  const totalTeachers = users.filter(
-    (u) => u.role === "TEACHER" || u.role === "ADMIN"
-  ).length;
+  // Filtro Lite/Full/Todos
+  const filteredUsers = filter === "lite"
+    ? users.filter((u) => u.accountKind === "LITE")
+    : filter === "full"
+    ? users.filter((u) => u.accountKind === "FULL")
+    : users;
+
+  const totalTeachers = teachers.length;
   const totalStudents = students.length;
+  const totalLites = students.filter((u) => u.accountKind === "LITE").length;
 
   return (
     <div className="flex flex-col gap-10">
@@ -120,6 +129,17 @@ export default async function AdminPage({ params }: Props) {
                 Alumnos
               </p>
             </div>
+            {totalLites > 0 && (
+              <>
+                <div className="w-px bg-elev" aria-hidden="true" />
+                <div className="text-center">
+                  <p className="text-2xl font-heading font-black text-amber-400 tabular-nums">{totalLites}</p>
+                  <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
+                    Lite
+                  </p>
+                </div>
+              </>
+            )}
             <div className="w-px bg-elev" aria-hidden="true" />
             <div className="text-center">
               <p className="text-2xl font-heading font-black text-white tabular-nums">{users.length}</p>
@@ -141,7 +161,7 @@ export default async function AdminPage({ params }: Props) {
             </h2>
           </div>
           <div className="p-5">
-            <UserForm terms={terms} teachers={allTeacherOptions} />
+            <UserForm terms={terms} teachers={allTeacherOptions} gymId={gymId} />
           </div>
         </section>
 
@@ -203,9 +223,28 @@ export default async function AdminPage({ params }: Props) {
             Usuarios
           </h2>
           <span className="text-xs font-heading font-bold text-brand-red bg-brand-red/10 px-2 py-0.5">
-            {users.length}
+            {filteredUsers.length}
           </span>
           <div className="flex-1 h-px bg-elev" aria-hidden="true" />
+          {/* Filtro Lite / Full / Todos */}
+          <div className="flex gap-1">
+            {(["all", "full", "lite"] as const).map((f) => (
+              <a
+                key={f}
+                href={`?filter=${f}`}
+                className={[
+                  "px-3 py-1 text-xs font-heading font-bold uppercase tracking-[0.12em] border transition-colors duration-150",
+                  filter === f
+                    ? f === "lite"
+                      ? "bg-amber-500/15 text-amber-400 border-amber-500/40"
+                      : "bg-brand-red/15 text-brand-red border-brand-red/40"
+                    : "bg-elev text-gray-400 border-edge hover:text-white",
+                ].join(" ")}
+              >
+                {f === "all" ? "Todos" : f === "full" ? "Full" : "Lite"}
+              </a>
+            ))}
+          </div>
         </div>
 
         {/* Desktop table */}
@@ -224,7 +263,7 @@ export default async function AdminPage({ params }: Props) {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => {
+              {filteredUsers.map((user) => {
                 const blockStatus = getBlockStatus(
                   {
                     role: user.role,
@@ -233,6 +272,7 @@ export default async function AdminPage({ params }: Props) {
                   },
                   autoBlockAfterDays
                 );
+                const isLite = user.accountKind === "LITE";
                 return (
                 <tr
                   key={user.id}
@@ -256,7 +296,11 @@ export default async function AdminPage({ params }: Props) {
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3.5 text-gray-400 font-body">{user.email}</td>
+                  <td className="px-4 py-3.5 text-gray-400 font-body">
+                    {user.email ?? (
+                      <span className="text-gray-600 italic text-xs">#{formatMemberNumber(user.memberNumber)}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3.5">
                     <div className="flex flex-col gap-1 items-start">
                       <span
@@ -271,6 +315,11 @@ export default async function AdminPage({ params }: Props) {
                       >
                         {ROLE_LABEL[user.role] ?? user.role}
                       </span>
+                      {isLite && (
+                        <span className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 inline-block bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          Lite
+                        </span>
+                      )}
                       {blockStatus.blocked && (
                         <span
                           className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 inline-block bg-brand-red/15 text-brand-red border border-brand-red/30"
@@ -286,7 +335,7 @@ export default async function AdminPage({ params }: Props) {
                     </div>
                   </td>
                   <td className="px-4 py-3.5">
-                    {user.role === "STUDENT" ? (
+                    {user.role === "STUDENT" && !isLite ? (
                       <ToggleStudentTypeButton
                         userId={user.id}
                         currentType={user.studentType}
@@ -330,6 +379,7 @@ export default async function AdminPage({ params }: Props) {
                           studentId={user.id}
                           name={user.name}
                           email={user.email}
+                          accountKind={user.accountKind}
                           nextPaymentDate={user.nextPaymentDate}
                           blocked={user.blockedAt !== null}
                           studentType={user.studentType}
@@ -338,12 +388,20 @@ export default async function AdminPage({ params }: Props) {
                           allTeachers={allTeacherOptions}
                         />
                       )}
+                      {isLite && (
+                        <UpgradeLiteDialogButton
+                          userId={user.id}
+                          userName={user.name}
+                          assignedTeachers={teachersByStudentId.get(user.id) ?? []}
+                          terms={terms}
+                        />
+                      )}
                       {user.role === "TEACHER" && (
                         <PromoteTeacherButton
                           user={{ id: user.id, name: user.name, blockedAt: user.blockedAt }}
                         />
                       )}
-                      {user.password === null && (
+                      {user.password === null && !isLite && (
                         <ResendInvitationButton userId={user.id} userEmail={user.email} />
                       )}
                       <BlockUserButton
@@ -367,7 +425,7 @@ export default async function AdminPage({ params }: Props) {
 
         {/* Mobile cards */}
         <div className="sm:hidden flex flex-col gap-3">
-          {users.map((user) => {
+          {filteredUsers.map((user) => {
             const blockStatus = getBlockStatus(
               {
                 role: user.role,
@@ -376,6 +434,7 @@ export default async function AdminPage({ params }: Props) {
               },
               autoBlockAfterDays
             );
+            const isLite = user.accountKind === "LITE";
             return (
             <Card key={user.id}>
               <div className="flex items-start justify-between gap-3">
@@ -395,7 +454,11 @@ export default async function AdminPage({ params }: Props) {
                         <span className="ml-1 text-brand-red text-xs">(vos)</span>
                       )}
                     </p>
-                    <p className="text-gray-500 text-xs font-body truncate">{user.email}</p>
+                    <p className="text-gray-500 text-xs font-body truncate">
+                      {user.email ?? (
+                        <span className="text-gray-600 italic">#{formatMemberNumber(user.memberNumber)}</span>
+                      )}
+                    </p>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span
                         className={[
@@ -409,7 +472,12 @@ export default async function AdminPage({ params }: Props) {
                       >
                         {ROLE_LABEL[user.role] ?? user.role}
                       </span>
-                      {user.role === "STUDENT" && (
+                      {isLite && (
+                        <span className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          Lite
+                        </span>
+                      )}
+                      {user.role === "STUDENT" && !isLite && (
                         <ToggleStudentTypeButton
                           userId={user.id}
                           currentType={user.studentType}
@@ -437,6 +505,7 @@ export default async function AdminPage({ params }: Props) {
                       studentId={user.id}
                       name={user.name}
                       email={user.email}
+                      accountKind={user.accountKind}
                       nextPaymentDate={user.nextPaymentDate}
                       studentType={user.studentType}
                       canCreateOwnRoutines={user.canCreateOwnRoutines}
@@ -444,12 +513,20 @@ export default async function AdminPage({ params }: Props) {
                       allTeachers={allTeacherOptions}
                     />
                   )}
+                  {isLite && (
+                    <UpgradeLiteDialogButton
+                      userId={user.id}
+                      userName={user.name}
+                      assignedTeachers={teachersByStudentId.get(user.id) ?? []}
+                      terms={terms}
+                    />
+                  )}
                   {user.role === "TEACHER" && (
                     <PromoteTeacherButton
                       user={{ id: user.id, name: user.name, blockedAt: user.blockedAt }}
                     />
                   )}
-                  {user.password === null && (
+                  {user.password === null && !isLite && (
                     <ResendInvitationButton userId={user.id} userEmail={user.email} />
                   )}
                   <BlockUserButton

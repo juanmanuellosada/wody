@@ -7,13 +7,16 @@ import { resendInvitation } from "@/actions/user";
 
 interface ResendInvitationButtonProps {
   userId: string;
-  userEmail: string;
+  userEmail: string | null;
 }
 
 export function ResendInvitationButton({ userId, userEmail }: ResendInvitationButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // No renderizar para usuarios sin email (lites).
+  if (!userEmail) return null;
 
   function handleConfirm() {
     startTransition(async () => {

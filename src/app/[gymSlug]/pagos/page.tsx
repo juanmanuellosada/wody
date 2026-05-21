@@ -83,7 +83,7 @@ function parseStatsFilters(sp: {
 type PaymentRow = {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   nextPaymentDate: Date;
   blockedAt: Date | null;
   studentType: import("@prisma/client").StudentType;
