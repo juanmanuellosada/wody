@@ -54,10 +54,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             : null;
 
         // Candidate users: filtered by gymSlug when provided, otherwise any gym.
+        // Filtramos email: { not: null } como defensa en profundidad contra lites
+        // (aunque email=null nunca matchearía la query por email string de todas formas).
+        const emailFilter = { email, deletedAt: null, NOT: { email: null } } as const;
         const candidates = await prisma.user.findMany({
           where: gymSlug
-            ? { email, deletedAt: null, gym: { slug: gymSlug } }
-            : { email, deletedAt: null },
+            ? { ...emailFilter, gym: { slug: gymSlug } }
+            : emailFilter,
           include: { gym: { select: { id: true, slug: true, kind: true, blockedAt: true, autoBlockAfterDays: true } } },
         });
 

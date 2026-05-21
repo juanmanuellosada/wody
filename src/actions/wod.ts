@@ -68,6 +68,14 @@ async function validateTarget(
     // Self-target (teacher creating their own routine, or self-service
     // student) doesn't require a TeacherStudent link.
     if (target.studentId === teacherId) return null;
+    // Verificar que el alumno no sea lite — los lites no pueden tener rutinas asignadas.
+    const studentRecord = await prisma.user.findFirst({
+      where: { id: target.studentId, deletedAt: null },
+      select: { accountKind: true },
+    });
+    if (studentRecord?.accountKind === "LITE") {
+      return "No se pueden asignar rutinas a un alumno lite.";
+    }
     const link = await prisma.teacherStudent.findUnique({
       where: { teacherId_studentId: { teacherId, studentId: target.studentId } },
     });

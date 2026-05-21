@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { hash } from "bcryptjs";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Prisma, Role, StudentType } from "@prisma/client";
+import { AccountKind, Prisma, Role, StudentType } from "@prisma/client";
 import { gymPath } from "@/lib/gym";
 import { generateToken } from "@/lib/email/tokens";
 import { sendEmail } from "@/lib/email/send";
@@ -20,6 +20,19 @@ export type CreateUserResult =
   | { success: true; memberNumber: number; warning: string }
   | { success: false; error: string };
 
+/**
+ * Devuelve una estimación del próximo número de socio para un gym.
+ * Es MAX(memberNumber) + 1 entre filas activas. No reserva el número —
+ * la transacción real de createUser usa Gym.nextMemberNumber con fallback P2002.
+ */
+export async function previewNextMemberNumber(gymId: string): Promise<number> {
+  const row = await prisma.user.aggregate({
+    where: { gymId, deletedAt: null },
+    _max: { memberNumber: true },
+  });
+  return (row._max.memberNumber ?? 0) + 1;
+}
+
 export async function createUser(formData: FormData): Promise<CreateUserResult> {
   const session = await auth();
 
@@ -31,19 +44,114 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
   const gymSlug = session.user.gymSlug;
 
   const mode = formData.get("mode") as string | null;
-  if (mode !== "password" && mode !== "invite") {
+  if (mode !== "password" && mode !== "invite" && mode !== "lite") {
     return { success: false, error: "Modo inválido" };
   }
 
   const name = (formData.get("name") as string | null)?.trim();
   const email = (formData.get("email") as string | null)?.trim().toLowerCase();
   const password = (formData.get("password") as string | null)?.trim();
-  const role = formData.get("role") as string | null;
-  const studentType = (formData.get("studentType") as string | null) || "PERSONALIZED";
   const teacherIdRaw = (formData.get("teacherId") as string | null)?.trim() || null;
-  const canCreateOwnRoutinesRaw = formData.get("canCreateOwnRoutines");
 
   if (!name) return { success: false, error: "El nombre es obligatorio." };
+
+  // ── Flujo lite ────────────────────────────────────────────────────────────
+  if (mode === "lite") {
+    // Lites nacen como STUDENT/GENERAL/LITE sin email ni password.
+    const liteTeacherIdToLink = teacherIdRaw;
+
+    if (liteTeacherIdToLink) {
+      const teacher = await prisma.user.findFirst({
+        where: { id: liteTeacherIdToLink, deletedAt: null },
+        select: { gymId: true, role: true },
+      });
+      if (
+        !teacher ||
+        teacher.gymId !== gymId ||
+        (teacher.role !== "TEACHER" && teacher.role !== "ADMIN")
+      ) {
+        return { success: false, error: "El profe seleccionado no es válido." };
+      }
+    }
+
+    const runLiteCreate = () =>
+      prisma.$transaction(async (tx) => {
+        const gym = await tx.gym.update({
+          where: { id: gymId },
+          data: { nextMemberNumber: { increment: 1 } },
+          select: { nextMemberNumber: true },
+        });
+        const assigned = gym.nextMemberNumber - 1;
+        const created = await tx.user.create({
+          data: {
+            name,
+            email: null,
+            password: null,
+            role: "STUDENT" as Role,
+            studentType: "GENERAL" as StudentType,
+            accountKind: "LITE" as AccountKind,
+            canCreateOwnRoutines: false,
+            gymId,
+            memberNumber: assigned,
+          },
+        });
+        if (liteTeacherIdToLink) {
+          await tx.teacherStudent.create({
+            data: { teacherId: liteTeacherIdToLink, studentId: created.id },
+          });
+        }
+        return assigned;
+      });
+
+    try {
+      const memberNumber = await runLiteCreate();
+      revalidatePath(gymPath(gymSlug, "/admin"));
+      revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+      return { success: true, memberNumber };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const target = (error.meta as { target?: string[] | string } | undefined)?.target;
+        const targetStr = Array.isArray(target) ? target.join(",") : (target ?? "");
+        if (targetStr.includes("memberNumber")) {
+          const maxRow = await prisma.user.aggregate({
+            where: { gymId, deletedAt: null },
+            _max: { memberNumber: true },
+          });
+          const correctNext = (maxRow._max.memberNumber ?? 0) + 1;
+          await prisma.gym.update({
+            where: { id: gymId },
+            data: { nextMemberNumber: correctNext },
+          });
+          try {
+            const memberNumber = await runLiteCreate();
+            revalidatePath(gymPath(gymSlug, "/admin"));
+            revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+            return { success: true, memberNumber };
+          } catch (retryErr) {
+            if (
+              retryErr instanceof Prisma.PrismaClientKnownRequestError &&
+              retryErr.code === "P2002"
+            ) {
+              return { success: false, error: "El contador de números de socio del gym estaba desincronizado y el reintento también falló. Avisá al equipo técnico." };
+            }
+            throw retryErr;
+          }
+        } else {
+          return { success: false, error: `Conflicto de unicidad inesperado: ${targetStr || "constraint desconocida"}.` };
+        }
+      }
+      throw error;
+    }
+  }
+
+  // ── Flujos invite / password ──────────────────────────────────────────────
+  const role = formData.get("role") as string | null;
+  const studentType = (formData.get("studentType") as string | null) || "PERSONALIZED";
+  const canCreateOwnRoutinesRaw = formData.get("canCreateOwnRoutines");
+
   if (!email) return { success: false, error: "El email es obligatorio." };
   if (mode === "password") {
     if (!password || password.length < 6) {
@@ -450,12 +558,19 @@ export async function unassignStudent(
         where: { teacherId_studentId: { teacherId, studentId } },
       });
       // Si al alumno no le queda ningún profe, tiene que autogestionarse.
+      // Los lites nunca usan la app, así que su flag queda siempre en false.
       const remaining = await tx.teacherStudent.count({ where: { studentId } });
       if (remaining === 0) {
-        await tx.user.update({
+        const target = await tx.user.findUnique({
           where: { id: studentId },
-          data: { canCreateOwnRoutines: true },
+          select: { accountKind: true },
         });
+        if (target?.accountKind !== "LITE") {
+          await tx.user.update({
+            where: { id: studentId },
+            data: { canCreateOwnRoutines: true },
+          });
+        }
       }
     });
 
@@ -493,6 +608,14 @@ export async function updateStudent(
   const student = await prisma.user.findFirst({ where: { id: studentId, deletedAt: null } });
   if (!student || student.gymId !== gymId || student.role !== "STUDENT") {
     return { success: false, error: "Alumno no encontrado." };
+  }
+
+  // Los lites no pueden recibir email/password por esta vía — usar upgradeLiteUser.
+  if (student.accountKind === "LITE" && (data.email !== undefined || data.password !== undefined)) {
+    return {
+      success: false,
+      error: "Para asignar email o contraseña a un alumno lite hay que usar el flujo de conversión a cuenta completa.",
+    };
   }
 
   // Teachers can only edit their own students
@@ -607,6 +730,10 @@ export async function toggleStudentType(userId: string): Promise<UserResult> {
     return { success: false, error: "Alumno no encontrado." };
   }
 
+  if (user.accountKind === "LITE") {
+    return { success: false, error: "El tipo de alumno no aplica a alumnos lite. Convertilo a cuenta completa primero." };
+  }
+
   const newType: StudentType =
     user.studentType === "GENERAL" ? "PERSONALIZED" : "GENERAL";
 
@@ -691,11 +818,18 @@ export async function setCanCreateOwnRoutines(
 
   const student = await prisma.user.findFirst({
     where: { id: studentId, deletedAt: null },
-    select: { gymId: true, role: true, studentType: true },
+    select: { gymId: true, role: true, studentType: true, accountKind: true },
   });
 
   if (!student || student.gymId !== gymId || student.role !== "STUDENT") {
     return { success: false, error: "Alumno no encontrado." };
+  }
+
+  if (student.accountKind === "LITE") {
+    return {
+      success: false,
+      error: "La opción de rutinas propias no aplica a alumnos lite. Convertilo a cuenta completa primero.",
+    };
   }
 
   if (student.studentType !== "PERSONALIZED") {
@@ -791,6 +925,11 @@ export async function resendInvitation(userId: string): Promise<UserResult> {
     return { success: false, error: "Usuario no encontrado." };
   }
 
+  // Solo aplica a usuarios con email (los lites no tienen invitación).
+  if (!user.email) {
+    return { success: false, error: "Este usuario es lite (sin email) y no puede recibir invitaciones. Usá el flujo de conversión a cuenta completa." };
+  }
+
   // Only resend to users that haven't activated yet.
   if (user.password !== null) {
     return { success: false, error: "Este usuario ya activó su cuenta." };
@@ -818,7 +957,7 @@ export async function resendInvitation(userId: string): Promise<UserResult> {
   const activationUrl = `${process.env.APP_URL}/${gymSlug}/activar?token=${token.plain}`;
 
   const emailResult = await sendEmail({
-    to: user.email,
+    to: user.email!, // narrowed above: email is not null here
     gymId: user.gymId,
     type: "INVITE",
     subject: `Activá tu cuenta en ${user.gym.name}`,
@@ -835,5 +974,206 @@ export async function resendInvitation(userId: string): Promise<UserResult> {
   }
 
   revalidatePath(gymPath(gymSlug, "/admin"));
+  return { success: true };
+}
+
+export type UpgradeLitePayload = {
+  mode: "invite" | "password";
+  email: string;
+  password?: string;
+  studentType: "GENERAL" | "PERSONALIZED";
+  canCreateOwnRoutines?: boolean;
+};
+
+export async function upgradeLiteUser(
+  userId: string,
+  payload: UpgradeLitePayload
+): Promise<UserResult> {
+  const session = await auth();
+
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const gymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+
+  const { mode, studentType, canCreateOwnRoutines: requestedCanCreate } = payload;
+  const email = payload.email.trim().toLowerCase();
+  const password = payload.password?.trim();
+
+  if (!email) {
+    return { success: false, error: "El email es obligatorio." };
+  }
+  if (mode === "password") {
+    if (!password || password.length < 6) {
+      return { success: false, error: "La contraseña debe tener al menos 6 caracteres." };
+    }
+  }
+  if (studentType !== "GENERAL" && studentType !== "PERSONALIZED") {
+    return { success: false, error: "Tipo de alumno inválido." };
+  }
+
+  // Pre-check de colisión de email (mismo patrón que createUser).
+  const existingUser = await prisma.user.findFirst({
+    where: { email, gymId, deletedAt: null },
+    select: {
+      id: true,
+      name: true,
+      memberNumber: true,
+      role: true,
+      password: true,
+      blockedAt: true,
+    },
+  });
+  if (existingUser && existingUser.id !== userId) {
+    const status = existingUser.password === null
+      ? "invitación pendiente de activar"
+      : existingUser.blockedAt !== null
+        ? "bloqueado"
+        : "activo";
+    const roleLabel = existingUser.role === "STUDENT"
+      ? "alumno"
+      : existingUser.role === "TEACHER"
+        ? "profe"
+        : existingUser.role === "ADMIN"
+          ? "admin"
+          : "acceso";
+    return {
+      success: false,
+      error: `Ya existe una cuenta ${status} ("${existingUser.name}", #${existingUser.memberNumber}, ${roleLabel}) con ese email en este gym.`,
+    };
+  }
+
+  // Resolver canCreateOwnRoutines final.
+  const teacherCount = await prisma.teacherStudent.count({ where: { studentId: userId } });
+  let resolvedCanCreate = false;
+  if (studentType === "PERSONALIZED") {
+    if (teacherCount === 0) {
+      resolvedCanCreate = true; // sin profe: se autogestiona
+    } else {
+      resolvedCanCreate = requestedCanCreate ?? false;
+    }
+  }
+  // studentType === "GENERAL": resolvedCanCreate stays false
+
+  if (mode === "password") {
+    const hashedPassword = await hash(password!, 10);
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const target = await tx.user.findUnique({
+          where: { id: userId },
+          select: { accountKind: true, gymId: true, deletedAt: true },
+        });
+        if (!target || target.deletedAt !== null || target.gymId !== gymId) {
+          throw new Error("USUARIO_NO_ENCONTRADO");
+        }
+        if (target.accountKind !== "LITE") {
+          throw new Error("NO_ES_LITE");
+        }
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            email,
+            password: hashedPassword,
+            emailVerifiedAt: new Date(),
+            accountKind: "FULL",
+            studentType: studentType as StudentType,
+            canCreateOwnRoutines: resolvedCanCreate,
+          },
+        });
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message === "NO_ES_LITE") {
+        return { success: false, error: "El usuario no es lite, no aplica conversión." };
+      }
+      if (err instanceof Error && err.message === "USUARIO_NO_ENCONTRADO") {
+        return { success: false, error: "Usuario no encontrado." };
+      }
+      throw err;
+    }
+
+    revalidatePath(gymPath(gymSlug, "/admin"));
+    revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+    return { success: true };
+  }
+
+  // mode === "invite"
+  const inviteToken = generateToken();
+  const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const target = await tx.user.findUnique({
+        where: { id: userId },
+        select: { accountKind: true, gymId: true, deletedAt: true },
+      });
+      if (!target || target.deletedAt !== null || target.gymId !== gymId) {
+        throw new Error("USUARIO_NO_ENCONTRADO");
+      }
+      if (target.accountKind !== "LITE") {
+        throw new Error("NO_ES_LITE");
+      }
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          email,
+          password: null,
+          emailVerifiedAt: null,
+          accountKind: "FULL",
+          studentType: studentType as StudentType,
+          canCreateOwnRoutines: resolvedCanCreate,
+        },
+      });
+      await tx.verificationToken.create({
+        data: {
+          userId,
+          tokenHash: inviteToken.hash,
+          type: "INVITE",
+          expiresAt: inviteExpiresAt,
+          consumedAt: null,
+        },
+      });
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === "NO_ES_LITE") {
+      return { success: false, error: "El usuario no es lite, no aplica conversión." };
+    }
+    if (err instanceof Error && err.message === "USUARIO_NO_ENCONTRADO") {
+      return { success: false, error: "Usuario no encontrado." };
+    }
+    throw err;
+  }
+
+  const upgradeGymData = await prisma.gym.findUnique({
+    where: { id: gymId },
+    select: { name: true, primaryColor: true, logo: true, kind: true },
+  });
+
+  const upgradedUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true },
+  });
+
+  const activationUrl = `${process.env.APP_URL}/${gymSlug}/activar?token=${inviteToken.plain}`;
+
+  if (upgradeGymData) {
+    await sendEmail({
+      to: email,
+      gymId,
+      type: "INVITE",
+      subject: `Activá tu cuenta en ${upgradeGymData.name}`,
+      react: React.createElement(InviteEmail, {
+        gym: upgradeGymData as { name: string; primaryColor: string | null; logo: string | null; kind: "GYM" | "BOX" | "PERSONAL" },
+        recipientName: upgradedUser?.name ?? "",
+        activationUrl,
+        expiresAt: inviteExpiresAt,
+      }),
+    });
+  }
+
+  revalidatePath(gymPath(gymSlug, "/admin"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
   return { success: true };
 }
