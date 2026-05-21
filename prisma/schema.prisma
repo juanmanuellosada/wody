@@ -86,17 +86,22 @@ enum EmailLogStatus {
   FAILED
 }
 
+enum AccountKind {
+  FULL
+  LITE
+}
+
 model Gym {
-  id                 String    @id @default(cuid())
+  id                 String        @id @default(cuid())
   name               String
-  slug               String    @unique
-  kind               GymKind   @default(BOX)
+  slug               String        @unique
+  kind               GymKind       @default(BOX)
   logo               String?
   primaryColor       String?
-  createdAt          DateTime  @default(now())
+  createdAt          DateTime      @default(now())
   blockedAt          DateTime?
-  autoBlockAfterDays Int       @default(45)
-  nextMemberNumber   Int       @default(1)
+  autoBlockAfterDays Int           @default(45)
+  nextMemberNumber   Int           @default(1)
   users              User[]
   accessLogs         AccessLog[]
   emailLogs          EmailLog[]
@@ -105,42 +110,44 @@ model Gym {
 }
 
 model User {
-  id              String      @id @default(cuid())
-  email           String
-  password        String?
-  name            String
-  role            Role
-  studentType     StudentType @default(PERSONALIZED)
-  canCreateOwnRoutines Boolean @default(false)
-  gymId           String
-  createdAt       DateTime    @default(now())
-  nextPaymentDate DateTime    @default(now()) @db.Date
-  blockedAt       DateTime?
-  deletedAt       DateTime?
-  lastDueNotifiedOn DateTime? @db.Date
-  memberNumber    Int
-  emailVerifiedAt DateTime?
-  paymentExempt        Boolean   @default(false)
+  id                   String      @id @default(cuid())
+  email                String?
+  password             String?
+  accountKind          AccountKind @default(FULL)
+  name                 String
+  role                 Role
+  studentType          StudentType @default(PERSONALIZED)
+  canCreateOwnRoutines Boolean     @default(false)
+  gymId                String
+  createdAt            DateTime    @default(now())
+  nextPaymentDate      DateTime    @default(now()) @db.Date
+  blockedAt            DateTime?
+  deletedAt            DateTime?
+  lastDueNotifiedOn    DateTime?   @db.Date
+  memberNumber         Int
+  emailVerifiedAt      DateTime?
+  paymentExempt        Boolean     @default(false)
   paymentExemptReason  String?
 
-  gym   Gym    @relation(fields: [gymId], references: [id])
+  gym Gym @relation(fields: [gymId], references: [id])
 
-  wodsAsTeacher  Wod[]              @relation("TeacherWods")
-  wodsTargetedTo Wod[]              @relation("WodTargetStudent")
-  rms            RM[]
-  teacherOf      TeacherStudent[]   @relation("TeacherRel")
-  studentOf      TeacherStudent[]   @relation("StudentRel")
-  teacherGroups  Group[]            @relation("TeacherGroups")
-  groupMemberships GroupMember[]
-  redemptions    CouponRedemption[]
-  pushSubscriptions  PushSubscription[]
-  accessesAsUser     AccessLog[] @relation("AccessLogUser")
-  accessesDecidedBy  AccessLog[] @relation("AccessLogDecidedBy")
-  verificationTokens VerificationToken[]
-  joinRequestTeachers    JoinRequestTeacher[] @relation("JoinRequestTeacherToUser")
-  joinRequestsReviewed   JoinRequest[] @relation("JoinRequestReviewer")
-  paymentsAsPayer        Payment[] @relation("PaymentStudent")
-  paymentsRecorded       Payment[] @relation("PaymentRecordedBy")
+  wodsAsTeacher        Wod[]                @relation("TeacherWods")
+  wodsTargetedTo       Wod[]                @relation("WodTargetStudent")
+  rms                  RM[]
+  teacherOf            TeacherStudent[]     @relation("TeacherRel")
+  studentOf            TeacherStudent[]     @relation("StudentRel")
+  teacherGroups        Group[]              @relation("TeacherGroups")
+  groupMemberships     GroupMember[]
+  redemptions          CouponRedemption[]
+  pushSubscriptions    PushSubscription[]
+  accessesAsUser       AccessLog[]          @relation("AccessLogUser")
+  accessesDecidedBy    AccessLog[]          @relation("AccessLogDecidedBy")
+  verificationTokens   VerificationToken[]
+  joinRequestTeachers  JoinRequestTeacher[] @relation("JoinRequestTeacherToUser")
+  joinRequestsReviewed JoinRequest[]        @relation("JoinRequestReviewer")
+  paymentsAsPayer      Payment[]            @relation("PaymentStudent")
+  paymentsRecorded     Payment[]            @relation("PaymentRecordedBy")
+
   // Unicidades parciales (solo filas activas, deletedAt IS NULL).
   // Los índices únicos totales fueron reemplazados por índices únicos parciales
   // de PostgreSQL en la migration add_user_soft_delete. Prisma no soporta WHERE
@@ -158,9 +165,9 @@ model Group {
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
-  teacher  User          @relation("TeacherGroups", fields: [teacherId], references: [id], onDelete: Cascade)
-  members  GroupMember[]
-  wods     Wod[]         @relation("WodTargetGroup")
+  teacher User          @relation("TeacherGroups", fields: [teacherId], references: [id], onDelete: Cascade)
+  members GroupMember[]
+  wods    Wod[]         @relation("WodTargetGroup")
 
   // Unicidad parcial: solo entre grupos activos del mismo profe.
   // El índice único parcial vive en la migration add_user_soft_delete.
@@ -168,10 +175,10 @@ model Group {
 }
 
 model GroupMember {
-  userId   String
-  groupId  String
+  userId  String
+  groupId String
 
-  user  User  @relation(fields: [userId],  references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@id([userId, groupId])
@@ -292,13 +299,13 @@ model CouponRedemption {
 }
 
 model VerificationToken {
-  id          String                @id @default(cuid())
-  userId      String
-  tokenHash   String                @unique
-  type        VerificationTokenType
-  expiresAt   DateTime
-  consumedAt  DateTime?
-  createdAt   DateTime              @default(now())
+  id         String                @id @default(cuid())
+  userId     String
+  tokenHash  String                @unique
+  type       VerificationTokenType
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime              @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -319,7 +326,7 @@ model JoinRequest {
   reviewedAt      DateTime?
   createdAt       DateTime          @default(now())
 
-  teachers     JoinRequestTeacher[]
+  teachers JoinRequestTeacher[]
 
   @@index([gymId, status, createdAt])
 }
@@ -353,11 +360,11 @@ model EmailLog {
 }
 
 model PersonalAccessWhitelist {
-  id          Int       @id @default(autoincrement())
-  email       String    @unique
-  note        String?
-  createdAt   DateTime  @default(now())
-  consumedAt  DateTime?
+  id         Int       @id @default(autoincrement())
+  email      String    @unique
+  note       String?
+  createdAt  DateTime  @default(now())
+  consumedAt DateTime?
 }
 
 model Payment {
@@ -371,8 +378,8 @@ model Payment {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
-  gym        Gym  @relation(fields: [gymId],        references: [id], onDelete: Cascade)
-  student    User @relation("PaymentStudent",    fields: [studentId],    references: [id], onDelete: Restrict)
+  gym        Gym  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  student    User @relation("PaymentStudent", fields: [studentId], references: [id], onDelete: Restrict)
   recordedBy User @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
 
   @@index([gymId, paidAt])
