@@ -2,7 +2,7 @@
 
 - [x] 1.1 Editar `prisma/schema.prisma`: agregar enum `AccountKind { FULL, LITE }`, agregar `accountKind AccountKind @default(FULL)` en `model User`, cambiar `email String` a `email String?`.
 - [x] 1.2 Generar migración SQL con `npx prisma migrate diff --from-schema-datamodel ... --to-schema-datamodel ... --script` y revisar manualmente. El archivo final SHALL contener: `CREATE TYPE "AccountKind"`, `ALTER TABLE "User" ADD COLUMN "accountKind"` con default `'FULL'`, `ALTER TABLE "User" ALTER COLUMN "email" DROP NOT NULL`.
-- [ ] 1.3 Aplicar con `npx prisma migrate deploy` (no `migrate dev`; Neon sin shadow DB). **PENDIENTE — acción del humano**.
+- [x] 1.3 Aplicar con `npx prisma migrate deploy` (no `migrate dev`; Neon sin shadow DB). Aplicada el 2026-05-21.
 - [x] 1.4 Regenerar cliente Prisma (`npx prisma generate`) y dejar que TypeScript marque los call-sites a corregir.
 
 ## 2. Helper de preview de memberNumber
@@ -73,19 +73,21 @@
 
 ## 11. Verificación manual end-to-end
 
-- [ ] 11.1 Login como ADMIN existente sigue funcionando (regresión de NextAuth filter). **PENDIENTE — acción del humano post-deploy**.
-- [ ] 11.2 Crear alumno con `mode: "password"` (regresión).
-- [ ] 11.3 Crear alumno con `mode: "invite"` (regresión).
-- [ ] 11.4 Crear alumno con `mode: "lite"`: form muestra preview, no pide email/password, asigna memberNumber correcto, toast lo muestra.
-- [ ] 11.5 Crear dos lites con el mismo nombre en el mismo gym: la creación de ambos tiene éxito.
-- [ ] 11.6 Registrar un pago a un lite: éxito; aparece en historial.
-- [ ] 11.7 Buscar el lite en el kiosko por `memberNumber`: aparece su ficha; conceder acceso crea `AccessLog`.
-- [ ] 11.8 Intentar asignar un Wod a un lite (`targetStudentId=lite.id`): falla con error claro.
-- [ ] 11.9 Intentar editar el email del lite vía `StudentEditor`: el flujo redirige a upgrade o el campo está deshabilitado.
-- [ ] 11.10 Upgrade del lite a cuenta completa con `mode: "password"`: el alumno upgradeado puede loguearse; su `memberNumber` se preserva; sus pagos previos siguen ahí.
-- [ ] 11.11 Upgrade del lite con `mode: "invite"`: se crea `VerificationToken`; el alumno todavía no puede loguearse hasta activar.
-- [ ] 11.12 Filtro Lite/Full/Todos en tabla admin: cuenta correcta en cada vista.
-- [ ] 11.13 Apagar `NEXT_PUBLIC_ENABLE_LITE_USERS="false"` y reiniciar dev server: el botón de modo lite desaparece; los lites ya creados siguen visibles y operables.
+Verificado por el humano el 2026-05-21.
+
+- [x] 11.1 Login como ADMIN existente sigue funcionando (regresión de NextAuth filter).
+- [x] 11.2 Crear alumno con `mode: "password"` (regresión).
+- [x] 11.3 Crear alumno con `mode: "invite"` (regresión).
+- [x] 11.4 Crear alumno con `mode: "lite"`: form muestra preview, no pide email/password, asigna memberNumber correcto, toast lo muestra.
+- [x] 11.5 Crear dos lites con el mismo nombre en el mismo gym: la creación de ambos tiene éxito.
+- [x] 11.6 Registrar un pago a un lite: éxito; aparece en historial.
+- [x] 11.7 Buscar el lite en el kiosko por `memberNumber`: aparece su ficha; conceder acceso crea `AccessLog`.
+- [x] 11.8 Intentar asignar un Wod a un lite (`targetStudentId=lite.id`): falla con error claro.
+- [x] 11.9 Intentar editar el email del lite vía `StudentEditor`: el flujo redirige a upgrade o el campo está deshabilitado.
+- [x] 11.10 Upgrade del lite a cuenta completa con `mode: "password"`: el alumno upgradeado puede loguearse; su `memberNumber` se preserva; sus pagos previos siguen ahí.
+- [x] 11.11 Upgrade del lite con `mode: "invite"`: se crea `VerificationToken`; el alumno todavía no puede loguearse hasta activar.
+- [x] 11.12 Filtro Lite/Full/Todos en tabla admin: cuenta correcta en cada vista.
+- [x] 11.13 Apagar `NEXT_PUBLIC_ENABLE_LITE_USERS="false"` y reiniciar dev server: el botón de modo lite desaparece; los lites ya creados siguen visibles y operables.
 
 ## 12. Limpieza y validaciones finales
 
