@@ -1,4 +1,4 @@
-import { PrismaClient, Role, GymKind } from "@prisma/client";
+import { PrismaClient, Role, GymKind, AccountKind, StudentType } from "@prisma/client";
 import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -42,10 +42,46 @@ async function main() {
     },
   });
 
+  console.log("Creando alumnos lite de ejemplo...");
+
+  // Actualizar el contador de gymNextMemberNumber antes de crear lites.
+  await prisma.gym.update({
+    where: { id: gym.id },
+    data: { nextMemberNumber: 4 },
+  });
+
+  await prisma.user.createMany({
+    data: [
+      {
+        name: "Carlos Sin App",
+        email: null,
+        password: null,
+        role: Role.STUDENT,
+        studentType: StudentType.GENERAL,
+        accountKind: AccountKind.LITE,
+        canCreateOwnRoutines: false,
+        gymId: gym.id,
+        memberNumber: 2,
+      },
+      {
+        name: "María Sin App",
+        email: null,
+        password: null,
+        role: Role.STUDENT,
+        studentType: StudentType.GENERAL,
+        accountKind: AccountKind.LITE,
+        canCreateOwnRoutines: false,
+        gymId: gym.id,
+        memberNumber: 3,
+      },
+    ],
+  });
+
   console.log("\nSeed Atlas completado!");
   console.log(`  Gym: ${gym.name} (slug: ${gym.slug}, kind: ${gym.kind})`);
   console.log("\nCredenciales:");
   console.log("  Admin/Profe: juanmalosada01@gmail.com / admin123");
+  console.log("  Alumnos lite: Carlos Sin App (#0002), María Sin App (#0003) — sin email, para pruebas de alumnos lite.");
 }
 
 main()
