@@ -13,6 +13,8 @@ export interface PaymentStudent {
   suggestedNextDate: string;
   /** Last paid amount for this student, or null if no prior payments */
   lastAmount: number | null;
+  paymentExempt?: boolean;
+  paymentExemptReason?: string | null;
 }
 
 interface Props {
@@ -359,6 +361,23 @@ function DialogForm({
               disabled={isPending}
             />
           </div>
+
+          {/* Exempt warning */}
+          {studentId && students.find((s) => s.id === studentId)?.paymentExempt && (
+            <div className="border border-purple-500/30 bg-purple-500/10 px-3 py-2 flex items-start gap-2">
+              <span className="w-1.5 h-1.5 bg-purple-400 rounded-full flex-shrink-0 mt-1" aria-hidden="true" />
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <p className="text-xs font-heading font-bold uppercase tracking-[0.1em] text-purple-400">
+                  Alumno exento de pago
+                </p>
+                {students.find((s) => s.id === studentId)?.paymentExemptReason && (
+                  <p className="text-xs text-gray-400 font-body">
+                    {students.find((s) => s.id === studentId)?.paymentExemptReason}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Amount */}
           <div>

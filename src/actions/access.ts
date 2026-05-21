@@ -38,6 +38,7 @@ export async function createCheckin(
       role: true,
       blockedAt: true,
       nextPaymentDate: true,
+      paymentExempt: true,
       gymId: true,
       gym: { select: { blockedAt: true } },
     },
@@ -56,6 +57,7 @@ export async function createCheckin(
     role: user.role,
     blockedAt: user.blockedAt,
     nextPaymentDate: user.nextPaymentDate,
+    paymentExempt: user.paymentExempt,
   });
 
   const log = await prisma.accessLog.create({
@@ -153,6 +155,7 @@ export async function lookupForKiosk(input: string): Promise<LookupResult> {
     memberNumber: number;
     nextPaymentDate: Date;
     blockedAt: Date | null;
+    paymentExempt: boolean;
   } | null = null;
 
   if (trimmed.includes("@")) {
@@ -165,6 +168,7 @@ export async function lookupForKiosk(input: string): Promise<LookupResult> {
         memberNumber: true,
         nextPaymentDate: true,
         blockedAt: true,
+        paymentExempt: true,
       },
     });
   } else if (/^\d{1,6}$/.test(trimmed)) {
@@ -177,6 +181,7 @@ export async function lookupForKiosk(input: string): Promise<LookupResult> {
         memberNumber: true,
         nextPaymentDate: true,
         blockedAt: true,
+        paymentExempt: true,
       },
     });
   }
@@ -191,6 +196,7 @@ export async function lookupForKiosk(input: string): Promise<LookupResult> {
       role: user.role,
       blockedAt: user.blockedAt,
       nextPaymentDate: user.nextPaymentDate,
+      paymentExempt: user.paymentExempt,
     }),
     user: {
       id: user.id,

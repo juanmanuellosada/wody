@@ -728,6 +728,45 @@ export async function setCanCreateOwnRoutines(
   return { success: true };
 }
 
+export async function setStudentPaymentExempt(
+  studentId: string,
+  exempt: boolean,
+  reason: string | null
+): Promise<UserResult> {
+  const session = await auth();
+
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const gymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+
+  const student = await prisma.user.findFirst({
+    where: { id: studentId, deletedAt: null },
+    select: { gymId: true, role: true },
+  });
+
+  if (!student || student.gymId !== gymId) {
+    return { success: false, error: "Alumno no encontrado." };
+  }
+
+  if (student.role !== "STUDENT") {
+    return { success: false, error: "Solo se puede marcar como exento a un alumno." };
+  }
+
+  const normalizedReason = reason?.trim() || null;
+
+  await prisma.user.update({
+    where: { id: studentId },
+    data: { paymentExempt: exempt, paymentExemptReason: normalizedReason },
+  });
+
+  revalidatePath(gymPath(gymSlug, "/admin"));
+  revalidatePath(gymPath(gymSlug, "/pagos"));
+  return { success: true };
+}
+
 export async function resendInvitation(userId: string): Promise<UserResult> {
   const session = await auth();
 

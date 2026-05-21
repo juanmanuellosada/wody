@@ -13,7 +13,7 @@ import { PaymentStatsPanel } from "@/components/PaymentStatsPanel";
 import type { PaymentStudent } from "@/components/RegisterPaymentDialog";
 import type { PaymentStatsFilters, PaymentMethod } from "@/lib/payment-stats";
 
-type StatusFilter = "all" | "overdue" | "due-soon" | "ok";
+type StatusFilter = "all" | "overdue" | "due-soon" | "ok" | "exempt";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -27,7 +27,7 @@ interface Props {
 }
 
 function parseFilter(value: string | undefined): StatusFilter {
-  if (value === "overdue" || value === "due-soon" || value === "ok") {
+  if (value === "overdue" || value === "due-soon" || value === "ok" || value === "exempt") {
     return value;
   }
   return "all";
@@ -88,6 +88,8 @@ type PaymentRow = {
   blockedAt: Date | null;
   studentType: import("@prisma/client").StudentType;
   canCreateOwnRoutines: boolean;
+  paymentExempt: boolean;
+  paymentExemptReason: string | null;
   assignedTeachers: { id: string; name: string }[];
 };
 
@@ -167,6 +169,8 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
             blockedAt: true,
             studentType: true,
             canCreateOwnRoutines: true,
+            paymentExempt: true,
+            paymentExemptReason: true,
           },
         })
       : prisma.user.findMany({
@@ -185,6 +189,8 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
             blockedAt: true,
             studentType: true,
             canCreateOwnRoutines: true,
+            paymentExempt: true,
+            paymentExemptReason: true,
           },
         }),
     prisma.teacherStudent.findMany({
@@ -240,20 +246,28 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
     name: s.name,
     suggestedNextDate: toInputDate(addOneMonth(s.nextPaymentDate)),
     lastAmount: lastAmountByStudentId.get(s.id) ?? null,
+    paymentExempt: s.paymentExempt,
+    paymentExemptReason: s.paymentExemptReason,
   }));
 
-  const overdueCount = rows.filter(
+  // Exentos se excluyen de los contadores de mora.
+  const nonExemptRows = rows.filter((r) => !r.paymentExempt);
+  const exemptCount = rows.length - nonExemptRows.length;
+
+  const overdueCount = nonExemptRows.filter(
     (r) => computeStatus(r.nextPaymentDate, today).kind === "overdue"
   ).length;
-  const dueSoonCount = rows.filter(
+  const dueSoonCount = nonExemptRows.filter(
     (r) => computeStatus(r.nextPaymentDate, today).kind === "due-soon"
   ).length;
-  const okCount = rows.length - overdueCount - dueSoonCount;
+  const okCount = nonExemptRows.length - overdueCount - dueSoonCount;
 
   const visibleRows =
     activeFilter === "all"
       ? rows
-      : rows.filter(
+      : activeFilter === "exempt"
+      ? rows.filter((r) => r.paymentExempt)
+      : nonExemptRows.filter(
           (r) => computeStatus(r.nextPaymentDate, today).kind === activeFilter
         );
 
@@ -333,6 +347,13 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                   valueClass: "text-green-400",
                   activeClass: "border-green-500/60 bg-green-500/10",
                 },
+                {
+                  key: "exempt",
+                  label: "Exentos",
+                  value: exemptCount,
+                  valueClass: "text-purple-400",
+                  activeClass: "border-purple-500/60 bg-purple-500/10",
+                },
               ] as const
             ).map((tile) => {
               const isActive = activeFilter === tile.key;
@@ -392,7 +413,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
               </thead>
               <tbody>
                 {visibleRows.map((row) => {
-                  const status = computeStatus(row.nextPaymentDate, today);
+                  const status = row.paymentExempt ? null : computeStatus(row.nextPaymentDate, today);
                   const blockStatus = getBlockStatus(
                     {
                       role: "STUDENT",
@@ -417,18 +438,31 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                         </div>
                       </td>
                       <td className="px-4 py-3.5 text-gray-300 font-heading font-bold">
-                        {formatDateArg(row.nextPaymentDate)}
+                        {row.paymentExempt ? (
+                          <span className="text-gray-500 italic font-body font-normal text-xs">—</span>
+                        ) : (
+                          formatDateArg(row.nextPaymentDate)
+                        )}
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex flex-col gap-1 items-start">
-                          <span
-                            className={[
-                              "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 inline-block",
-                              statusClasses(status),
-                            ].join(" ")}
-                          >
-                            {statusLabel(status)}
-                          </span>
+                          {row.paymentExempt ? (
+                            <span
+                              className="text-xs font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 inline-block bg-purple-500/10 text-purple-400 border border-purple-500/30"
+                              title={row.paymentExemptReason ?? undefined}
+                            >
+                              Exento
+                            </span>
+                          ) : status ? (
+                            <span
+                              className={[
+                                "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 inline-block",
+                                statusClasses(status),
+                              ].join(" ")}
+                            >
+                              {statusLabel(status)}
+                            </span>
+                          ) : null}
                           {blockStatus.blocked && (
                             <span
                               className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 inline-block bg-brand-red/15 text-brand-red border border-brand-red/30"
@@ -457,8 +491,11 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                             blocked={row.blockedAt !== null}
                             studentType={row.studentType}
                             canCreateOwnRoutines={row.canCreateOwnRoutines}
+                            paymentExempt={row.paymentExempt}
+                            paymentExemptReason={row.paymentExemptReason}
                             assignedTeachers={row.assignedTeachers}
                             allTeachers={teachers}
+                            isAdmin={isAdmin}
                           />
                           {isAdmin && (
                             <BlockUserButton
@@ -480,7 +517,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
           {/* Mobile cards */}
           <div className="sm:hidden flex flex-col gap-3">
             {visibleRows.map((row) => {
-              const status = computeStatus(row.nextPaymentDate, today);
+              const status = row.paymentExempt ? null : computeStatus(row.nextPaymentDate, today);
               const blockStatus = getBlockStatus(
                 {
                   role: "STUDENT",
@@ -502,14 +539,23 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                         </p>
                       </div>
                       <div className="flex flex-col gap-1 items-end flex-shrink-0">
-                        <span
-                          className={[
-                            "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5",
-                            statusClasses(status),
-                          ].join(" ")}
-                        >
-                          {statusLabel(status)}
-                        </span>
+                        {row.paymentExempt ? (
+                          <span
+                            className="text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/30"
+                            title={row.paymentExemptReason ?? undefined}
+                          >
+                            Exento
+                          </span>
+                        ) : status ? (
+                          <span
+                            className={[
+                              "text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5",
+                              statusClasses(status),
+                            ].join(" ")}
+                          >
+                            {statusLabel(status)}
+                          </span>
+                        ) : null}
                         {blockStatus.blocked && (
                           <span
                             className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 bg-brand-red/15 text-brand-red border border-brand-red/30"
@@ -530,7 +576,11 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                           Próximo pago
                         </span>
                         <span className="text-white font-heading font-bold text-sm">
-                          {formatDateArg(row.nextPaymentDate)}
+                          {row.paymentExempt ? (
+                            <span className="text-gray-500 italic font-body font-normal text-xs">—</span>
+                          ) : (
+                            formatDateArg(row.nextPaymentDate)
+                          )}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -546,8 +596,11 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                           blocked={row.blockedAt !== null}
                           studentType={row.studentType}
                           canCreateOwnRoutines={row.canCreateOwnRoutines}
+                          paymentExempt={row.paymentExempt}
+                          paymentExemptReason={row.paymentExemptReason}
                           assignedTeachers={row.assignedTeachers}
                           allTeachers={teachers}
+                          isAdmin={isAdmin}
                         />
                         {isAdmin && (
                           <BlockUserButton

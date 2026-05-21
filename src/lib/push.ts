@@ -88,6 +88,7 @@ export async function sendDueReminderIfNeeded(
       blockedAt: true,
       nextPaymentDate: true,
       lastDueNotifiedOn: true,
+      paymentExempt: true,
       gym: { select: { name: true, kind: true, blockedAt: true } },
     },
   });
@@ -96,6 +97,7 @@ export async function sendDueReminderIfNeeded(
   if (user.role !== "STUDENT") return { sent: false, reason: "not-student" };
   if (user.blockedAt) return { sent: false, reason: "user-blocked" };
   if (user.gym.blockedAt) return { sent: false, reason: "gym-blocked" };
+  if (user.paymentExempt) return { sent: false, reason: "exempt" };
 
   const daysRemaining = Math.round(
     (user.nextPaymentDate.getTime() - today.getTime()) / DAY_MS

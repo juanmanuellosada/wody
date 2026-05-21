@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       role: "STUDENT",
       deletedAt: null,
       blockedAt: null,
+      paymentExempt: false,
       gym: { blockedAt: null },
       nextPaymentDate: { gte: today, lte: rangeEnd },
       pushSubscriptions: { some: {} },

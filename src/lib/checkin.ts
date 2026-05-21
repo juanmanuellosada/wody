@@ -45,10 +45,12 @@ export function msUntilNextBucket(nowMs: number = Date.now()): number {
 
 // Strict "al día": nextPaymentDate >= hoy (ART) y no bloqueado. Cualquier
 // atraso manda el check-in a PENDING para que el operador decida.
+// Si paymentExempt es true, se considera al día (salvo blockedAt).
 type AlDiaInput = {
   role: Role;
   blockedAt: Date | null;
   nextPaymentDate: Date;
+  paymentExempt?: boolean;
 };
 
 export function isUserAlDia(
@@ -56,6 +58,7 @@ export function isUserAlDia(
   today: Date = getTodayArgentina()
 ): boolean {
   if (user.blockedAt) return false;
+  if (user.paymentExempt) return true; // exento: siempre al día (salvo blockedAt ya chequeado)
   if (user.role !== "STUDENT") return true; // profes/admins no tienen mora
   return user.nextPaymentDate.getTime() >= today.getTime();
 }

@@ -66,7 +66,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
   const [dbUser, pendingJoinRequestsCount] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
-      select: { blockedAt: true, deletedAt: true, nextPaymentDate: true, role: true },
+      select: { blockedAt: true, deletedAt: true, nextPaymentDate: true, role: true, paymentExempt: true, paymentExemptReason: true },
     }),
     role === "ADMIN"
       ? prisma.joinRequest.count({ where: { gymId: gym.id, status: "PENDING" } })
@@ -129,7 +129,11 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         ].join(" ")}
       >
         {student && !personalGym && (
-          <PaymentStatusBanner nextPaymentDate={student.nextPaymentDate} />
+          <PaymentStatusBanner
+            nextPaymentDate={student.nextPaymentDate}
+            paymentExempt={student.paymentExempt}
+            paymentExemptReason={student.paymentExemptReason}
+          />
         )}
         <InstallPwaButton />
         {role === "STUDENT" && <NotificationPermissionButton />}

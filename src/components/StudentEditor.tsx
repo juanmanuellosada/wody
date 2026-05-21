@@ -9,6 +9,7 @@ import {
   unassignStudent,
   setUserBlocked,
   setCanCreateOwnRoutines,
+  setStudentPaymentExempt,
 } from "@/actions/user";
 import { setStudentPaymentDate } from "@/actions/payment";
 import { toInputDate } from "@/lib/dates";
@@ -27,8 +28,11 @@ interface StudentEditorProps {
   currentBlocked?: boolean;
   currentStudentType: StudentType;
   currentCanCreateOwnRoutines: boolean;
+  currentPaymentExempt: boolean;
+  currentPaymentExemptReason: string | null;
   assignedTeachers: TeacherOption[];
   allTeachers: TeacherOption[];
+  isAdmin: boolean;
   onClose: () => void;
   demo?: boolean;
 }
@@ -41,8 +45,11 @@ export function StudentEditor({
   currentBlocked = false,
   currentStudentType,
   currentCanCreateOwnRoutines,
+  currentPaymentExempt,
+  currentPaymentExemptReason,
   assignedTeachers,
   allTeachers,
+  isAdmin,
   onClose,
   demo,
 }: StudentEditorProps) {
@@ -55,6 +62,8 @@ export function StudentEditor({
     ? toInputDate(currentPaymentDate)
     : "";
   const [paymentDate, setPaymentDate] = useState(currentPaymentDateStr);
+  const [paymentExempt, setPaymentExempt] = useState(currentPaymentExempt);
+  const [paymentExemptReason, setPaymentExemptReason] = useState(currentPaymentExemptReason ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [addTeacherId, setAddTeacherId] = useState("");
@@ -125,6 +134,21 @@ export function StudentEditor({
     startTransition(async () => {
       const result = await unassignStudent(teacherId, studentId);
       if (!result.success) setError(result.error);
+    });
+  }
+
+  function handleTogglePaymentExempt() {
+    if (demo) return;
+    setError(null);
+    const next = !paymentExempt;
+    const reason = paymentExemptReason.trim() || null;
+    startTransition(async () => {
+      const result = await setStudentPaymentExempt(studentId, next, reason);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setPaymentExempt(next);
     });
   }
 
@@ -293,6 +317,46 @@ export function StudentEditor({
               >
                 {canCreate ? "Desactivar" : "Activar"}
               </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Exento de pago — solo ADMIN */}
+        {isAdmin && (
+          <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 block">
+              Exento de pago
+            </label>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-gray-500 font-body">
+                {paymentExempt
+                  ? "No se le cobra cuota. No aparece en mora ni recibe recordatorios."
+                  : "Se rige por su próxima fecha de pago."}
+              </p>
+              <Button
+                variant={paymentExempt ? "danger" : "primary"}
+                size="sm"
+                onClick={handleTogglePaymentExempt}
+                disabled={isPending}
+              >
+                {paymentExempt ? "Quitar exención" : "Marcar exento"}
+              </Button>
+            </div>
+            <div>
+              <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
+                Motivo (opcional)
+              </label>
+              <textarea
+                value={paymentExemptReason}
+                onChange={(e) => setPaymentExemptReason(e.target.value)}
+                disabled={isPending}
+                placeholder="Ej: Hijo del dueño, staff, becado..."
+                rows={2}
+                className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200 placeholder:text-gray-600 resize-none"
+              />
+              <p className="text-[10px] text-gray-600 font-body mt-1">
+                El motivo se guarda al marcar o quitar la exención.
+              </p>
             </div>
           </div>
         )}

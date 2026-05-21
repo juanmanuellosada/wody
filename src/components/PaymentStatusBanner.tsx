@@ -3,6 +3,8 @@ import { formatDateArg, getTodayArgentina } from "@/lib/dates";
 
 interface PaymentStatusBannerProps {
   nextPaymentDate: Date;
+  paymentExempt?: boolean;
+  paymentExemptReason?: string | null;
 }
 
 type Status =
@@ -18,7 +20,29 @@ function computeStatus(date: Date, today: Date): Status {
   return { kind: "ok", days };
 }
 
-export function PaymentStatusBanner({ nextPaymentDate }: PaymentStatusBannerProps) {
+export function PaymentStatusBanner({
+  nextPaymentDate,
+  paymentExempt,
+  paymentExemptReason,
+}: PaymentStatusBannerProps) {
+  if (paymentExempt) {
+    return (
+      <div className="border border-purple-500/20 bg-purple-500/5 px-4 py-2 mb-6 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-1.5 h-1.5 bg-purple-400 rounded-full flex-shrink-0" aria-hidden="true" />
+          <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-purple-400 truncate">
+            Exento de pago
+          </p>
+        </div>
+        {paymentExemptReason && (
+          <p className="text-xs text-gray-500 font-body flex-shrink-0 truncate max-w-[50%]">
+            {paymentExemptReason}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   const today = getTodayArgentina();
   const status = computeStatus(nextPaymentDate, today);
   const formatted = formatDateArg(nextPaymentDate);

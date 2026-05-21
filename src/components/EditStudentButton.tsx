@@ -18,8 +18,11 @@ interface EditStudentButtonProps {
   blocked?: boolean;
   studentType: StudentType;
   canCreateOwnRoutines: boolean;
+  paymentExempt?: boolean;
+  paymentExemptReason?: string | null;
   assignedTeachers: TeacherOption[];
   allTeachers: TeacherOption[];
+  isAdmin?: boolean;
   demo?: boolean;
 }
 
@@ -31,8 +34,11 @@ export function EditStudentButton({
   blocked,
   studentType,
   canCreateOwnRoutines,
+  paymentExempt,
+  paymentExemptReason,
   assignedTeachers,
   allTeachers,
+  isAdmin,
   demo,
 }: EditStudentButtonProps) {
   const [open, setOpen] = useState(false);
@@ -51,8 +57,11 @@ export function EditStudentButton({
           currentBlocked={blocked}
           currentStudentType={studentType}
           currentCanCreateOwnRoutines={canCreateOwnRoutines}
+          currentPaymentExempt={paymentExempt ?? false}
+          currentPaymentExemptReason={paymentExemptReason ?? null}
           assignedTeachers={assignedTeachers}
           allTeachers={allTeachers}
+          isAdmin={isAdmin ?? false}
           onClose={() => setOpen(false)}
           demo={demo}
         />
