@@ -24,7 +24,8 @@
     "render:unidos": "remotion render UnidosGaragePromo out/unidos-garage.mp4",
     "render:unidos:gif": "remotion render UnidosGaragePromo out/unidos-garage.gif",
     "render:logo": "remotion render WodyLogoIntro out/wody-logo.mp4",
-    "render:logo:gif": "remotion render WodyLogoIntro out/wody-logo.gif"
+    "render:logo:gif": "remotion render WodyLogoIntro out/wody-logo.gif",
+    "render:atlas-pagos": "remotion render AtlasPagosPromo out/atlas-pagos.mp4"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.400",

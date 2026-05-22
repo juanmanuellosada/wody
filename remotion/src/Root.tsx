@@ -1,4 +1,5 @@
 import { Composition } from "remotion";
+import { AtlasPagosPromo } from "./AtlasPagosPromo";
 import { AtlasPromo } from "./AtlasPromo";
 import { CuponeraPromo } from "./CuponeraPromo";
 import { MilaFitPromo } from "./MilaFitPromo";
@@ -89,6 +90,14 @@ export const Root = () => {
         id="WodyLogoIntro"
         component={WodyLogoIntro}
         durationInFrames={240}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="AtlasPagosPromo"
+        component={AtlasPagosPromo}
+        durationInFrames={450}
         fps={30}
         width={1080}
         height={1920}
