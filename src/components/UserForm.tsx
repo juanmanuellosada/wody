@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { createUser, previewNextMemberNumber } from "@/actions/user";
 import { formatMemberNumber } from "@/lib/memberNumber";
 import { getTodayArgentina, toInputDate } from "@/lib/dates";
@@ -261,25 +262,18 @@ export function UserForm({ terms, teachers, gymId }: UserFormProps) {
       )}
 
       {isLite && (
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="nextPaymentDate"
-            className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-          >
-            Próximo pago
-          </label>
-          <input
-            id="nextPaymentDate"
-            type="date"
-            name="nextPaymentDate"
-            required
-            disabled={isPending}
+        <>
+          <DatePicker
             value={nextPaymentDate}
-            min={toInputDate(getTodayArgentina())}
-            onChange={(e) => setNextPaymentDate(e.target.value)}
-            className="bg-elev text-white font-body border border-edge px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
+            onChange={(d) => {
+              if (d < toInputDate(getTodayArgentina())) return;
+              setNextPaymentDate(d);
+            }}
+            disabled={isPending}
+            label="Próximo pago"
           />
-        </div>
+          <input type="hidden" name="nextPaymentDate" value={nextPaymentDate} />
+        </>
       )}
 
       {showStudentExtras && (
