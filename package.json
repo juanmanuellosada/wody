@@ -7,10 +7,8 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx prisma/seed.ts"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "seed:reset": "tsx prisma/seed-reset.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

@@ -127,6 +127,21 @@ Ejemplos del historial:
 - No editar `prisma/schema.prisma` sin entender el impacto en datos existentes.
 - Leer la guía en `node_modules/next/dist/docs/` antes de usar cualquier API de Next.js 16.
 
+### Seguridad de seeds
+
+Ver documentación completa en `prisma/README.md`.
+
+**Invariantes core (nunca violarlas):**
+
+1. **No `deleteMany` sin cláusula `where` fuera de `prisma/seed-reset.ts`.** Cualquier `deleteMany()` sin filtro en un archivo de seed que no sea `seed-reset.ts` es un bug crítico.
+2. **No correr seeds contra producción.** El `DATABASE_URL` en `.env.local` solo debe apuntar a DBs locales. Nunca al proyecto de producción de Neon.
+3. **No agregar el seed al build de Vercel.** El bloque `prisma.seed` fue eliminado de `package.json` deliberadamente. No restaurarlo.
+
+**Comandos:**
+
+- `npm run seed` — idempotente, seguro, para inicializar o restaurar datos base.
+- `ALLOW_DESTRUCTIVE_SEED=1 npm run seed:reset` — destructivo, solo para resetear entorno local. Requiere que `DATABASE_URL` apunte a un host local.
+
 ### Punteros a `docs/`
 
 - `docs/alta-nuevo-gym.md` — alta de gimnasio tradicional
@@ -134,3 +149,4 @@ Ejemplos del historial:
 - `docs/billing-mercadopago.md` — cobros con Mercado Pago
 - `docs/control-accesos.md` — check-in / puerta
 - `docs/notificaciones-push.md` — web-push
+- `prisma/README.md` — modelo de seeds, seguridad, procedimiento de reset local
