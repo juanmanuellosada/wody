@@ -25,4 +25,4 @@
 ## 4. Cierre
 
 - [x] 4.1 Ejecutar `npm run lint` y resolver warnings/errors introducidos por este cambio.
-- [ ] 4.2 Commit en español con scope adecuado (ej: `feat(alumnos-lite): pedir fecha de próximo pago al alta`).
+- [x] 4.2 Commit en español con scope adecuado (ej: `feat(alumnos-lite): pedir fecha de próximo pago al alta`).
