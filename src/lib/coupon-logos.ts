@@ -11,6 +11,7 @@ import bvSports from "@/logos/bv-sports.png";
 import deliciasMias from "@/logos/delicias-mias.png";
 import floransBelleza from "@/logos/florans-belleza.png";
 import ger from "@/logos/ger.png";
+import greysi from "@/logos/greysi.png";
 import nutriteConLu from "@/logos/nutrite-con-lu.png";
 import nutrilion from "@/logos/nutrilion.png";
 import quinque from "@/logos/quinque.png";
@@ -29,6 +30,7 @@ export const COUPON_LOGOS: Record<string, StaticImageData> = {
   "delicias-mias": deliciasMias,
   "florans-belleza": floransBelleza,
   ger,
+  greysi,
   kaori,
   "nutrite-con-lu": nutriteConLu,
   nutrilion,

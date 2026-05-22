@@ -286,6 +286,26 @@ const COUPONS: Array<{
     sortOrder: 150,
     hideWhenConsumed: true,
   },
+  {
+    slug: "estetica-greysi-podologia",
+    name: "Estética Greysi",
+    description: "15% de descuento en podología. Francisco Beiró 11, Boulogne, San Isidro.",
+    instagramHandle: "estetica.greysi",
+    instagramUrl: "https://www.instagram.com/estetica.greysi",
+    logoKey: "greysi",
+    rule: CouponRule.ONCE_PER_USER,
+    sortOrder: 160,
+  },
+  {
+    slug: "estetica-greysi-semipermanente",
+    name: "Estética Greysi",
+    description: "10% de descuento en esmaltado semipermanente. Francisco Beiró 11, Boulogne, San Isidro.",
+    instagramHandle: "estetica.greysi",
+    instagramUrl: "https://www.instagram.com/estetica.greysi",
+    logoKey: "greysi",
+    rule: CouponRule.ONCE_PER_USER,
+    sortOrder: 170,
+  },
 ];
 
 async function main() {
