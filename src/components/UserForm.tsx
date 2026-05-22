@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { createUser, previewNextMemberNumber } from "@/actions/user";
 import { formatMemberNumber } from "@/lib/memberNumber";
+import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import type { GymTerms } from "@/lib/gym-terms";
 
 interface TeacherOption {
@@ -31,6 +32,7 @@ export function UserForm({ terms, teachers, gymId }: UserFormProps) {
   const [studentType, setStudentType] = useState("PERSONALIZED");
   const [teacherId, setTeacherId] = useState("");
   const [canCreateOwnRoutines, setCanCreateOwnRoutines] = useState(false);
+  const [nextPaymentDate, setNextPaymentDate] = useState(() => toInputDate(getTodayArgentina()));
   const [previewMemberNumber, setPreviewMemberNumber] = useState<number | null>(null);
 
   const isLite = mode === "lite";
@@ -83,6 +85,7 @@ export function UserForm({ terms, teachers, gymId }: UserFormProps) {
         setStudentType("PERSONALIZED");
         setTeacherId("");
         setCanCreateOwnRoutines(false);
+        setNextPaymentDate(toInputDate(getTodayArgentina()));
       } else {
         setError(result.error);
       }
@@ -254,6 +257,28 @@ export function UserForm({ terms, teachers, gymId }: UserFormProps) {
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {isLite && (
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="nextPaymentDate"
+            className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
+          >
+            Próximo pago
+          </label>
+          <input
+            id="nextPaymentDate"
+            type="date"
+            name="nextPaymentDate"
+            required
+            disabled={isPending}
+            value={nextPaymentDate}
+            min={toInputDate(getTodayArgentina())}
+            onChange={(e) => setNextPaymentDate(e.target.value)}
+            className="bg-elev text-white font-body border border-edge px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
+          />
         </div>
       )}
 

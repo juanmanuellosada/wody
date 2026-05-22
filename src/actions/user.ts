@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AccountKind, Prisma, Role, StudentType } from "@prisma/client";
 import { gymPath } from "@/lib/gym";
+import { parseJoinRequestPaymentDate } from "@/lib/dates";
 import { generateToken } from "@/lib/email/tokens";
 import { sendEmail } from "@/lib/email/send";
 import { InviteEmail } from "@/lib/email/templates/InviteEmail";
@@ -74,6 +75,21 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
       }
     }
 
+    // Validar fecha de próximo pago antes de abrir cualquier transacción.
+    const nextPaymentDateRaw = (formData.get("nextPaymentDate") as string | null)?.trim() || "";
+    const paymentDateResult = parseJoinRequestPaymentDate(nextPaymentDateRaw);
+    if (!paymentDateResult.ok) {
+      // Normalizar los mensajes de error al español consistente con createUser.
+      const rawError = paymentDateResult.error;
+      const errorMsg = rawError.includes("obligatoria") || rawError.includes("inválid")
+        ? "La fecha de próximo pago es obligatoria y debe tener formato AAAA-MM-DD"
+        : rawError.includes("anterior")
+        ? "La fecha de próximo pago no puede ser anterior a hoy"
+        : rawError;
+      return { success: false, error: errorMsg };
+    }
+    const parsedPaymentDate = paymentDateResult.date;
+
     const runLiteCreate = () =>
       prisma.$transaction(async (tx) => {
         const gym = await tx.gym.update({
@@ -93,6 +109,7 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
             canCreateOwnRoutines: false,
             gymId,
             memberNumber: assigned,
+            nextPaymentDate: parsedPaymentDate,
           },
         });
         if (liteTeacherIdToLink) {
