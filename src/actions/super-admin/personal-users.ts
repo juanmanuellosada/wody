@@ -195,3 +195,59 @@ export async function registerPersonalPayment(
   revalidatePath("/admin/wody-personal");
   return { success: true };
 }
+
+export type ActionResult = { success: true } | { success: false; error: string };
+
+/** Validate that a user exists and belongs to the personal gym. */
+async function assertUserBelongsToPersonalGym(
+  userId: string,
+  gymId: string
+): Promise<ActionResult | null> {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, gymId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!user) return { success: false, error: "Usuario no encontrado o no pertenece al gym personal." };
+  return null;
+}
+
+export async function setPersonalUserBlocked(
+  userId: string,
+  blocked: boolean
+): Promise<ActionResult> {
+  await assertSuperAdmin();
+  const gymId = await getPersonalGymId();
+
+  const err = await assertUserBelongsToPersonalGym(userId, gymId);
+  if (err) return err;
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { blockedAt: blocked ? new Date() : null },
+  });
+
+  revalidatePath("/admin/wody-personal");
+  return { success: true };
+}
+
+export async function setPersonalUserPaymentExempt(
+  userId: string,
+  exempt: boolean,
+  reason: string | null
+): Promise<ActionResult> {
+  await assertSuperAdmin();
+  const gymId = await getPersonalGymId();
+
+  const err = await assertUserBelongsToPersonalGym(userId, gymId);
+  if (err) return err;
+
+  const normalizedReason = exempt ? (reason?.trim() || null) : null;
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { paymentExempt: exempt, paymentExemptReason: normalizedReason },
+  });
+
+  revalidatePath("/admin/wody-personal");
+  return { success: true };
+}

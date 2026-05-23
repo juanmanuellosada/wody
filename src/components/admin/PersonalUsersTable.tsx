@@ -3,8 +3,11 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   registerPersonalPayment,
+  setPersonalUserBlocked,
+  setPersonalUserPaymentExempt,
   type PaymentMethod,
   type PersonalUserRow,
 } from "@/actions/super-admin/personal-users";
@@ -259,6 +262,171 @@ function RegisterPersonalPaymentDialog({ student, onClose }: DialogProps) {
   );
 }
 
+// ─── Exempt dialog (with optional reason) ────────────────────────────────────
+
+interface ExemptDialogProps {
+  student: PersonalUserRow;
+  onClose: () => void;
+}
+
+function SetExemptDialog({ student, onClose }: ExemptDialogProps) {
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleConfirm() {
+    setError(null);
+    startTransition(async () => {
+      const result = await setPersonalUserPaymentExempt(student.id, true, reason);
+      if (!result.success) {
+        setError(result.error);
+      } else {
+        onClose();
+      }
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm px-4"
+      onClick={(e) => e.target === e.currentTarget && !isPending && onClose()}
+    >
+      <div className="w-full max-w-sm bg-panel border border-line p-6 flex flex-col gap-5" role="dialog" aria-modal="true">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
+            Marcar exento — {student.name}
+          </h2>
+          <button
+            onClick={onClose}
+            disabled={isPending}
+            className="text-gray-500 hover:text-white transition-colors duration-200 cursor-pointer text-lg leading-none min-w-[44px] min-h-[44px] flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Cerrar"
+          >
+            &#215;
+          </button>
+        </div>
+        <p className="text-sm text-gray-300 leading-relaxed">
+          El usuario no recibirá recordatorios de pago ni aparecerá en mora.
+        </p>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500">
+            Motivo (opcional)
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            disabled={isPending}
+            placeholder="Ej: Staff, becado, acuerdo especial..."
+            rows={2}
+            className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200 placeholder:text-gray-600 resize-none"
+          />
+        </div>
+        {error && (
+          <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="flex gap-3">
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
+            Cancelar
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleConfirm} loading={isPending} className="flex-1">
+            Marcar exento
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Exempt toggle button ─────────────────────────────────────────────────────
+
+function ExemptRowButton({ student }: { student: PersonalUserRow }) {
+  const [showSetDialog, setShowSetDialog] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  function handleRemoveConfirm() {
+    startTransition(async () => {
+      await setPersonalUserPaymentExempt(student.id, false, null);
+      setShowRemoveConfirm(false);
+    });
+  }
+
+  if (student.paymentExempt) {
+    return (
+      <>
+        <Button variant="secondary" size="sm" onClick={() => setShowRemoveConfirm(true)}>
+          Quitar exento
+        </Button>
+        <ConfirmDialog
+          open={showRemoveConfirm}
+          title="Quitar exención"
+          message={`¿Quitar la exención de pago a ${student.name}? Volverá a regirse por su fecha de vencimiento.`}
+          confirmLabel="Quitar exención"
+          variant="danger"
+          loading={isPending}
+          onConfirm={handleRemoveConfirm}
+          onCancel={() => setShowRemoveConfirm(false)}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Button variant="secondary" size="sm" onClick={() => setShowSetDialog(true)}>
+        Marcar exento
+      </Button>
+      {showSetDialog && (
+        <SetExemptDialog student={student} onClose={() => setShowSetDialog(false)} />
+      )}
+    </>
+  );
+}
+
+// ─── Block toggle button ──────────────────────────────────────────────────────
+
+function BlockRowButton({ student }: { student: PersonalUserRow }) {
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const isBlocked = student.blockedAt !== null;
+
+  function handleConfirm() {
+    startTransition(async () => {
+      await setPersonalUserBlocked(student.id, !isBlocked);
+      setOpen(false);
+    });
+  }
+
+  return (
+    <>
+      <Button
+        variant={isBlocked ? "secondary" : "danger"}
+        size="sm"
+        onClick={() => setOpen(true)}
+      >
+        {isBlocked ? "Desbloquear" : "Bloquear"}
+      </Button>
+      <ConfirmDialog
+        open={open}
+        title={isBlocked ? "Desbloquear usuario" : "Bloquear usuario"}
+        message={
+          isBlocked
+            ? `¿Desbloquear a ${student.name}? Podrá volver a loguearse.`
+            : `¿Bloquear a ${student.name}? No podrá loguearse hasta que lo desbloques.`
+        }
+        confirmLabel={isBlocked ? "Desbloquear" : "Bloquear"}
+        variant={isBlocked ? "primary" : "danger"}
+        loading={isPending}
+        onConfirm={handleConfirm}
+        onCancel={() => setOpen(false)}
+      />
+    </>
+  );
+}
+
 // ─── Per-row button ───────────────────────────────────────────────────────────
 
 function RegisterPaymentRowButton({ student }: { student: PersonalUserRow }) {
@@ -352,7 +520,11 @@ export function PersonalUsersTable({ users }: TableProps) {
                   <span className={status.className}>{status.label}</span>
                 </td>
                 <td className="px-4 py-3.5">
-                  <RegisterPaymentRowButton student={u} />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <RegisterPaymentRowButton student={u} />
+                    <ExemptRowButton student={u} />
+                    <BlockRowButton student={u} />
+                  </div>
                 </td>
               </tr>
             );
