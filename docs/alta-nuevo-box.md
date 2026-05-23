@@ -1,5 +1,7 @@
 # Prompt para dar de alta un nuevo box en WODY
 
+**Flujo recomendado**: usar el panel `/admin/gyms/new`. Desde ahí se crea el box y el admin inicial directamente en la DB, sin necesidad de escribir código ni correr scripts. El seed `prisma/seed-[slug].ts` queda como respaldo manual auditable: lo usás si necesitás reproducir el alta en otro entorno (local, staging) o si querés tener el alta commiteada en git como referencia. Ver más abajo si necesitás ese flujo.
+
 Necesito dar de alta un nuevo box en WODY. Estos son los datos:
 
 ## Datos del gimnasio

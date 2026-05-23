@@ -90,6 +90,22 @@ Para dar de alta un gym nuevo, se usan seeds individuales (`prisma/seed-[slug].t
 
 ---
 
+## Crear super admin inicial
+
+Para crear el primer usuario con rol `SUPERADMIN` en producción (o en un entorno nuevo), corré el script one-off:
+
+```bash
+SUPERADMIN_EMAIL=admin@wody.com.ar SUPERADMIN_PASSWORD=tupassword npx tsx prisma/scripts/seed-superadmin.ts
+```
+
+- **Cuándo correrlo:** una sola vez, después del primer deploy con el cambio `add-super-admin-panel`.
+- **Idempotente:** si el super admin ya existe (mismo email, `gymId null`), actualiza la password. Si existe con otro rol, falla explícitamente.
+- **No se incluye en `npm run seed`** ni en ningún flujo automático. Solo se corre de forma manual.
+- **Contraseña mínima:** 8 caracteres.
+- **Importante:** no uses `DATABASE_URL` de producción en `.env.local`. Para correr este script contra producción, seteá `DATABASE_URL` en la shell directamente, sin tocarlo en el archivo de entorno local.
+
+---
+
 ## Nota sobre el build de Vercel
 
 El script `build` en `package.json` es:
