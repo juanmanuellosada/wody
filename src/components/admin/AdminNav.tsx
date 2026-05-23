@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { href: "/admin", label: "Suscripciones" },
   { href: "/admin/gyms", label: "Gyms" },
   { href: "/admin/coupons", label: "Cupones" },
+  { href: "/admin/wody-personal", label: "Wody Personal" },
   { href: "/admin/personal-whitelist", label: "Whitelist Personal" },
 ];
 

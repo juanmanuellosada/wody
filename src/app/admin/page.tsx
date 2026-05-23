@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
   const gyms = await prisma.gym.findMany({
-    where: { blockedAt: null },
+    where: { blockedAt: null, kind: { not: "PERSONAL" } },
     select: {
       id: true,
       name: true,
