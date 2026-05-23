@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { ColorPicker } from "@/components/ui/ColorPicker";
 import { createGym, updateGym, blockGym, unblockGym } from "@/actions/super-admin/gym";
 import type { GymRow } from "@/actions/super-admin/gym";
 
@@ -24,11 +26,12 @@ export function GymForm({ gym }: Props) {
   const [kind, setKind] = useState<"GYM" | "BOX">((gym?.kind as "GYM" | "BOX") ?? "BOX");
   const [primaryColor, setPrimaryColor] = useState(gym?.primaryColor ?? "#E31414");
   const [autoBlockAfterDays, setAutoBlockAfterDays] = useState(gym?.autoBlockAfterDays ?? 45);
-  const [subscriptionNextPaymentDate, setSubscriptionNextPaymentDate] = useState(
-    gym?.subscriptionNextPaymentDate
-      ? gym.subscriptionNextPaymentDate.toISOString().split("T")[0]
-      : ""
-  );
+  const initialPaymentDate = gym?.subscriptionNextPaymentDate
+    ? gym.subscriptionNextPaymentDate.toISOString().split("T")[0]
+    : "";
+  const [subscriptionNextPaymentDate, setSubscriptionNextPaymentDate] = useState(initialPaymentDate);
+  const [hasPaymentDate, setHasPaymentDate] = useState(!!initialPaymentDate);
+  const todayStr = new Date().toISOString().split("T")[0];
   const [subscriptionMonthlyAmount, setSubscriptionMonthlyAmount] = useState(
     gym?.subscriptionMonthlyAmount != null ? gym.subscriptionMonthlyAmount / 100 : ""
   );
@@ -52,7 +55,7 @@ export function GymForm({ gym }: Props) {
           kind,
           primaryColor,
           autoBlockAfterDays,
-          subscriptionNextPaymentDate: subscriptionNextPaymentDate || null,
+          subscriptionNextPaymentDate: hasPaymentDate ? (subscriptionNextPaymentDate || null) : null,
           subscriptionMonthlyAmount:
             subscriptionMonthlyAmount !== ""
               ? Math.round(Number(subscriptionMonthlyAmount) * 100)
@@ -75,7 +78,7 @@ export function GymForm({ gym }: Props) {
           adminPassword,
           adminName,
           autoBlockAfterDays,
-          subscriptionNextPaymentDate: subscriptionNextPaymentDate || undefined,
+          subscriptionNextPaymentDate: hasPaymentDate ? (subscriptionNextPaymentDate || undefined) : undefined,
           subscriptionMonthlyAmount:
             subscriptionMonthlyAmount !== ""
               ? Math.round(Number(subscriptionMonthlyAmount) * 100)
@@ -168,25 +171,11 @@ export function GymForm({ gym }: Props) {
           </select>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
-            Color primario
-          </label>
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-              className="w-12 h-12 bg-elev border border-edge cursor-pointer"
-            />
-            <Input
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-              placeholder="#E31414"
-              className="flex-1"
-            />
-          </div>
-        </div>
+        <ColorPicker
+          label="Color primario"
+          value={primaryColor}
+          onChange={setPrimaryColor}
+        />
 
         <div className="flex flex-col gap-3">
           <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
@@ -217,12 +206,30 @@ export function GymForm({ gym }: Props) {
           hint="Días desde el vencimiento de cuota para auto-bloquear alumnos."
         />
 
-        <Input
-          label="Próximo pago de suscripción (opcional)"
-          type="date"
-          value={subscriptionNextPaymentDate}
-          onChange={(e) => setSubscriptionNextPaymentDate(e.target.value)}
-        />
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hasPaymentDate}
+              onChange={(e) => {
+                setHasPaymentDate(e.target.checked);
+                if (e.target.checked && !subscriptionNextPaymentDate) {
+                  setSubscriptionNextPaymentDate(todayStr);
+                }
+              }}
+              className="w-4 h-4 accent-brand-red"
+            />
+            <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+              Próximo pago de suscripción (opcional)
+            </span>
+          </label>
+          {hasPaymentDate && (
+            <DatePicker
+              value={subscriptionNextPaymentDate || todayStr}
+              onChange={setSubscriptionNextPaymentDate}
+            />
+          )}
+        </div>
 
         <Input
           label="Monto mensual suscripción en pesos (opcional)"

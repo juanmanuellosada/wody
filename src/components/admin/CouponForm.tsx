@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { createCoupon, updateCoupon } from "@/actions/super-admin/coupon";
 import type { CouponRow } from "@/actions/super-admin/coupon";
 import type { CouponRule } from "@prisma/client";
@@ -18,9 +19,10 @@ const COUPON_RULES: { value: CouponRule; label: string }[] = [
 
 interface Props {
   coupon?: CouponRow;
+  nextSortOrder?: number;
 }
 
-export function CouponForm({ coupon }: Props) {
+export function CouponForm({ coupon, nextSortOrder }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const isEdit = !!coupon;
@@ -32,12 +34,13 @@ export function CouponForm({ coupon }: Props) {
   const [instagramUrl, setInstagramUrl] = useState(coupon?.instagramUrl ?? "");
   const [rule, setRule] = useState<CouponRule>(coupon?.rule ?? "ONCE_PER_USER");
   const [active, setActive] = useState(coupon?.active ?? true);
-  const [sortOrder, setSortOrder] = useState(coupon?.sortOrder ?? 0);
+  const [sortOrder, setSortOrder] = useState(coupon?.sortOrder ?? nextSortOrder ?? 0);
   const [requiresConsumedSlug, setRequiresConsumedSlug] = useState(coupon?.requiresConsumedSlug ?? "");
   const [hideWhenConsumed, setHideWhenConsumed] = useState(coupon?.hideWhenConsumed ?? false);
-  const [expiresAt, setExpiresAt] = useState(
-    coupon?.expiresAt ? coupon.expiresAt.toISOString().split("T")[0] : ""
-  );
+  const initialExpiresAt = coupon?.expiresAt ? coupon.expiresAt.toISOString().split("T")[0] : "";
+  const [expiresAt, setExpiresAt] = useState(initialExpiresAt);
+  const [hasExpiresAt, setHasExpiresAt] = useState(!!initialExpiresAt);
+  const todayStr = new Date().toISOString().split("T")[0];
   const [fixedCode, setFixedCode] = useState(coupon?.fixedCode ?? "");
   const [websiteUrl, setWebsiteUrl] = useState(coupon?.websiteUrl ?? "");
   const [restrictions, setRestrictions] = useState(coupon?.restrictions ?? "");
@@ -56,7 +59,7 @@ export function CouponForm({ coupon }: Props) {
         sortOrder,
         requiresConsumedSlug: requiresConsumedSlug || undefined,
         hideWhenConsumed,
-        expiresAt: expiresAt || undefined,
+        expiresAt: hasExpiresAt ? (expiresAt || undefined) : undefined,
         fixedCode: fixedCode || undefined,
         websiteUrl: websiteUrl || undefined,
         restrictions: restrictions || undefined,
@@ -204,12 +207,30 @@ export function CouponForm({ coupon }: Props) {
         hint="Slug del cupón que el usuario debe haber consumido primero."
       />
 
-      <Input
-        label="Vence el (opcional)"
-        type="date"
-        value={expiresAt}
-        onChange={(e) => setExpiresAt(e.target.value)}
-      />
+      <div className="flex flex-col gap-2">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={hasExpiresAt}
+            onChange={(e) => {
+              setHasExpiresAt(e.target.checked);
+              if (e.target.checked && !expiresAt) {
+                setExpiresAt(todayStr);
+              }
+            }}
+            className="w-4 h-4 accent-brand-red"
+          />
+          <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+            Vence el (opcional)
+          </span>
+        </label>
+        {hasExpiresAt && (
+          <DatePicker
+            value={expiresAt || todayStr}
+            onChange={setExpiresAt}
+          />
+        )}
+      </div>
 
       <div className="flex flex-col gap-3">
         <label className="flex items-center gap-3 cursor-pointer">

@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 import { CouponForm } from "@/components/admin/CouponForm";
 
-export default function NewCouponPage() {
+export default async function NewCouponPage() {
+  const agg = await prisma.coupon.aggregate({ _max: { sortOrder: true } });
+  const nextSortOrder = (agg._max.sortOrder ?? 0) + 1;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -14,7 +18,7 @@ export default function NewCouponPage() {
         </h1>
       </div>
 
-      <CouponForm />
+      <CouponForm nextSortOrder={nextSortOrder} />
     </div>
   );
 }
