@@ -8,7 +8,7 @@ import { setUserBlocked } from "@/actions/user";
 interface BlockUserButtonProps {
   userId: string;
   currentUserId: string;
-  userRole: "ADMIN" | "TEACHER" | "STUDENT" | "ACCESS";
+  userRole: "ADMIN" | "TEACHER" | "STUDENT" | "ACCESS" | "SUPERADMIN";
   blocked: boolean;
 }
 
@@ -22,7 +22,7 @@ export function BlockUserButton({
   const [open, setOpen] = useState(false);
 
   const isSelf = userId === currentUserId;
-  const isAdminTarget = userRole === "ADMIN";
+  const isAdminTarget = userRole === "ADMIN" || userRole === "SUPERADMIN";
   if (isSelf || isAdminTarget) return null;
 
   function handleConfirm() {

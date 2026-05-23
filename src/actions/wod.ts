@@ -106,6 +106,10 @@ export async function createWod(
     return { success: false, error: "No autorizado." };
   }
 
+  if (!session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
   const terms = await termsForSlug(gymSlug);
@@ -147,6 +151,10 @@ export async function updateWod(
   const session = await auth();
 
   if (!session?.user) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -210,6 +218,10 @@ export async function copyWod(
     return { success: false, error: "No autorizado." };
   }
 
+  if (!session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
   const terms = await termsForSlug(gymSlug);
@@ -263,6 +275,10 @@ export async function deleteWod(wodId: string): Promise<WodResult> {
   const session = await auth();
 
   if (!session?.user) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 

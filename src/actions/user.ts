@@ -41,6 +41,10 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
     return { success: false, error: "No autorizado." };
   }
 
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
@@ -464,6 +468,10 @@ export async function deleteUser(userId: string): Promise<UserResult> {
     return { success: false, error: "No podés eliminar tu propia cuenta." };
   }
 
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
@@ -525,6 +533,10 @@ export async function assignStudent(
     return { success: false, error: "No autorizado." };
   }
 
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
@@ -564,6 +576,10 @@ export async function unassignStudent(
   const session = await auth();
 
   if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -616,6 +632,10 @@ export async function updateStudent(
     !session?.user ||
     (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")
   ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -708,6 +728,10 @@ export async function setUserBlocked(
     return { success: false, error: "No podés bloquear tu propia cuenta." };
   }
 
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
@@ -735,6 +759,10 @@ export async function toggleStudentType(userId: string): Promise<UserResult> {
   const session = await auth();
 
   if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -779,6 +807,10 @@ export async function promoteTeacherToAdmin(formData: FormData): Promise<UserRes
   const session = await auth();
 
   if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -827,6 +859,10 @@ export async function setCanCreateOwnRoutines(
   const session = await auth();
 
   if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -890,6 +926,10 @@ export async function setStudentPaymentExempt(
     return { success: false, error: "No autorizado." };
   }
 
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
   const gymId = session.user.gymId;
   const gymSlug = session.user.gymSlug;
 
@@ -922,6 +962,10 @@ export async function resendInvitation(userId: string): Promise<UserResult> {
   const session = await auth();
 
   if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -973,6 +1017,10 @@ export async function resendInvitation(userId: string): Promise<UserResult> {
 
   const activationUrl = `${process.env.APP_URL}/${gymSlug}/activar?token=${token.plain}`;
 
+  if (!user.gym || !user.gymId) {
+    return { success: false, error: "Usuario no encontrado." };
+  }
+
   const emailResult = await sendEmail({
     to: user.email!, // narrowed above: email is not null here
     gymId: user.gymId,
@@ -1009,6 +1057,10 @@ export async function upgradeLiteUser(
   const session = await auth();
 
   if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 

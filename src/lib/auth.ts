@@ -64,18 +64,49 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           include: { gym: { select: { id: true, slug: true, kind: true, blockedAt: true, autoBlockAfterDays: true } } },
         });
 
-        if (candidates.length === 0) return null;
+        // SUPERADMIN can also log in without a gymSlug, so if no candidates were
+        // found via the gym filter, do a fallback lookup for SUPERADMIN users.
+        const superAdminCandidates = candidates.length === 0
+          ? await prisma.user.findMany({
+              where: { email, deletedAt: null, role: "SUPERADMIN" },
+              include: { gym: { select: { id: true, slug: true, kind: true, blockedAt: true, autoBlockAfterDays: true } } },
+            })
+          : [];
+
+        const allCandidates = [...candidates, ...superAdminCandidates];
+
+        if (allCandidates.length === 0) return null;
 
         // Pick the first user whose password matches. With a gymSlug there's at
         // most one candidate; without it, we scan across gyms (email+password
         // collisions between gyms are vanishingly unlikely in practice).
-        for (const user of candidates) {
+        for (const user of allCandidates) {
           if (user.password === null) {
             throw new PendingActivationError();
           }
 
           const passwordValid = await compare(password, user.password);
           if (!passwordValid) continue;
+
+          // SUPERADMIN: no gym context — authenticate directly.
+          if (user.role === "SUPERADMIN") {
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role as Role,
+              studentType: user.studentType as StudentType,
+              canCreateOwnRoutines: user.canCreateOwnRoutines,
+              gymId: null,
+              gymSlug: null,
+              gymKind: null,
+            };
+          }
+
+          if (!user.gym) {
+            // Non-SUPERADMIN without a gym should not exist — skip defensively.
+            continue;
+          }
 
           if (user.gym.blockedAt) {
             throw new UserBlockedError("gym_blocked");
@@ -142,9 +173,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.canCreateOwnRoutines = Boolean(
           (token as Record<string, unknown>).canCreateOwnRoutines
         );
-        session.user.gymId = (token as Record<string, unknown>).gymId as string;
-        session.user.gymSlug = (token as Record<string, unknown>).gymSlug as string;
-        session.user.gymKind = (token as Record<string, unknown>).gymKind as GymKind;
+        session.user.gymId = ((token as Record<string, unknown>).gymId as string | null) ?? null;
+        session.user.gymSlug = ((token as Record<string, unknown>).gymSlug as string | null) ?? null;
+        session.user.gymKind = ((token as Record<string, unknown>).gymKind as GymKind | null) ?? null;
       }
       return session;
     },

@@ -20,6 +20,10 @@ export async function createGroup(name: string): Promise<GroupResult> {
     return { success: false, error: "No autorizado." };
   }
 
+  if (!session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
 
@@ -57,6 +61,10 @@ export async function renameGroup(
     !session?.user ||
     (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")
   ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -104,6 +112,10 @@ export async function deleteGroup(groupId: string): Promise<GroupResult> {
     return { success: false, error: "No autorizado." };
   }
 
+  if (!session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
   const teacherId = session.user.id;
   const { gymSlug } = session.user;
 
@@ -135,6 +147,10 @@ export async function assignStudentToGroup(
     !session?.user ||
     (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")
   ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -185,6 +201,10 @@ export async function removeStudentFromGroup(
     !session?.user ||
     (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")
   ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 

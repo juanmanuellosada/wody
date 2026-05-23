@@ -368,7 +368,7 @@ export async function getRedemptionByCode(
     },
     user: {
       name: (redemption.user as User).name,
-      gymName: redemption.user.gym.name,
+      gymName: redemption.user.gym?.name ?? "",
     },
   };
 }

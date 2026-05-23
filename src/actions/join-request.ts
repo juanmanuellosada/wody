@@ -144,6 +144,10 @@ export async function approveJoinRequest({
     return { ok: false, error: "No autorizado." };
   }
 
+  if (!session.user.gymId) {
+    return { ok: false, error: "No autorizado." };
+  }
+
   const request = await prisma.joinRequest.findUnique({
     where: { id: requestId },
     include: { gym: true, teachers: { select: { teacherId: true } } },
@@ -400,6 +404,10 @@ export async function rejectJoinRequest({
 }): Promise<JoinResult> {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") {
+    return { ok: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId) {
     return { ok: false, error: "No autorizado." };
   }
 

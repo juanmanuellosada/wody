@@ -29,7 +29,7 @@ export default async function CheckinPage({ params, searchParams }: Props) {
     redirect(gymPath(gymSlug, `/login?next=${next}`));
   }
 
-  if (isPersonalGym(session.user.gymKind)) {
+  if (session.user.gymKind && isPersonalGym(session.user.gymKind)) {
     redirect("/personal/dashboard/mis-rutinas");
   }
 

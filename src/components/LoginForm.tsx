@@ -52,7 +52,9 @@ export function LoginForm({ gymSlug }: LoginFormProps) {
         const slug = session?.user?.gymSlug ?? gymSlug;
 
         let destination: string;
-        if (role === "ADMIN") {
+        if (role === "SUPERADMIN") {
+          destination = "/admin";
+        } else if (role === "ADMIN") {
           destination = gymPath(slug, "/admin");
         } else if (role === "TEACHER") {
           destination = gymPath(slug, "/dashboard/teacher");

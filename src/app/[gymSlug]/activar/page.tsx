@@ -42,8 +42,8 @@ export default async function ActivarPage({ params, searchParams }: Props) {
     return <ErrorPage message="Link inválido." loginHref={loginHref} />;
   }
 
-  // Token belongs to a different gym
-  if (vt.user.gym.slug !== gymSlug) {
+  // Token belongs to a different gym (or user has no gym — SUPERADMIN, shouldn't happen)
+  if (!vt.user.gym || vt.user.gym.slug !== gymSlug) {
     return <ErrorPage message="Link inválido." loginHref={loginHref} />;
   }
 
@@ -72,7 +72,7 @@ export default async function ActivarPage({ params, searchParams }: Props) {
       <div className="w-full max-w-sm">
         <div className="bg-panel border border-line p-6 sm:p-8">
           <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-1">
-            {vt.user.gym.name}
+            {vt.user.gym?.name}
           </p>
           <h1 className="text-lg font-heading font-black uppercase tracking-[0.1em] text-white mb-1">
             Hola, {vt.user.name.split(" ")[0]}

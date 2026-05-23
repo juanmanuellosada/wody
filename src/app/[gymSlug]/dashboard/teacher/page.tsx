@@ -16,7 +16,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
   const { gymSlug } = await params;
   const session = await auth();
 
-  if (session?.user && isPersonalGym(session.user.gymKind)) {
+  if (session?.user && session.user.gymKind && isPersonalGym(session.user.gymKind)) {
     redirect("/personal/dashboard/mis-rutinas");
   }
 

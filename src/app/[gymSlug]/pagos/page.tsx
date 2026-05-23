@@ -142,7 +142,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
   const statsParsed = parseStatsFilters({ statsFrom, statsTo, statsTeacherIds, statsMethods });
   const session = await auth();
 
-  if (session?.user && isPersonalGym(session.user.gymKind)) {
+  if (session?.user && session.user.gymKind && isPersonalGym(session.user.gymKind)) {
     redirect("/personal/dashboard/mis-rutinas");
   }
 
@@ -150,6 +150,10 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
     !session?.user ||
     (session.user.role !== "ADMIN" && session.user.role !== "TEACHER")
   ) {
+    redirect(gymPath(gymSlug, "/login"));
+  }
+
+  if (!session.user.gymId) {
     redirect(gymPath(gymSlug, "/login"));
   }
 

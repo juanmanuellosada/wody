@@ -34,11 +34,15 @@ export default async function AdminPage({ params, searchParams }: Props) {
   const { filter = "all" } = (await searchParams) ?? {};
   const session = await auth();
 
-  if (session?.user && isPersonalGym(session.user.gymKind)) {
+  if (session?.user && session.user.gymKind && isPersonalGym(session.user.gymKind)) {
     redirect("/personal/dashboard/mis-rutinas");
   }
 
   if (!session?.user || session.user.role !== "ADMIN") {
+    redirect(gymPath(gymSlug, "/login"));
+  }
+
+  if (!session.user.gymId) {
     redirect(gymPath(gymSlug, "/login"));
   }
 

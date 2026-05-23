@@ -44,6 +44,10 @@ export async function createRm(formData: FormData): Promise<RmResult> {
     return { success: false, error: "No autorizado." };
   }
 
+  if (!session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
   const { gymSlug } = session.user;
 
   const parsed = validateRmFields(formData);
@@ -68,6 +72,10 @@ export async function updateRm(rmId: string, formData: FormData): Promise<RmResu
   const session = await auth();
 
   if (!session?.user) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -104,6 +112,10 @@ export async function deleteRm(rmId: string): Promise<RmResult> {
   const session = await auth();
 
   if (!session?.user) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 

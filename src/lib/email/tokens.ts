@@ -37,7 +37,7 @@ export async function consumeToken({
     if (token.expiresAt < new Date()) {
       return { ok: false, reason: "EXPIRED" as const };
     }
-    if (token.user.gym.slug !== gymSlug) {
+    if (!token.user.gym || token.user.gym.slug !== gymSlug) {
       return { ok: false, reason: "WRONG_GYM" as const };
     }
 

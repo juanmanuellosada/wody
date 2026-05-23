@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     select: { id: true, gymId: true, gym: { select: { name: true } } },
   });
 
-  if (!target || target.gymId !== session.user.gymId) {
+  if (!target || target.gymId !== session.user.gymId || !target.gym) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 

@@ -48,6 +48,10 @@ export async function createCheckin(
     return { success: false, error: "Usuario no encontrado." };
   }
 
+  if (!user.gym || !user.gymId) {
+    return { success: false, error: "Tu cuenta no tiene gym asignado." };
+  }
+
   if (user.blockedAt || user.gym.blockedAt) {
     // No deberían llegar acá (el layout los bloquea), pero por las dudas.
     return { success: false, error: "Tu cuenta no puede ingresar." };
@@ -89,6 +93,10 @@ export async function decideCheckin(
     !session?.user ||
     (session.user.role !== "ACCESS" && session.user.role !== "ADMIN")
   ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -139,6 +147,10 @@ export async function lookupForKiosk(input: string): Promise<LookupResult> {
     !session?.user ||
     (session.user.role !== "ACCESS" && session.user.role !== "ADMIN")
   ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId) {
     return { success: false, error: "No autorizado." };
   }
 
@@ -222,6 +234,10 @@ export async function createManualCheckin(
     !session?.user ||
     (session.user.role !== "ACCESS" && session.user.role !== "ADMIN")
   ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
     return { success: false, error: "No autorizado." };
   }
 

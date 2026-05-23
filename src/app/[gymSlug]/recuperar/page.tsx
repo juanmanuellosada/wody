@@ -43,8 +43,8 @@ export default async function RecuperarPage({ params, searchParams }: Props) {
     return <ErrorPage message={INVALID_MSG} loginHref={loginHref} />;
   }
 
-  // Token belongs to a different gym
-  if (vt.user.gym.slug !== gymSlug) {
+  // Token belongs to a different gym (or user has no gym — SUPERADMIN, shouldn't happen)
+  if (!vt.user.gym || vt.user.gym.slug !== gymSlug) {
     return <ErrorPage message={INVALID_MSG} loginHref={loginHref} />;
   }
 

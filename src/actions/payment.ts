@@ -21,10 +21,18 @@ async function assertCanEditStudent(studentId: string) {
     return { ok: false as const, error: "No autorizado." };
   }
 
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { ok: false as const, error: "No autorizado." };
+  }
+
+  const gymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+
   const student = await prisma.user.findFirst({ where: { id: studentId, deletedAt: null } });
   if (
     !student ||
-    student.gymId !== session.user.gymId ||
+    !student.gymId ||
+    student.gymId !== gymId ||
     student.role !== "STUDENT"
   ) {
     return { ok: false as const, error: "Alumno no encontrado." };
@@ -41,7 +49,7 @@ async function assertCanEditStudent(studentId: string) {
     }
   }
 
-  return { ok: true as const, session, student };
+  return { ok: true as const, session, gymId, gymSlug, student };
 }
 
 function revalidatePaymentViews(gymSlug: string) {
@@ -71,7 +79,7 @@ export async function setStudentPaymentDate(
     data: { nextPaymentDate: parsed },
   });
 
-  revalidatePaymentViews(check.session.user.gymSlug);
+  revalidatePaymentViews(check.gymSlug);
   return { success: true };
 }
 
@@ -138,7 +146,7 @@ export async function registerPayment(
     const existing = await prisma.payment.findFirst({
       where: {
         studentId,
-        gymId: check.student.gymId,
+        gymId: check.gymId,
         paidAt: { gte: dayStart, lte: dayEnd },
       },
     });
@@ -158,7 +166,7 @@ export async function registerPayment(
   await prisma.$transaction([
     prisma.payment.create({
       data: {
-        gymId: check.student.gymId,
+        gymId: check.gymId,
         studentId,
         amount,
         paidAt,
@@ -172,7 +180,7 @@ export async function registerPayment(
     }),
   ]);
 
-  revalidatePaymentViews(check.session.user.gymSlug);
+  revalidatePaymentViews(check.gymSlug);
   return { success: true };
 }
 
@@ -188,6 +196,10 @@ export async function updatePayment(
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") {
     return { success: false, error: "Solo administradores pueden editar pagos." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
   }
 
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
@@ -209,6 +221,10 @@ export async function deletePayment(paymentId: string): Promise<PaymentResult> {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") {
     return { success: false, error: "Solo administradores pueden eliminar pagos." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
   }
 
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } });

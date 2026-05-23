@@ -16,6 +16,7 @@ enum Role {
   TEACHER
   STUDENT
   ACCESS
+  SUPERADMIN
 }
 
 enum GymKind {
@@ -92,21 +93,23 @@ enum AccountKind {
 }
 
 model Gym {
-  id                 String        @id @default(cuid())
-  name               String
-  slug               String        @unique
-  kind               GymKind       @default(BOX)
-  logo               String?
-  primaryColor       String?
-  createdAt          DateTime      @default(now())
-  blockedAt          DateTime?
-  autoBlockAfterDays Int           @default(45)
-  nextMemberNumber   Int           @default(1)
-  users              User[]
-  accessLogs         AccessLog[]
-  emailLogs          EmailLog[]
-  joinRequests       JoinRequest[]
-  payments           Payment[]
+  id                          String        @id @default(cuid())
+  name                        String
+  slug                        String        @unique
+  kind                        GymKind       @default(BOX)
+  logo                        String?
+  primaryColor                String?
+  createdAt                   DateTime      @default(now())
+  blockedAt                   DateTime?
+  autoBlockAfterDays          Int           @default(45)
+  nextMemberNumber            Int           @default(1)
+  subscriptionNextPaymentDate DateTime?
+  subscriptionMonthlyAmount   Int?
+  users                       User[]
+  accessLogs                  AccessLog[]
+  emailLogs                   EmailLog[]
+  joinRequests                JoinRequest[]
+  payments                    Payment[]
 }
 
 model User {
@@ -118,7 +121,7 @@ model User {
   role                 Role
   studentType          StudentType @default(PERSONALIZED)
   canCreateOwnRoutines Boolean     @default(false)
-  gymId                String
+  gymId                String?
   createdAt            DateTime    @default(now())
   nextPaymentDate      DateTime    @default(now()) @db.Date
   blockedAt            DateTime?
@@ -129,7 +132,7 @@ model User {
   paymentExempt        Boolean     @default(false)
   paymentExemptReason  String?
 
-  gym Gym @relation(fields: [gymId], references: [id])
+  gym Gym? @relation(fields: [gymId], references: [id])
 
   wodsAsTeacher        Wod[]                @relation("TeacherWods")
   wodsTargetedTo       Wod[]                @relation("WodTargetStudent")

@@ -15,6 +15,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (!session.user.gymId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const gymId = session.user.gymId;
   const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
 

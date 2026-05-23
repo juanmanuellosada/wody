@@ -14,7 +14,7 @@ export default async function IngresosHistorialPage({ params }: Props) {
   if (!hasAccessControl(gymSlug)) notFound();
   const session = await auth();
 
-  if (session?.user && isPersonalGym(session.user.gymKind)) {
+  if (session?.user && session.user.gymKind && isPersonalGym(session.user.gymKind)) {
     redirect("/personal/dashboard/mis-rutinas");
   }
 
@@ -22,6 +22,10 @@ export default async function IngresosHistorialPage({ params }: Props) {
     !session?.user ||
     (session.user.role !== "ACCESS" && session.user.role !== "ADMIN")
   ) {
+    redirect(gymPath(gymSlug, "/login"));
+  }
+
+  if (!session.user.gymId) {
     redirect(gymPath(gymSlug, "/login"));
   }
 

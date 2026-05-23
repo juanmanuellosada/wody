@@ -96,6 +96,7 @@ export async function sendDueReminderIfNeeded(
   if (!user) return { sent: false, reason: "user-not-found" };
   if (user.role !== "STUDENT") return { sent: false, reason: "not-student" };
   if (user.blockedAt) return { sent: false, reason: "user-blocked" };
+  if (!user.gym) return { sent: false, reason: "no-gym" };
   if (user.gym.blockedAt) return { sent: false, reason: "gym-blocked" };
   if (user.paymentExempt) return { sent: false, reason: "exempt" };
 

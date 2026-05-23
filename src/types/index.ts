@@ -8,9 +8,9 @@ declare module "next-auth" {
       role: Role;
       studentType: StudentType;
       canCreateOwnRoutines: boolean;
-      gymId: string;
-      gymSlug: string;
-      gymKind: GymKind;
+      gymId: string | null;
+      gymSlug: string | null;
+      gymKind: GymKind | null;
     } & DefaultSession["user"];
   }
 
@@ -18,9 +18,9 @@ declare module "next-auth" {
     role: Role;
     studentType: StudentType;
     canCreateOwnRoutines: boolean;
-    gymId: string;
-    gymSlug: string;
-    gymKind: GymKind;
+    gymId: string | null;
+    gymSlug: string | null;
+    gymKind: GymKind | null;
   }
 }
 
@@ -30,9 +30,9 @@ declare module "@auth/core/types" {
     role: Role;
     studentType: StudentType;
     canCreateOwnRoutines: boolean;
-    gymId: string;
-    gymSlug: string;
-    gymKind: GymKind;
+    gymId: string | null;
+    gymSlug: string | null;
+    gymKind: GymKind | null;
   }
 }
 
