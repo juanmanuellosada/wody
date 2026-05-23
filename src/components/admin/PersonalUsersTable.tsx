@@ -18,10 +18,22 @@ function todayUTC(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/**
+ * Los usuarios registrados por modo personal traen `nextPaymentDate = 9999-12-31`
+ * como sentinel de "sin vencimiento programado" (el campo es NOT NULL en el schema).
+ */
+function isUnscheduled(d: Date): boolean {
+  return d.getUTCFullYear() >= 9000;
+}
+
 function suggestNextDate(nextPaymentDate: Date): string {
-  const d = new Date(nextPaymentDate);
-  d.setUTCMonth(d.getUTCMonth() + 1);
-  return d.toISOString().slice(0, 10);
+  // Sentinel "sin programar": sugerir hoy + 30 días. Si calculáramos sobre el
+  // sentinel, setUTCMonth desbordaría al año 10000 y toISOString rompería el
+  // formato YYYY-MM-DD que espera el DatePicker.
+  const base = isUnscheduled(nextPaymentDate) ? new Date() : new Date(nextPaymentDate);
+  base.setUTCDate(base.getUTCDate() + (isUnscheduled(nextPaymentDate) ? 30 : 0));
+  if (!isUnscheduled(nextPaymentDate)) base.setUTCMonth(base.getUTCMonth() + 1);
+  return base.toISOString().slice(0, 10);
 }
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -467,6 +479,13 @@ export function PersonalUsersTable({ users }: TableProps) {
           "px-2 py-0.5 text-xs font-heading font-bold uppercase tracking-[0.15em] bg-purple-500/15 text-purple-400 border border-purple-500/30",
       };
     }
+    if (isUnscheduled(u.nextPaymentDate)) {
+      return {
+        label: "Sin programar",
+        className:
+          "px-2 py-0.5 text-xs font-heading font-bold uppercase tracking-[0.15em] bg-white/5 text-gray-500 border border-edge",
+      };
+    }
     if (u.nextPaymentDate < now) {
       return {
         label: "Vencido",
@@ -512,9 +531,13 @@ export function PersonalUsersTable({ users }: TableProps) {
                   {u.email ?? <span className="text-gray-600 italic">sin email</span>}
                 </td>
                 <td className="px-4 py-3.5 font-body text-xs">
-                  <span className={overdue ? "text-brand-red font-bold" : "text-gray-300"}>
-                    {u.nextPaymentDate.toLocaleDateString("es-AR")}
-                  </span>
+                  {isUnscheduled(u.nextPaymentDate) ? (
+                    <span className="text-gray-600">—</span>
+                  ) : (
+                    <span className={overdue ? "text-brand-red font-bold" : "text-gray-300"}>
+                      {u.nextPaymentDate.toLocaleDateString("es-AR")}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3.5">
                   <span className={status.className}>{status.label}</span>
