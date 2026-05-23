@@ -14,14 +14,11 @@ import {
 } from "lucide-react";
 
 import wodyTexto from "@/logos/wody-texto.png";
-import unidosLogo from "@/logos/unidos-logo-completo.png";
-import rompiendoLogo from "@/logos/rompiendo-limites.png";
-import milaFitLogo from "@/logos/mila-fit.png";
-import atlasLogo from "@/logos/atlas-gym.png";
 import { GYM_LOCATIONS } from "@/lib/gym-locations";
 import { BenefitsSection } from "@/components/benefits/BenefitsSection";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { RotatingTypewriter } from "@/components/marketing/RotatingTypewriter";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "WODY — Gestión de rutinas para centros de entrenamiento",
@@ -35,6 +32,9 @@ export default async function LandingPage() {
   // al relanzar la app, así que sin este redirect el usuario ve la landing
   // genérica aunque esté logueado.
   const session = await auth();
+  if (session?.user?.role === "SUPERADMIN") {
+    redirect("/admin");
+  }
   if (session?.user?.gymSlug) {
     const { gymSlug, role } = session.user;
     if (role === "ADMIN") redirect(gymPath(gymSlug, "/admin"));
@@ -42,6 +42,13 @@ export default async function LandingPage() {
     if (role === "ACCESS") redirect(gymPath(gymSlug, "/ingresos"));
     redirect(gymPath(gymSlug, "/dashboard/athlete"));
   }
+
+  // Gyms activos desde la DB (DB-driven landing, ordenados por createdAt asc).
+  const gyms = await prisma.gym.findMany({
+    where: { blockedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: { slug: true, name: true, logo: true, primaryColor: true, kind: true },
+  });
 
   return (
     <main className="min-h-screen flex flex-col bg-[#0A0A0F] text-white overflow-hidden">
@@ -262,81 +269,39 @@ export default async function LandingPage() {
           </h2>
 
           <div className="flex flex-wrap justify-center gap-6">
-            <Link
-              href="/unidos-garage"
-              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] hover:border-brand-red/40 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer w-64 group"
-            >
-              <Image
-                src={unidosLogo}
-                alt="Unidos Garage"
-                width={80}
-                height={80}
-                className="w-20 h-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300"
-              />
-              <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400 group-hover:text-white transition-colors duration-300">
-                Unidos Garage
-              </span>
-              <span className="text-xs text-gray-600 font-body">
-                CrossFit — {GYM_LOCATIONS["unidos-garage"]}
-              </span>
-            </Link>
-
-            <Link
-              href="/rompiendo-limites"
-              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] hover:border-brand-red/40 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer w-64 group"
-            >
-              <Image
-                src={rompiendoLogo}
-                alt="Rompiendo Limites"
-                width={80}
-                height={80}
-                className="w-20 h-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300"
-              />
-              <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400 group-hover:text-white transition-colors duration-300">
-                Rompiendo Limites
-              </span>
-              <span className="text-xs text-gray-600 font-body">
-                CrossFit — {GYM_LOCATIONS["rompiendo-limites"]}
-              </span>
-            </Link>
-
-            <Link
-              href="/atlas-gym"
-              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] hover:border-brand-red/40 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer w-64 group"
-            >
-              <Image
-                src={atlasLogo}
-                alt="Atlas"
-                width={80}
-                height={80}
-                className="w-20 h-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300"
-              />
-              <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400 group-hover:text-white transition-colors duration-300">
-                Atlas
-              </span>
-              <span className="text-xs text-gray-600 font-body">
-                Gym &amp; Fitness — {GYM_LOCATIONS["atlas-gym"]}
-              </span>
-            </Link>
-
-            <Link
-              href="/mila-fit"
-              className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] hover:border-brand-red/40 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer w-64 group"
-            >
-              <Image
-                src={milaFitLogo}
-                alt="Mila Fit"
-                width={80}
-                height={80}
-                className="w-20 h-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300"
-              />
-              <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400 group-hover:text-white transition-colors duration-300">
-                Mila Fit
-              </span>
-              <span className="text-xs text-gray-600 font-body">
-                Gym &amp; Fitness — {GYM_LOCATIONS["mila-fit"]}
-              </span>
-            </Link>
+            {gyms.map((gym) => {
+              const location = GYM_LOCATIONS[gym.slug];
+              const kindLabel = gym.kind === "GYM" ? "Gym & Fitness" : "CrossFit";
+              return (
+                <Link
+                  key={gym.slug}
+                  href={`/${gym.slug}`}
+                  className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] hover:border-brand-red/40 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer w-64 group"
+                >
+                  {gym.logo ? (
+                    <Image
+                      src={gym.logo}
+                      alt={gym.name}
+                      width={80}
+                      height={80}
+                      className="w-20 h-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 bg-white/5 border border-white/10 flex items-center justify-center">
+                      <span className="text-2xl font-heading font-black text-gray-600">
+                        {gym.name.charAt(0)}
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400 group-hover:text-white transition-colors duration-300">
+                    {gym.name}
+                  </span>
+                  <span className="text-xs text-gray-600 font-body">
+                    {kindLabel}{location ? ` — ${location}` : ""}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
 
           <p className="mt-8 text-xs text-gray-500 font-body">
