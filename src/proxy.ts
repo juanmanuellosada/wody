@@ -51,11 +51,15 @@ export async function proxy(request: NextRequest) {
   const passThrough = () =>
     NextResponse.next({ request: { headers: requestHeaders } });
 
-  // Pass through: root "/", API, demo, and global routes (validar, registro-personal)
+  // Pass through: root "/", API, demo, panel super admin, y global routes
+  // (validar, registro-personal). El panel /admin tiene su propio guard de
+  // role SUPERADMIN en src/app/admin/layout.tsx — el proxy no debe tratar
+  // "admin" como gymSlug ni devolver 404 antes que el layout corra.
   if (
     segments.length === 0 ||
     segments[0] === "api" ||
     segments[0] === "demo" ||
+    segments[0] === "admin" ||
     segments[0] === "validar" ||
     segments[0] === "registro-personal"
   ) {
