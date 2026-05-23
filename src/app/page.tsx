@@ -44,8 +44,10 @@ export default async function LandingPage() {
   }
 
   // Gyms activos desde la DB (DB-driven landing, ordenados por createdAt asc).
+  // Excluimos PERSONAL: el tenant compartido de Wody Personal no es un centro
+  // que un visitante pueda elegir en la landing — se accede por /registro-personal.
   const gyms = await prisma.gym.findMany({
-    where: { blockedAt: null },
+    where: { blockedAt: null, kind: { not: "PERSONAL" } },
     orderBy: { createdAt: "asc" },
     select: { slug: true, name: true, logo: true, primaryColor: true, kind: true },
   });
