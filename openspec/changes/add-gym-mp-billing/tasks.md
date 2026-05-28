@@ -62,27 +62,27 @@
 
 ## 8. UI super-admin: sección "Suscripción y exención"
 
-- [ ] 8.1 Editar `src/app/admin/gyms/[id]/page.tsx`: agregar una nueva sección "Suscripción y exención" debajo de la sección de información general
-- [ ] 8.2 Renderizar (lectura): `trialEndsAt` formateado en ART, `mpSubscriptionStatus`, `mpPreapprovalId` (con link a MP si aplica)
-- [ ] 8.3 Renderizar toggle de `paymentExempt` con campo de texto para `paymentExemptReason` (requerido cuando se marca como exento). Botón "Guardar exención" que invoca `setGymPaymentExempt`
-- [ ] 8.4 Renderizar botón "Cancelar suscripción" solo si `mpPreapprovalId != null`. El botón pide confirmación (modal o `confirm()`) antes de invocar `cancelGymSubscription`
-- [ ] 8.5 Editar `src/app/admin/page.tsx` (dashboard): agregar columnas "Estado MP" y "Exento" a la tabla de gyms
+- [x] 8.1 Editar `src/app/admin/gyms/[id]/page.tsx`: agregar una nueva sección "Suscripción y exención" debajo de la sección de información general
+- [x] 8.2 Renderizar (lectura): `trialEndsAt` formateado en ART, `mpSubscriptionStatus`, `mpPreapprovalId` (con link a MP si aplica)
+- [x] 8.3 Renderizar toggle de `paymentExempt` con campo de texto para `paymentExemptReason` (requerido cuando se marca como exento). Botón "Guardar exención" que invoca `setGymPaymentExempt`
+- [x] 8.4 Renderizar botón "Cancelar suscripción" solo si `mpPreapprovalId != null`. El botón pide confirmación (modal o `confirm()`) antes de invocar `cancelGymSubscription`
+- [x] 8.5 Editar `src/app/admin/page.tsx` (dashboard): agregar columnas "Estado MP" y "Exento" a la tabla de gyms
 
 ## 9. UI dueño del gym: página `/billing`
 
-- [ ] 9.1 Crear `src/app/[gymSlug]/admin/billing/page.tsx` (Server Component): leer sesión, validar `role === 'ADMIN'`, invocar `getMySubscriptionStatus`
-- [ ] 9.2 Renderizar tres casos según el estado:
+- [x] 9.1 Crear `src/app/[gymSlug]/admin/billing/page.tsx` (Server Component): leer sesión, validar `role === 'ADMIN'`, invocar `getMySubscriptionStatus`
+- [x] 9.2 Renderizar tres casos según el estado:
   - Gym exento: panel informativo "Tu gym está exento del cobro. Para cualquier consulta, contactanos."
   - En trial sin suscripción: mostrar días restantes + botón "Configurar tarjeta" que va al link de `getMyCheckoutUrl`
   - Con suscripción activa: mostrar estado + botón "Reconfigurar tarjeta" (mismo link de checkout, MP detecta la suscripción existente)
-- [ ] 9.3 Agregar entry en el nav lateral del gym (si existe nav admin) o link en `/[gymSlug]/admin` para acceder a `/billing`
+- [x] 9.3 Agregar entry en el nav lateral del gym (si existe nav admin) o link en `/[gymSlug]/admin` para acceder a `/billing`
 
 ## 10. Banner de fin de trial
 
-- [ ] 10.1 Crear `src/components/billing/TrialEndingBanner.tsx`: componente cliente que recibe `daysLeft: number` y `gymSlug: string`, renderiza banner sticky con CTA a `/[gymSlug]/admin/billing`
-- [ ] 10.2 Calcular `daysLeftInTrial` en el layout del gym (`src/app/[gymSlug]/layout.tsx` o el layout admin si solo va para ADMIN) y pasar al banner cuando corresponda mostrarlo (cond: `role === 'ADMIN'`, `paymentExempt = false`, `mpSubscriptionStatus != 'authorized'`, `daysLeft <= 7 && daysLeft > 0`)
-- [ ] 10.3 Si `daysLeft <= 0` y el gym no está bloqueado todavía (ventana entre fin de trial y cron), mostrar banner rojo "Tu trial terminó. Configurá tu tarjeta para evitar la suspensión"
-- [ ] 10.4 Verificar que el banner NO aparece para TEACHER, STUDENT, ACCESS
+- [x] 10.1 Crear `src/components/billing/TrialEndingBanner.tsx`: componente cliente que recibe `daysLeft: number` y `gymSlug: string`, renderiza banner sticky con CTA a `/[gymSlug]/admin/billing`
+- [x] 10.2 Calcular `daysLeftInTrial` en el layout del gym (`src/app/[gymSlug]/layout.tsx` o el layout admin si solo va para ADMIN) y pasar al banner cuando corresponda mostrarlo (cond: `role === 'ADMIN'`, `paymentExempt = false`, `mpSubscriptionStatus != 'authorized'`, `daysLeft <= 7 && daysLeft > 0`)
+- [x] 10.3 Si `daysLeft <= 0` y el gym no está bloqueado todavía (ventana entre fin de trial y cron), mostrar banner rojo "Tu trial terminó. Configurá tu tarjeta para evitar la suspensión"
+- [x] 10.4 Verificar que el banner NO aparece para TEACHER, STUDENT, ACCESS
 
 ## 11. Push notifications de fin de trial
 

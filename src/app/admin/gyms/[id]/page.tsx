@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { GymForm } from "@/components/admin/GymForm";
+import { SubscriptionSection } from "@/components/admin/SubscriptionSection";
 import type { GymRow } from "@/actions/super-admin/gym";
 
 interface Props {
@@ -44,6 +45,16 @@ export default async function EditGymPage({ params }: Props) {
       </div>
 
       <GymForm gym={gymRow} />
+
+      <SubscriptionSection
+        gymId={gym.id}
+        gymName={gym.name}
+        trialEndsAt={gym.trialEndsAt ? gym.trialEndsAt.toISOString() : null}
+        mpSubscriptionStatus={gym.mpSubscriptionStatus}
+        mpPreapprovalId={gym.mpPreapprovalId}
+        paymentExempt={gym.paymentExempt}
+        paymentExemptReason={gym.paymentExemptReason}
+      />
     </div>
   );
 }

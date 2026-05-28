@@ -69,6 +69,7 @@ function getNavLinks(
       { href: gymPath(gymSlug, "/dashboard/rms"), label: `Mis ${terms.rms}` },
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
       { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
+      { href: gymPath(gymSlug, "/admin/billing"), label: "Suscripción" },
     ];
   }
   if (role === "TEACHER") {

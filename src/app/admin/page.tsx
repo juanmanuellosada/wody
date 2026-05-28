@@ -3,6 +3,34 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
+function MpStatusBadge({ status }: { status: string | null }) {
+  if (!status) {
+    return (
+      <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 bg-white/5 text-gray-500 border border-edge">
+        —
+      </span>
+    );
+  }
+  const styles: Record<string, string> = {
+    authorized: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+    paused: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30",
+    cancelled: "bg-brand-red/10 text-brand-red border-brand-red/30",
+    pending: "bg-white/5 text-gray-400 border-edge",
+  };
+  const labels: Record<string, string> = {
+    authorized: "Autorizada",
+    paused: "Pausada",
+    cancelled: "Cancelada",
+    pending: "Pendiente",
+  };
+  const cls = styles[status] ?? "bg-white/5 text-gray-400 border-edge";
+  return (
+    <span className={`text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 border ${cls}`}>
+      {labels[status] ?? status}
+    </span>
+  );
+}
+
 export default async function AdminDashboardPage() {
   const gyms = await prisma.gym.findMany({
     where: { blockedAt: null, kind: { not: "PERSONAL" } },
@@ -12,6 +40,8 @@ export default async function AdminDashboardPage() {
       slug: true,
       subscriptionNextPaymentDate: true,
       subscriptionMonthlyAmount: true,
+      mpSubscriptionStatus: true,
+      paymentExempt: true,
     },
   });
 
@@ -70,7 +100,7 @@ export default async function AdminDashboardPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-panel">
-                {["Gym", "Slug", "Próximo pago", "Monto mensual", "Estado"].map((h) => (
+                {["Gym", "Slug", "Próximo pago", "Monto mensual", "Estado MP", "Exento", "Estado"].map((h) => (
                   <th
                     key={h}
                     className="text-left text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 px-4 py-3 border-b border-line"
@@ -116,6 +146,20 @@ export default async function AdminDashboardPage() {
                         : <span className="text-gray-600">—</span>}
                     </td>
                     <td className="px-4 py-3.5">
+                      <MpStatusBadge status={gym.mpSubscriptionStatus} />
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {gym.paymentExempt ? (
+                        <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                          Sí
+                        </span>
+                      ) : (
+                        <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 bg-white/5 text-gray-500 border border-edge">
+                          No
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5">
                       {overdue ? (
                         <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 bg-brand-red/15 text-brand-red border border-brand-red/30">
                           Vencido
@@ -131,7 +175,7 @@ export default async function AdminDashboardPage() {
               })}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-600 font-body text-xs">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-600 font-body text-xs">
                     No hay gyms activos.
                   </td>
                 </tr>

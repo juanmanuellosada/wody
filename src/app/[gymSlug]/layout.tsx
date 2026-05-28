@@ -7,6 +7,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { InstallPwaButton } from "@/components/InstallPwaButton";
 import { NotificationPermissionButton } from "@/components/NotificationPermissionButton";
 import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
+import { TrialEndingBanner } from "@/components/billing/TrialEndingBanner";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
 import { gymPath, hasTeacherWhatsAppContact, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
@@ -109,6 +110,23 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
 
   const personalGym = isPersonalGym(gym.kind);
 
+  // Trial ending banner: only for ADMIN, non-exempt, non-authorized, within 7 days of expiry.
+  let trialBanner: React.ReactNode = null;
+  if (
+    role === "ADMIN" &&
+    !personalGym &&
+    !gym.paymentExempt &&
+    gym.mpSubscriptionStatus !== "authorized" &&
+    gym.trialEndsAt !== null
+  ) {
+    const daysLeft = Math.ceil(
+      (gym.trialEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)
+    );
+    if (daysLeft <= 7) {
+      trialBanner = <TrialEndingBanner daysLeft={daysLeft} gymSlug={gymSlug} />;
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-black" style={accentVars}>
       <Navbar
@@ -122,6 +140,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         canCreateOwnRoutines={canCreateOwnRoutines}
         pendingJoinRequestsCount={pendingJoinRequestsCount}
       />
+      {trialBanner}
       <main
         className={[
           "flex-1 max-w-6xl mx-auto w-full px-4 py-8 sm:py-10",
