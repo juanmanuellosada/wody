@@ -66,6 +66,48 @@ export async function sendPushToUser(
   return { sent, removed };
 }
 
+const TRIAL_MESSAGES: Record<0 | 1 | 3 | 7, { title: string; body: string }> = {
+  7: {
+    title: "Tu trial termina en 7 días",
+    body: "Configurá tu tarjeta para que tu gym no se suspenda.",
+  },
+  3: {
+    title: "Tu trial termina en 3 días",
+    body: "Faltan pocos días para configurar tu tarjeta.",
+  },
+  1: {
+    title: "Tu trial termina mañana",
+    body: "Última oportunidad para configurar tu tarjeta.",
+  },
+  0: {
+    title: "Tu trial venció hoy",
+    body: "Configurá tu tarjeta ahora para evitar la suspensión.",
+  },
+};
+
+export async function sendTrialEndingPush(
+  gymId: string,
+  daysLeft: 7 | 3 | 1 | 0
+): Promise<{ totalSent: number; totalRemoved: number }> {
+  const { title, body } = TRIAL_MESSAGES[daysLeft];
+
+  const admins = await prisma.user.findMany({
+    where: { gymId, role: "ADMIN", deletedAt: null },
+    select: { id: true },
+  });
+
+  let totalSent = 0;
+  let totalRemoved = 0;
+
+  for (const admin of admins) {
+    const result = await sendPushToUser(admin.id, title, body);
+    totalSent += result.sent;
+    totalRemoved += result.removed;
+  }
+
+  return { totalSent, totalRemoved };
+}
+
 function bodyForDaysRemaining(days: number, word: string): string {
   if (days <= 0) return `Tu cuota vence hoy. Pasá por tu ${word} para renovar.`;
   if (days === 1)

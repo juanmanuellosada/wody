@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadPublicImage, deleteBlobByUrl } from "@/lib/blob";
 import { isReservedSlug } from "@/lib/reserved-slugs";
+import { cancelMpPreapproval } from "@/lib/mercadopago";
 import bcrypt from "bcryptjs";
 import type { GymKind } from "@prisma/client";
 
@@ -124,6 +125,7 @@ export async function createGym(input: CreateGymInput): Promise<ActionResult> {
             ? new Date(input.subscriptionNextPaymentDate)
             : null,
           subscriptionMonthlyAmount: input.subscriptionMonthlyAmount ?? null,
+          trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
       });
 
@@ -230,4 +232,59 @@ export async function uploadGymLogo(file: File): Promise<{ success: true; url: s
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Error al subir el logo." };
   }
+}
+
+export async function setGymPaymentExempt(
+  gymId: string,
+  exempt: boolean,
+  reason: string
+): Promise<ActionResult> {
+  await assertSuperAdmin();
+
+  if (exempt && !reason.trim()) {
+    return { success: false, error: "El motivo de exención es requerido." };
+  }
+
+  const gym = await prisma.gym.findUnique({ where: { id: gymId } });
+  if (!gym) return { success: false, error: "Gym no encontrado." };
+
+  await prisma.gym.update({
+    where: { id: gymId },
+    data: {
+      paymentExempt: exempt,
+      paymentExemptReason: exempt ? reason.trim() : null,
+    },
+  });
+
+  return { success: true };
+}
+
+export async function cancelGymSubscription(gymId: string): Promise<ActionResult> {
+  await assertSuperAdmin();
+
+  const gym = await prisma.gym.findUnique({
+    where: { id: gymId },
+    select: { mpPreapprovalId: true },
+  });
+  if (!gym) return { success: false, error: "Gym no encontrado." };
+
+  if (!gym.mpPreapprovalId) {
+    return { success: false, error: "Este gym no tiene una suscripción activa en Mercado Pago." };
+  }
+
+  try {
+    await cancelMpPreapproval(gym.mpPreapprovalId);
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error al cancelar la suscripción en Mercado Pago.",
+    };
+  }
+
+  await prisma.gym.update({
+    where: { id: gymId },
+    data: { mpSubscriptionStatus: "cancelled" },
+  });
+
+  return { success: true };
 }

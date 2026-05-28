@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/email-quota",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/check-gym-trials",
+      "schedule": "0 6 * * *"
     }
   ]
 }

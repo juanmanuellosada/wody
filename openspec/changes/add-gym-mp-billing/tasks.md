@@ -29,36 +29,36 @@
 
 ## 4. Server actions: lado super-admin
 
-- [ ] 4.1 Editar `src/actions/super-admin/gym.ts`: en `createGym`, setear `trialEndsAt = new Date(Date.now() + 30*24*60*60*1000)` al crear el gym
-- [ ] 4.2 Agregar `setGymPaymentExempt(gymId, exempt, reason)` en `src/actions/super-admin/gym.ts`: validar `role === 'SUPERADMIN'`, validar que `reason` esté presente si `exempt = true`, persistir cambio
-- [ ] 4.3 Agregar `cancelGymSubscription(gymId)` en `src/actions/super-admin/gym.ts`: validar `role === 'SUPERADMIN'`, leer `mpPreapprovalId`, llamar a `cancelMpPreapproval`, persistir `mpSubscriptionStatus = 'cancelled'`
-- [ ] 4.4 Editar `updateGym` para que NO acepte cambios a `paymentExempt`, `paymentExemptReason`, `mpPreapprovalId`, `mpSubscriptionStatus`, `trialEndsAt` desde el form genérico de edición (esos campos van por server actions dedicadas)
+- [x] 4.1 Editar `src/actions/super-admin/gym.ts`: en `createGym`, setear `trialEndsAt = new Date(Date.now() + 30*24*60*60*1000)` al crear el gym
+- [x] 4.2 Agregar `setGymPaymentExempt(gymId, exempt, reason)` en `src/actions/super-admin/gym.ts`: validar `role === 'SUPERADMIN'`, validar que `reason` esté presente si `exempt = true`, persistir cambio
+- [x] 4.3 Agregar `cancelGymSubscription(gymId)` en `src/actions/super-admin/gym.ts`: validar `role === 'SUPERADMIN'`, leer `mpPreapprovalId`, llamar a `cancelMpPreapproval`, persistir `mpSubscriptionStatus = 'cancelled'`
+- [x] 4.4 Editar `updateGym` para que NO acepte cambios a `paymentExempt`, `paymentExemptReason`, `mpPreapprovalId`, `mpSubscriptionStatus`, `trialEndsAt` desde el form genérico de edición (esos campos van por server actions dedicadas)
 
 ## 5. Server actions: lado dueño del gym
 
-- [ ] 5.1 Crear `src/actions/billing.ts` con `"use server"`
-- [ ] 5.2 Implementar `getMySubscriptionStatus()`: lee la sesión, valida `role === 'ADMIN'`, retorna `{ trialEndsAt, paymentExempt, mpSubscriptionStatus, mpPreapprovalId, daysLeftInTrial }` del gym del usuario
-- [ ] 5.3 Implementar `getMyCheckoutUrl()`: valida `role === 'ADMIN'`, valida que el gym NO esté exento, retorna `getSubscriptionCheckoutUrl(gym.id)`
-- [ ] 5.4 NO implementar cancelación lado dueño — la única vía es contactar al super-admin
+- [x] 5.1 Crear `src/actions/billing.ts` con `"use server"`
+- [x] 5.2 Implementar `getMySubscriptionStatus()`: lee la sesión, valida `role === 'ADMIN'`, retorna `{ trialEndsAt, paymentExempt, mpSubscriptionStatus, mpPreapprovalId, daysLeftInTrial }` del gym del usuario
+- [x] 5.3 Implementar `getMyCheckoutUrl()`: valida `role === 'ADMIN'`, valida que el gym NO esté exento, retorna `getSubscriptionCheckoutUrl(gym.id)`
+- [x] 5.4 NO implementar cancelación lado dueño — la única vía es contactar al super-admin
 
 ## 6. Webhook de Mercado Pago
 
-- [ ] 6.1 Crear `src/app/api/webhooks/mercadopago/route.ts` con handler `POST`
-- [ ] 6.2 Extraer de la request: header `x-signature`, header `x-request-id`, y query param `data.id` (de la URL). El body se puede leer con `req.json()` directamente — la firma del SDK v3 no se valida sobre el body
-- [ ] 6.3 Validar la firma con `verifyMpWebhookSignature(xSignature, xRequestId, dataId)`. Si falla o si falta el `x-signature`, responder `401`
-- [ ] 6.4 Parsear el evento: extraer `type` (`subscription_preapproval`, `subscription_authorized_payment`, etc.), `data.id`, y resolver el `external_reference` (gymId) consultando la API de MP con el `preapproval_id`
-- [ ] 6.5 Actualizar `Gym.mpPreapprovalId` y `Gym.mpSubscriptionStatus` según el evento. Loggear solo `gymId`, `preapprovalId`, `status` — NO loggear el payload completo
-- [ ] 6.6 Si `type` o `status` son desconocidos, loggear warning con el payload mínimo y responder `200` (idempotencia)
-- [ ] 6.7 Responder `200 OK` en éxito; cualquier error interno responde `500` para que MP reintente
+- [x] 6.1 Crear `src/app/api/webhooks/mercadopago/route.ts` con handler `POST`
+- [x] 6.2 Extraer de la request: header `x-signature`, header `x-request-id`, y query param `data.id` (de la URL). El body se puede leer con `req.json()` directamente — la firma del SDK v3 no se valida sobre el body
+- [x] 6.3 Validar la firma con `verifyMpWebhookSignature(xSignature, xRequestId, dataId)`. Si falla o si falta el `x-signature`, responder `401`
+- [x] 6.4 Parsear el evento: extraer `type` (`subscription_preapproval`, `subscription_authorized_payment`, etc.), `data.id`, y resolver el `external_reference` (gymId) consultando la API de MP con el `preapproval_id`
+- [x] 6.5 Actualizar `Gym.mpPreapprovalId` y `Gym.mpSubscriptionStatus` según el evento. Loggear solo `gymId`, `preapprovalId`, `status` — NO loggear el payload completo
+- [x] 6.6 Si `type` o `status` son desconocidos, loggear warning con el payload mínimo y responder `200` (idempotencia)
+- [x] 6.7 Responder `200 OK` en éxito; cualquier error interno responde `500` para que MP reintente
 
 ## 7. Cron diario de fin de trial
 
-- [ ] 7.1 Crear `src/app/api/cron/check-gym-trials/route.ts` con handler `GET` (Vercel Cron usa GET por convención)
-- [ ] 7.2 Validar el header `Authorization: Bearer <CRON_SECRET>` siguiendo el patrón de los otros crons del proyecto
-- [ ] 7.3 Query Prisma: `prisma.gym.findMany({ where: { trialEndsAt: { lt: new Date() }, mpPreapprovalId: null, paymentExempt: false, blockedAt: null, kind: { not: 'PERSONAL' } } })`
-- [ ] 7.4 Para cada gym del resultado, actualizar `blockedAt = new Date()`. Loggear `gymId` y `slug` de cada uno
-- [ ] 7.5 Registrar el cron en `vercel.json` (o equivalente) con schedule diario (sugerido `0 6 * * *` UTC = 03:00 ART)
-- [ ] 7.6 Responder `{ blockedCount: number, gymIds: string[] }` en JSON
+- [x] 7.1 Crear `src/app/api/cron/check-gym-trials/route.ts` con handler `GET` (Vercel Cron usa GET por convención)
+- [x] 7.2 Validar el header `Authorization: Bearer <CRON_SECRET>` siguiendo el patrón de los otros crons del proyecto
+- [x] 7.3 Query Prisma: `prisma.gym.findMany({ where: { trialEndsAt: { lt: new Date() }, mpPreapprovalId: null, paymentExempt: false, blockedAt: null, kind: { not: 'PERSONAL' } } })`
+- [x] 7.4 Para cada gym del resultado, actualizar `blockedAt = new Date()`. Loggear `gymId` y `slug` de cada uno
+- [x] 7.5 Registrar el cron en `vercel.json` (o equivalente) con schedule diario (sugerido `0 6 * * *` UTC = 03:00 ART)
+- [x] 7.6 Responder `{ blockedCount: number, gymIds: string[] }` en JSON
 
 ## 8. UI super-admin: sección "Suscripción y exención"
 
@@ -86,15 +86,15 @@
 
 ## 11. Push notifications de fin de trial
 
-- [ ] 11.1 Agregar helper `sendTrialEndingPush(gymId: string, daysLeft: 7 | 3 | 1 | 0): Promise<{ totalSent: number; totalRemoved: number }>` en `src/lib/push.ts`. Internamente: `prisma.user.findMany({ where: { gymId, role: 'ADMIN', deletedAt: null } })`, e invocar `sendPushToUser` por cada admin con título y cuerpo según `daysLeft`
-- [ ] 11.2 Definir los mensajes (ARS, tono Wody):
+- [x] 11.1 Agregar helper `sendTrialEndingPush(gymId: string, daysLeft: 7 | 3 | 1 | 0): Promise<{ totalSent: number; totalRemoved: number }>` en `src/lib/push.ts`. Internamente: `prisma.user.findMany({ where: { gymId, role: 'ADMIN', deletedAt: null } })`, e invocar `sendPushToUser` por cada admin con título y cuerpo según `daysLeft`
+- [x] 11.2 Definir los mensajes (ARS, tono Wody):
   - `daysLeft = 7`: título "Tu trial termina en 7 días" / cuerpo "Configurá tu tarjeta para que tu gym no se suspenda."
   - `daysLeft = 3`: título "Tu trial termina en 3 días" / cuerpo "Faltan pocos días para configurar tu tarjeta."
   - `daysLeft = 1`: título "Tu trial termina mañana" / cuerpo "Última oportunidad para configurar tu tarjeta."
   - `daysLeft = 0`: título "Tu trial venció hoy" / cuerpo "Configurá tu tarjeta ahora para evitar la suspensión."
-- [ ] 11.3 Modificar el cron `src/app/api/cron/check-gym-trials/route.ts` (creado en la sección 7) para que, en la misma ejecución y después de la query de bloqueo, ejecute una segunda query: `prisma.gym.findMany({ where: { paymentExempt: false, mpSubscriptionStatus: { not: 'authorized' }, kind: { not: 'PERSONAL' }, blockedAt: null, trialEndsAt: { not: null } } })` y para cada uno calcular `daysLeft = Math.round((gym.trialEndsAt - now) / DAY_MS)`. Si `daysLeft ∈ {7, 3, 1, 0}`, invocar `sendTrialEndingPush(gym.id, daysLeft)`
-- [ ] 11.4 Loggear por cada push enviado: `gymId`, `slug`, `daysLeft`, `totalSent`, `totalRemoved`. Loggear con nivel `warn` cualquier error de despacho que no sea `404/410`
-- [ ] 11.5 Extender el JSON de respuesta del cron a `{ blockedCount, gymIds, pushSummary: { gymId, daysLeft, sent, removed }[] }` para facilitar debugging
+- [x] 11.3 Modificar el cron `src/app/api/cron/check-gym-trials/route.ts` (creado en la sección 7) para que, en la misma ejecución y después de la query de bloqueo, ejecute una segunda query: `prisma.gym.findMany({ where: { paymentExempt: false, mpSubscriptionStatus: { not: 'authorized' }, kind: { not: 'PERSONAL' }, blockedAt: null, trialEndsAt: { not: null } } })` y para cada uno calcular `daysLeft = Math.round((gym.trialEndsAt - now) / DAY_MS)`. Si `daysLeft ∈ {7, 3, 1, 0}`, invocar `sendTrialEndingPush(gym.id, daysLeft)`
+- [x] 11.4 Loggear por cada push enviado: `gymId`, `slug`, `daysLeft`, `totalSent`, `totalRemoved`. Loggear con nivel `warn` cualquier error de despacho que no sea `404/410`
+- [x] 11.5 Extender el JSON de respuesta del cron a `{ blockedCount, gymIds, pushSummary: { gymId, daysLeft, sent, removed }[] }` para facilitar debugging
 - [ ] 11.6 Smoke test manual: con un gym de prueba, ajustar `trialEndsAt` a 7 días en el futuro, suscribir un dispositivo de prueba como ADMIN del gym, correr `curl <url>/api/cron/check-gym-trials -H "Authorization: Bearer <CRON_SECRET>"` y confirmar que llega la notificación
 
 ## 12. Documentación
