@@ -104,7 +104,12 @@ model Gym {
   autoBlockAfterDays          Int           @default(45)
   nextMemberNumber            Int           @default(1)
   subscriptionNextPaymentDate DateTime?
-  subscriptionMonthlyAmount   Int?
+  subscriptionMonthlyAmount   Int?          @default(60000)
+  trialEndsAt                 DateTime?
+  paymentExempt               Boolean       @default(false)
+  paymentExemptReason         String?
+  mpPreapprovalId             String?
+  mpSubscriptionStatus        String?
   users                       User[]
   accessLogs                  AccessLog[]
   emailLogs                   EmailLog[]
