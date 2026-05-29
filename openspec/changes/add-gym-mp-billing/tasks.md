@@ -104,6 +104,11 @@
 - [x] 12.3 Documentar en el doc el flujo del super-admin para eximir un gym y para cancelar una suscripción
 - [x] 12.4 Documentar en el doc cómo se sincroniza el estado vía webhook y el rol del cron diario, incluyendo las push notifications de fin de trial
 
+## 14. Ruta de retorno post-checkout de Mercado Pago
+
+- [x] 14.1 Crear `src/app/billing/return/page.tsx` con redirect server-side al `/<gymSlug>/admin/billing?success=1`
+- [ ] 14.2 Actualizar la URL "Pago aprobado" del plan en el dashboard de MP a `https://wody.com.ar/billing/return` (paso manual del usuario)
+
 ## 13. Deploy y verificación
 
 - [ ] 13.1 Crear PR a `main` con todos los cambios
