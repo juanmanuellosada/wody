@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendTrialEndingPush } from "@/lib/push";
+import { cleanupOldRateLimits } from "@/lib/rate-limit";
 
 // Vercel Cron: 06:00 UTC (03:00 ART) daily — see vercel.json.
 // Blocks gyms with expired trials and sends push notifications at milestone days.
@@ -88,9 +89,25 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // --- Phase 3: expire signup tokens past their expiry date ---
+  const { count: expiredCount } = await prisma.gymSignupRequest.updateMany({
+    where: {
+      status: "APPROVED",
+      tokenExpiresAt: { lt: now },
+    },
+    data: { status: "EXPIRED" },
+  });
+  console.log("[check-gym-trials] Expired signup tokens", { count: expiredCount });
+
+  // --- Phase 4: clean up old rate limit entries ---
+  const cleanedRateLimits = await cleanupOldRateLimits(prisma);
+  console.log("[check-gym-trials] Cleaned old rate limits", { count: cleanedRateLimits });
+
   return NextResponse.json({
     blockedCount: blockedGymIds.length,
     gymIds: blockedGymIds,
     pushSummary,
+    expiredSignupRequestsCount: expiredCount,
+    cleanedRateLimits,
   });
 }

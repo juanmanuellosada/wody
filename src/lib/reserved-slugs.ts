@@ -10,6 +10,7 @@ export const RESERVED_SLUGS = new Set<string>([
   "demo",
   "instalar",
   "registro-personal",
+  "onboarding",
 ]);
 
 export function isReservedSlug(slug: string): boolean {

@@ -8,7 +8,7 @@ import { cancelMpPreapproval } from "@/lib/mercadopago";
 import bcrypt from "bcryptjs";
 import type { GymKind } from "@prisma/client";
 
-async function assertSuperAdmin() {
+export async function assertSuperAdmin() {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") {
     throw new Error("forbidden");

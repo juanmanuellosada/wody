@@ -35,31 +35,31 @@
 
 ## 5. API pública: lead form
 
-- [ ] 5.1 Crear `src/app/api/signup-request/route.ts` con handler `POST`
-- [ ] 5.2 Validar shape del body (zod o validación manual): `email` (formato válido), `contactName` (no vacío), `gymName` (no vacío), `gymKindSuggested` (`GYM` o `BOX`), `phone` (opcional), `expectedStudents` (opcional, int), `message` (opcional)
-- [ ] 5.3 Extraer la IP del request usando los headers `x-forwarded-for` / `x-real-ip` (patrón usado en otros endpoints públicos del proyecto si lo hay; sino, fallback razonable)
-- [ ] 5.4 Llamar a `checkSignupRateLimit(ip)`. Si retorna `false`: responder `429 { error: "Demasiadas solicitudes, intentá más tarde" }` y NO crear nada
-- [ ] 5.5 Chequear si ya existe una `GymSignupRequest` con `email` igual y `status IN (PENDING, APPROVED)`. Si existe: responder `200 { success: true }` (idempotencia sigilosa) y NO crear nada
-- [ ] 5.6 Crear la `GymSignupRequest` con `status = PENDING`
-- [ ] 5.7 Llamar a `recordRateLimit(ip)`
-- [ ] 5.8 Disparar `sendLeadReceivedEmail(req)` en un try/catch para no romper la response si el email falla (loggear warning)
-- [ ] 5.9 Responder `200 { success: true }`. Cualquier error 500 con log
+- [x] 5.1 Crear `src/app/api/signup-request/route.ts` con handler `POST`
+- [x] 5.2 Validar shape del body (zod o validación manual): `email` (formato válido), `contactName` (no vacío), `gymName` (no vacío), `gymKindSuggested` (`GYM` o `BOX`), `phone` (opcional), `expectedStudents` (opcional, int), `message` (opcional)
+- [x] 5.3 Extraer la IP del request usando los headers `x-forwarded-for` / `x-real-ip` (patrón usado en otros endpoints públicos del proyecto si lo hay; sino, fallback razonable)
+- [x] 5.4 Llamar a `checkSignupRateLimit(ip)`. Si retorna `false`: responder `429 { error: "Demasiadas solicitudes, intentá más tarde" }` y NO crear nada
+- [x] 5.5 Chequear si ya existe una `GymSignupRequest` con `email` igual y `status IN (PENDING, APPROVED)`. Si existe: responder `200 { success: true }` (idempotencia sigilosa) y NO crear nada
+- [x] 5.6 Crear la `GymSignupRequest` con `status = PENDING`
+- [x] 5.7 Llamar a `recordRateLimit(ip)`
+- [x] 5.8 Disparar `sendLeadReceivedEmail(req)` en un try/catch para no romper la response si el email falla (loggear warning)
+- [x] 5.9 Responder `200 { success: true }`. Cualquier error 500 con log
 
 ## 6. Server actions super-admin
 
-- [ ] 6.1 Crear `src/actions/super-admin/signup-request.ts` con `"use server"` y `assertSuperAdmin` (reutilizar el helper de `gym.ts`)
-- [ ] 6.2 Implementar `listSignupRequests(filter?: { status?: SignupRequestStatus })`: query con orden por `createdAt desc`, select de los campos necesarios para la tabla
-- [ ] 6.3 Implementar `getSignupRequestDetail(id: string)`: lee la request, lanza si no existe
-- [ ] 6.4 Implementar `approveSignupRequest(id: string)`: valida transición desde `PENDING` o `EXPIRED` con `canTransition`, genera token nuevo, setea expiración, persiste, dispara `sendLeadApprovedEmail`
-- [ ] 6.5 Implementar `rejectSignupRequest(id: string, reason?: string)`: valida transición desde `PENDING` o `APPROVED`, persiste estado y razón, dispara `sendLeadRejectedEmail`
-- [ ] 6.6 Implementar `createWhitelistEntry(input)`: crea la request directamente en `APPROVED` con `createdByAdminId = session.user.id`, token nuevo, expiración 7d. Dispara `sendLeadApprovedEmail`
-- [ ] 6.7 Implementar `resendOnboardingEmail(id: string)`: valida que la request esté en `APPROVED` y token no expirado. Si pasa, re-dispara `sendLeadApprovedEmail` con el token actual. Si el token expiró, retorna error indicando que debe re-aprobar
+- [x] 6.1 Crear `src/actions/super-admin/signup-request.ts` con `"use server"` y `assertSuperAdmin` (reutilizar el helper de `gym.ts`)
+- [x] 6.2 Implementar `listSignupRequests(filter?: { status?: SignupRequestStatus })`: query con orden por `createdAt desc`, select de los campos necesarios para la tabla
+- [x] 6.3 Implementar `getSignupRequestDetail(id: string)`: lee la request, lanza si no existe
+- [x] 6.4 Implementar `approveSignupRequest(id: string)`: valida transición desde `PENDING` o `EXPIRED` con `canTransition`, genera token nuevo, setea expiración, persiste, dispara `sendLeadApprovedEmail`
+- [x] 6.5 Implementar `rejectSignupRequest(id: string, reason?: string)`: valida transición desde `PENDING` o `APPROVED`, persiste estado y razón, dispara `sendLeadRejectedEmail`
+- [x] 6.6 Implementar `createWhitelistEntry(input)`: crea la request directamente en `APPROVED` con `createdByAdminId = session.user.id`, token nuevo, expiración 7d. Dispara `sendLeadApprovedEmail`
+- [x] 6.7 Implementar `resendOnboardingEmail(id: string)`: valida que la request esté en `APPROVED` y token no expirado. Si pasa, re-dispara `sendLeadApprovedEmail` con el token actual. Si el token expiró, retorna error indicando que debe re-aprobar
 
 ## 7. Server action pública: onboarding
 
-- [ ] 7.1 Crear `src/actions/onboarding.ts` con `"use server"` (no requiere session, valida por token)
-- [ ] 7.2 Implementar `validateOnboardingToken(token: string)`: lee la request, retorna `{ valid: true, request } | { valid: false, reason: 'not_found' | 'expired' | 'used' }`. Se usa server-side desde la page para decidir qué renderizar
-- [ ] 7.3 Implementar `submitOnboarding(token: string, input: { slug, password, kind, primaryColor?, logoFile?: File })`:
+- [x] 7.1 Crear `src/actions/onboarding.ts` con `"use server"` (no requiere session, valida por token)
+- [x] 7.2 Implementar `validateOnboardingToken(token: string)`: lee la request, retorna `{ valid: true, request } | { valid: false, reason: 'not_found' | 'expired' | 'used' }`. Se usa server-side desde la page para decidir qué renderizar
+- [x] 7.3 Implementar `submitOnboarding(token: string, input: { slug, password, kind, primaryColor?, logoFile?: File })`:
   - Re-validar token (TOCTOU defense)
   - Validar `slug`: no vacío, lowercase, hyphens, no en `isReservedSlug`, unicidad contra `Gym.slug`
   - Validar `password`: >= 8 chars
@@ -72,14 +72,14 @@
     ])`
   - Después del commit: `signIn("credentials", { email: req.email, password, redirect: false, gymSlug: slug })`
   - Retornar `{ success: true, slug }` para que el cliente haga `router.push`
-- [ ] 7.4 Manejar errores: si falla el `signIn`, retornar `{ success: true, slug, signInFailed: true }` para que el cliente muestre fallback "tu gym está listo, andá a /<slug>/login"
+- [x] 7.4 Manejar errores: si falla el `signIn`, retornar `{ success: true, slug, signInFailed: true }` para que el cliente muestre fallback "tu gym está listo, andá a /<slug>/login"
 
 ## 8. Cron: expiración de tokens + limpieza de rate limits
 
-- [ ] 8.1 Editar `src/app/api/cron/check-gym-trials/route.ts`: agregar al final una Fase 3 que ejecute `prisma.gymSignupRequest.updateMany({ where: { status: 'APPROVED', tokenExpiresAt: { lt: now } }, data: { status: 'EXPIRED' } })`
-- [ ] 8.2 Loggear el conteo de expiradas en esa misma corrida
-- [ ] 8.3 Agregar al final del cron una Fase 4 de limpieza: llamar a `cleanupOldRateLimits` (si se implementó en 3.4)
-- [ ] 8.4 Extender el JSON de respuesta del cron a `{ ..., expiredSignupRequestsCount }`
+- [x] 8.1 Editar `src/app/api/cron/check-gym-trials/route.ts`: agregar al final una Fase 3 que ejecute `prisma.gymSignupRequest.updateMany({ where: { status: 'APPROVED', tokenExpiresAt: { lt: now } }, data: { status: 'EXPIRED' } })`
+- [x] 8.2 Loggear el conteo de expiradas en esa misma corrida
+- [x] 8.3 Agregar al final del cron una Fase 4 de limpieza: llamar a `cleanupOldRateLimits` (si se implementó en 3.4)
+- [x] 8.4 Extender el JSON de respuesta del cron a `{ ..., expiredSignupRequestsCount }`
 
 ## 9. UI super-admin
 
