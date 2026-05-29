@@ -127,7 +127,7 @@ export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, t
       role="navigation"
       aria-label="Navegacion principal"
     >
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo: wody icon + gym logo */}
         <Link
           href={gymPath(gymSlug, "/dashboard/athlete")}
@@ -179,7 +179,7 @@ export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, t
         </div>
 
         {/* User info + logout — desktop */}
-        <div className="hidden sm:flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-4 pl-6 border-l border-line">
           <span className="text-xs text-gray-500 font-heading uppercase tracking-[0.1em]">
             {userName}{" "}
             <span className="text-brand-red">({roleLabel})</span>
