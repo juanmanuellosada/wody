@@ -99,10 +99,10 @@
 
 ## 12. Documentación
 
-- [ ] 12.1 Reescribir `docs/billing-mercadopago.md` con el modelo simplificado real: plan único, trial 30 días, exención, sin tarifa de alta, sin self-signup
-- [ ] 12.2 Documentar en el doc el procedimiento manual para crear el `preapproval_plan` en el dashboard de MP (paso previo al deploy)
-- [ ] 12.3 Documentar en el doc el flujo del super-admin para eximir un gym y para cancelar una suscripción
-- [ ] 12.4 Documentar en el doc cómo se sincroniza el estado vía webhook y el rol del cron diario, incluyendo las push notifications de fin de trial
+- [x] 12.1 Reescribir `docs/billing-mercadopago.md` con el modelo simplificado real: plan único, trial 30 días, exención, sin tarifa de alta, sin self-signup
+- [x] 12.2 Documentar en el doc el procedimiento manual para crear el `preapproval_plan` en el dashboard de MP (paso previo al deploy)
+- [x] 12.3 Documentar en el doc el flujo del super-admin para eximir un gym y para cancelar una suscripción
+- [x] 12.4 Documentar en el doc cómo se sincroniza el estado vía webhook y el rol del cron diario, incluyendo las push notifications de fin de trial
 
 ## 13. Deploy y verificación
 
