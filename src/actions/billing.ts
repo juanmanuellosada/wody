@@ -57,14 +57,5 @@ export async function getMyCheckoutUrl(): Promise<string> {
     throw new Error("No gym associated with this session");
   }
 
-  const gym = await prisma.gym.findUniqueOrThrow({
-    where: { id: gymId },
-    select: { paymentExempt: true },
-  });
-
-  if (gym.paymentExempt) {
-    throw new Error("Tu gym está exento, no hace falta configurar suscripción");
-  }
-
   return getSubscriptionCheckoutUrl(gymId);
 }
