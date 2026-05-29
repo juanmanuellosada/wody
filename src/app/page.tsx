@@ -327,33 +327,6 @@ export default async function LandingPage() {
       {/* Beneficios */}
       <BenefitsSection />
 
-      {/* CTA */}
-      <section className="px-6 py-20 text-center relative border-t border-white/5">
-        <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full opacity-8 blur-[100px] pointer-events-none"
-          style={{
-            background: "radial-gradient(circle, rgba(227,20,20,0.4) 0%, transparent 70%)",
-          }}
-          aria-hidden="true"
-        />
-        <div className="relative z-10">
-          <h2 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.05em] text-white mb-4">
-            ¿Querés WODY para tu centro?
-          </h2>
-          <p className="text-sm text-gray-500 mb-8 font-body max-w-md mx-auto">
-            Contactanos y te armamos el espacio para tu gimnasio, box o estudio en minutos.
-          </p>
-          <a
-            href="https://www.instagram.com/wody.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-white text-sm bg-brand-red hover:bg-brand-red-dark transition-colors duration-200 cursor-pointer"
-          >
-            Empezar ahora
-          </a>
-        </div>
-      </section>
-
       {/* WhatsApp FAB */}
       <a
         href={`https://wa.me/5491136178552?text=${encodeURIComponent("Hola, vengo de la página web de wody, quiero más información.")}`}
