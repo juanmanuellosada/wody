@@ -83,29 +83,29 @@
 
 ## 9. UI super-admin
 
-- [ ] 9.1 Crear `src/app/admin/signup-requests/page.tsx` (Server Component): valida `SUPERADMIN`, invoca `listSignupRequests` con filtros tomados de search params. Renderiza tabla con todas las requests, agrupadas por estado o con filtros tipo tabs (PENDING destacado al inicio)
-- [ ] 9.2 Crear `src/app/admin/signup-requests/[id]/page.tsx`: detalle de una request con todos sus campos, badges por estado, y un componente cliente `SignupRequestActions` con los botones Aprobar / Rechazar / Re-emitir / Re-aprobar (según estado)
-- [ ] 9.3 Crear `src/components/admin/SignupRequestActions.tsx` (Client Component) con la lógica de los botones, modales de confirmación, y llamadas a las server actions
-- [ ] 9.4 Crear `src/app/admin/signup-requests/new/page.tsx`: form de creación whitelist con los campos (email, contactName, gymName, gymKindSuggested, message?), invoca `createWhitelistEntry`
-- [ ] 9.5 Agregar entrada "Signup requests" o "Leads" al nav lateral del super-admin (o donde corresponda en `src/app/admin/layout.tsx`)
+- [x] 9.1 Crear `src/app/admin/signup-requests/page.tsx` (Server Component): valida `SUPERADMIN`, invoca `listSignupRequests` con filtros tomados de search params. Renderiza tabla con todas las requests, agrupadas por estado o con filtros tipo tabs (PENDING destacado al inicio)
+- [x] 9.2 Crear `src/app/admin/signup-requests/[id]/page.tsx`: detalle de una request con todos sus campos, badges por estado, y un componente cliente `SignupRequestActions` con los botones Aprobar / Rechazar / Re-emitir / Re-aprobar (según estado)
+- [x] 9.3 Crear `src/components/admin/SignupRequestActions.tsx` (Client Component) con la lógica de los botones, modales de confirmación, y llamadas a las server actions
+- [x] 9.4 Crear `src/app/admin/signup-requests/new/page.tsx`: form de creación whitelist con los campos (email, contactName, gymName, gymKindSuggested, message?), invoca `createWhitelistEntry`
+- [x] 9.5 Agregar entrada "Signup requests" o "Leads" al nav lateral del super-admin (o donde corresponda en `src/app/admin/layout.tsx`)
 - [ ] 9.6 Mostrar badge con conteo de PENDING en la entrada del nav, similar a como existe en otras secciones
 
 ## 10. UI pública: pricing section en la landing
 
-- [ ] 10.1 Editar `src/app/page.tsx`: agregar una sección de pricing debajo del listado de gyms. Headline tipo "¿Querés que tu gimnasio esté acá?". Card con plan único: nombre, precio "$60.000 ARS/mes", "Trial 30 días", bullets de features (rutinas, RMs, ingresos, push, etc.), botón "Contactanos"
-- [ ] 10.2 Crear `src/components/landing/ContactForm.tsx` (Client Component): form con campos requeridos + opcionales según spec. Modal o sección expandible. `useTransition` para el submit. Maneja success state ("recibimos tu consulta") y error state
-- [ ] 10.3 Integrar el form con `POST /api/signup-request`. En éxito, mostrar mensaje y limpiar form. En 429, mensaje "demasiadas solicitudes, esperá un rato"
+- [x] 10.1 Editar `src/app/page.tsx`: agregar una sección de pricing debajo del listado de gyms. Headline tipo "¿Querés que tu gimnasio esté acá?". Card con plan único: nombre, precio "$60.000 ARS/mes", "Trial 30 días", bullets de features (rutinas, RMs, ingresos, push, etc.), botón "Contactanos"
+- [x] 10.2 Crear `src/components/landing/ContactForm.tsx` (Client Component): form con campos requeridos + opcionales según spec. Modal o sección expandible. `useTransition` para el submit. Maneja success state ("recibimos tu consulta") y error state
+- [x] 10.3 Integrar el form con `POST /api/signup-request`. En éxito, mostrar mensaje y limpiar form. En 429, mensaje "demasiadas solicitudes, esperá un rato"
 
 ## 11. UI pública: onboarding
 
-- [ ] 11.1 Crear `src/app/onboarding/[token]/page.tsx` (Server Component): valida el token con `validateOnboardingToken` y renderiza:
+- [x] 11.1 Crear `src/app/onboarding/[token]/page.tsx` (Server Component): valida el token con `validateOnboardingToken` y renderiza:
   - Si `not_found`: página de error "este link no es válido o ya fue utilizado" con CTA a contacto
   - Si `expired`: página de error "este link expiró" con CTA a contacto
   - Si `used` (status COMPLETED): página de error "este link ya fue usado, ingresá con tu cuenta"
   - Si `valid`: renderiza `OnboardingForm` (client component) con los datos pre-cargados de la request
-- [ ] 11.2 Crear `src/components/onboarding/OnboardingForm.tsx` (Client Component) con form completo: input de slug (con validación en vivo de formato, no de unicidad), inputs de password y confirmación, selector de kind (radio o select GYM/BOX con label "tradicional" / "CrossFit"), input de logo (file picker opcional), input de color (hex con preview opcional). Submit invoca `submitOnboarding` con `useTransition`
-- [ ] 11.3 En éxito: `router.push("/<slug>/admin")`. En `signInFailed`: mostrar mensaje fallback con link a `/<slug>/login`
-- [ ] 11.4 Estilos consistentes con el resto del proyecto (font-heading, panel, line, brand-red, etc.)
+- [x] 11.2 Crear `src/components/onboarding/OnboardingForm.tsx` (Client Component) con form completo: input de slug (con validación en vivo de formato, no de unicidad), inputs de password y confirmación, selector de kind (radio o select GYM/BOX con label "tradicional" / "CrossFit"), input de logo (file picker opcional), input de color (hex con preview opcional). Submit invoca `submitOnboarding` con `useTransition`
+- [x] 11.3 En éxito: `router.push("/<slug>/admin")`. En `signInFailed`: mostrar mensaje fallback con link a `/<slug>/login`
+- [x] 11.4 Estilos consistentes con el resto del proyecto (font-heading, panel, line, brand-red, etc.)
 
 ## 12. Documentación
 

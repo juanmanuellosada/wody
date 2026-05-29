@@ -18,6 +18,7 @@ import { GYM_LOCATIONS } from "@/lib/gym-locations";
 import { BenefitsSection } from "@/components/benefits/BenefitsSection";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { RotatingTypewriter } from "@/components/marketing/RotatingTypewriter";
+import { PricingSection } from "@/components/landing/PricingSection";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
@@ -319,6 +320,9 @@ export default async function LandingPage() {
           </p>
         </div>
       </section>
+
+      {/* Pricing */}
+      <PricingSection />
 
       {/* Beneficios */}
       <BenefitsSection />

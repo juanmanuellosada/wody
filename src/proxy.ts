@@ -61,7 +61,8 @@ export async function proxy(request: NextRequest) {
     segments[0] === "demo" ||
     segments[0] === "admin" ||
     segments[0] === "validar" ||
-    segments[0] === "registro-personal"
+    segments[0] === "registro-personal" ||
+    segments[0] === "onboarding"
   ) {
     return passThrough();
   }
