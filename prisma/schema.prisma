@@ -116,7 +116,7 @@ model Gym {
   autoBlockAfterDays          Int           @default(45)
   nextMemberNumber            Int           @default(1)
   subscriptionNextPaymentDate DateTime?
-  subscriptionMonthlyAmount   Int?          @default(60000)
+  subscriptionMonthlyAmount   Int?          @default(40000)
   trialEndsAt                 DateTime?
   paymentExempt               Boolean       @default(false)
   paymentExemptReason         String?

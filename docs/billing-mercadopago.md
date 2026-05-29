@@ -2,7 +2,7 @@
 
 ## 1. Resumen
 
-Wody cobra a cada gym **$60.000 ARS por mes** mediante una suscripción de Mercado Pago. El modelo es deliberadamente simple: un único plan creado en el dashboard de MP (un `preapproval_plan`), los gyms se suscriben a ese plan desde la UI de Wody, y MP gestiona el cobro mensual automático. Cada gym tiene 30 días de trial desde su creación. Al vencer el trial sin suscripción activa, un cron diario bloquea el gym reutilizando el campo `Gym.blockedAt` ya existente. Los gyms pre-existentes al lanzamiento del modelo de cobro (2026-05), y Wody Personal, están exentos permanentemente.
+Wody cobra a cada gym **$40.000 ARS por mes** mediante una suscripción de Mercado Pago. El modelo es deliberadamente simple: un único plan creado en el dashboard de MP (un `preapproval_plan`), los gyms se suscriben a ese plan desde la UI de Wody, y MP gestiona el cobro mensual automático. Cada gym tiene 30 días de trial desde su creación. Al vencer el trial sin suscripción activa, un cron diario bloquea el gym reutilizando el campo `Gym.blockedAt` ya existente. Los gyms pre-existentes al lanzamiento del modelo de cobro (2026-05), y Wody Personal, están exentos permanentemente.
 
 ---
 
@@ -101,13 +101,13 @@ Se necesitan dos planes en MP. Ambos ya están creados en producción.
 
 **Plan original** (gyms nuevos, `MP_PREAPPROVAL_PLAN_ID`):
 - Descripción: "Suscripción mensual Wody"
-- Monto: $60.000 ARS, frecuencia mensual
+- Monto: $40.000 ARS, frecuencia mensual
 - **Prueba gratis: 30 días**
 - ID: `02dca3f44cc44c5e8089cd00c25a7f08`
 
 **Plan de re-activación** (gyms que vuelven, `MP_PREAPPROVAL_PLAN_ID_RETURNING`):
 - Descripción: "Suscripción mensual Wody — Re-activación"
-- Monto: $60.000 ARS, frecuencia mensual
+- Monto: $40.000 ARS, frecuencia mensual
 - **Prueba gratis: 0 días** (diferencia clave — evita el segundo free_trial)
 - ID: `891d99cc41ae47b094b8059f0b3f3188`
 

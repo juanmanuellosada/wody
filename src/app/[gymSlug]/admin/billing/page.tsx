@@ -191,7 +191,7 @@ export default async function BillingPage({ params }: Props) {
 
           <div className="border-t border-line pt-4">
             <p className="text-sm text-gray-400 font-body">
-              <span className="text-white font-bold">$60.000 ARS por mes.</span>{" "}
+              <span className="text-white font-bold">$40.000 ARS por mes.</span>{" "}
               Podés cancelar en cualquier momento contactándonos.
             </p>
           </div>

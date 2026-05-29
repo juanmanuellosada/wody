@@ -1,7 +1,7 @@
 # gym-billing Specification
 
 ## Purpose
-Cobro mensual del SaaS Wody a cada gym mediante suscripciones de Mercado Pago ($60.000 ARS/mes). Incluye un trial de 30 días desde la creación del gym, dos planes en MP (uno para gyms nuevos con free_trial de 30 días, otro para re-suscripciones sin free_trial), exención manual a nivel gym controlada solo por el super-admin, sincronización de estado vía webhook firmado, bloqueo automático por cron diario (tanto por trial vencido sin suscripción como por pago fallido con grace period de 7 días), push notifications a los `ADMIN` en hitos del fin del trial, y email transaccional al dueño cuando MP no puede cobrar.
+Cobro mensual del SaaS Wody a cada gym mediante suscripciones de Mercado Pago ($40.000 ARS/mes). Incluye un trial de 30 días desde la creación del gym, dos planes en MP (uno para gyms nuevos con free_trial de 30 días, otro para re-suscripciones sin free_trial), exención manual a nivel gym controlada solo por el super-admin, sincronización de estado vía webhook firmado, bloqueo automático por cron diario (tanto por trial vencido sin suscripción como por pago fallido con grace period de 7 días), push notifications a los `ADMIN` en hitos del fin del trial, y email transaccional al dueño cuando MP no puede cobrar.
 
 ## Requirements
 ### Requirement: Cada gym tiene un ciclo de trial de 30 días desde su creación
@@ -18,19 +18,19 @@ El sistema SHALL asignar a todo `Gym` recién creado un campo `trialEndsAt` igua
 - **WHEN** se aplica la migración que introduce el modelo de cobro
 - **THEN** todos los gyms con `createdAt` anterior al deploy quedan marcados con `paymentExempt = true` y `paymentExemptReason = "Gym pre-existente al lanzamiento del modelo de cobro (2026-05)"`, y conservan `blockedAt = null` si lo tenían
 
-### Requirement: Plan único de $60.000 ARS/mes
+### Requirement: Plan único de $40.000 ARS/mes
 
-El sistema SHALL usar **dos** `preapproval_plan` de Mercado Pago de $60.000 ARS/mes con la siguiente lógica de selección:
+El sistema SHALL usar **dos** `preapproval_plan` de Mercado Pago de $40.000 ARS/mes con la siguiente lógica de selección:
 
 - **Plan original** (`MP_PREAPPROVAL_PLAN_ID`): `free_trial = 30 días`. Se usa cuando un gym se suscribe por primera vez (su `mpPreapprovalId IS NULL`).
 - **Plan de re-activación** (`MP_PREAPPROVAL_PLAN_ID_RETURNING`): `free_trial = 0 días`. Se usa cuando un gym vuelve a suscribirse después de haber tenido al menos una suscripción anterior (`mpPreapprovalId IS NOT NULL`).
 
-El `Gym.subscriptionMonthlyAmount` SHALL tener default `60000` y SHALL ser editable únicamente por el super-admin como referencia del precio negociado, sin afectar el monto que efectivamente cobra MP a través del plan elegido.
+El `Gym.subscriptionMonthlyAmount` SHALL tener default `40000` y SHALL ser editable únicamente por el super-admin como referencia del precio negociado, sin afectar el monto que efectivamente cobra MP a través del plan elegido.
 
 #### Scenario: Default de monto al crear gym
 
 - **WHEN** el super-admin crea un gym sin especificar `subscriptionMonthlyAmount`
-- **THEN** el sistema lo persiste con `subscriptionMonthlyAmount = 60000`
+- **THEN** el sistema lo persiste con `subscriptionMonthlyAmount = 40000`
 
 #### Scenario: Super-admin puede editar el monto de referencia
 
@@ -68,7 +68,7 @@ El sistema SHALL permitir al super-admin marcar y desmarcar un gym como exento d
 
 ### Requirement: Suscripción del gym vía Mercado Pago Suscripciones
 
-El sistema SHALL ofrecer al dueño de un gym un flujo para suscribirse a un plan de Mercado Pago. La suscripción se modela con los campos `Gym.mpPreapprovalId: String?` (id devuelto por MP) y `Gym.mpSubscriptionStatus: String?` (estado actual: `pending`, `authorized`, `paused`, `cancelled` o un valor desconocido tratado como "unknown"). El sistema SHALL elegir entre el plan original y el plan de re-activación según el `mpPreapprovalId` previo del gym (ver requirement "Plan único de $60.000 ARS/mes").
+El sistema SHALL ofrecer al dueño de un gym un flujo para suscribirse a un plan de Mercado Pago. La suscripción se modela con los campos `Gym.mpPreapprovalId: String?` (id devuelto por MP) y `Gym.mpSubscriptionStatus: String?` (estado actual: `pending`, `authorized`, `paused`, `cancelled` o un valor desconocido tratado como "unknown"). El sistema SHALL elegir entre el plan original y el plan de re-activación según el `mpPreapprovalId` previo del gym (ver requirement "Plan único de $40.000 ARS/mes").
 
 #### Scenario: Dueño del gym genera link de suscripción
 

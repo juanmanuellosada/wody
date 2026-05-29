@@ -37,7 +37,7 @@ export function PricingSection() {
               </p>
               <div className="flex items-end gap-2">
                 <span className="text-3xl font-heading font-black text-white">
-                  $60.000
+                  $40.000
                 </span>
                 <span className="text-sm text-gray-500 font-body mb-1">ARS / mes</span>
               </div>
