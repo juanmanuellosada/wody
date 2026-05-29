@@ -109,9 +109,9 @@
 
 ## 12. Documentación
 
-- [ ] 12.1 Crear `docs/onboarding-gyms.md` con guía operativa: flujo de lead, qué ve el super-admin, cómo aprobar/rechazar, cómo agregar whitelist, qué pasa con tokens expirados, troubleshooting típico (email no llegó, slug duplicado, etc.)
+- [x] 12.1 Crear `docs/onboarding-gyms.md` con guía operativa: flujo de lead, qué ve el super-admin, cómo aprobar/rechazar, cómo agregar whitelist, qué pasa con tokens expirados, troubleshooting típico (email no llegó, slug duplicado, etc.)
 - [ ] 12.2 Actualizar `AGENTS.md` si hace falta (probablemente no — el WHAT/WHY/HOW no cambia, solo se agrega una sección al funnel)
-- [ ] 12.3 Mencionar en el doc que el flujo manual de `/admin/gyms/new` sigue disponible para casos excepcionales
+- [x] 12.3 Mencionar en el doc que el flujo manual de `/admin/gyms/new` sigue disponible para casos excepcionales
 
 ## 13. Deploy y verificación
 
