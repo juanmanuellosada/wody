@@ -67,6 +67,17 @@ enum EmailLogType {
   QUOTA_ALERT_95
   JOIN_APPROVED
   PERSONAL_WELCOME
+  LEAD_RECEIVED
+  LEAD_APPROVED
+  LEAD_REJECTED
+}
+
+enum SignupRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  EXPIRED
 }
 
 enum JoinRequestStatus {
@@ -115,6 +126,7 @@ model Gym {
   emailLogs                   EmailLog[]
   joinRequests                JoinRequest[]
   payments                    Payment[]
+  signupRequest               GymSignupRequest?
 }
 
 model User {
@@ -153,8 +165,9 @@ model User {
   verificationTokens   VerificationToken[]
   joinRequestTeachers  JoinRequestTeacher[] @relation("JoinRequestTeacherToUser")
   joinRequestsReviewed JoinRequest[]        @relation("JoinRequestReviewer")
-  paymentsAsPayer      Payment[]            @relation("PaymentStudent")
-  paymentsRecorded     Payment[]            @relation("PaymentRecordedBy")
+  paymentsAsPayer           Payment[]            @relation("PaymentStudent")
+  paymentsRecorded          Payment[]            @relation("PaymentRecordedBy")
+  createdSignupRequests     GymSignupRequest[]
 
   // Unicidades parciales (solo filas activas, deletedAt IS NULL).
   // Los índices únicos totales fueron reemplazados por índices únicos parciales
@@ -392,4 +405,39 @@ model Payment {
 
   @@index([gymId, paidAt])
   @@index([studentId])
+}
+
+model GymSignupRequest {
+  id                  String               @id @default(cuid())
+  email               String
+  contactName         String
+  gymName             String
+  gymKindSuggested    String
+  phone               String?
+  expectedStudents    Int?
+  message             String?
+  status              SignupRequestStatus  @default(PENDING)
+  createdAt           DateTime             @default(now())
+  approvedAt          DateTime?
+  rejectedAt          DateTime?
+  completedAt         DateTime?
+  onboardingToken     String?              @unique
+  tokenExpiresAt      DateTime?
+  rejectionReason     String?
+  gymId               String?              @unique
+  createdByAdminId    String?
+
+  gym            Gym?  @relation(fields: [gymId], references: [id], onDelete: SetNull)
+  createdByAdmin User? @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([email, status])
+}
+
+model SignupRequestRateLimit {
+  id        String   @id @default(cuid())
+  ip        String
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
 }
