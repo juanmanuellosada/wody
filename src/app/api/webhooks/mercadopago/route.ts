@@ -5,6 +5,7 @@ import {
   preApproval,
   parseMpSubscriptionStatus,
 } from "@/lib/mercadopago";
+import { sendPaymentFailedEmail } from "@/lib/billing-emails";
 
 export async function POST(req: NextRequest) {
   const xSignature = req.headers.get("x-signature");
@@ -54,17 +55,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const status = parseMpSubscriptionStatus(rawStatus);
+    const newStatus = parseMpSubscriptionStatus(rawStatus);
 
-    console.log("[mp-webhook] Processing event", { gymId, preapprovalId, status, eventType });
+    console.log("[mp-webhook] Processing event", { gymId, preapprovalId, status: newStatus, eventType });
+
+    const gym = await prisma.gym.findUnique({
+      where: { id: gymId },
+      select: { mpSubscriptionStatus: true, paymentExempt: true, name: true, slug: true },
+    });
+
+    if (!gym) {
+      console.warn("[mp-webhook] Gym not found for external_reference", { gymId, preapprovalId });
+      return NextResponse.json({ ok: true });
+    }
+
+    const previousStatus = gym.mpSubscriptionStatus;
+    const statusChanged = newStatus !== previousStatus;
 
     await prisma.gym.update({
       where: { id: gymId },
       data: {
         mpPreapprovalId: preapprovalId,
-        mpSubscriptionStatus: status,
+        mpSubscriptionStatus: newStatus,
+        ...(statusChanged ? { mpSubscriptionStatusChangedAt: new Date() } : {}),
       },
     });
+
+    const isFailedStatus = newStatus === "paused" || newStatus === "cancelled";
+    const wasPreviouslyFailed = previousStatus === "paused" || previousStatus === "cancelled";
+
+    if (isFailedStatus && !wasPreviouslyFailed && !gym.paymentExempt) {
+      try {
+        await sendPaymentFailedEmail({ id: gymId, name: gym.name, slug: gym.slug });
+      } catch (err) {
+        console.warn("[mp-webhook] Failed to send payment-failed email", {
+          gymId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {

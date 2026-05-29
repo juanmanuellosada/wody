@@ -3,6 +3,7 @@ import {
   WebhookSignatureValidator,
   InvalidWebhookSignatureError,
 } from "mercadopago";
+import { prisma } from "@/lib/prisma";
 
 // Singleton MP config — reused across all calls in the same Node.js process.
 const mpConfig = new MercadoPagoConfig({
@@ -85,15 +86,32 @@ export function verifyMpWebhookSignature(
 // Subscription checkout URL
 // ---------------------------------------------------------------------------
 
+async function pickPlanIdForGym(gymId: string): Promise<string> {
+  const gym = await prisma.gym.findUniqueOrThrow({
+    where: { id: gymId },
+    select: { mpPreapprovalId: true },
+  });
+  const newPlan = process.env.MP_PREAPPROVAL_PLAN_ID;
+  if (!newPlan) throw new Error("MP_PREAPPROVAL_PLAN_ID env var is not set");
+  if (gym.mpPreapprovalId == null) return newPlan;
+  const returningPlan = process.env.MP_PREAPPROVAL_PLAN_ID_RETURNING;
+  if (!returningPlan) {
+    console.warn(
+      "[mercadopago] MP_PREAPPROVAL_PLAN_ID_RETURNING not set — falling back to NEW plan; user will receive another free_trial",
+      { gymId }
+    );
+    return newPlan;
+  }
+  return returningPlan;
+}
+
 /**
  * Builds the Mercado Pago checkout URL for the gym to subscribe to the plan.
+ * Chooses the correct plan based on whether the gym has a previous subscription.
  * MP appends external_reference to identify which gym is subscribing.
  */
-export function getSubscriptionCheckoutUrl(gymId: string): string {
-  const planId = process.env.MP_PREAPPROVAL_PLAN_ID;
-  if (!planId) {
-    throw new Error("MP_PREAPPROVAL_PLAN_ID env var is not set");
-  }
+export async function getSubscriptionCheckoutUrl(gymId: string): Promise<string> {
+  const planId = await pickPlanIdForGym(gymId);
   const url = new URL(
     "https://www.mercadopago.com.ar/subscriptions/checkout"
   );

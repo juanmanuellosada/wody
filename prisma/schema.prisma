@@ -70,6 +70,7 @@ enum EmailLogType {
   LEAD_RECEIVED
   LEAD_APPROVED
   LEAD_REJECTED
+  PAYMENT_FAILED
 }
 
 enum SignupRequestStatus {
@@ -119,8 +120,9 @@ model Gym {
   trialEndsAt                 DateTime?
   paymentExempt               Boolean       @default(false)
   paymentExemptReason         String?
-  mpPreapprovalId             String?
-  mpSubscriptionStatus        String?
+  mpPreapprovalId                 String?
+  mpSubscriptionStatus            String?
+  mpSubscriptionStatusChangedAt   DateTime?
   users                       User[]
   accessLogs                  AccessLog[]
   emailLogs                   EmailLog[]

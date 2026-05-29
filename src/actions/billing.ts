@@ -57,5 +57,5 @@ export async function getMyCheckoutUrl(): Promise<string> {
     throw new Error("No gym associated with this session");
   }
 
-  return getSubscriptionCheckoutUrl(gymId);
+  return await getSubscriptionCheckoutUrl(gymId);
 }

@@ -48,6 +48,29 @@ export async function GET(req: NextRequest) {
     blockedGymIds.push(gym.id);
   }
 
+  // --- Phase 1.5: block gyms with failed payment past grace period ---
+  const FAILURE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+  const failureCutoff = new Date(now.getTime() - FAILURE_GRACE_MS);
+  const paymentFailureGyms = await prisma.gym.findMany({
+    where: {
+      mpSubscriptionStatus: { in: ["paused", "cancelled"] },
+      mpSubscriptionStatusChangedAt: { lt: failureCutoff },
+      blockedAt: null,
+      paymentExempt: false,
+      kind: { not: "PERSONAL" },
+    },
+    select: { id: true, slug: true },
+  });
+  const paymentFailureBlockedGymIds: string[] = [];
+  for (const gym of paymentFailureGyms) {
+    await prisma.gym.update({
+      where: { id: gym.id },
+      data: { blockedAt: now },
+    });
+    console.log("[check-gym-trials] Blocked for payment failure", { gymId: gym.id, slug: gym.slug });
+    paymentFailureBlockedGymIds.push(gym.id);
+  }
+
   // --- Phase 2: send push notifications at trial milestone days ---
   const trialingGyms = await prisma.gym.findMany({
     where: {
@@ -106,6 +129,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     blockedCount: blockedGymIds.length,
     gymIds: blockedGymIds,
+    paymentFailureBlockedCount: paymentFailureBlockedGymIds.length,
+    paymentFailureBlockedGymIds,
     pushSummary,
     expiredSignupRequestsCount: expiredCount,
     cleanedRateLimits,
