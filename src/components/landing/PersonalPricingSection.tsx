@@ -4,10 +4,10 @@ import { useState } from "react";
 import { ContactForm } from "@/components/landing/ContactForm";
 
 const FEATURES = [
-  "Rutinas diarias que armás vos mismo",
-  "Récords personales con historial y progreso",
+  "Armá y organizá tus propias rutinas",
+  "Registrá tus récords personales con historial",
   "Cronómetros y timers para tus entrenamientos",
-  "Notificaciones push de tus rutinas y recordatorios",
+  "Beneficios y cupones de nuestros partners",
   "Compartí tus logros en Instagram",
 ];
 
@@ -19,13 +19,13 @@ export function PersonalPricingSection() {
       <section className="border-t border-white/5 bg-[#08080D] px-6 py-20">
         <div className="max-w-4xl mx-auto">
           <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-brand-red text-center mb-3">
-            Para entrenar solo
+            Para entrenar a tu manera
           </p>
           <h2 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.05em] text-white text-center mb-3">
-            Tu coach digital, sin gym
+            Tu entrenamiento, en un solo lugar
           </h2>
           <p className="text-sm text-gray-500 font-body text-center mb-12 max-w-md mx-auto">
-            Tus rutinas, tus PRs, tu progreso — todo en tu celular. Probalo 30 días sin pagar.
+            Armá tus rutinas, registrá tus PRs y mirá tu progreso desde tu celular. Probalo 30 días sin pagar.
           </p>
 
           <div className="max-w-sm mx-auto border border-purple-500/20 bg-purple-500/[0.03] p-8 flex flex-col gap-6">
