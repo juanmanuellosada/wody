@@ -89,32 +89,32 @@
 
 ## 10. UI super-admin: tipo en lista, form, detalle
 
-- [ ] 10.1 Editar `src/app/admin/signup-requests/page.tsx`: agregar columna "Tipo" con badge GYM/PERSONAL. Agregar filtro por tipo (tabs o segmented control). Adaptar select del query a incluir `type`
-- [ ] 10.2 Editar `src/app/admin/signup-requests/[id]/page.tsx`: mostrar el tipo prominentemente. Si type=GYM, mostrar campos gym-específicos. Si type=PERSONAL, ocultar esos campos
-- [ ] 10.3 Editar `src/components/admin/SignupRequestActions.tsx`: los botones siguen iguales pero textos adaptados según tipo (ej: para PERSONAL "Aprobar" hace explícito que se agrega a whitelist en vez de mandar al wizard)
-- [ ] 10.4 Editar `src/components/admin/WhitelistForm.tsx`: agregar selector de tipo al inicio (radio o segmented control GYM/PERSONAL), y mostrar/ocultar campos según tipo
+- [x] 10.1 Editar `src/app/admin/signup-requests/page.tsx`: agregar columna "Tipo" con badge GYM/PERSONAL. Agregar filtro por tipo (tabs o segmented control). Adaptar select del query a incluir `type`
+- [x] 10.2 Editar `src/app/admin/signup-requests/[id]/page.tsx`: mostrar el tipo prominentemente. Si type=GYM, mostrar campos gym-específicos. Si type=PERSONAL, ocultar esos campos
+- [x] 10.3 Editar `src/components/admin/SignupRequestActions.tsx`: los botones siguen iguales pero textos adaptados según tipo (ej: para PERSONAL "Aprobar" hace explícito que se agrega a whitelist en vez de mandar al wizard)
+- [x] 10.4 Editar `src/components/admin/WhitelistForm.tsx`: agregar selector de tipo al inicio (radio o segmented control GYM/PERSONAL), y mostrar/ocultar campos según tipo
 
 ## 11. UI pública: PersonalPricingSection en landing
 
-- [ ] 11.1 Crear `src/components/landing/PersonalPricingSection.tsx`: card con "Plan Personal", "$7.000 ARS / mes", "30 días gratis · sin tarjeta · sin compromiso", bullets de features ("Tus rutinas, tus PRs, todo en tu celular", "Cronómetros y timers para tus entrenamientos", "Compartí tus logros en Instagram", "Sin profe asignado: vos sos tu coach"), botón "Contactanos" que abre el ContactForm con `type=PERSONAL`
-- [ ] 11.2 Crear `src/components/landing/PersonalContactForm.tsx` (o modificar `ContactForm` existente con prop `type`): pide `contactName`, `email`, `phone?`, `message?`. Submit con `type='PERSONAL'`
-- [ ] 11.3 Editar `src/app/page.tsx`: insertar `PersonalPricingSection` después de `PricingSection` (la de gym)
-- [ ] 11.4 Asegurarse de que las dos cards se ven bien lado a lado en desktop y stackeadas en mobile
+- [x] 11.1 Crear `src/components/landing/PersonalPricingSection.tsx`: card con "Plan Personal", "$7.000 ARS / mes", "30 días gratis · sin tarjeta · sin compromiso", bullets de features ("Tus rutinas, tus PRs, todo en tu celular", "Cronómetros y timers para tus entrenamientos", "Compartí tus logros en Instagram", "Sin profe asignado: vos sos tu coach"), botón "Contactanos" que abre el ContactForm con `type=PERSONAL`
+- [x] 11.2 Crear `src/components/landing/PersonalContactForm.tsx` (o modificar `ContactForm` existente con prop `type`): pide `contactName`, `email`, `phone?`, `message?`. Submit con `type='PERSONAL'`
+- [x] 11.3 Editar `src/app/page.tsx`: insertar `PersonalPricingSection` después de `PricingSection` (la de gym)
+- [x] 11.4 Asegurarse de que las dos cards se ven bien lado a lado en desktop y stackeadas en mobile
 
 ## 12. UI del Personal user: billing page
 
-- [ ] 12.1 Crear `src/app/personal/perfil/suscripcion/page.tsx` (Server Component): valida sesión + STUDENT + canCreateOwnRoutines + gym personal. Invoca `getMyPersonalSubscriptionStatus` y opcionalmente `getMyPersonalCheckoutUrl`
-- [ ] 12.2 Crear `src/components/personal/PersonalBillingPage.tsx` (Client Component) con los 3 casos:
+- [x] 12.1 Crear `src/app/[gymSlug]/perfil/suscripcion/page.tsx` (Server Component, accesible en `/personal/perfil/suscripcion`): valida sesión + STUDENT + canCreateOwnRoutines + gym personal. Invoca `getMyPersonalSubscriptionStatus` y opcionalmente `getMyPersonalCheckoutUrl`
+- [x] 12.2 Crear `src/components/personal/PersonalBillingPage.tsx` (Client Component) con los 3 casos:
   - Exento: panel verde
   - En trial / no sub: card con días restantes + botón "Configurar tarjeta"
   - Sub activa: panel + botón "Reconfigurar" + botón "Cancelar suscripción" (con modal de confirmación)
-- [ ] 12.3 Agregar entry al nav del Personal user para llegar a `/personal/perfil/suscripcion` (mirar el Navbar o donde sea, probable `src/components/layout/Navbar.tsx`)
+- [x] 12.3 Agregar entry al nav del Personal user para llegar a `/personal/perfil/suscripcion` (mirar el Navbar o donde sea, probable `src/components/layout/Navbar.tsx`)
 
 ## 13. Banner de fin de trial Personal
 
-- [ ] 13.1 Crear `src/components/billing/PersonalTrialEndingBanner.tsx`: análogo a `TrialEndingBanner.tsx` pero apuntando a `/personal/perfil/suscripcion`
-- [ ] 13.2 Editar `src/app/[gymSlug]/layout.tsx`: extender la lógica de selección de banner. Si el gym es personal AND el user es STUDENT con canCreateOwnRoutines: mostrar `PersonalTrialEndingBanner` con su lógica de daysLeft
-- [ ] 13.3 Considerar extraer la decisión de qué banner mostrar a un componente helper `BillingBannerSelector` para no inflar el layout
+- [x] 13.1 Crear `src/components/billing/PersonalTrialEndingBanner.tsx`: análogo a `TrialEndingBanner.tsx` pero apuntando a `/personal/perfil/suscripcion`
+- [x] 13.2 Editar `src/app/[gymSlug]/layout.tsx`: extender la lógica de selección de banner. Si el gym es personal AND el user es STUDENT con canCreateOwnRoutines: mostrar `PersonalTrialEndingBanner` con su lógica de daysLeft
+- [x] 13.3 Extraer no fue necesario — la lógica se mantiene legible con el bloque adicional inline y la guarda `trialBanner === null`
 
 ## 14. Documentación
 

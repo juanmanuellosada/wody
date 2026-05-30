@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { listSignupRequests } from "@/actions/super-admin/signup-request";
-import type { SignupRequestStatus } from "@prisma/client";
+import type { SignupRequestStatus, SignupRequestType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,16 @@ const ALL_STATUSES: SignupRequestStatus[] = [
   "EXPIRED",
 ];
 
+const TYPE_LABELS: Record<SignupRequestType, string> = {
+  GYM: "Gym",
+  PERSONAL: "Personal",
+};
+
+const TYPE_STYLES: Record<SignupRequestType, string> = {
+  GYM: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+  PERSONAL: "bg-purple-500/10 text-purple-400 border-purple-500/30",
+};
+
 function StatusBadge({ status }: { status: SignupRequestStatus }) {
   return (
     <span
@@ -40,9 +50,21 @@ function StatusBadge({ status }: { status: SignupRequestStatus }) {
   );
 }
 
-interface Props {
-  searchParams: Promise<{ status?: string }>;
+function TypeBadge({ type }: { type: SignupRequestType }) {
+  return (
+    <span
+      className={`text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 border ${TYPE_STYLES[type]}`}
+    >
+      {TYPE_LABELS[type]}
+    </span>
+  );
 }
+
+interface Props {
+  searchParams: Promise<{ status?: string; type?: string }>;
+}
+
+const ALL_TYPES: SignupRequestType[] = ["GYM", "PERSONAL"];
 
 export default async function SignupRequestsPage({ searchParams }: Props) {
   const session = await auth();
@@ -50,14 +72,19 @@ export default async function SignupRequestsPage({ searchParams }: Props) {
     redirect("/");
   }
 
-  const { status: statusParam } = await searchParams;
+  const { status: statusParam, type: typeParam } = await searchParams;
   const activeFilter = ALL_STATUSES.includes(statusParam as SignupRequestStatus)
     ? (statusParam as SignupRequestStatus)
     : undefined;
+  const activeTypeFilter = ALL_TYPES.includes(typeParam as SignupRequestType)
+    ? (typeParam as SignupRequestType)
+    : undefined;
 
-  const rows = await listSignupRequests(
-    activeFilter ? { status: activeFilter } : undefined
-  );
+  const filter: { status?: SignupRequestStatus; type?: SignupRequestType } = {};
+  if (activeFilter) filter.status = activeFilter;
+  if (activeTypeFilter) filter.type = activeTypeFilter;
+
+  const rows = await listSignupRequests(Object.keys(filter).length > 0 ? filter : undefined);
 
   // Sort: PENDING first, then by createdAt desc
   const sorted = [...rows].sort((a, b) => {
@@ -86,7 +113,8 @@ export default async function SignupRequestsPage({ searchParams }: Props) {
           </h1>
           <p className="text-xs text-gray-500 font-body mt-1">
             {rows.length} solicitude{rows.length !== 1 ? "s" : ""}
-            {activeFilter ? ` · filtro: ${STATUS_LABELS[activeFilter]}` : ""}
+            {activeFilter ? ` · estado: ${STATUS_LABELS[activeFilter]}` : ""}
+            {activeTypeFilter ? ` · tipo: ${TYPE_LABELS[activeTypeFilter]}` : ""}
           </p>
         </div>
         <Link
@@ -98,32 +126,73 @@ export default async function SignupRequestsPage({ searchParams }: Props) {
       </div>
 
       {/* Status filter tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-line pb-4">
-        <Link
-          href="/admin/signup-requests"
-          className={[
-            "px-4 py-2 text-xs font-heading font-bold uppercase tracking-[0.15em] transition-colors duration-200 border",
-            !activeFilter
-              ? "bg-brand-red text-white border-brand-red"
-              : "bg-elev text-gray-400 border-edge hover:border-brand-red hover:text-white",
-          ].join(" ")}
-        >
-          Todos
-        </Link>
-        {ALL_STATUSES.map((s) => (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2">
           <Link
-            key={s}
-            href={`/admin/signup-requests?status=${s}`}
+            href={activeTypeFilter ? `/admin/signup-requests?type=${activeTypeFilter}` : "/admin/signup-requests"}
             className={[
               "px-4 py-2 text-xs font-heading font-bold uppercase tracking-[0.15em] transition-colors duration-200 border",
-              activeFilter === s
+              !activeFilter
                 ? "bg-brand-red text-white border-brand-red"
                 : "bg-elev text-gray-400 border-edge hover:border-brand-red hover:text-white",
             ].join(" ")}
           >
-            {STATUS_LABELS[s]}
+            Todos
           </Link>
-        ))}
+          {ALL_STATUSES.map((s) => {
+            const href = activeTypeFilter
+              ? `/admin/signup-requests?status=${s}&type=${activeTypeFilter}`
+              : `/admin/signup-requests?status=${s}`;
+            return (
+              <Link
+                key={s}
+                href={href}
+                className={[
+                  "px-4 py-2 text-xs font-heading font-bold uppercase tracking-[0.15em] transition-colors duration-200 border",
+                  activeFilter === s
+                    ? "bg-brand-red text-white border-brand-red"
+                    : "bg-elev text-gray-400 border-edge hover:border-brand-red hover:text-white",
+                ].join(" ")}
+              >
+                {STATUS_LABELS[s]}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Type filter */}
+        <div className="flex flex-wrap gap-2 border-b border-line pb-4">
+          <Link
+            href={activeFilter ? `/admin/signup-requests?status=${activeFilter}` : "/admin/signup-requests"}
+            className={[
+              "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.15em] transition-colors duration-200 border",
+              !activeTypeFilter
+                ? "bg-white/10 text-white border-white/20"
+                : "bg-elev text-gray-500 border-edge hover:border-white/20 hover:text-gray-300",
+            ].join(" ")}
+          >
+            Todos los tipos
+          </Link>
+          {ALL_TYPES.map((t) => {
+            const href = activeFilter
+              ? `/admin/signup-requests?status=${activeFilter}&type=${t}`
+              : `/admin/signup-requests?type=${t}`;
+            return (
+              <Link
+                key={t}
+                href={href}
+                className={[
+                  "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.15em] transition-colors duration-200 border",
+                  activeTypeFilter === t
+                    ? `${TYPE_STYLES[t]}`
+                    : "bg-elev text-gray-500 border-edge hover:border-white/20 hover:text-gray-300",
+                ].join(" ")}
+              >
+                {TYPE_LABELS[t]}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {/* Table */}
@@ -161,8 +230,8 @@ export default async function SignupRequestsPage({ searchParams }: Props) {
                     {req.gymName ?? req.contactName}
                   </Link>
                 </td>
-                <td className="px-4 py-3.5 text-gray-500 font-body text-xs">
-                  {req.gymKindSuggested === "BOX" ? "Box" : req.gymKindSuggested === "GYM" ? "Gym" : "—"}
+                <td className="px-4 py-3.5">
+                  <TypeBadge type={req.type} />
                 </td>
                 <td className="px-4 py-3.5">
                   <StatusBadge status={req.status} />

@@ -8,6 +8,7 @@ import { InstallPwaButton } from "@/components/InstallPwaButton";
 import { NotificationPermissionButton } from "@/components/NotificationPermissionButton";
 import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { TrialEndingBanner } from "@/components/billing/TrialEndingBanner";
+import { PersonalTrialEndingBanner } from "@/components/billing/PersonalTrialEndingBanner";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
 import { gymPath, hasTeacherWhatsAppContact, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
@@ -67,7 +68,16 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
   const [dbUser, pendingJoinRequestsCount] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
-      select: { blockedAt: true, deletedAt: true, nextPaymentDate: true, role: true, paymentExempt: true, paymentExemptReason: true },
+      select: {
+        blockedAt: true,
+        deletedAt: true,
+        nextPaymentDate: true,
+        role: true,
+        paymentExempt: true,
+        paymentExemptReason: true,
+        trialEndsAt: true,
+        mpSubscriptionStatus: true,
+      },
     }),
     role === "ADMIN"
       ? prisma.joinRequest.count({ where: { gymId: gym.id, status: "PENDING" } })
@@ -124,6 +134,25 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
     );
     if (daysLeft <= 7) {
       trialBanner = <TrialEndingBanner daysLeft={daysLeft} gymSlug={gymSlug} />;
+    }
+  }
+
+  // Personal trial ending banner: for STUDENT + canCreateOwnRoutines in the personal gym.
+  if (
+    trialBanner === null &&
+    personalGym &&
+    role === "STUDENT" &&
+    canCreateOwnRoutines &&
+    dbUser !== null &&
+    !dbUser.paymentExempt &&
+    dbUser.mpSubscriptionStatus !== "authorized" &&
+    dbUser.trialEndsAt !== null
+  ) {
+    const daysLeft = Math.ceil(
+      (dbUser.trialEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)
+    );
+    if (daysLeft <= 7) {
+      trialBanner = <PersonalTrialEndingBanner daysLeft={daysLeft} />;
     }
   }
 

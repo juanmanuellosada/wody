@@ -19,6 +19,7 @@ import { BenefitsSection } from "@/components/benefits/BenefitsSection";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { RotatingTypewriter } from "@/components/marketing/RotatingTypewriter";
 import { PricingSection } from "@/components/landing/PricingSection";
+import { PersonalPricingSection } from "@/components/landing/PersonalPricingSection";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
@@ -323,6 +324,7 @@ export default async function LandingPage() {
 
       {/* Pricing */}
       <PricingSection />
+      <PersonalPricingSection />
 
       {/* Beneficios */}
       <BenefitsSection />

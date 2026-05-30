@@ -10,15 +10,16 @@ import {
   rejectSignupRequest,
   resendOnboardingEmail,
 } from "@/actions/super-admin/signup-request";
-import type { SignupRequestStatus } from "@prisma/client";
+import type { SignupRequestStatus, SignupRequestType } from "@prisma/client";
 
 interface Props {
   id: string;
   status: SignupRequestStatus;
+  type: SignupRequestType;
   tokenExpiresAt: string | null;
 }
 
-export function SignupRequestActions({ id, status, tokenExpiresAt }: Props) {
+export function SignupRequestActions({ id, status, type, tokenExpiresAt }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -27,6 +28,7 @@ export function SignupRequestActions({ id, status, tokenExpiresAt }: Props) {
   const [resendOpen, setResendOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
+  const isPersonal = type === "PERSONAL";
   const tokenExpired =
     !tokenExpiresAt || new Date(tokenExpiresAt) < new Date();
 
@@ -75,7 +77,9 @@ export function SignupRequestActions({ id, status, tokenExpiresAt }: Props) {
       <div className="border border-line bg-panel p-5">
         <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
           {status === "COMPLETED"
-            ? "Este gym ya completó el onboarding. No hay acciones disponibles."
+            ? isPersonal
+              ? "Este usuario ya completó el registro. No hay acciones disponibles."
+              : "Este gym ya completó el onboarding. No hay acciones disponibles."
             : "Esta solicitud fue rechazada. No hay acciones disponibles."}
         </p>
       </div>
@@ -111,8 +115,10 @@ export function SignupRequestActions({ id, status, tokenExpiresAt }: Props) {
             </>
           )}
 
-          {/* APPROVED con token vigente: Re-emitir email + Rechazar */}
-          {status === "APPROVED" && !tokenExpired && (
+          {/* APPROVED: Re-emitir email + Rechazar
+              Para PERSONAL: siempre se puede re-emitir (no hay token)
+              Para GYM: solo si el token está vigente */}
+          {status === "APPROVED" && (isPersonal || !tokenExpired) && (
             <>
               <Button
                 variant="secondary"
@@ -133,8 +139,8 @@ export function SignupRequestActions({ id, status, tokenExpiresAt }: Props) {
             </>
           )}
 
-          {/* APPROVED con token expirado: Re-aprobar + Rechazar */}
-          {status === "APPROVED" && tokenExpired && (
+          {/* APPROVED con token expirado (solo GYM): Re-aprobar + Rechazar */}
+          {status === "APPROVED" && !isPersonal && tokenExpired && (
             <>
               <Button
                 size="sm"
@@ -161,7 +167,7 @@ export function SignupRequestActions({ id, status, tokenExpiresAt }: Props) {
               onClick={() => setApproveOpen(true)}
               disabled={isPending}
             >
-              Re-aprobar (token nuevo)
+              {isPersonal ? "Re-aprobar" : "Re-aprobar (token nuevo)"}
             </Button>
           )}
         </div>
@@ -172,7 +178,11 @@ export function SignupRequestActions({ id, status, tokenExpiresAt }: Props) {
         open={approveOpen}
         title={status === "PENDING" ? "Aprobar solicitud" : "Re-aprobar solicitud"}
         message={
-          status === "PENDING"
+          isPersonal
+            ? status === "PENDING"
+              ? "Se agregará el email a la whitelist de Wody Personal y se enviará el link de registro al lead. ¿Continuar?"
+              : "Se volverá a enviar el link de registro al lead. ¿Continuar?"
+            : status === "PENDING"
             ? "Se generará un token de onboarding y se enviará el email al lead. ¿Continuar?"
             : "Se generará un nuevo token de onboarding y se enviará el email al lead. ¿Continuar?"
         }
@@ -185,8 +195,12 @@ export function SignupRequestActions({ id, status, tokenExpiresAt }: Props) {
       {/* Confirm: Re-emitir email */}
       <ConfirmDialog
         open={resendOpen}
-        title="Re-emitir email de onboarding"
-        message="Se reenviará el mismo email con el link de onboarding actual. ¿Continuar?"
+        title={isPersonal ? "Re-emitir email de registro" : "Re-emitir email de onboarding"}
+        message={
+          isPersonal
+            ? "Se reenviará el email con el link a /registro-personal. ¿Continuar?"
+            : "Se reenviará el mismo email con el link de onboarding actual. ¿Continuar?"
+        }
         confirmLabel="Re-emitir"
         loading={isPending}
         onConfirm={handleResend}

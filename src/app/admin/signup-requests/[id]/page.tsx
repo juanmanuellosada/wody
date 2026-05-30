@@ -4,7 +4,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getSignupRequestDetail } from "@/actions/super-admin/signup-request";
 import { SignupRequestActions } from "@/components/admin/SignupRequestActions";
-import type { SignupRequestStatus } from "@prisma/client";
+import type { SignupRequestStatus, SignupRequestType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,16 @@ const STATUS_LABELS: Record<SignupRequestStatus, string> = {
   REJECTED: "Rechazada",
   COMPLETED: "Completada",
   EXPIRED: "Expirada",
+};
+
+const TYPE_LABELS: Record<SignupRequestType, string> = {
+  GYM: "Gym / Box",
+  PERSONAL: "Wody Personal",
+};
+
+const TYPE_STYLES: Record<SignupRequestType, string> = {
+  GYM: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+  PERSONAL: "bg-purple-500/10 text-purple-400 border-purple-500/30",
 };
 
 const STATUS_STYLES: Record<SignupRequestStatus, string> = {
@@ -79,7 +89,12 @@ export default async function SignupRequestDetailPage({ params }: Props) {
         <h1 className="text-2xl font-heading font-black uppercase tracking-[0.1em] text-white">
           {req.gymName ?? req.contactName}
         </h1>
-        <div className="mt-2">
+        <div className="mt-2 flex items-center gap-2 flex-wrap">
+          <span
+            className={`text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 border ${TYPE_STYLES[req.type]}`}
+          >
+            {TYPE_LABELS[req.type]}
+          </span>
           <span
             className={`text-xs font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 border ${STATUS_STYLES[req.status]}`}
           >
@@ -95,12 +110,12 @@ export default async function SignupRequestDetailPage({ params }: Props) {
         </p>
         <Field label="Email">{req.email}</Field>
         <Field label="Contacto">{req.contactName}</Field>
-        {req.gymName && <Field label="Gym">{req.gymName}</Field>}
-        {req.gymKindSuggested && (
-          <Field label="Tipo">{req.gymKindSuggested === "BOX" ? "Box (CrossFit)" : "Gym (tradicional)"}</Field>
+        {req.type === "GYM" && req.gymName && <Field label="Gym">{req.gymName}</Field>}
+        {req.type === "GYM" && req.gymKindSuggested && (
+          <Field label="Tipo centro">{req.gymKindSuggested === "BOX" ? "Box (CrossFit)" : "Gym (tradicional)"}</Field>
         )}
         {req.phone && <Field label="Teléfono">{req.phone}</Field>}
-        {req.expectedStudents != null && (
+        {req.type === "GYM" && req.expectedStudents != null && (
           <Field label="Alumnos esperados">{req.expectedStudents}</Field>
         )}
         {req.message && <Field label="Mensaje">{req.message}</Field>}
@@ -118,7 +133,9 @@ export default async function SignupRequestDetailPage({ params }: Props) {
         </p>
         <Field label="Creada">{formatDate(req.createdAt)}</Field>
         <Field label="Aprobada">{formatDate(req.approvedAt)}</Field>
-        <Field label="Token expira">{formatDate(req.tokenExpiresAt)}</Field>
+        {req.type === "GYM" && (
+          <Field label="Token expira">{formatDate(req.tokenExpiresAt)}</Field>
+        )}
         {req.rejectedAt && <Field label="Rechazada">{formatDate(req.rejectedAt)}</Field>}
         {req.rejectionReason && <Field label="Motivo rechazo">{req.rejectionReason}</Field>}
         {req.completedAt && <Field label="Completada">{formatDate(req.completedAt)}</Field>}
@@ -138,6 +155,7 @@ export default async function SignupRequestDetailPage({ params }: Props) {
       <SignupRequestActions
         id={req.id}
         status={req.status}
+        type={req.type}
         tokenExpiresAt={req.tokenExpiresAt ? req.tokenExpiresAt.toISOString() : null}
       />
     </div>

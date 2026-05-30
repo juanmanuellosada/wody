@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 
 interface Props {
   onClose: () => void;
+  formType?: "GYM" | "PERSONAL";
 }
 
 type SubmitState =
@@ -11,7 +12,8 @@ type SubmitState =
   | { type: "success" }
   | { type: "error"; message: string };
 
-export function ContactForm({ onClose }: Props) {
+export function ContactForm({ onClose, formType = "GYM" }: Props) {
+  const isPersonal = formType === "PERSONAL";
   const [isPending, startTransition] = useTransition();
 
   const [contactName, setContactName] = useState("");
@@ -43,18 +45,29 @@ export function ContactForm({ onClose }: Props) {
     e.preventDefault();
     startTransition(async () => {
       try {
+        const body = isPersonal
+          ? {
+              type: "PERSONAL",
+              contactName,
+              email,
+              phone: phone || undefined,
+              message: message || undefined,
+            }
+          : {
+              type: "GYM",
+              contactName,
+              email,
+              gymName,
+              gymKindSuggested,
+              phone: phone || undefined,
+              expectedStudents: expectedStudents ? Number(expectedStudents) : undefined,
+              message: message || undefined,
+            };
+
         const res = await fetch("/api/signup-request", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contactName,
-            email,
-            gymName,
-            gymKindSuggested,
-            phone: phone || undefined,
-            expectedStudents: expectedStudents ? Number(expectedStudents) : undefined,
-            message: message || undefined,
-          }),
+          body: JSON.stringify(body),
         });
 
         if (res.ok) {
@@ -108,7 +121,7 @@ export function ContactForm({ onClose }: Props) {
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
           <div>
             <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-0.5">
-              WODY para tu centro
+              {isPersonal ? "Wody Personal" : "WODY para tu centro"}
             </p>
             <h2 className="text-lg font-heading font-black uppercase tracking-[0.05em] text-white">
               Contactanos
@@ -197,63 +210,67 @@ export function ContactForm({ onClose }: Props) {
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="cf-gymname"
-                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-                >
-                  Nombre del gym <span className="text-brand-red">*</span>
-                </label>
-                <input
-                  id="cf-gymname"
-                  type="text"
-                  value={gymName}
-                  onChange={(e) => setGymName(e.target.value)}
-                  required
-                  disabled={isPending}
-                  placeholder="Atlas CrossFit"
-                  className="bg-white/[0.04] text-white font-body w-full border border-white/[0.08] px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 disabled:opacity-50 transition-all duration-200"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="cf-kind"
-                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-                >
-                  Tipo de centro <span className="text-brand-red">*</span>
-                </label>
-                <div
-                  id="cf-kind"
-                  className="flex gap-3"
-                  role="radiogroup"
-                  aria-label="Tipo de centro"
-                >
-                  {(["BOX", "GYM"] as const).map((kind) => (
+              {!isPersonal && (
+                <>
+                  <div className="flex flex-col gap-1.5">
                     <label
-                      key={kind}
-                      className={[
-                        "flex-1 flex items-center justify-center gap-2 px-4 py-3 border text-xs font-heading font-bold uppercase tracking-[0.1em] cursor-pointer transition-all duration-200",
-                        gymKindSuggested === kind
-                          ? "bg-brand-red/10 border-brand-red text-white"
-                          : "bg-white/[0.03] border-white/[0.08] text-gray-400 hover:border-white/20",
-                        isPending ? "cursor-not-allowed opacity-50" : "",
-                      ].join(" ")}
+                      htmlFor="cf-gymname"
+                      className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
                     >
-                      <input
-                        type="radio"
-                        name="gymKindSuggested"
-                        value={kind}
-                        checked={gymKindSuggested === kind}
-                        onChange={() => setGymKindSuggested(kind)}
-                        disabled={isPending}
-                        className="sr-only"
-                      />
-                      {kind === "BOX" ? "Box / CrossFit" : "Gimnasio tradicional"}
+                      Nombre del gym <span className="text-brand-red">*</span>
                     </label>
-                  ))}
-                </div>
-              </div>
+                    <input
+                      id="cf-gymname"
+                      type="text"
+                      value={gymName}
+                      onChange={(e) => setGymName(e.target.value)}
+                      required
+                      disabled={isPending}
+                      placeholder="Atlas CrossFit"
+                      className="bg-white/[0.04] text-white font-body w-full border border-white/[0.08] px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 disabled:opacity-50 transition-all duration-200"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="cf-kind"
+                      className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
+                    >
+                      Tipo de centro <span className="text-brand-red">*</span>
+                    </label>
+                    <div
+                      id="cf-kind"
+                      className="flex gap-3"
+                      role="radiogroup"
+                      aria-label="Tipo de centro"
+                    >
+                      {(["BOX", "GYM"] as const).map((kind) => (
+                        <label
+                          key={kind}
+                          className={[
+                            "flex-1 flex items-center justify-center gap-2 px-4 py-3 border text-xs font-heading font-bold uppercase tracking-[0.1em] cursor-pointer transition-all duration-200",
+                            gymKindSuggested === kind
+                              ? "bg-brand-red/10 border-brand-red text-white"
+                              : "bg-white/[0.03] border-white/[0.08] text-gray-400 hover:border-white/20",
+                            isPending ? "cursor-not-allowed opacity-50" : "",
+                          ].join(" ")}
+                        >
+                          <input
+                            type="radio"
+                            name="gymKindSuggested"
+                            value={kind}
+                            checked={gymKindSuggested === kind}
+                            onChange={() => setGymKindSuggested(kind)}
+                            disabled={isPending}
+                            className="sr-only"
+                          />
+                          {kind === "BOX" ? "Box / CrossFit" : "Gimnasio tradicional"}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="flex flex-col gap-1.5">
                 <label
@@ -273,24 +290,26 @@ export function ContactForm({ onClose }: Props) {
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="cf-students"
-                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-                >
-                  Alumnos estimados <span className="text-gray-600 normal-case font-body tracking-normal">— opcional</span>
-                </label>
-                <input
-                  id="cf-students"
-                  type="number"
-                  min="1"
-                  value={expectedStudents}
-                  onChange={(e) => setExpectedStudents(e.target.value)}
-                  disabled={isPending}
-                  placeholder="50"
-                  className="bg-white/[0.04] text-white font-body w-full border border-white/[0.08] px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 disabled:opacity-50 transition-all duration-200"
-                />
-              </div>
+              {!isPersonal && (
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="cf-students"
+                    className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
+                  >
+                    Alumnos estimados <span className="text-gray-600 normal-case font-body tracking-normal">— opcional</span>
+                  </label>
+                  <input
+                    id="cf-students"
+                    type="number"
+                    min="1"
+                    value={expectedStudents}
+                    onChange={(e) => setExpectedStudents(e.target.value)}
+                    disabled={isPending}
+                    placeholder="50"
+                    className="bg-white/[0.04] text-white font-body w-full border border-white/[0.08] px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 disabled:opacity-50 transition-all duration-200"
+                  />
+                </div>
+              )}
 
               <div className="flex flex-col gap-1.5">
                 <label
