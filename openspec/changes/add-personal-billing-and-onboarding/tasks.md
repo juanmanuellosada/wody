@@ -32,7 +32,7 @@
 
 ## 4. Webhook: discriminación por prefix
 
-- [ ] 4.1 Editar `src/app/api/webhooks/mercadopago/route.ts`: después de extraer el `external_reference` de la respuesta de MP, agregar logic:
+- [x] 4.1 Editar `src/app/api/webhooks/mercadopago/route.ts`: después de extraer el `external_reference` de la respuesta de MP, agregar logic:
   ```ts
   if (externalReference.startsWith("user_")) {
     const userId = externalReference.slice("user_".length);
@@ -42,17 +42,17 @@
     // existing gym logic
   }
   ```
-- [ ] 4.2 Implementar el branch Personal: leer `User`, comparar `mpSubscriptionStatus` previo, actualizar campos + `mpSubscriptionStatusChangedAt` solo en transición real, manejar caso user inexistente con warning + 200
-- [ ] 4.3 Disparar email `PERSONAL_PAYMENT_FAILED` cuando la transición sea desde no-paused/cancelled hacia paused/cancelled, en try/catch
-- [ ] 4.4 Excluir users exentos del email (igual que con gym)
+- [x] 4.2 Implementar el branch Personal: leer `User`, comparar `mpSubscriptionStatus` previo, actualizar campos + `mpSubscriptionStatusChangedAt` solo en transición real, manejar caso user inexistente con warning + 200
+- [x] 4.3 Disparar email `PERSONAL_PAYMENT_FAILED` cuando la transición sea desde no-paused/cancelled hacia paused/cancelled, en try/catch
+- [x] 4.4 Excluir users exentos del email (igual que con gym)
 
 ## 5. Cron: fases nuevas para Personal
 
-- [ ] 5.1 Editar `src/app/api/cron/check-gym-trials/route.ts`: después de las fases de gym (1 y 1.5), agregar **Fase Personal 1** (bloqueo por trial vencido)
-- [ ] 5.2 Agregar **Fase Personal 1.5** (bloqueo por pago fallido + grace 7d)
-- [ ] 5.3 Antes de la fase de push notifications gym (existente), agregar fase de push notifications Personal en hitos {7, 3, 1, 0}
-- [ ] 5.4 Extender el JSON de respuesta del cron con: `personalTrialBlockedCount`, `personalTrialBlockedUserIds`, `personalPaymentFailureBlockedCount`, `personalPaymentFailureBlockedUserIds`, `personalPushSummary`
-- [ ] 5.5 Implementar helper `findPersonalUsersInPhase(prisma, condition)` para no duplicar el filtro `gymId = <personal>, role = STUDENT, canCreateOwnRoutines = true, deletedAt = null` en cada fase
+- [x] 5.1 Editar `src/app/api/cron/check-gym-trials/route.ts`: después de las fases de gym (1 y 1.5), agregar **Fase Personal 1** (bloqueo por trial vencido)
+- [x] 5.2 Agregar **Fase Personal 1.5** (bloqueo por pago fallido + grace 7d)
+- [x] 5.3 Antes de la fase de push notifications gym (existente), agregar fase de push notifications Personal en hitos {7, 3, 1, 0}
+- [x] 5.4 Extender el JSON de respuesta del cron con: `personalTrialBlockedCount`, `personalTrialBlockedUserIds`, `personalPaymentFailureBlockedCount`, `personalPaymentFailureBlockedUserIds`, `personalPushSummary`
+- [x] 5.5 Implementar helper `findPersonalUsersInPhase(prisma, condition)` para no duplicar el filtro `gymId = <personal>, role = STUDENT, canCreateOwnRoutines = true, deletedAt = null` en cada fase
 
 ## 6. Email templates y wrappers para Personal
 
@@ -72,20 +72,20 @@
 
 ## 8. Server actions super-admin (extender existentes)
 
-- [ ] 8.1 Editar `src/actions/super-admin/signup-request.ts`: en `listSignupRequests`, aceptar filtro adicional `type?: SignupRequestType`
-- [ ] 8.2 Editar `approveSignupRequest`: branchear por `req.type`:
+- [x] 8.1 Editar `src/actions/super-admin/signup-request.ts`: en `listSignupRequests`, aceptar filtro adicional `type?: SignupRequestType`
+- [x] 8.2 Editar `approveSignupRequest`: branchear por `req.type`:
   - GYM: comportamiento actual (genera token, email LEAD_APPROVED)
   - PERSONAL: NO genera token. Crea entry en `PersonalAccessWhitelist` con `email = req.email, note = "Aprobado desde lead PERSONAL #${req.id}"` (si no existe ya). Persiste `status = APPROVED`, `approvedAt`. Manda email `PERSONAL_LEAD_APPROVED`
-- [ ] 8.3 Editar `rejectSignupRequest`: branchear por `req.type` para mandar `sendLeadRejectedEmail` o `sendPersonalLeadRejectedEmail`
-- [ ] 8.4 Editar `createWhitelistEntry`: aceptar `type` en input. Para PERSONAL, validar shape distinto (sin gymName) y aplicar el mismo flujo que el approve PERSONAL (crea entry en `PersonalAccessWhitelist` + email)
-- [ ] 8.5 Editar `resendOnboardingEmail`: para PERSONAL re-disparar el `sendPersonalLeadApprovedEmail` (el "link" no es token sino link a registro-personal)
+- [x] 8.3 Editar `rejectSignupRequest`: branchear por `req.type` para mandar `sendLeadRejectedEmail` o `sendPersonalLeadRejectedEmail`
+- [x] 8.4 Editar `createWhitelistEntry`: aceptar `type` en input. Para PERSONAL, validar shape distinto (sin gymName) y aplicar el mismo flujo que el approve PERSONAL (crea entry en `PersonalAccessWhitelist` + email)
+- [x] 8.5 Editar `resendOnboardingEmail`: para PERSONAL re-disparar el `sendPersonalLeadApprovedEmail` (el "link" no es token sino link a registro-personal)
 
 ## 9. Server actions del Personal user
 
-- [ ] 9.1 Crear `src/actions/personal-billing.ts` con `"use server"`
-- [ ] 9.2 Implementar `getMyPersonalSubscriptionStatus()`: valida sesión + rol STUDENT + gym personal, retorna `{ trialEndsAt, paymentExempt, mpSubscriptionStatus, mpPreapprovalId, daysLeftInTrial }`
-- [ ] 9.3 Implementar `getMyPersonalCheckoutUrl()`: valida sesión, llama a `getPersonalSubscriptionCheckoutUrl(userId)`
-- [ ] 9.4 Implementar `cancelMySubscription()`: valida sesión, lee `mpPreapprovalId`, si es null retorna error informativo, sino llama a `cancelMpPreapproval(preapprovalId)`, persiste `mpSubscriptionStatus = 'cancelled'` y `mpSubscriptionStatusChangedAt = now()`. No setea `blockedAt`
+- [x] 9.1 Crear `src/actions/personal-billing.ts` con `"use server"`
+- [x] 9.2 Implementar `getMyPersonalSubscriptionStatus()`: valida sesión + rol STUDENT + gym personal, retorna `{ trialEndsAt, paymentExempt, mpSubscriptionStatus, mpPreapprovalId, daysLeftInTrial }`
+- [x] 9.3 Implementar `getMyPersonalCheckoutUrl()`: valida sesión, llama a `getPersonalSubscriptionCheckoutUrl(userId)`
+- [x] 9.4 Implementar `cancelMySubscription()`: valida sesión, lee `mpPreapprovalId`, si es null retorna error informativo, sino llama a `cancelMpPreapproval(preapprovalId)`, persiste `mpSubscriptionStatus = 'cancelled'` y `mpSubscriptionStatusChangedAt = now()`. No setea `blockedAt`
 
 ## 10. UI super-admin: tipo en lista, form, detalle
 

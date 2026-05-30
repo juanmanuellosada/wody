@@ -108,6 +108,33 @@ export async function sendTrialEndingPush(
   return { totalSent, totalRemoved };
 }
 
+const PERSONAL_TRIAL_MESSAGES: Record<0 | 1 | 3 | 7, { title: string; body: string }> = {
+  7: {
+    title: "Tu trial termina en 7 días",
+    body: "Configurá tu tarjeta para no perder acceso.",
+  },
+  3: {
+    title: "Tu trial termina en 3 días",
+    body: "Faltan pocos días para configurar tu tarjeta.",
+  },
+  1: {
+    title: "Tu trial termina mañana",
+    body: "Última oportunidad para configurar tu tarjeta.",
+  },
+  0: {
+    title: "Tu trial venció hoy",
+    body: "Configurá tu tarjeta ahora para no perder acceso.",
+  },
+};
+
+export async function sendPersonalTrialEndingPush(
+  userId: string,
+  daysLeft: 7 | 3 | 1 | 0
+): Promise<{ sent: number; removed: number }> {
+  const { title, body } = PERSONAL_TRIAL_MESSAGES[daysLeft];
+  return sendPushToUser(userId, title, body);
+}
+
 function bodyForDaysRemaining(days: number, word: string): string {
   if (days <= 0) return `Tu cuota vence hoy. Pasá por tu ${word} para renovar.`;
   if (days === 1)

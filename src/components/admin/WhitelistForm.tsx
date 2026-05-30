@@ -21,6 +21,7 @@ export function WhitelistForm() {
     e.preventDefault();
     startTransition(async () => {
       const result = await createWhitelistEntry({
+        type: "GYM",
         email,
         contactName,
         gymName,

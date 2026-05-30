@@ -13,6 +13,8 @@ import {
 import {
   sendLeadApprovedEmail,
   sendLeadRejectedEmail,
+  sendPersonalLeadApprovedEmail,
+  sendPersonalLeadRejectedEmail,
 } from "@/lib/signup-emails";
 import type { SignupRequestStatus, SignupRequestType } from "@prisma/client";
 
@@ -44,11 +46,16 @@ export type SignupRequestDetail = SignupRequestRow & {
 
 export async function listSignupRequests(filter?: {
   status?: SignupRequestStatus;
+  type?: SignupRequestType;
 }): Promise<SignupRequestRow[]> {
   await assertSuperAdmin();
 
+  const where: { status?: SignupRequestStatus; type?: SignupRequestType } = {};
+  if (filter?.status) where.status = filter.status;
+  if (filter?.type) where.type = filter.type;
+
   return prisma.gymSignupRequest.findMany({
-    where: filter?.status ? { status: filter.status } : undefined,
+    where: Object.keys(where).length > 0 ? where : undefined,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -122,6 +129,36 @@ export async function approveSignupRequest(id: string): Promise<ActionResult> {
     };
   }
 
+  if (req.type === "PERSONAL") {
+    await prisma.personalAccessWhitelist.upsert({
+      where: { email: req.email },
+      update: {},
+      create: {
+        email: req.email,
+        note: `Aprobado desde lead PERSONAL #${req.id}`,
+      },
+    });
+
+    const updated = await prisma.gymSignupRequest.update({
+      where: { id },
+      data: {
+        status: "APPROVED",
+        approvedAt: new Date(),
+      },
+    });
+
+    try {
+      await sendPersonalLeadApprovedEmail(updated);
+    } catch (err) {
+      console.warn("[signup-request] Failed to send personal lead-approved email", {
+        id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    return { success: true };
+  }
+
   const token = generateOnboardingToken();
   const tokenExpiresAt = computeTokenExpiresAt();
 
@@ -175,7 +212,11 @@ export async function rejectSignupRequest(
   });
 
   try {
-    await sendLeadRejectedEmail(updated);
+    if (req.type === "PERSONAL") {
+      await sendPersonalLeadRejectedEmail(updated);
+    } else {
+      await sendLeadRejectedEmail(updated);
+    }
   } catch (err) {
     console.warn("[signup-request] Failed to send lead-rejected email", {
       id,
@@ -186,13 +227,23 @@ export async function rejectSignupRequest(
   return { success: true };
 }
 
-export async function createWhitelistEntry(input: {
-  email: string;
-  contactName: string;
-  gymName: string;
-  gymKindSuggested: "GYM" | "BOX";
-  message?: string;
-}): Promise<ActionResult> {
+export async function createWhitelistEntry(
+  input:
+    | {
+        type: "GYM";
+        email: string;
+        contactName: string;
+        gymName: string;
+        gymKindSuggested: "GYM" | "BOX";
+        message?: string;
+      }
+    | {
+        type: "PERSONAL";
+        email: string;
+        contactName: string;
+        message?: string;
+      }
+): Promise<ActionResult> {
   await assertSuperAdmin();
 
   const session = await auth();
@@ -209,7 +260,7 @@ export async function createWhitelistEntry(input: {
   if (!input.contactName.trim()) {
     return { success: false, error: "Nombre de contacto requerido" };
   }
-  if (!input.gymName.trim()) {
+  if (input.type === "GYM" && !input.gymName.trim()) {
     return { success: false, error: "Nombre del gym requerido" };
   }
 
@@ -223,11 +274,46 @@ export async function createWhitelistEntry(input: {
     };
   }
 
+  if (input.type === "PERSONAL") {
+    await prisma.personalAccessWhitelist.upsert({
+      where: { email },
+      update: {},
+      create: {
+        email,
+        note: `Agregado manualmente desde whitelist — contacto: ${input.contactName.trim()}`,
+      },
+    });
+
+    const created = await prisma.gymSignupRequest.create({
+      data: {
+        type: "PERSONAL",
+        email,
+        contactName: input.contactName.trim(),
+        message: input.message?.trim() || null,
+        status: "APPROVED",
+        approvedAt: new Date(),
+        createdByAdminId: session.user.id,
+      },
+    });
+
+    try {
+      await sendPersonalLeadApprovedEmail(created);
+    } catch (err) {
+      console.warn("[signup-request] Failed to send personal lead-approved email (whitelist)", {
+        id: created.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    return { success: true };
+  }
+
   const token = generateOnboardingToken();
   const tokenExpiresAt = computeTokenExpiresAt();
 
   const created = await prisma.gymSignupRequest.create({
     data: {
+      type: "GYM",
       email,
       contactName: input.contactName.trim(),
       gymName: input.gymName.trim(),
@@ -266,6 +352,20 @@ export async function resendOnboardingEmail(id: string): Promise<ActionResult> {
       success: false,
       error: "Solo se puede reenviar el email a requests aprobadas",
     };
+  }
+
+  if (req.type === "PERSONAL") {
+    try {
+      await sendPersonalLeadApprovedEmail(req);
+    } catch (err) {
+      console.warn("[signup-request] Failed to resend personal lead-approved email", {
+        id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return { success: false, error: "Error al enviar el email" };
+    }
+
+    return { success: true };
   }
 
   if (isTokenExpired(req)) {

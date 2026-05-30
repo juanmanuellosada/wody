@@ -1,13 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendTrialEndingPush } from "@/lib/push";
+import { sendTrialEndingPush, sendPersonalTrialEndingPush } from "@/lib/push";
 import { cleanupOldRateLimits } from "@/lib/rate-limit";
+import type { Prisma } from "@prisma/client";
 
 // Vercel Cron: 06:00 UTC (03:00 ART) daily — see vercel.json.
 // Blocks gyms with expired trials and sends push notifications at milestone days.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PUSH_MILESTONES = new Set([7, 3, 1, 0]);
+
+type PersonalUserPhaseCondition = Omit<
+  Prisma.UserWhereInput,
+  "gymId" | "role" | "canCreateOwnRoutines" | "deletedAt"
+>;
+
+async function findPersonalUsersInPhase(
+  personalGymId: string,
+  condition: PersonalUserPhaseCondition
+) {
+  return prisma.user.findMany({
+    where: {
+      gymId: personalGymId,
+      role: "STUDENT",
+      canCreateOwnRoutines: true,
+      deletedAt: null,
+      ...condition,
+    },
+    select: { id: true, email: true },
+  });
+}
 
 export async function GET(req: NextRequest) {
   const expected = process.env.CRON_SECRET;
@@ -71,6 +93,80 @@ export async function GET(req: NextRequest) {
     paymentFailureBlockedGymIds.push(gym.id);
   }
 
+  // --- Personal phases ---
+  const personalGym = await prisma.gym.findFirst({ where: { kind: "PERSONAL" } });
+
+  const personalTrialBlockedUserIds: string[] = [];
+  const personalPaymentFailureBlockedUserIds: string[] = [];
+  const personalPushSummary: { userId: string; daysLeft: number; sent: number; removed: number }[] = [];
+
+  if (!personalGym) {
+    console.log("[check-gym-trials] No PERSONAL gym found — skipping Personal phases");
+  } else {
+    // --- Fase Personal 1: block Personal users with expired trial and no subscription ---
+    const trialExpiredPersonalUsers = await findPersonalUsersInPhase(personalGym.id, {
+      trialEndsAt: { lt: now },
+      mpPreapprovalId: null,
+      paymentExempt: false,
+      blockedAt: null,
+    });
+
+    for (const user of trialExpiredPersonalUsers) {
+      await prisma.user.update({ where: { id: user.id }, data: { blockedAt: now } });
+      console.log("[check-gym-trials] Blocked Personal user for trial expiry", { userId: user.id });
+      personalTrialBlockedUserIds.push(user.id);
+    }
+
+    // --- Fase Personal 1.5: block Personal users with failed payment past grace period ---
+    const personalFailureCutoff = new Date(now.getTime() - FAILURE_GRACE_MS);
+    const paymentFailurePersonalUsers = await findPersonalUsersInPhase(personalGym.id, {
+      mpSubscriptionStatus: { in: ["paused", "cancelled"] },
+      mpSubscriptionStatusChangedAt: { lt: personalFailureCutoff },
+      blockedAt: null,
+      paymentExempt: false,
+    });
+
+    for (const user of paymentFailurePersonalUsers) {
+      await prisma.user.update({ where: { id: user.id }, data: { blockedAt: now } });
+      console.log("[check-gym-trials] Blocked Personal user for payment failure", { userId: user.id });
+      personalPaymentFailureBlockedUserIds.push(user.id);
+    }
+
+    // --- Fase Personal 2.5: push notifications at trial milestone days ---
+    const trialingPersonalUsers = await prisma.user.findMany({
+      where: {
+        gymId: personalGym.id,
+        role: "STUDENT",
+        canCreateOwnRoutines: true,
+        deletedAt: null,
+        paymentExempt: false,
+        mpSubscriptionStatus: { not: "authorized" },
+        blockedAt: null,
+        trialEndsAt: { not: null },
+      },
+      select: { id: true, trialEndsAt: true },
+    });
+
+    for (const user of trialingPersonalUsers) {
+      const daysLeft = Math.ceil((user.trialEndsAt!.getTime() - now.getTime()) / DAY_MS);
+
+      if (!PUSH_MILESTONES.has(daysLeft)) continue;
+
+      const milestone = daysLeft as 7 | 3 | 1 | 0;
+      try {
+        const { sent, removed } = await sendPersonalTrialEndingPush(user.id, milestone);
+        console.log("[check-gym-trials] Sent Personal trial push", { userId: user.id, daysLeft, sent, removed });
+        personalPushSummary.push({ userId: user.id, daysLeft, sent, removed });
+      } catch (err) {
+        console.warn("[check-gym-trials] Failed to send Personal trial push", {
+          userId: user.id,
+          daysLeft,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  }
+
   // --- Phase 2: send push notifications at trial milestone days ---
   const trialingGyms = await prisma.gym.findMany({
     where: {
@@ -132,6 +228,11 @@ export async function GET(req: NextRequest) {
     paymentFailureBlockedCount: paymentFailureBlockedGymIds.length,
     paymentFailureBlockedGymIds,
     pushSummary,
+    personalTrialBlockedCount: personalTrialBlockedUserIds.length,
+    personalTrialBlockedUserIds,
+    personalPaymentFailureBlockedCount: personalPaymentFailureBlockedUserIds.length,
+    personalPaymentFailureBlockedUserIds,
+    personalPushSummary,
     expiredSignupRequestsCount: expiredCount,
     cleanedRateLimits,
   });
