@@ -1,23 +1,33 @@
 # gym-signup-onboarding Specification
 
 ## Purpose
-Funnel B2B completo de adquisición de gyms: form de contacto público en la landing, revisión humana del super-admin, token de onboarding con expiración de 7 días enviado por email, y onboarding self-service del dueño aprobado que crea el `Gym` y su primer `User` ADMIN en una transacción. Soporta también un flujo de whitelist donde el super-admin crea entries directamente en estado `APPROVED` saltando la fase de revisión. Incluye rate limiting básico por IP y 3 emails transaccionales (lead recibido, lead aprobado, lead rechazado).
+Funnel de adquisición unificado para **gimnasios (B2B)** y **usuarios de Wody Personal (B2C)** — soporta dos tipos de leads en la misma tabla (`GymSignupRequest.type`), con form de contacto público para cada uno en la landing, revisión humana del super-admin, y dos flujos de aprobación diferenciados: para GYM se genera un token de onboarding con expiración de 7 días que lleva a un wizard de setup (`/onboarding/[token]`); para PERSONAL se promueve el email a `PersonalAccessWhitelist` y se envía link directo a `/registro-personal`. Incluye también un flujo de whitelist donde el super-admin crea entries directamente en estado `APPROVED`. Rate limiting básico por IP y 7 emails transaccionales (3 GYM + 3 PERSONAL + 1 payment-failed compartido con `gym-billing`/`personal-billing`).
 
 ## Requirements
 ### Requirement: Visitante puede enviar un lead desde la landing pública
 
-El sistema SHALL exponer en la landing pública una sección de pricing con un form de contacto que cualquier visitante (sin autenticación) pueda enviar para solicitar el alta de un gym. El form SHALL solicitar como mínimo: nombre de contacto, email, nombre del gym, tipo sugerido (GYM o BOX), y opcionalmente teléfono, cantidad estimada de alumnos y un mensaje libre.
+El sistema SHALL exponer en la landing pública **dos secciones** de pricing con sus respectivos forms de contacto que cualquier visitante (sin autenticación) pueda enviar para solicitar el alta:
 
-#### Scenario: Envío exitoso del form de contacto
+- **Sección GYM**: para gimnasios y boxes. El form SHALL solicitar como mínimo: nombre de contacto, email, nombre del gym, tipo sugerido (GYM o BOX), y opcionalmente teléfono, cantidad estimada de alumnos y un mensaje libre.
+- **Sección PERSONAL**: para usuarios individuales de Wody Personal. El form SHALL solicitar como mínimo: nombre de contacto, email, y opcionalmente teléfono y un mensaje libre. NO pide nombre del gym ni kind (no aplican).
 
-- **WHEN** un visitante completa el form con los campos requeridos y lo envía
-- **THEN** el sistema crea un registro `GymSignupRequest` con `status = PENDING`, persistiendo todos los campos del form
-- **AND** el sistema dispara un email automático al visitante confirmando la recepción
-- **AND** el visitante recibe un mensaje de éxito en la UI
+Cada submit SHALL incluir un campo `type` (`GYM` o `PERSONAL`) que el endpoint usa para discriminar el flujo de aprobación posterior.
 
-#### Scenario: Form rechaza email duplicado en estado PENDING o APPROVED
+#### Scenario: Envío exitoso del form GYM
 
-- **WHEN** un visitante envía el form con un email que ya tiene una `GymSignupRequest` en estado `PENDING` o `APPROVED`
+- **WHEN** un visitante completa el form GYM con los campos requeridos y lo envía
+- **THEN** el sistema crea un registro `GymSignupRequest` con `type = 'GYM'`, `status = PENDING`, persistiendo todos los campos del form (incluidos los gym-específicos)
+- **AND** el sistema dispara un email automático `LEAD_RECEIVED` al visitante
+
+#### Scenario: Envío exitoso del form PERSONAL
+
+- **WHEN** un visitante completa el form PERSONAL con `contactName` y `email`, lo envía
+- **THEN** el sistema crea un registro `GymSignupRequest` con `type = 'PERSONAL'`, `status = PENDING`, persistiendo los campos comunes y dejando los gym-específicos en `null`
+- **AND** el sistema dispara un email automático `PERSONAL_LEAD_RECEIVED` al visitante
+
+#### Scenario: Form rechaza email duplicado en estado activo (cualquier tipo)
+
+- **WHEN** un visitante envía el form con un email que ya tiene una `GymSignupRequest` en estado `PENDING` o `APPROVED` (independientemente del tipo)
 - **THEN** el sistema responde con éxito aparente al visitante (no informa el duplicado)
 - **AND** el sistema NO crea una request nueva ni dispara email
 - **AND** el sistema NO sobrescribe la request existente
@@ -29,80 +39,120 @@ El sistema SHALL exponer en la landing pública una sección de pricing con un f
 
 ### Requirement: Super-admin puede ver y filtrar las signup requests
 
-El sistema SHALL exponer una página `/admin/signup-requests` accesible solo a usuarios con `role = SUPERADMIN` que liste todas las `GymSignupRequest` con filtros por estado y ordenadas por fecha de creación descendente.
+El sistema SHALL exponer una página `/admin/signup-requests` accesible solo a usuarios con `role = SUPERADMIN` que liste todas las `GymSignupRequest` con filtros por **estado y tipo**, y ordenadas por fecha de creación descendente.
 
 #### Scenario: Super-admin accede al panel y ve la lista
 
 - **WHEN** un usuario con `role = SUPERADMIN` navega a `/admin/signup-requests`
-- **THEN** el sistema renderiza una tabla con todas las requests, mostrando email, nombre de contacto, nombre del gym, estado, fecha de creación y un link al detalle
+- **THEN** el sistema renderiza una tabla con todas las requests, mostrando email, nombre de contacto, **tipo** (badge GYM o PERSONAL), nombre del gym (vacío si es PERSONAL), estado, fecha de creación y un link al detalle
+
+#### Scenario: Filtrar por tipo
+
+- **WHEN** un super-admin selecciona el filtro "PERSONAL"
+- **THEN** la tabla muestra solo las requests con `type = 'PERSONAL'`
+
+#### Scenario: Filtrar por estado
+
+- **WHEN** un super-admin selecciona el filtro "PENDING"
+- **THEN** la tabla muestra solo las requests con `status = PENDING` (de cualquier tipo)
 
 #### Scenario: Usuario no super-admin no puede acceder
 
 - **WHEN** un usuario con `role != SUPERADMIN` intenta acceder a `/admin/signup-requests`
 - **THEN** el sistema redirige a `/` y no expone ninguna información
 
-#### Scenario: Filtrar por estado
-
-- **WHEN** un super-admin selecciona el filtro "PENDING"
-- **THEN** la tabla muestra solo las requests con `status = PENDING`
-
 ### Requirement: Super-admin puede aprobar una signup request
 
-El sistema SHALL permitir al super-admin aprobar una `GymSignupRequest` que esté en estado `PENDING` o `APPROVED` (re-aprobación tras expiración). La aprobación SHALL generar un `onboardingToken` único (cuid), setear `approvedAt`, `tokenExpiresAt = now + 7 días`, cambiar `status` a `APPROVED`, y disparar el email de aprobación al dueño.
+El sistema SHALL permitir al super-admin aprobar una `GymSignupRequest` con comportamientos distintos según el `type` de la request:
 
-#### Scenario: Aprobación de un lead pendiente
+**Para `type = GYM`**: genera un `onboardingToken` (cuid), setea `approvedAt`, `tokenExpiresAt = now + 7 días`, cambia `status` a `APPROVED`, y dispara el email `LEAD_APPROVED` con el link `/onboarding/<token>`.
 
-- **WHEN** un super-admin invoca `approveSignupRequest(id)` para una request con `status = PENDING`
-- **THEN** el sistema persiste `status = APPROVED`, `approvedAt = now`, `tokenExpiresAt = now + 7d`, `onboardingToken` con un nuevo cuid
-- **AND** el sistema dispara el email de aprobación con el link `/onboarding/<token>` al email del lead
+**Para `type = PERSONAL`**: el sistema NO genera token de onboarding (`onboardingToken` queda null). En su lugar:
 
-#### Scenario: Re-aprobación de una request expirada
+1. Crea una entry en `PersonalAccessWhitelist` con el email del lead, si no existe ya.
+2. Setea `approvedAt`, cambia `status` a `APPROVED`.
+3. Dispara el email `PERSONAL_LEAD_APPROVED` con un link a `https://wody.com.ar/registro-personal` para que el user se registre.
 
-- **WHEN** un super-admin aprueba una request con `status = EXPIRED`
-- **THEN** el sistema genera un nuevo `onboardingToken`, actualiza `tokenExpiresAt` y vuelve a `status = APPROVED`
-- **AND** dispara el email de aprobación con el nuevo link
+#### Scenario: Aprobación de un lead GYM
+
+- **WHEN** un super-admin invoca `approveSignupRequest(id)` para una request con `type = 'GYM'` y `status = PENDING`
+- **THEN** el sistema genera token, setea expiración, status APPROVED, y manda email `LEAD_APPROVED` con link `/onboarding/<token>`
+
+#### Scenario: Aprobación de un lead PERSONAL
+
+- **WHEN** un super-admin invoca `approveSignupRequest(id)` para una request con `type = 'PERSONAL'` y `status = PENDING`
+- **THEN** el sistema crea entry en `PersonalAccessWhitelist` con el email del lead, setea `approvedAt`, status APPROVED, y manda email `PERSONAL_LEAD_APPROVED` con link a `/registro-personal`
+- **AND** el `onboardingToken` y `tokenExpiresAt` quedan en null
+
+#### Scenario: Aprobación de PERSONAL ya con email en whitelist
+
+- **WHEN** un super-admin aprueba una request PERSONAL cuyo email ya está en `PersonalAccessWhitelist`
+- **THEN** el sistema NO duplica la entry, igualmente setea `status = APPROVED` y manda el email
+- **AND** el `PersonalAccessWhitelist` queda con la entry existente intacta
 
 ### Requirement: Super-admin puede rechazar una signup request con email opcional
 
-El sistema SHALL permitir al super-admin rechazar una `GymSignupRequest` con un motivo opcional (`rejectionReason`). La acción SHALL cambiar `status` a `REJECTED`, setear `rejectedAt`, y disparar un email de cortesía al lead.
+El sistema SHALL permitir al super-admin rechazar una `GymSignupRequest` con un motivo opcional. La acción SHALL cambiar `status` a `REJECTED`, setear `rejectedAt`, y disparar un email de cortesía según el tipo de la request:
 
-#### Scenario: Rechazo con email automático
+- `type = GYM` → email `LEAD_REJECTED`
+- `type = PERSONAL` → email `PERSONAL_LEAD_REJECTED`
 
-- **WHEN** un super-admin invoca `rejectSignupRequest(id, reason?)` para una request en estado `PENDING` o `APPROVED`
-- **THEN** el sistema persiste `status = REJECTED`, `rejectedAt = now`, `rejectionReason` si fue provisto
-- **AND** dispara el email de cortesía al email del lead, incluyendo `rejectionReason` si está disponible
+#### Scenario: Rechazo de GYM con email automático
+
+- **WHEN** un super-admin invoca `rejectSignupRequest(id, reason?)` para una request GYM
+- **THEN** el sistema persiste `status = REJECTED`, `rejectedAt`, `rejectionReason` si fue provisto, y dispara el email `LEAD_REJECTED`
+
+#### Scenario: Rechazo de PERSONAL con email automático
+
+- **WHEN** un super-admin invoca `rejectSignupRequest(id, reason?)` para una request PERSONAL
+- **THEN** el sistema persiste `status = REJECTED`, `rejectedAt`, `rejectionReason` si fue provisto, y dispara el email `PERSONAL_LEAD_REJECTED`
 
 ### Requirement: Super-admin puede agregar entries directamente como whitelist
 
-El sistema SHALL permitir al super-admin crear `GymSignupRequest` directamente en estado `APPROVED`, sin pasar por la fase `PENDING`. Esto cubre el caso "ya hablé con el dueño por afuera, mandale el link de onboarding". El registro SHALL llevar `createdByAdminId` apuntando al super-admin que lo creó.
+El sistema SHALL permitir al super-admin crear `GymSignupRequest` directamente en estado `APPROVED`, sin pasar por la fase `PENDING`. El comportamiento depende del tipo elegido en el form de creación:
 
-#### Scenario: Creación de whitelist entry
+- **`type = GYM`**: crea con `onboardingToken`, `tokenExpiresAt = now + 7d`, dispara email `LEAD_APPROVED`.
+- **`type = PERSONAL`**: crea sin token, agrega entry a `PersonalAccessWhitelist` con el email, dispara email `PERSONAL_LEAD_APPROVED`.
 
-- **WHEN** un super-admin invoca `createWhitelistEntry({ email, gymName, gymKindSuggested, contactName, message? })`
-- **THEN** el sistema crea una `GymSignupRequest` con `status = APPROVED`, `createdByAdminId = currentUser.id`, `onboardingToken` nuevo, `tokenExpiresAt = now + 7d`
-- **AND** dispara el email de aprobación al email indicado, igual que en un lead aprobado normal
+#### Scenario: Creación de whitelist GYM
+
+- **WHEN** un super-admin invoca `createWhitelistEntry({ type: 'GYM', email, gymName, gymKindSuggested, contactName, message? })`
+- **THEN** el sistema crea una `GymSignupRequest` GYM en `APPROVED`, con `createdByAdminId = currentUser.id`, `onboardingToken` nuevo, `tokenExpiresAt = now + 7d`
+- **AND** dispara el email `LEAD_APPROVED`
+
+#### Scenario: Creación de whitelist PERSONAL
+
+- **WHEN** un super-admin invoca `createWhitelistEntry({ type: 'PERSONAL', email, contactName, message? })`
+- **THEN** el sistema crea una `GymSignupRequest` PERSONAL en `APPROVED`, con `createdByAdminId = currentUser.id`, sin token
+- **AND** crea entry en `PersonalAccessWhitelist` con el email (si no existe)
+- **AND** dispara el email `PERSONAL_LEAD_APPROVED` con link a `/registro-personal`
 
 ### Requirement: Super-admin puede re-emitir el email de onboarding
 
-El sistema SHALL permitir al super-admin re-disparar el email de aprobación de una request en estado `APPROVED` con token aún válido, sin generar un nuevo token. Si el token ya expiró, la acción de re-emisión SHALL ofrecer re-aprobar (que sí genera token nuevo).
+El sistema SHALL permitir al super-admin re-disparar el email de aprobación de una request en estado `APPROVED`. Para GYM, requiere token vigente (sin generar uno nuevo); si el token ya expiró, ofrece re-aprobar para generar uno nuevo. Para PERSONAL, no hay token y la re-emisión siempre funciona mientras esté en `APPROVED`.
 
-#### Scenario: Re-emitir email con token válido
+#### Scenario: Re-emitir email GYM con token válido
 
-- **WHEN** un super-admin invoca `resendOnboardingEmail(id)` para una request con `status = APPROVED` y `tokenExpiresAt > now`
+- **WHEN** un super-admin invoca `resendOnboardingEmail(id)` para una request GYM con `status = APPROVED` y `tokenExpiresAt > now`
 - **THEN** el sistema dispara el mismo email con el mismo link de onboarding, sin tocar el token ni la expiración
 
-#### Scenario: Re-emitir con token expirado
+#### Scenario: Re-emitir email GYM con token expirado
 
-- **WHEN** un super-admin invoca `resendOnboardingEmail(id)` para una request con `tokenExpiresAt < now`
+- **WHEN** un super-admin invoca `resendOnboardingEmail(id)` para una request GYM con `tokenExpiresAt < now`
 - **THEN** el sistema rechaza la operación con un mensaje indicando que debe re-aprobar para generar un nuevo token
+
+#### Scenario: Re-emitir email PERSONAL
+
+- **WHEN** un super-admin invoca `resendOnboardingEmail(id)` para una request PERSONAL en `APPROVED`
+- **THEN** el sistema re-dispara `PERSONAL_LEAD_APPROVED` con el link a `/registro-personal` (sin restricción de expiración — no hay token)
 
 ### Requirement: Dueño aprobado completa el onboarding con un token válido
 
-El sistema SHALL exponer una ruta pública `/onboarding/[token]` que validate el token y permita al dueño completar la configuración inicial: slug del gym, password del primer admin, kind (GYM o BOX), opcional logo, opcional color primario. Al completar, el sistema SHALL crear `Gym` + primer `User` ADMIN + marcar la request como `COMPLETED`, todo en una sola transacción.
+El sistema SHALL exponer una ruta pública `/onboarding/[token]` que valide el token y permita al dueño completar la configuración inicial del gym: slug, password del primer admin, kind (GYM o BOX), opcional logo, opcional color primario. Al completar, el sistema SHALL crear `Gym` + primer `User` ADMIN + marcar la request como `COMPLETED`, todo en una sola transacción. **Esta ruta aplica solo a leads `type = GYM`** — los leads PERSONAL no usan token, se registran vía `/registro-personal` con la whitelist.
 
-#### Scenario: Onboarding exitoso
+#### Scenario: Onboarding exitoso (GYM)
 
-- **WHEN** un dueño visita `/onboarding/<token>` con un token válido, no expirado y status `APPROVED`
+- **WHEN** un dueño visita `/onboarding/<token>` con un token válido, no expirado, status `APPROVED` y `type = GYM`
 - **AND** completa el form con un slug válido (único, no reservado), password >= 8 caracteres, kind seleccionado
 - **AND** envía el form
 - **THEN** el sistema crea, en una transacción, un `Gym` con `trialEndsAt = now + 30d`, `paymentExempt = false`, y los datos del form
@@ -128,75 +178,92 @@ El sistema SHALL exponer una ruta pública `/onboarding/[token]` que validate el
 
 ### Requirement: Cron diario expira tokens de onboarding sin uso
 
-El sistema SHALL ejecutar dentro del cron diario `/api/cron/check-gym-trials` una fase adicional que actualice todas las `GymSignupRequest` con `status = APPROVED` y `tokenExpiresAt < now` a `status = EXPIRED`.
+El sistema SHALL ejecutar dentro del cron diario `/api/cron/check-gym-trials` una fase que actualice todas las `GymSignupRequest` GYM con `status = APPROVED` y `tokenExpiresAt < now` a `status = EXPIRED`. Las requests PERSONAL no tienen token y por lo tanto no se expiran por esta fase.
 
-#### Scenario: Token expirado se marca como EXPIRED
+#### Scenario: Token GYM expirado se marca como EXPIRED
 
 - **WHEN** el cron diario corre
-- **AND** existe una request con `status = APPROVED` y `tokenExpiresAt` en el pasado
+- **AND** existe una request GYM con `status = APPROVED` y `tokenExpiresAt` en el pasado
 - **THEN** el sistema actualiza `status = EXPIRED` y deja el resto de los campos intactos
 
-#### Scenario: Token válido no se toca
+#### Scenario: Token GYM válido no se toca
 
 - **WHEN** el cron diario corre
-- **AND** existe una request con `status = APPROVED` y `tokenExpiresAt > now`
+- **AND** existe una request GYM con `status = APPROVED` y `tokenExpiresAt > now`
+- **THEN** el sistema NO modifica el registro
+
+#### Scenario: Request PERSONAL nunca expira
+
+- **WHEN** el cron diario corre
+- **AND** existe una request PERSONAL con `status = APPROVED` (sin `tokenExpiresAt`)
 - **THEN** el sistema NO modifica el registro
 
 ### Requirement: Sistema de emails transaccionales para el funnel
 
-El sistema SHALL disparar tres emails transaccionales según el estado de la `GymSignupRequest`:
+El sistema SHALL disparar 6 emails transaccionales según el estado y tipo de la `GymSignupRequest`:
 
-- `lead-received`: cuando se crea una request en `PENDING` (al visitante).
-- `lead-approved`: cuando se aprueba una request (al dueño, con link de onboarding).
-- `lead-rejected`: cuando se rechaza una request (al lead, con `rejectionReason` si existe).
+- **GYM**: `LEAD_RECEIVED` (al crear), `LEAD_APPROVED` (al aprobar, con link onboarding), `LEAD_REJECTED` (al rechazar).
+- **PERSONAL**: `PERSONAL_LEAD_RECEIVED`, `PERSONAL_LEAD_APPROVED` (con link a `/registro-personal`), `PERSONAL_LEAD_REJECTED`.
 
-Los emails SHALL usar la infraestructura de email definida en el cambio `add-email-service`.
+Los emails SHALL usar la infraestructura de email del cambio `add-email-service` (`sendEmail` API + `EmailLog` persistence).
 
-#### Scenario: Email "lead-received" al crear lead
+#### Scenario: Email correspondiente al crear lead
 
 - **WHEN** se crea una `GymSignupRequest` con `status = PENDING` desde el endpoint público
-- **THEN** el sistema dispara un email a `email` de la request con el template `lead-received`
+- **THEN** el sistema dispara `LEAD_RECEIVED` si `type = GYM` o `PERSONAL_LEAD_RECEIVED` si `type = PERSONAL`
 
-#### Scenario: Email "lead-approved" al aprobar
+#### Scenario: Email correspondiente al aprobar
 
-- **WHEN** una request pasa a estado `APPROVED` (vía aprobación de lead o creación de whitelist)
-- **THEN** el sistema dispara un email a `email` de la request con el template `lead-approved`, incluyendo el link `/onboarding/<token>`
+- **WHEN** una request pasa a estado `APPROVED`
+- **THEN** el sistema dispara `LEAD_APPROVED` o `PERSONAL_LEAD_APPROVED` según `type`
 
-#### Scenario: Email "lead-rejected" al rechazar
+#### Scenario: Email correspondiente al rechazar
 
 - **WHEN** una request pasa a `REJECTED` por acción explícita del super-admin
-- **THEN** el sistema dispara un email a `email` de la request con el template `lead-rejected`, incluyendo `rejectionReason` si fue provisto
+- **THEN** el sistema dispara `LEAD_REJECTED` o `PERSONAL_LEAD_REJECTED` según `type`, incluyendo `rejectionReason` si fue provisto
 
 ### Requirement: Modelo de datos `GymSignupRequest` y enum `SignupRequestStatus`
 
-El sistema SHALL persistir las solicitudes de alta en un nuevo modelo Prisma `GymSignupRequest` con los siguientes campos (mínimo):
+El sistema SHALL persistir las solicitudes de alta en el modelo Prisma `GymSignupRequest` con (mínimo):
 
 - `id: String @id @default(cuid())`
 - `email: String`
 - `contactName: String`
-- `gymName: String`
-- `gymKindSuggested: String` (almacena `"GYM"` o `"BOX"`)
+- `type: SignupRequestType @default(GYM)` — discrimina el flujo
+- `gymName: String?` (nullable — solo aplica a GYM)
+- `gymKindSuggested: String?` (nullable — solo aplica a GYM, almacena `"GYM"` o `"BOX"`)
 - `phone: String?`
-- `expectedStudents: Int?`
+- `expectedStudents: Int?` (nullable — solo aplica a GYM)
 - `message: String?`
 - `status: SignupRequestStatus @default(PENDING)`
 - `createdAt: DateTime @default(now())`
 - `approvedAt: DateTime?`
 - `rejectedAt: DateTime?`
 - `completedAt: DateTime?`
-- `onboardingToken: String? @unique`
-- `tokenExpiresAt: DateTime?`
+- `onboardingToken: String? @unique` (solo se usa para GYM)
+- `tokenExpiresAt: DateTime?` (solo se usa para GYM)
 - `rejectionReason: String?`
-- `gymId: String?` (FK opcional a `Gym`, settled cuando completed)
+- `gymId: String?` (FK opcional a `Gym`, settled cuando GYM completa onboarding)
 - `createdByAdminId: String?` (FK opcional a `User`, settled cuando creado por whitelist)
 
-Y un nuevo enum `SignupRequestStatus { PENDING, APPROVED, REJECTED, COMPLETED, EXPIRED }`.
+Y dos enums:
+- `SignupRequestStatus { PENDING, APPROVED, REJECTED, COMPLETED, EXPIRED }`
+- `SignupRequestType { GYM, PERSONAL }`
 
-#### Scenario: Migración agrega la tabla sin afectar datos existentes
+#### Scenario: Migración inicial crea la tabla sin afectar datos existentes
 
-- **WHEN** se aplica la migración del cambio en una DB con datos productivos
-- **THEN** se crea la tabla `GymSignupRequest` y el enum `SignupRequestStatus` sin tocar otras tablas
-- **AND** no hay rows iniciales — la tabla queda vacía
+- **WHEN** se aplica la migración del cambio inicial
+- **THEN** se crea la tabla `GymSignupRequest`, los dos enums, sin tocar otras tablas
+
+#### Scenario: Migración de extensión PERSONAL preserva rows existentes
+
+- **WHEN** se aplica la migración que agrega `type` y nullea `gymName`/`gymKindSuggested`
+- **THEN** todas las rows existentes quedan con `type = 'GYM'` por default y mantienen sus campos gym intactos
+
+#### Scenario: Lead PERSONAL crea row con campos gym vacíos
+
+- **WHEN** se crea una `GymSignupRequest` desde la API con `type = 'PERSONAL'`
+- **THEN** los campos `gymName`, `gymKindSuggested`, `expectedStudents`, `onboardingToken`, `tokenExpiresAt` quedan en NULL
 
 ### Requirement: Transiciones de estado válidas en `GymSignupRequest`
 
@@ -204,10 +271,10 @@ El sistema SHALL rechazar transiciones de estado inválidas en `GymSignupRequest
 
 - `PENDING → APPROVED`
 - `PENDING → REJECTED`
-- `APPROVED → COMPLETED`
+- `APPROVED → COMPLETED` (solo para GYM — implica completar el wizard de onboarding)
 - `APPROVED → REJECTED`
-- `APPROVED → EXPIRED` (solo desde el cron)
-- `EXPIRED → APPROVED` (re-aprobación con nuevo token)
+- `APPROVED → EXPIRED` (solo desde el cron, solo para GYM con token vencido)
+- `EXPIRED → APPROVED` (re-aprobación con nuevo token, solo para GYM)
 
 #### Scenario: Intento de transición inválida es rechazado
 
