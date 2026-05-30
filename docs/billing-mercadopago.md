@@ -1,5 +1,7 @@
 # Billing con Mercado Pago
 
+> Este doc cubre **el cobro a gimnasios** (modelo B2B, suscripción a nivel Gym). Para el cobro del producto Wody Personal (B2C, suscripción a nivel User individual), ver [`docs/billing-personal.md`](./billing-personal.md).
+
 ## 1. Resumen
 
 Wody cobra a cada gym **$40.000 ARS por mes** mediante una suscripción de Mercado Pago. El modelo es deliberadamente simple: un único plan creado en el dashboard de MP (un `preapproval_plan`), los gyms se suscriben a ese plan desde la UI de Wody, y MP gestiona el cobro mensual automático. Cada gym tiene 30 días de trial desde su creación. Al vencer el trial sin suscripción activa, un cron diario bloquea el gym reutilizando el campo `Gym.blockedAt` ya existente. Los gyms pre-existentes al lanzamiento del modelo de cobro (2026-05), y Wody Personal, están exentos permanentemente.

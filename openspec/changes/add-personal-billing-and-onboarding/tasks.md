@@ -118,9 +118,9 @@
 
 ## 14. Documentación
 
-- [ ] 14.1 Crear `docs/billing-personal.md`: guía operativa del modelo Personal (precio, trial, dos planes, exención, webhook discriminator, cron, emails, self-cancel)
-- [ ] 14.2 Crear `docs/onboarding-personal.md`: documentar el funnel PERSONAL (form en landing, lead, aprobación, promoción a whitelist, link a registro-personal). Linkear a `docs/onboarding-gyms.md` para el flujo GYM
-- [ ] 14.3 Actualizar `docs/billing-mercadopago.md` con nota corta apuntando a `docs/billing-personal.md` para todo lo de cobro Personal
+- [x] 14.1 Crear `docs/billing-personal.md`: guía operativa del modelo Personal (precio, trial, dos planes, exención, webhook discriminator, cron, emails, self-cancel)
+- [x] 14.2 Crear `docs/onboarding-personal.md`: documentar el funnel PERSONAL (form en landing, lead, aprobación, promoción a whitelist, link a registro-personal). Linkear a `docs/onboarding-gyms.md` para el flujo GYM
+- [x] 14.3 Actualizar `docs/billing-mercadopago.md` con nota corta apuntando a `docs/billing-personal.md` para todo lo de cobro Personal
 
 ## 15. Deploy y verificación
 
