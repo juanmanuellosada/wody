@@ -158,11 +158,11 @@ export default async function SignupRequestsPage({ searchParams }: Props) {
                     href={`/admin/signup-requests/${req.id}`}
                     className="text-white font-heading font-bold hover:text-brand-red transition-colors duration-200"
                   >
-                    {req.gymName}
+                    {req.gymName ?? req.contactName}
                   </Link>
                 </td>
                 <td className="px-4 py-3.5 text-gray-500 font-body text-xs">
-                  {req.gymKindSuggested === "BOX" ? "Box" : "Gym"}
+                  {req.gymKindSuggested === "BOX" ? "Box" : req.gymKindSuggested === "GYM" ? "Gym" : "—"}
                 </td>
                 <td className="px-4 py-3.5">
                   <StatusBadge status={req.status} />

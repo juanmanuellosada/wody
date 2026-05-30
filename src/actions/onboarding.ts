@@ -51,8 +51,8 @@ export async function validateOnboardingToken(token: string): Promise<ValidateTo
       id: req.id,
       email: req.email,
       contactName: req.contactName,
-      gymName: req.gymName,
-      gymKindSuggested: req.gymKindSuggested,
+      gymName: req.gymName ?? "",
+      gymKindSuggested: req.gymKindSuggested ?? "",
     },
   };
 }
@@ -133,7 +133,7 @@ export async function submitOnboarding(
     await prisma.$transaction(async (tx) => {
       const gym = await tx.gym.create({
         data: {
-          name: req.gymName,
+          name: req.gymName ?? req.contactName,
           slug,
           kind: input.kind,
           primaryColor: input.primaryColor ?? null,

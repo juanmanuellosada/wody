@@ -121,6 +121,44 @@ export async function getSubscriptionCheckoutUrl(gymId: string): Promise<string>
 }
 
 // ---------------------------------------------------------------------------
+// Personal subscription checkout URL
+// ---------------------------------------------------------------------------
+
+async function pickPersonalPlanIdForUser(userId: string): Promise<string> {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { mpPreapprovalId: true },
+  });
+  const newPlan = process.env.MP_PREAPPROVAL_PLAN_ID_PERSONAL;
+  const returningPlan = process.env.MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING;
+  if (!newPlan) throw new Error("MP_PREAPPROVAL_PLAN_ID_PERSONAL env var is not set");
+  if (user.mpPreapprovalId == null) return newPlan;
+  if (!returningPlan) {
+    console.warn(
+      "[mercadopago] MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING not set — falling back to NEW plan; user will receive another free_trial",
+      { userId }
+    );
+    return newPlan;
+  }
+  return returningPlan;
+}
+
+/**
+ * Builds the Mercado Pago checkout URL for a Personal user to subscribe.
+ * Chooses the correct plan based on whether the user has a previous subscription.
+ * Uses "user_" prefix on external_reference to discriminate from gym subscriptions in the webhook.
+ */
+export async function getPersonalSubscriptionCheckoutUrl(userId: string): Promise<string> {
+  const planId = await pickPersonalPlanIdForUser(userId);
+  const url = new URL(
+    "https://www.mercadopago.com.ar/subscriptions/checkout"
+  );
+  url.searchParams.set("preapproval_plan_id", planId);
+  url.searchParams.set("external_reference", `user_${userId}`);
+  return url.toString();
+}
+
+// ---------------------------------------------------------------------------
 // Cancel a preapproval (subscription)
 // ---------------------------------------------------------------------------
 

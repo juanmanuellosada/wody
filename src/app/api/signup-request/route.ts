@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkSignupRateLimit, recordRateLimit } from "@/lib/rate-limit";
-import { sendLeadReceivedEmail } from "@/lib/signup-emails";
+import { sendLeadReceivedEmail, sendPersonalLeadReceivedEmail } from "@/lib/signup-emails";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   const {
+    type: typeRaw,
     email,
     contactName,
     gymName,
@@ -35,24 +36,33 @@ export async function POST(req: NextRequest) {
     message,
   } = body as Record<string, unknown>;
 
-  // Validate required fields
+  // Determine type — default to GYM for backward compat
+  const type = typeRaw === "PERSONAL" ? "PERSONAL" : "GYM";
+
+  // Validate common required fields
   if (typeof email !== "string" || !EMAIL_REGEX.test(email.trim())) {
     return NextResponse.json({ error: "Email inválido" }, { status: 400 });
   }
   if (typeof contactName !== "string" || !contactName.trim()) {
     return NextResponse.json({ error: "Nombre de contacto requerido" }, { status: 400 });
   }
-  if (typeof gymName !== "string" || !gymName.trim()) {
-    return NextResponse.json({ error: "Nombre del gym requerido" }, { status: 400 });
+
+  // Validate GYM-specific required fields
+  if (type === "GYM") {
+    if (typeof gymName !== "string" || !gymName.trim()) {
+      return NextResponse.json({ error: "Nombre del gym requerido" }, { status: 400 });
+    }
+    if (gymKindSuggested !== "GYM" && gymKindSuggested !== "BOX") {
+      return NextResponse.json({ error: "Tipo de gym inválido (GYM o BOX)" }, { status: 400 });
+    }
+    if (expectedStudents !== undefined && (typeof expectedStudents !== "number" || !Number.isInteger(expectedStudents))) {
+      return NextResponse.json({ error: "Cantidad de alumnos inválida" }, { status: 400 });
+    }
   }
-  if (gymKindSuggested !== "GYM" && gymKindSuggested !== "BOX") {
-    return NextResponse.json({ error: "Tipo de gym inválido (GYM o BOX)" }, { status: 400 });
-  }
+
+  // Validate optional common fields
   if (phone !== undefined && typeof phone !== "string") {
     return NextResponse.json({ error: "Teléfono inválido" }, { status: 400 });
-  }
-  if (expectedStudents !== undefined && (typeof expectedStudents !== "number" || !Number.isInteger(expectedStudents))) {
-    return NextResponse.json({ error: "Cantidad de alumnos inválida" }, { status: 400 });
   }
   if (message !== undefined && typeof message !== "string") {
     return NextResponse.json({ error: "Mensaje inválido" }, { status: 400 });
@@ -85,23 +95,29 @@ export async function POST(req: NextRequest) {
     // Create the signup request
     const signupRequest = await prisma.gymSignupRequest.create({
       data: {
+        type,
         email: normalizedEmail,
         contactName: contactName.trim(),
-        gymName: gymName.trim(),
-        gymKindSuggested: gymKindSuggested as string,
+        gymName: type === "GYM" && typeof gymName === "string" ? gymName.trim() : null,
+        gymKindSuggested: type === "GYM" && (gymKindSuggested === "GYM" || gymKindSuggested === "BOX") ? gymKindSuggested : null,
         phone: typeof phone === "string" ? phone.trim() || null : null,
-        expectedStudents: typeof expectedStudents === "number" ? expectedStudents : null,
+        expectedStudents: type === "GYM" && typeof expectedStudents === "number" ? expectedStudents : null,
         message: typeof message === "string" ? message.trim() || null : null,
         status: "PENDING",
       },
     });
 
     // Record rate limit and send email in parallel — neither failure blocks the response
+    const emailSender = type === "PERSONAL"
+      ? sendPersonalLeadReceivedEmail(signupRequest)
+      : sendLeadReceivedEmail(signupRequest);
+
     await Promise.allSettled([
       recordRateLimit(ip, prisma),
-      sendLeadReceivedEmail(signupRequest).catch((err) => {
+      emailSender.catch((err) => {
         console.warn("[signup-request] Failed to send lead-received email", {
           id: signupRequest.id,
+          type,
           error: err instanceof Error ? err.message : String(err),
         });
       }),

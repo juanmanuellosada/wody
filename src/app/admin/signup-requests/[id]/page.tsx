@@ -77,7 +77,7 @@ export default async function SignupRequestDetailPage({ params }: Props) {
           {" / "}Detalle
         </p>
         <h1 className="text-2xl font-heading font-black uppercase tracking-[0.1em] text-white">
-          {req.gymName}
+          {req.gymName ?? req.contactName}
         </h1>
         <div className="mt-2">
           <span
@@ -95,8 +95,10 @@ export default async function SignupRequestDetailPage({ params }: Props) {
         </p>
         <Field label="Email">{req.email}</Field>
         <Field label="Contacto">{req.contactName}</Field>
-        <Field label="Gym">{req.gymName}</Field>
-        <Field label="Tipo">{req.gymKindSuggested === "BOX" ? "Box (CrossFit)" : "Gym (tradicional)"}</Field>
+        {req.gymName && <Field label="Gym">{req.gymName}</Field>}
+        {req.gymKindSuggested && (
+          <Field label="Tipo">{req.gymKindSuggested === "BOX" ? "Box (CrossFit)" : "Gym (tradicional)"}</Field>
+        )}
         {req.phone && <Field label="Teléfono">{req.phone}</Field>}
         {req.expectedStudents != null && (
           <Field label="Alumnos esperados">{req.expectedStudents}</Field>

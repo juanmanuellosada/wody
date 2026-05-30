@@ -14,14 +14,15 @@ import {
   sendLeadApprovedEmail,
   sendLeadRejectedEmail,
 } from "@/lib/signup-emails";
-import type { SignupRequestStatus } from "@prisma/client";
+import type { SignupRequestStatus, SignupRequestType } from "@prisma/client";
 
 export type SignupRequestRow = {
   id: string;
+  type: SignupRequestType;
   email: string;
   contactName: string;
-  gymName: string;
-  gymKindSuggested: string;
+  gymName: string | null;
+  gymKindSuggested: string | null;
   phone: string | null;
   expectedStudents: number | null;
   status: SignupRequestStatus;
@@ -38,6 +39,7 @@ export type SignupRequestDetail = SignupRequestRow & {
   onboardingToken: string | null;
   rejectionReason: string | null;
   gymId: string | null;
+  type: SignupRequestType;
 };
 
 export async function listSignupRequests(filter?: {
@@ -50,6 +52,7 @@ export async function listSignupRequests(filter?: {
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
+      type: true,
       email: true,
       contactName: true,
       gymName: true,
@@ -76,6 +79,7 @@ export async function getSignupRequestDetail(
     where: { id },
     select: {
       id: true,
+      type: true,
       email: true,
       contactName: true,
       gymName: true,

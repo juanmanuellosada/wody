@@ -2,9 +2,33 @@ import React from "react";
 import { sendEmail } from "@/lib/email/send";
 import { prisma } from "@/lib/prisma";
 import { PaymentFailedEmail } from "@/lib/email/templates/PaymentFailedEmail";
+import { PersonalPaymentFailedEmail } from "@/lib/email/templates/PersonalPaymentFailedEmail";
 
 function getAppUrl() {
   return process.env.APP_URL ?? "https://www.wody.com.ar";
+}
+
+export async function sendPersonalPaymentFailedEmail(user: {
+  id: string;
+  name: string;
+  email: string | null;
+  gymId: string | null;
+}) {
+  if (!user.email) {
+    console.warn("[personal-payment-failed-email] User has no email", { userId: user.id });
+    return;
+  }
+  const billingUrl = `${getAppUrl()}/personal/perfil/suscripcion`;
+  await sendEmail({
+    to: user.email,
+    gymId: user.gymId ?? null,
+    type: "PERSONAL_PAYMENT_FAILED",
+    subject: "No pudimos cobrar tu suscripción de Wody Personal",
+    react: React.createElement(PersonalPaymentFailedEmail, {
+      contactName: user.name,
+      personalBillingUrl: billingUrl,
+    }),
+  });
 }
 
 export async function sendPaymentFailedEmail(gym: { id: string; name: string; slug: string }) {

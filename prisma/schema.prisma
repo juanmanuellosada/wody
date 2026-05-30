@@ -71,6 +71,15 @@ enum EmailLogType {
   LEAD_APPROVED
   LEAD_REJECTED
   PAYMENT_FAILED
+  PERSONAL_LEAD_RECEIVED
+  PERSONAL_LEAD_APPROVED
+  PERSONAL_LEAD_REJECTED
+  PERSONAL_PAYMENT_FAILED
+}
+
+enum SignupRequestType {
+  GYM
+  PERSONAL
 }
 
 enum SignupRequestStatus {
@@ -150,6 +159,10 @@ model User {
   emailVerifiedAt      DateTime?
   paymentExempt        Boolean     @default(false)
   paymentExemptReason  String?
+  mpPreapprovalId               String?
+  mpSubscriptionStatus          String?
+  mpSubscriptionStatusChangedAt DateTime?
+  trialEndsAt                   DateTime?
 
   gym Gym? @relation(fields: [gymId], references: [id])
 
@@ -411,10 +424,11 @@ model Payment {
 
 model GymSignupRequest {
   id                  String               @id @default(cuid())
+  type                SignupRequestType    @default(GYM)
   email               String
   contactName         String
-  gymName             String
-  gymKindSuggested    String
+  gymName             String?
+  gymKindSuggested    String?
   phone               String?
   expectedStudents    Int?
   message             String?
