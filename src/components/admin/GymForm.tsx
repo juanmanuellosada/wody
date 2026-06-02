@@ -10,6 +10,7 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { ColorPicker } from "@/components/ui/ColorPicker";
 import { createGym, updateGym, blockGym, unblockGym } from "@/actions/super-admin/gym";
 import type { GymRow } from "@/actions/super-admin/gym";
+import { compressImage } from "@/lib/image-compress";
 
 interface Props {
   gym?: GymRow;
@@ -48,6 +49,8 @@ export function GymForm({ gym }: Props) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
+      const compressedLogo = logoFile ? await compressImage(logoFile) : undefined;
+
       if (isEdit) {
         const result = await updateGym({
           id: gym!.id,
@@ -60,7 +63,7 @@ export function GymForm({ gym }: Props) {
             subscriptionMonthlyAmount !== ""
               ? Math.round(Number(subscriptionMonthlyAmount) * 100)
               : null,
-          logoFile: logoFile ?? undefined,
+          logoFile: compressedLogo,
         });
         if (result.success) {
           toast.success("Gym actualizado.");
@@ -83,7 +86,7 @@ export function GymForm({ gym }: Props) {
             subscriptionMonthlyAmount !== ""
               ? Math.round(Number(subscriptionMonthlyAmount) * 100)
               : undefined,
-          logoFile: logoFile ?? undefined,
+          logoFile: compressedLogo,
         });
         if (result.success) {
           toast.success("Gym creado.");
@@ -195,7 +198,7 @@ export function GymForm({ gym }: Props) {
             onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
             className="text-xs text-gray-400 font-body file:mr-3 file:px-3 file:py-1.5 file:text-xs file:font-heading file:font-bold file:uppercase file:tracking-[0.1em] file:bg-elev file:text-white file:border file:border-edge file:cursor-pointer hover:file:border-brand-red"
           />
-          <p className="text-xs text-gray-600 font-body">PNG, JPEG, WebP o SVG. Máx. 2 MB.</p>
+          <p className="text-xs text-gray-600 font-body">PNG, JPEG, WebP o SVG. Se comprime automáticamente al subir.</p>
         </div>
 
         <Input

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { submitOnboarding } from "@/actions/onboarding";
+import { compressImage } from "@/lib/image-compress";
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 
@@ -86,12 +87,13 @@ export function OnboardingForm({ token, request }: Props) {
     setPasswordError("");
 
     startTransition(async () => {
+      const compressedLogo = logoFile ? await compressImage(logoFile) : undefined;
       const result = await submitOnboarding(token, {
         slug,
         password,
         kind,
         primaryColor: primaryColor || undefined,
-        logoFile: logoFile ?? undefined,
+        logoFile: compressedLogo,
       });
 
       if (result.success) {
@@ -301,7 +303,7 @@ export function OnboardingForm({ token, request }: Props) {
             disabled={isPending}
             className="text-xs text-gray-400 font-body file:mr-3 file:px-3 file:py-1.5 file:text-xs file:font-heading file:font-bold file:uppercase file:tracking-[0.1em] file:bg-elev file:text-white file:border file:border-edge file:cursor-pointer hover:file:border-brand-red disabled:opacity-50"
           />
-          <p className="text-xs text-gray-600 font-body">PNG, JPEG, WebP o SVG. Máx. 2 MB.</p>
+          <p className="text-xs text-gray-600 font-body">PNG, JPEG, WebP o SVG. Se comprime automáticamente al subir.</p>
         </div>
 
         {/* Color primario */}

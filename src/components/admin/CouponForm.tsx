@@ -9,6 +9,7 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { createCoupon, updateCoupon } from "@/actions/super-admin/coupon";
 import type { CouponRow } from "@/actions/super-admin/coupon";
 import type { CouponRule } from "@prisma/client";
+import { compressImage } from "@/lib/image-compress";
 
 const COUPON_RULES: { value: CouponRule; label: string }[] = [
   { value: "ONCE_PER_USER", label: "Una vez por usuario" },
@@ -49,6 +50,7 @@ export function CouponForm({ coupon, nextSortOrder }: Props) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
+      const compressedLogo = logoFile ? await compressImage(logoFile) : undefined;
       const base = {
         name,
         description,
@@ -63,7 +65,7 @@ export function CouponForm({ coupon, nextSortOrder }: Props) {
         fixedCode: fixedCode || undefined,
         websiteUrl: websiteUrl || undefined,
         restrictions: restrictions || undefined,
-        logoFile: logoFile ?? undefined,
+        logoFile: compressedLogo,
       };
 
       const result = isEdit
@@ -170,7 +172,7 @@ export function CouponForm({ coupon, nextSortOrder }: Props) {
           onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
           className="text-xs text-gray-400 font-body file:mr-3 file:px-3 file:py-1.5 file:text-xs file:font-heading file:font-bold file:uppercase file:tracking-[0.1em] file:bg-elev file:text-white file:border file:border-edge file:cursor-pointer hover:file:border-brand-red"
         />
-        <p className="text-xs text-gray-600 font-body">PNG, JPEG, WebP o SVG. Máx. 2 MB.</p>
+        <p className="text-xs text-gray-600 font-body">PNG, JPEG, WebP o SVG. Se comprime automáticamente al subir.</p>
       </div>
 
       <Input
