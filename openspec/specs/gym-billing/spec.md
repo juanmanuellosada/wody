@@ -2,7 +2,6 @@
 
 ## Purpose
 Cobro mensual del SaaS Wody a cada gym mediante suscripciones de Mercado Pago ($40.000 ARS/mes). Incluye un trial de 30 días desde la creación del gym, dos planes en MP (uno para gyms nuevos con free_trial de 30 días, otro para re-suscripciones sin free_trial), exención manual a nivel gym controlada solo por el super-admin, sincronización de estado vía webhook firmado, bloqueo automático por cron diario (tanto por trial vencido sin suscripción como por pago fallido con grace period de 7 días), push notifications a los `ADMIN` en hitos del fin del trial, y email transaccional al dueño cuando MP no puede cobrar.
-
 ## Requirements
 ### Requirement: Cada gym tiene un ciclo de trial de 30 días desde su creación
 
@@ -20,12 +19,11 @@ El sistema SHALL asignar a todo `Gym` recién creado un campo `trialEndsAt` igua
 
 ### Requirement: Plan único de $40.000 ARS/mes
 
-El sistema SHALL usar **dos** `preapproval_plan` de Mercado Pago de $40.000 ARS/mes con la siguiente lógica de selección:
+El sistema SHALL cobrar $40.000 ARS/mes por gym mediante un único esquema de suscripción de Mercado Pago **sin `free_trial`**. El período de prueba es propiedad exclusiva de la app (`Gym.trialEndsAt`); Mercado Pago NO SHALL configurar ningún `free_trial`.
 
-- **Plan original** (`MP_PREAPPROVAL_PLAN_ID`): `free_trial = 30 días`. Se usa cuando un gym se suscribe por primera vez (su `mpPreapprovalId IS NULL`).
-- **Plan de re-activación** (`MP_PREAPPROVAL_PLAN_ID_RETURNING`): `free_trial = 0 días`. Se usa cuando un gym vuelve a suscribirse después de haber tenido al menos una suscripción anterior (`mpPreapprovalId IS NOT NULL`).
+La suscripción SHALL crearse **sin plan asociado** (`POST /preapproval` sin `preapproval_plan_id`): el monto y el ciclo se definen en el payload (`auto_recurring.transaction_amount = 40000`, `currency_id = "ARS"`, `frequency = 1`, `frequency_type = "months"`). El sistema NO SHALL usar ningún `preapproval_plan` para el cobro, NO SHALL mantener un plan de re-activación (`RETURNING`) ni elegir plan según historial.
 
-El `Gym.subscriptionMonthlyAmount` SHALL tener default `40000` y SHALL ser editable únicamente por el super-admin como referencia del precio negociado, sin afectar el monto que efectivamente cobra MP a través del plan elegido.
+El `Gym.subscriptionMonthlyAmount` SHALL tener default `40000` y SHALL ser editable únicamente por el super-admin como referencia del precio negociado, sin afectar el monto que efectivamente cobra MP.
 
 #### Scenario: Default de monto al crear gym
 
@@ -37,15 +35,15 @@ El `Gym.subscriptionMonthlyAmount` SHALL tener default `40000` y SHALL ser edita
 - **WHEN** el super-admin edita el campo `subscriptionMonthlyAmount` de un gym desde `/admin/gyms/[id]`
 - **THEN** el sistema persiste el nuevo valor sin tocar la suscripción real en Mercado Pago
 
-#### Scenario: Primer checkout usa el plan original
+#### Scenario: Ninguna suscripción usa free_trial de MP
 
-- **WHEN** un dueño con `Gym.mpPreapprovalId IS NULL` invoca `getSubscriptionCheckoutUrl(gymId)`
-- **THEN** el sistema retorna una URL apuntando al `MP_PREAPPROVAL_PLAN_ID`
+- **WHEN** el sistema crea la suscripción de un gym en Mercado Pago
+- **THEN** el payload NO incluye `free_trial` y el período de prueba se gobierna solo por `Gym.trialEndsAt`
 
-#### Scenario: Re-checkout usa plan RETURNING
+#### Scenario: No hay selección de plan por historial
 
-- **WHEN** un dueño con `Gym.mpPreapprovalId IS NOT NULL` (al menos una suscripción anterior, sin importar su estado actual) invoca `getSubscriptionCheckoutUrl(gymId)`
-- **THEN** el sistema retorna una URL apuntando al `MP_PREAPPROVAL_PLAN_ID_RETURNING`
+- **WHEN** un dueño con `Gym.mpPreapprovalId IS NULL` o `IS NOT NULL` inicia el alta de tarjeta
+- **THEN** el sistema usa el mismo esquema de suscripción en ambos casos, sin distinguir un plan de re-activación
 
 ### Requirement: Exención manual de pago a nivel gym
 
@@ -68,12 +66,29 @@ El sistema SHALL permitir al super-admin marcar y desmarcar un gym como exento d
 
 ### Requirement: Suscripción del gym vía Mercado Pago Suscripciones
 
-El sistema SHALL ofrecer al dueño de un gym un flujo para suscribirse a un plan de Mercado Pago. La suscripción se modela con los campos `Gym.mpPreapprovalId: String?` (id devuelto por MP) y `Gym.mpSubscriptionStatus: String?` (estado actual: `pending`, `authorized`, `paused`, `cancelled` o un valor desconocido tratado como "unknown"). El sistema SHALL elegir entre el plan original y el plan de re-activación según el `mpPreapprovalId` previo del gym (ver requirement "Plan único de $40.000 ARS/mes").
+El sistema SHALL ofrecer al dueño de un gym un flujo **in-app** para suscribirse, sin redirigir al checkout hosteado de Mercado Pago. La captura de tarjeta SHALL realizarse con MP Bricks/CardForm, que tokeniza la tarjeta del lado del cliente; los datos de la tarjeta NO SHALL tocar el server de Wody, que SHALL recibir únicamente un `card_token_id`.
 
-#### Scenario: Dueño del gym genera link de suscripción
+Con ese token, el sistema SHALL crear la suscripción mediante `POST /preapproval` **sin plan asociado** con `external_reference = gymId`, `status = "authorized"`, `payer_email`, y `auto_recurring.transaction_amount = 40000`. El primer cobro SHALL diferirse hasta el fin del trial mediante un **`free_trial` dinámico**: el sistema calcula `díasRestantes = ceil((Gym.trialEndsAt - now) / 1 día)` y, si `díasRestantes >= 1`, incluye `auto_recurring.free_trial = { frequency: díasRestantes, frequency_type: "days" }`. El sistema NO SHALL usar `start_date` como mecanismo de diferimiento. La suscripción se modela con `Gym.mpPreapprovalId: String?` (id devuelto por MP) y `Gym.mpSubscriptionStatus: String?` (`pending`, `authorized`, `paused`, `cancelled` o un valor desconocido tratado como "unknown").
 
-- **WHEN** un usuario con `role = ADMIN` de un gym entra a `/[gymSlug]/admin/billing` y hace click en "Configurar tarjeta"
-- **THEN** el sistema lo redirige al checkout de Mercado Pago con el plan correspondiente según historial
+Si `Gym.trialEndsAt` ya pasó al momento de crear el `preapproval` (`díasRestantes <= 0`), el sistema SHALL omitir `free_trial`, de modo que el primer cobro sea inmediato.
+
+Ante un fallo de la creación (tarjeta rechazada, token inválido/expirado o error de la API de MP), el sistema NO SHALL persistir `mpPreapprovalId`, SHALL devolver un resultado de error a la UI y SHALL permitir reintentar.
+
+#### Scenario: Dueño del gym configura tarjeta in-app durante el trial
+
+- **WHEN** un usuario con `role = ADMIN` entra a `/[gymSlug]/admin/billing`, carga su tarjeta en el componente de MP Bricks y confirma, con `Gym.trialEndsAt` en el futuro
+- **THEN** el sistema crea el `preapproval` con `free_trial = { frequency: díasRestantes, frequency_type: "days" }` y persiste `mpPreapprovalId` y `mpSubscriptionStatus` devueltos por MP, sin cobrar todavía
+- **AND** el primer cobro queda programado para el fin del trial
+
+#### Scenario: Configuración de tarjeta con trial ya vencido cobra de inmediato
+
+- **WHEN** un dueño configura la tarjeta cuando `Gym.trialEndsAt` ya pasó (`díasRestantes <= 0`)
+- **THEN** el sistema crea el `preapproval` sin `free_trial` y el primer cobro se ejecuta de inmediato
+
+#### Scenario: Tarjeta rechazada permite reintento
+
+- **WHEN** la creación del `preapproval` falla por tarjeta rechazada o token inválido
+- **THEN** el sistema no persiste `mpPreapprovalId`, muestra el error al dueño y le permite reintentar el alta de tarjeta
 
 ### Requirement: Webhook recibe autorización de suscripción
 
@@ -295,3 +310,4 @@ El sistema SHALL persistir el momento exacto en que el `mpSubscriptionStatus` de
 
 - **WHEN** un gym estaba en `'paused'` hace 6 días, regulariza y el webhook lo pasa a `'authorized'`
 - **THEN** el sistema actualiza `mpSubscriptionStatusChangedAt = now()`, y el gym NO se bloquea aunque la siguiente caída ocurra otra vez días después (el grace period se reinicia)
+
