@@ -3,7 +3,7 @@ import {
   WebhookSignatureValidator,
   InvalidWebhookSignatureError,
 } from "mercadopago";
-import { prisma } from "@/lib/prisma";
+import type { AutoRecurringWithFreeTrial } from "mercadopago/dist/clients/preApproval/commonTypes";
 
 // Singleton MP config — reused across all calls in the same Node.js process.
 const mpConfig = new MercadoPagoConfig({
@@ -83,79 +83,177 @@ export function verifyMpWebhookSignature(
 }
 
 // ---------------------------------------------------------------------------
-// Subscription checkout URL
+// Trial days helper
 // ---------------------------------------------------------------------------
-
-async function pickPlanIdForGym(gymId: string): Promise<string> {
-  const gym = await prisma.gym.findUniqueOrThrow({
-    where: { id: gymId },
-    select: { mpPreapprovalId: true },
-  });
-  const newPlan = process.env.MP_PREAPPROVAL_PLAN_ID;
-  if (!newPlan) throw new Error("MP_PREAPPROVAL_PLAN_ID env var is not set");
-  if (gym.mpPreapprovalId == null) return newPlan;
-  const returningPlan = process.env.MP_PREAPPROVAL_PLAN_ID_RETURNING;
-  if (!returningPlan) {
-    console.warn(
-      "[mercadopago] MP_PREAPPROVAL_PLAN_ID_RETURNING not set — falling back to NEW plan; user will receive another free_trial",
-      { gymId }
-    );
-    return newPlan;
-  }
-  return returningPlan;
-}
 
 /**
- * Builds the Mercado Pago checkout URL for the gym to subscribe to the plan.
- * Chooses the correct plan based on whether the gym has a previous subscription.
- * MP appends external_reference to identify which gym is subscribing.
+ * Calculates the number of days remaining in the trial period (in UTC).
+ * Returns ceil((trialEndsAt - now) / 1 day). May be negative if trial has passed.
+ * Returns null if trialEndsAt is null.
  */
-export async function getSubscriptionCheckoutUrl(gymId: string): Promise<string> {
-  const planId = await pickPlanIdForGym(gymId);
-  const url = new URL(
-    "https://www.mercadopago.com.ar/subscriptions/checkout"
-  );
-  url.searchParams.set("preapproval_plan_id", planId);
-  url.searchParams.set("external_reference", gymId);
-  return url.toString();
+export function calcDaysRemaining(trialEndsAt: Date | null): number | null {
+  if (trialEndsAt == null) return null;
+  const diffMs = trialEndsAt.getTime() - Date.now();
+  return Math.ceil(diffMs / (24 * 60 * 60 * 1000));
 }
 
 // ---------------------------------------------------------------------------
-// Personal subscription checkout URL
+// Result types
 // ---------------------------------------------------------------------------
 
-async function pickPersonalPlanIdForUser(userId: string): Promise<string> {
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { mpPreapprovalId: true },
-  });
-  const newPlan = process.env.MP_PREAPPROVAL_PLAN_ID_PERSONAL;
-  const returningPlan = process.env.MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING;
-  if (!newPlan) throw new Error("MP_PREAPPROVAL_PLAN_ID_PERSONAL env var is not set");
-  if (user.mpPreapprovalId == null) return newPlan;
-  if (!returningPlan) {
-    console.warn(
-      "[mercadopago] MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING not set — falling back to NEW plan; user will receive another free_trial",
-      { userId }
-    );
-    return newPlan;
-  }
-  return returningPlan;
-}
+export type CreateSubscriptionResult =
+  | { ok: true; mpPreapprovalId: string; mpSubscriptionStatus: MpSubscriptionStatus }
+  | { ok: false; error: string };
+
+// ---------------------------------------------------------------------------
+// Gym subscription (no plan, free_trial dynamic)
+// ---------------------------------------------------------------------------
 
 /**
- * Builds the Mercado Pago checkout URL for a Personal user to subscribe.
- * Chooses the correct plan based on whether the user has a previous subscription.
- * Uses "user_" prefix on external_reference to discriminate from gym subscriptions in the webhook.
+ * Creates a MercadoPago preapproval for a gym subscription via API (no plan).
+ *
+ * Monto: $40.000 ARS/mes (constante per spec; subscriptionMonthlyAmount en DB
+ * es referencia interna del super-admin y no afecta el cobro real en MP).
+ *
+ * El free_trial se calcula dinámicamente: si díasRestantes >= 1, se incluye
+ * free_trial con esa cantidad de días; si <= 0, se omite (cobro inmediato).
  */
-export async function getPersonalSubscriptionCheckoutUrl(userId: string): Promise<string> {
-  const planId = await pickPersonalPlanIdForUser(userId);
-  const url = new URL(
-    "https://www.mercadopago.com.ar/subscriptions/checkout"
-  );
-  url.searchParams.set("preapproval_plan_id", planId);
-  url.searchParams.set("external_reference", `user_${userId}`);
-  return url.toString();
+export async function createGymSubscription(params: {
+  cardTokenId: string;
+  payerEmail: string;
+  gymId: string;
+  trialEndsAt: Date | null;
+}): Promise<CreateSubscriptionResult> {
+  const { cardTokenId, payerEmail, gymId, trialEndsAt } = params;
+
+  const diasRestantes = calcDaysRemaining(trialEndsAt);
+
+  const autoRecurring: AutoRecurringWithFreeTrial = {
+    frequency: 1,
+    frequency_type: "months",
+    transaction_amount: 40000,
+    currency_id: "ARS",
+    ...(diasRestantes !== null && diasRestantes >= 1
+      ? { free_trial: { frequency: diasRestantes, frequency_type: "days" } }
+      : {}),
+  };
+
+  try {
+    const response = await preApproval.create({
+      body: {
+        card_token_id: cardTokenId,
+        payer_email: payerEmail,
+        status: "authorized",
+        external_reference: gymId,
+        reason: "Suscripción mensual Wody",
+        back_url: `${process.env.APP_URL ?? "https://wody.com.ar"}`,
+        // Cast needed: SDK types PreApprovalRequest.auto_recurring as
+        // AutoRecurringRequest (no free_trial), but the API accepts
+        // AutoRecurringWithFreeTrial at runtime.
+        auto_recurring: autoRecurring as never,
+      },
+    });
+
+    const id = response.id;
+    const rawStatus = response.status ?? "";
+
+    if (!id) {
+      console.error("[mercadopago] createGymSubscription: no id in response", response);
+      return { ok: false, error: "Mercado Pago no devolvió un ID de suscripción" };
+    }
+
+    return {
+      ok: true,
+      mpPreapprovalId: id,
+      mpSubscriptionStatus: parseMpSubscriptionStatus(rawStatus),
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[mercadopago] createGymSubscription error", { gymId, error: msg });
+
+    // Surface a user-friendly message for common MP errors.
+    if (msg.includes("invalid_card_token") || msg.includes("token")) {
+      return { ok: false, error: "El token de tarjeta es inválido o expiró. Intentá de nuevo." };
+    }
+    if (msg.includes("rejected") || msg.includes("rechazada")) {
+      return { ok: false, error: "Tu tarjeta fue rechazada. Verificá los datos e intentá con otra." };
+    }
+    return { ok: false, error: "Error al crear la suscripción. Intentá de nuevo." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Personal subscription (no plan, free_trial dynamic) — mirror function
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a MercadoPago preapproval for a Wody Personal user subscription via API (no plan).
+ *
+ * Monto: $7.000 ARS/mes (constante per spec).
+ * external_reference: "user_<userId>" (distingue de suscripciones de gym en el webhook).
+ *
+ * El free_trial se calcula dinámicamente: si díasRestantes >= 1, se incluye
+ * free_trial con esa cantidad de días; si <= 0, se omite (cobro inmediato).
+ */
+export async function createPersonalSubscription(params: {
+  cardTokenId: string;
+  payerEmail: string;
+  userId: string;
+  trialEndsAt: Date | null;
+}): Promise<CreateSubscriptionResult> {
+  const { cardTokenId, payerEmail, userId, trialEndsAt } = params;
+
+  const diasRestantes = calcDaysRemaining(trialEndsAt);
+
+  const autoRecurring: AutoRecurringWithFreeTrial = {
+    frequency: 1,
+    frequency_type: "months",
+    transaction_amount: 7000,
+    currency_id: "ARS",
+    ...(diasRestantes !== null && diasRestantes >= 1
+      ? { free_trial: { frequency: diasRestantes, frequency_type: "days" } }
+      : {}),
+  };
+
+  try {
+    const response = await preApproval.create({
+      body: {
+        card_token_id: cardTokenId,
+        payer_email: payerEmail,
+        status: "authorized",
+        external_reference: `user_${userId}`,
+        reason: "Suscripción mensual Wody Personal",
+        back_url: `${process.env.APP_URL ?? "https://wody.com.ar"}`,
+        // Cast needed: same as createGymSubscription.
+        auto_recurring: autoRecurring as never,
+      },
+    });
+
+    const id = response.id;
+    const rawStatus = response.status ?? "";
+
+    if (!id) {
+      console.error("[mercadopago] createPersonalSubscription: no id in response", response);
+      return { ok: false, error: "Mercado Pago no devolvió un ID de suscripción" };
+    }
+
+    return {
+      ok: true,
+      mpPreapprovalId: id,
+      mpSubscriptionStatus: parseMpSubscriptionStatus(rawStatus),
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[mercadopago] createPersonalSubscription error", { userId, error: msg });
+
+    if (msg.includes("invalid_card_token") || msg.includes("token")) {
+      return { ok: false, error: "El token de tarjeta es inválido o expiró. Intentá de nuevo." };
+    }
+    if (msg.includes("rejected") || msg.includes("rechazada")) {
+      return { ok: false, error: "Tu tarjeta fue rechazada. Verificá los datos e intentá con otra." };
+    }
+    return { ok: false, error: "Error al crear la suscripción. Intentá de nuevo." };
+  }
 }
 
 // ---------------------------------------------------------------------------

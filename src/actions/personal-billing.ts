@@ -3,7 +3,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  getPersonalSubscriptionCheckoutUrl,
+  createPersonalSubscription,
   cancelMpPreapproval,
 } from "@/lib/mercadopago";
 
@@ -58,19 +58,47 @@ export async function getMyPersonalSubscriptionStatus() {
   };
 }
 
-export async function getMyPersonalCheckoutUrl(): Promise<string> {
+/**
+ * Creates a MercadoPago preapproval for the Personal user using a card token
+ * obtained via MP Bricks in the client. Persists mpPreapprovalId and
+ * mpSubscriptionStatus only if the creation succeeds.
+ */
+export async function subscribePersonal(params: {
+  cardTokenId: string;
+  payerEmail: string;
+}): Promise<ActionResult> {
   const { userId } = await getValidatedPersonalSession();
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { paymentExempt: true },
+    select: { paymentExempt: true, trialEndsAt: true },
   });
 
   if (user.paymentExempt) {
-    throw new Error("Tu cuenta está exenta, no hace falta configurar suscripción");
+    return { success: false, error: "Tu cuenta está exenta, no hace falta configurar suscripción" };
   }
 
-  return getPersonalSubscriptionCheckoutUrl(userId);
+  const result = await createPersonalSubscription({
+    cardTokenId: params.cardTokenId,
+    payerEmail: params.payerEmail,
+    userId,
+    trialEndsAt: user.trialEndsAt,
+  });
+
+  if (!result.ok) {
+    return { success: false, error: result.error };
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      mpPreapprovalId: result.mpPreapprovalId,
+      mpSubscriptionStatus: result.mpSubscriptionStatus,
+      mpSubscriptionStatusChangedAt: new Date(),
+    },
+  });
+
+  return { success: true };
 }
 
 export async function cancelMySubscription(): Promise<ActionResult> {

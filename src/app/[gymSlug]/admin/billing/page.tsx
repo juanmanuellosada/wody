@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, CreditCard, AlertTriangle } from "lucide-react";
+import { CheckCircle, AlertTriangle } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { gymPath } from "@/lib/gym";
-import { getMySubscriptionStatus, getMyCheckoutUrl } from "@/actions/billing";
+import { getMySubscriptionStatus } from "@/actions/billing";
+import { GymCardFormSection } from "./GymCardFormSection";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -20,13 +21,6 @@ export default async function BillingPage({ params }: Props) {
   }
 
   const status = await getMySubscriptionStatus();
-
-  let checkoutUrl: string | null = null;
-  try {
-    checkoutUrl = await getMyCheckoutUrl();
-  } catch {
-    // Defensive: no crashea si por algún motivo falla la action.
-  }
 
   const trialFormatted = status.trialEndsAt
     ? status.trialEndsAt.toLocaleDateString("es-AR", {
@@ -52,6 +46,9 @@ export default async function BillingPage({ params }: Props) {
     status.mpPreapprovalId !== null &&
     (status.mpSubscriptionStatus === "paused" || status.mpSubscriptionStatus === "cancelled");
 
+  // Show card form when: not exempt AND (not authorized, OR paused/cancelled wanting to retry)
+  const showCardForm = !status.paymentExempt && !isAuthorized;
+
   return (
     <div className="flex flex-col gap-8 max-w-2xl mx-auto">
       <div>
@@ -65,68 +62,31 @@ export default async function BillingPage({ params }: Props) {
 
       {/* Case 1: Exempt */}
       {status.paymentExempt && (
-        <>
-          <div className="border border-emerald-500/30 bg-emerald-500/5 p-6 flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <CheckCircle
-                size={20}
-                className="text-emerald-400 flex-shrink-0"
-                aria-hidden="true"
-              />
-              <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-emerald-400">
-                Tu gym está exento del cobro de Wody
-              </p>
-            </div>
-            {status.mpPreapprovalId === null && status.paymentExempt && (
-              <p className="text-xs text-gray-500 font-body pl-8">
-                No se te cobrará ningún monto por el uso de la plataforma.
-              </p>
-            )}
-            <div className="pl-8">
-              <a
-                href="mailto:soporte@wody.app"
-                className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400 hover:text-white transition-colors duration-200"
-              >
-                ¿Tenés una consulta? Contactanos
-              </a>
-            </div>
+        <div className="border border-emerald-500/30 bg-emerald-500/5 p-6 flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <CheckCircle
+              size={20}
+              className="text-emerald-400 flex-shrink-0"
+              aria-hidden="true"
+            />
+            <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-emerald-400">
+              Tu gym está exento del cobro de Wody
+            </p>
           </div>
-
-          {checkoutUrl !== null && (
-            <div className="border border-line bg-panel p-6 flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-gray-400">
-                  ¿Querés vincular una suscripción de todas formas?
-                </p>
-                {isAuthorized && (
-                  <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                    Activa
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 font-body">
-                Aunque tu gym esté exento, podés configurar una tarjeta. Mercado Pago va a cobrar
-                normalmente al finalizar el período de prueba de 30 días. Tu estado de exento seguirá
-                activo mientras el super-admin no lo cambie — pero si querés evitar el cobro, no
-                avances con este paso, o cancelá la suscripción contactándonos.
-              </p>
-              <div className="flex flex-col gap-2">
-                <a
-                  href={checkoutUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-elev border border-edge text-white text-xs font-heading font-bold uppercase tracking-[0.15em] hover:border-brand-red hover:text-brand-red transition-colors duration-200 w-fit"
-                >
-                  <CreditCard size={14} aria-hidden="true" />
-                  Configurar tarjeta
-                </a>
-                <p className="text-xs text-gray-600 font-body">
-                  Vas a ser redirigido a Mercado Pago para ingresar tu tarjeta de forma segura.
-                </p>
-              </div>
-            </div>
+          {status.mpPreapprovalId === null && status.paymentExempt && (
+            <p className="text-xs text-gray-500 font-body pl-8">
+              No se te cobrará ningún monto por el uso de la plataforma.
+            </p>
           )}
-        </>
+          <div className="pl-8">
+            <a
+              href="mailto:soporte@wody.app"
+              className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400 hover:text-white transition-colors duration-200"
+            >
+              ¿Tenés una consulta? Contactanos
+            </a>
+          </div>
+        </div>
       )}
 
       {/* Case 3: Authorized subscription */}
@@ -147,27 +107,14 @@ export default async function BillingPage({ params }: Props) {
               Activa
             </span>
           </div>
-          {checkoutUrl && (
-            <div className="flex flex-col gap-2">
-              <a
-                href={checkoutUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-elev border border-edge text-white text-xs font-heading font-bold uppercase tracking-[0.15em] hover:border-brand-red hover:text-brand-red transition-colors duration-200 w-fit"
-              >
-                <CreditCard size={14} aria-hidden="true" />
-                Reconfigurar tarjeta
-              </a>
-              <p className="text-xs text-gray-600 font-body">
-                Para cancelar tu suscripción, contactanos.
-              </p>
-            </div>
-          )}
+          <p className="text-xs text-gray-500 font-body">
+            Para cancelar tu suscripción, contactanos.
+          </p>
         </div>
       )}
 
-      {/* Case 2 + extra: Trial or paused/cancelled */}
-      {!status.paymentExempt && !isAuthorized && (
+      {/* Case 2: Trial or paused/cancelled — show card form */}
+      {showCardForm && (
         <div className="border border-line bg-panel p-6 flex flex-col gap-5">
           {isPausedOrCancelled && (
             <div className="flex items-center gap-2.5 border border-yellow-500/30 bg-yellow-500/5 px-4 py-2.5">
@@ -196,26 +143,7 @@ export default async function BillingPage({ params }: Props) {
             </p>
           </div>
 
-          {checkoutUrl ? (
-            <div className="flex flex-col gap-2">
-              <a
-                href={checkoutUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-brand-red text-white text-sm font-heading font-bold uppercase tracking-[0.15em] hover:bg-brand-red-dark transition-colors duration-200 w-full sm:w-fit"
-              >
-                <CreditCard size={16} aria-hidden="true" />
-                Configurar tarjeta
-              </a>
-              <p className="text-xs text-gray-600 font-body">
-                Vas a ser redirigido a Mercado Pago para ingresar tu tarjeta de forma segura.
-              </p>
-            </div>
-          ) : (
-            <p className="text-xs text-gray-600 font-body">
-              Contactanos para configurar tu suscripción.
-            </p>
-          )}
+          <GymCardFormSection payerEmail={session.user.email ?? ""} />
         </div>
       )}
 

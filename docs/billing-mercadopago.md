@@ -1,66 +1,74 @@
 # Billing con Mercado Pago
 
-> Este doc cubre **el cobro a gimnasios** (modelo B2B, suscripción a nivel Gym). Para el cobro del producto Wody Personal (B2C, suscripción a nivel User individual), ver [`docs/billing-personal.md`](./billing-personal.md).
+> Este doc cubre el cobro a **gimnasios** (modelo B2B, suscripción a nivel Gym) y a **Wody Personal** (modelo B2C, suscripción a nivel User). Ambos flujos son simétricos y se describen en este único documento.
 
 ## 1. Resumen
 
-Wody cobra a cada gym **$40.000 ARS por mes** mediante una suscripción de Mercado Pago. El modelo es deliberadamente simple: un único plan creado en el dashboard de MP (un `preapproval_plan`), los gyms se suscriben a ese plan desde la UI de Wody, y MP gestiona el cobro mensual automático. Cada gym tiene 30 días de trial desde su creación. Al vencer el trial sin suscripción activa, un cron diario bloquea el gym reutilizando el campo `Gym.blockedAt` ya existente. Los gyms pre-existentes al lanzamiento del modelo de cobro (2026-05), y Wody Personal, están exentos permanentemente.
+Wody cobra a cada gym **$40.000 ARS/mes** y a cada usuario de Wody Personal **$7.000 ARS/mes** mediante suscripciones de Mercado Pago creadas por API (sin plan asociado). El período de prueba (30 días) es **propiedad exclusiva de la app**: `Gym.trialEndsAt` y `User.trialEndsAt` son la fuente de verdad del trial; Mercado Pago **no maneja ningún `free_trial` configurado en un plan**.
+
+Al vincular la tarjeta, la app calcula cuántos días restan del trial (`díasRestantes = ceil((trialEndsAt - now) / 1 día)`) y crea un `preapproval` sin plan con un `free_trial` dinámico en días. MP difiere el primer cobro hasta que venza ese free_trial — que coincide exactamente con el fin del trial de la app. Si el trial ya venció (`díasRestantes <= 0`), el cobro es inmediato (~1h).
+
+La captura de tarjeta es **in-app** (MP Bricks/CardForm): MP tokeniza la tarjeta en el navegador y devuelve un `card_token_id` de un solo uso; Wody nunca recibe los datos de la tarjeta.
 
 ---
 
 ## 2. Modelo de cobro
 
-### Planes en Mercado Pago
+### Suscripción sin plan asociado
 
-Se usan dos `preapproval_plan` creados manualmente en el dashboard de MP. El código elige cuál usar según el historial del gym:
+Las suscripciones se crean mediante `POST /preapproval` **sin `preapproval_plan_id`**: el monto y el ciclo se definen directamente en el payload (`auto_recurring.transaction_amount`, `currency_id = "ARS"`, `frequency = 1`, `frequency_type = "months"`). No se usan ni se requieren planes creados en el dashboard de MP.
 
-| Plan | ID | `free_trial` | Cuándo se usa |
-|---|---|---|---|
-| Plan original | `02dca3f44cc44c5e8089cd00c25a7f08` | 30 días | `Gym.mpPreapprovalId IS NULL` — suscripción inicial |
-| Plan de re-activación | `891d99cc41ae47b094b8059f0b3f3188` | 0 días | `Gym.mpPreapprovalId IS NOT NULL` — el gym tuvo al menos una suscripción anterior |
+| Parámetro | Gym | Personal |
+|---|---|---|
+| `transaction_amount` | `40000` | `7000` |
+| `currency_id` | `ARS` | `ARS` |
+| `external_reference` | `gymId` | `"user_<userId>"` |
+| `status` | `"authorized"` | `"authorized"` |
 
-**Lógica de selección** (en `getSubscriptionCheckoutUrl`): si el gym nunca tuvo suscripción (`mpPreapprovalId == null`), se usa el plan original con free_trial de 30 días. Si ya tuvo alguna suscripción (incluso cancelada), se usa el plan de re-activación sin free_trial, evitando que el dueño acumule períodos gratuitos al re-suscribirse.
+### Trial 100% en la app
 
-Los valores se cargan en las env vars `MP_PREAPPROVAL_PLAN_ID` y `MP_PREAPPROVAL_PLAN_ID_RETURNING`.
+El período de prueba de 30 días está definido en `Gym.trialEndsAt` y `User.trialEndsAt`. Mercado Pago no gestiona ningún `free_trial` de plan. Al vincular la tarjeta, la app calcula `díasRestantes` y, si `>= 1`, incluye:
 
-### Trial de 30 días
+```json
+"auto_recurring": {
+  "free_trial": { "frequency": <díasRestantes>, "frequency_type": "days" }
+}
+```
 
-Al crear un gym (desde el panel de super-admin), se setea `Gym.trialEndsAt = createdAt + 30 días`. El plan de MP también está configurado con **"Prueba gratis" = 30 días**, de modo que si el dueño carga su tarjeta a mitad del trial, MP no cobra hasta que venza su propio free_trial. Esto produce una pequeña "ventana extra" para suscriptores muy tempranos, aceptada a cambio de mantener el modelo simple (ver `design.md` §0 para el análisis completo).
+Si `díasRestantes <= 0` (trial ya vencido), se omite `free_trial` y el cobro ocurre en ~1h.
 
 ### Exención manual
 
-El super-admin puede marcar cualquier gym con `paymentExempt = true` y un campo de texto `paymentExemptReason` desde `/admin/gyms/[id]`. Los gyms exentos nunca se bloquean por el cron, independientemente del estado de su trial o suscripción.
+El super-admin puede marcar cualquier gym (o user Personal) con `paymentExempt = true` y un campo `paymentExemptReason`. Los tenants exentos nunca se bloquean por el cron, independientemente del estado de su trial o suscripción.
 
-### Wody Personal
+### Gym Personal (`kind = PERSONAL`)
 
-El gym `personal` (`kind = PERSONAL`) está doblemente protegido:
+El gym `personal` está protegido:
 
 - La migración de deploy lo marcó como exento.
-- El cron excluye explícitamente `kind = PERSONAL` de su query de bloqueo.
-
-Esto evita que pueda bloquearse accidentalmente incluso si alguien desmarca la exención desde la UI.
+- El cron excluye explícitamente `kind = PERSONAL` de su query de bloqueo de gyms.
 
 ### Gyms pre-existentes
 
-Todos los gyms creados antes del deploy de este modelo (2026-05) fueron marcados como exentos en la misma transacción de la migración, con razón:
+Todos los gyms creados antes del deploy del modelo de cobro (2026-05) fueron marcados como exentos en la migración, con razón `"Gym pre-existente al lanzamiento del modelo de cobro (2026-05)"`.
 
-```
-Gym pre-existente al lanzamiento del modelo de cobro (2026-05)
-```
+### Monto de cobro
+
+El monto efectivo cobrado por MP es siempre la **constante** del payload ($40.000 gym / $7.000 Personal). El campo `Gym.subscriptionMonthlyAmount` en la DB es solo una referencia informativa del precio negociado (editable por el super-admin desde `/admin/gyms/[id]`); no afecta el monto real que cobra MP.
 
 ### Bloqueo
 
-El cron diario (`/api/cron/check-gym-trials`) setea `blockedAt = now()` en los gyms que cumplen todas las condiciones:
+El cron diario (`/api/cron/check-gym-trials`) setea `blockedAt = now()` en los gyms (y users Personal) que cumplen todas las condiciones:
 
 - `trialEndsAt < now`
 - `mpPreapprovalId IS NULL` (no se suscribieron)
 - `paymentExempt = false`
 - `blockedAt IS NULL`
-- `kind != PERSONAL`
+- (para gyms) `kind != PERSONAL`
 
-El webhook de MP actualiza `mpSubscriptionStatus` cuando el estado de una suscripción cambia (ej: pasa a `cancelled`), pero **no** aplica el bloqueo. Solo el cron decide bloquear. Esto evita race conditions y simplifica el flujo.
+El webhook de MP actualiza `mpSubscriptionStatus` cuando el estado de una suscripción cambia (ej: pasa a `cancelled`), pero **no** aplica el bloqueo. Solo el cron decide bloquear.
 
-El cron también puede bloquear gyms con suscripción en `paused` o `cancelled` que llevan más de 7 días en ese estado (ver §7 "Flujo de pago fallido").
+El cron también bloquea tenants con suscripción en `paused` o `cancelled` que llevan más de 7 días en ese estado (ver §7 "Flujo de pago fallido").
 
 ---
 
@@ -68,14 +76,18 @@ El cron también puede bloquear gyms con suscripción en `paused` o `cancelled` 
 
 | Componente | Qué hace |
 |---|---|
-| [`src/lib/mercadopago.ts`](../src/lib/mercadopago.ts) | Cliente MP (singleton), validación de firma HMAC del webhook, URL de checkout del plan, cancelación de suscripción, union type `MpSubscriptionStatus` y parser tolerante |
-| [`src/actions/billing.ts`](../src/actions/billing.ts) | Server actions para el dueño del gym: `getMySubscriptionStatus` (estado, días restantes de trial) y `getMyCheckoutUrl` (URL de MP para configurar tarjeta) |
+| [`src/lib/mercadopago.ts`](../src/lib/mercadopago.ts) | Cliente MP (singleton), `createGymSubscription`, `createPersonalSubscription` (crean el preapproval por API con `free_trial` dinámico), `calcDaysRemaining`, validación de firma HMAC del webhook, `cancelMpPreapproval`, union type `MpSubscriptionStatus` y parser tolerante |
+| [`src/actions/billing.ts`](../src/actions/billing.ts) | Server actions para el dueño del gym: `getMySubscriptionStatus` (estado, días restantes de trial) y `subscribeGym` (recibe `card_token_id` + `payer_email`, crea el preapproval) |
+| [`src/actions/personal-billing.ts`](../src/actions/personal-billing.ts) | Server actions para el user Personal: `getMyPersonalSubscriptionStatus`, `subscribePersonal` y `cancelMySubscription` |
+| [`src/components/billing/MpCardForm.tsx`](../src/components/billing/MpCardForm.tsx) | Componente cliente que carga el SDK de MP vía script CDN, monta el CardForm de MP Bricks, tokeniza la tarjeta y llama al callback `onToken(cardTokenId, payerEmail)` |
 | [`src/actions/super-admin/gym.ts`](../src/actions/super-admin/gym.ts) | `setGymPaymentExempt(gymId, exempt, reason)` y `cancelGymSubscription(gymId)` — solo invocables por SUPERADMIN |
-| [`src/app/api/webhooks/mercadopago/route.ts`](../src/app/api/webhooks/mercadopago/route.ts) | Handler POST del webhook de MP: valida firma, parsea evento, actualiza `mpPreapprovalId` y `mpSubscriptionStatus` en el gym correspondiente |
-| [`src/app/api/cron/check-gym-trials/route.ts`](../src/app/api/cron/check-gym-trials/route.ts) | Cron diario: Fase 1 bloquea gyms con trial vencido sin suscripción; Fase 2 envía push notifications a los hitos de días |
-| [`src/app/[gymSlug]/admin/billing/page.tsx`](../src/app/[gymSlug]/admin/billing/page.tsx) | UI del dueño del gym: muestra estado (exento / en trial / activo), días restantes y botón para configurar tarjeta en MP |
-| [`src/components/admin/SubscriptionSection.tsx`](../src/components/admin/SubscriptionSection.tsx) | UI super-admin en `/admin/gyms/[id]`: toggle de exención con razón, badge de estado MP, link al preapproval en MP, botón de cancelación con confirmación |
-| [`src/components/billing/TrialEndingBanner.tsx`](../src/components/billing/TrialEndingBanner.tsx) | Banner sticky para ADMINs con `daysLeft <= 7`; amarillo si el trial sigue activo, rojo si ya venció. No se puede dismissar. CTA a `/[gymSlug]/admin/billing` |
+| [`src/app/api/webhooks/mercadopago/route.ts`](../src/app/api/webhooks/mercadopago/route.ts) | Handler POST del webhook de MP: valida firma, parsea evento, actualiza `mpPreapprovalId` y `mpSubscriptionStatus` en el gym/user correspondiente |
+| [`src/app/api/cron/check-gym-trials/route.ts`](../src/app/api/cron/check-gym-trials/route.ts) | Cron diario: bloqueo por trial vencido o pago fallido + push notifications en hitos |
+| [`src/app/[gymSlug]/admin/billing/page.tsx`](../src/app/[gymSlug]/admin/billing/page.tsx) | UI del dueño del gym: muestra estado (exento / en trial / activo) y el CardForm para vincular tarjeta in-app |
+| [`src/app/[gymSlug]/admin/billing/GymCardFormSection.tsx`](../src/app/[gymSlug]/admin/billing/GymCardFormSection.tsx) | Componente cliente que conecta `MpCardForm` con la server action `subscribeGym` |
+| [`src/components/personal/PersonalBillingPage.tsx`](../src/components/personal/PersonalBillingPage.tsx) | UI del user Personal: estado de suscripción + CardForm in-app |
+| [`src/components/admin/SubscriptionSection.tsx`](../src/components/admin/SubscriptionSection.tsx) | UI super-admin en `/admin/gyms/[id]`: toggle de exención con razón, badge de estado MP, link al preapproval en MP, botón de cancelación |
+| [`src/components/billing/TrialEndingBanner.tsx`](../src/components/billing/TrialEndingBanner.tsx) | Banner sticky para ADMINs con `daysLeft <= 7`; CTA a `/[gymSlug]/admin/billing` |
 
 ---
 
@@ -83,46 +95,36 @@ El cron también puede bloquear gyms con suscripción en `paused` o `cancelled` 
 
 | Variable | Descripción |
 |---|---|
-| `MP_ACCESS_TOKEN` | Access token de producción de la app "Wody" en MP (Panel de developers → Credenciales de producción) |
-| `MP_PREAPPROVAL_PLAN_ID` | ID del plan original con free_trial 30 días: `02dca3f44cc44c5e8089cd00c25a7f08` |
-| `MP_PREAPPROVAL_PLAN_ID_RETURNING` | ID del plan de re-activación con free_trial 0 días: `891d99cc41ae47b094b8059f0b3f3188` |
+| `MP_ACCESS_TOKEN` | Access token de producción de la app "Wody" en MP (Panel de developers → Credenciales de producción → Access Token) |
+| `NEXT_PUBLIC_MP_PUBLIC_KEY` | Public key de producción de MP (Panel de developers → Credenciales de producción → Public Key). Expuesta al front para MP Bricks/CardForm |
 | `MP_WEBHOOK_SECRET` | Clave secreta generada por MP al configurar el webhook (Panel de developers → app Wody → Webhooks → Modo productivo) |
 | `CRON_SECRET` | Secret compartido con los demás crons del proyecto, para autenticar el endpoint del cron |
+| `APP_URL` | URL base de la app sin slash final (ej: `https://wody.com.ar`). Se usa como `back_url` del preapproval |
 
 Las vars MP se cargan en Vercel (Production + Preview). Los placeholders están en `.env.example`.
+
+**Eliminadas (no se usan más)**:
+- `MP_PREAPPROVAL_PLAN_ID`
+- `MP_PREAPPROVAL_PLAN_ID_RETURNING`
+- `MP_PREAPPROVAL_PLAN_ID_PERSONAL`
+- `MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING`
+
+El dueño puede borrar los planes correspondientes del dashboard de MP y las env vars de Vercel después del deploy.
 
 ---
 
 ## 5. Procedimiento de setup en Mercado Pago
 
-Este setup es manual y debe hacerse **antes del primer deploy** a producción.
+Este setup es manual y debe hacerse **antes del primer deploy** a producción (o al migrar del flujo viejo de planes al flujo nuevo de API).
 
-### 5.1 Crear los `preapproval_plan`
-
-Se necesitan dos planes en MP. Ambos ya están creados en producción.
-
-**Plan original** (gyms nuevos, `MP_PREAPPROVAL_PLAN_ID`):
-- Descripción: "Suscripción mensual Wody"
-- Monto: $40.000 ARS, frecuencia mensual
-- **Prueba gratis: 30 días**
-- ID: `02dca3f44cc44c5e8089cd00c25a7f08`
-
-**Plan de re-activación** (gyms que vuelven, `MP_PREAPPROVAL_PLAN_ID_RETURNING`):
-- Descripción: "Suscripción mensual Wody — Re-activación"
-- Monto: $40.000 ARS, frecuencia mensual
-- **Prueba gratis: 0 días** (diferencia clave — evita el segundo free_trial)
-- ID: `891d99cc41ae47b094b8059f0b3f3188`
-
-Para crear un plan nuevo: ir a [https://www.mercadopago.com.ar/subscriptions/plans](https://www.mercadopago.com.ar/subscriptions/plans), crear con los parámetros indicados y cargar el ID en la env var correspondiente en Vercel.
-
-### 5.2 Crear la app y obtener el Access Token
+### 5.1 Obtener las credenciales de producción
 
 1. Ir al panel de developers de MP: [https://www.mercadopago.com.ar/developers/panel](https://www.mercadopago.com.ar/developers/panel).
 2. Crear (o seleccionar) la app "Wody".
-3. En "Credenciales de producción", copiar el Access Token.
-4. Cargarlo como `MP_ACCESS_TOKEN` en Vercel.
+3. En "Credenciales de producción", copiar el **Access Token** → env var `MP_ACCESS_TOKEN`.
+4. Copiar la **Public Key** → env var `NEXT_PUBLIC_MP_PUBLIC_KEY`.
 
-### 5.3 Configurar el webhook
+### 5.2 Configurar el webhook
 
 1. En el panel de developers, ir a la app Wody → **Webhooks** → **Modo productivo**.
 2. URL de notificación: `https://<dominio-prod>/api/webhooks/mercadopago`.
@@ -132,13 +134,36 @@ Para crear un plan nuevo: ir a [https://www.mercadopago.com.ar/subscriptions/pla
 4. Generar la clave secreta (MP la llama "Firma secreta" o "Webhook secret").
 5. Cargar esa clave como `MP_WEBHOOK_SECRET` en Vercel.
 
+**No es necesario crear planes** en el dashboard de MP — las suscripciones se crean directamente por API sin plan asociado.
+
 ---
 
-## 6. Operación día a día (para el super-admin)
+## 6. Flujo completo de suscripción
 
-### Eximir un gym
+### 6.1 Alta de tarjeta (gym o Personal)
 
-1. Ir a `/admin/gyms/[id]`, sección "Suscripción y exención".
+1. El dueño/user entra a la página de billing (`/[gymSlug]/admin/billing` o `/personal/perfil/suscripcion`).
+2. Completa el formulario de tarjeta (MP Bricks/CardForm), que tokeniza la tarjeta del lado del cliente.
+3. El token (`card_token_id`) viaja a la server action (`subscribeGym` o `subscribePersonal`).
+4. La server action llama a `createGymSubscription` / `createPersonalSubscription`:
+   - Calcula `díasRestantes = ceil((trialEndsAt - now) / 1 día)`.
+   - Si `díasRestantes >= 1`: incluye `auto_recurring.free_trial = { frequency: díasRestantes, frequency_type: "days" }`.
+   - Si `díasRestantes <= 0`: omite `free_trial` (cobro inmediato ~1h).
+   - Llama a `preApproval.create(...)` del SDK `mercadopago@3.0.0` **sin `preapproval_plan_id`**.
+5. Si la creación tiene éxito: se persiste `mpPreapprovalId` y `mpSubscriptionStatus` en la DB.
+6. Si falla (tarjeta rechazada, token inválido, error de API): se devuelve un error a la UI y se permite reintentar sin persistir nada.
+
+### 6.2 Compatibilidad con suscripciones existentes
+
+Los tenants con `mpPreapprovalId` ya seteado bajo el esquema viejo (plan + `free_trial` estático) **conviven sin cambios**: su suscripción sigue activa en MP y el webhook sigue sincronizando su estado. No se requiere migración.
+
+---
+
+## 7. Operación día a día (para el super-admin)
+
+### Eximir un gym o user Personal
+
+1. Ir a `/admin/gyms/[id]` (o `/admin/wody-personal` para users Personal), sección "Suscripción y exención".
 2. Marcar el checkbox "Exento de pago".
 3. Completar el campo "Motivo de exención" (obligatorio al marcar como exento).
 4. Clic en "Guardar exención".
@@ -151,15 +176,9 @@ Para quitar la exención: desmarcar el checkbox y guardar (el motivo se borra au
 2. El botón "Cancelar suscripción" aparece solo si el gym tiene un `mpPreapprovalId` registrado.
 3. Confirmar en el dialog. La action llama a la API de MP para cancelar el `preapproval` y actualiza `mpSubscriptionStatus = 'cancelled'` en la DB.
 
-El dueño del gym **no puede cancelar** desde la UI de su panel — solo puede contactar al super-admin. Esta es una decisión de producto deliberada (ver `design.md` §6).
-
-### Desbloquear un gym bloqueado por error
-
-Si un gym quedó con `blockedAt` por error del cron, el super-admin puede desbloquearlo desde `/admin/gyms/[id]` con el botón de unblock, y luego marcar el gym como exento si corresponde.
-
 ---
 
-## 7. Cron y push notifications
+## 8. Cron y push notifications
 
 ### Schedule
 
@@ -169,84 +188,58 @@ El cron `/api/cron/check-gym-trials` corre todos los días a las **06:00 UTC (03
 { "path": "/api/cron/check-gym-trials", "schedule": "0 6 * * *" }
 ```
 
-### Fase 1: bloqueo de gyms por trial vencido
+### Fase 1: bloqueo por trial vencido
 
-Bloquea los gyms con trial vencido, sin suscripción, no exentos, no bloqueados y no Personal.
+Bloquea los gyms (y users Personal) con trial vencido, sin suscripción, no exentos y no bloqueados.
 
-### Fase 1.5: bloqueo de gyms por pago fallido con grace period
+### Fase 1.5: bloqueo por pago fallido con grace period
 
-Bloquea los gyms con `mpSubscriptionStatus IN ('paused', 'cancelled')` y `mpSubscriptionStatusChangedAt` hace más de 7 días, no exentos, no bloqueados y no Personal. Es decir: una vez que MP da por perdido un cobro y pasa el gym a paused/cancelled, el gym tiene 7 días para regularizar antes de que el cron lo bloquee.
+Bloquea los tenants con `mpSubscriptionStatus IN ('paused', 'cancelled')` y `mpSubscriptionStatusChangedAt` hace más de 7 días, no exentos y no bloqueados. Es decir: una vez que MP da por perdido un cobro y pasa el tenant a paused/cancelled, el tenant tiene 7 días para regularizar antes de que el cron lo bloquee.
 
-Si el dueño regulariza la tarjeta antes del día 7, el webhook de MP actualiza el status a `authorized` y resetea `mpSubscriptionStatusChangedAt`. El gym queda fuera de la query de bloqueo del cron.
+Si el dueño regulariza la tarjeta antes del día 7, el webhook de MP actualiza el status a `authorized` y resetea `mpSubscriptionStatusChangedAt`. El tenant queda fuera de la query de bloqueo del cron.
 
 ### Fase 2: push notifications de fin de trial
 
-En la misma ejecución, después de la query de bloqueo, el cron recorre todos los gyms en trial (no exentos, sin suscripción activa, no bloqueados) y calcula `daysLeft` para cada uno. Si `daysLeft ∈ {7, 3, 1, 0}`, llama a `sendTrialEndingPush(gymId, daysLeft)` definida en [`src/lib/push.ts`](../src/lib/push.ts).
-
-Mensajes enviados (a todos los ADMINs del gym):
-
-| `daysLeft` | Título | Cuerpo |
-|---|---|---|
-| 7 | "Tu trial termina en 7 días" | "Configurá tu tarjeta para que tu gym no se suspenda." |
-| 3 | "Tu trial termina en 3 días" | "Faltan pocos días para configurar tu tarjeta." |
-| 1 | "Tu trial termina mañana" | "Última oportunidad para configurar tu tarjeta." |
-| 0 | "Tu trial venció hoy" | "Configurá tu tarjeta ahora para evitar la suspensión." |
-
-Para el sistema de push genérico (suscripciones de dispositivos, `sendPushToUser`), ver [`docs/notificaciones-push.md`](./notificaciones-push.md).
-
-### Respuesta del cron
-
-```json
-{
-  "blockedCount": 0,
-  "gymIds": [],
-  "paymentFailureBlockedCount": 0,
-  "paymentFailureBlockedGymIds": [],
-  "pushSummary": [{ "gymId": "...", "daysLeft": 7, "sent": 2, "removed": 0 }],
-  "expiredSignupRequestsCount": 0,
-  "cleanedRateLimits": 0
-}
-```
+En la misma ejecución, el cron recorre todos los tenants en trial y envía push notifications en los hitos `{7, 3, 1, 0}` días restantes.
 
 ---
 
-## 8. Sincronización del estado vía webhook
+## 9. Sincronización del estado vía webhook
 
 Cuando MP procesa un evento de suscripción, envía un `POST` a `/api/webhooks/mercadopago`. El handler:
 
 1. Valida la firma HMAC-SHA256 usando `x-signature`, `x-request-id` y el query param `data.id`.
 2. Si la firma es inválida o falta, responde `401`.
-3. Parsea el `type` del evento. Solo procesa `subscription_preapproval` y `subscription_authorized_payment`. Otros tipos devuelven `200` sin hacer nada (MP no reintenta).
-4. Consulta la API de MP con el `preapproval_id` del evento para obtener el estado actual y el `external_reference` (= `gymId`).
-5. Compara el nuevo status con el status actual del gym en la DB. Si cambiaron, actualiza `Gym.mpPreapprovalId`, `Gym.mpSubscriptionStatus` y `Gym.mpSubscriptionStatusChangedAt = now()`. Si el status no cambió (webhook idempotente), actualiza solo `mpPreapprovalId` y `mpSubscriptionStatus` **sin tocar** `mpSubscriptionStatusChangedAt` (para no resetear el reloj del grace period).
-6. Si la transición fue hacia `paused` o `cancelled` desde un estado diferente, envía email `payment-failed` al ADMIN del gym (en try/catch — no bloquea la respuesta si el email falla).
-7. Responde `200` en éxito, `500` si hubo un error interno (MP reintenta en caso de 500).
+3. Parsea el `type` del evento. Solo procesa `subscription_preapproval` y `subscription_authorized_payment`. Otros tipos devuelven `200` sin hacer nada.
+4. Consulta la API de MP con el `preapproval_id` del evento para obtener el estado actual y el `external_reference`.
+5. Si `external_reference` empieza con `"user_"`: es un user Personal → actualiza `User.mpPreapprovalId` y `User.mpSubscriptionStatus`.
+6. Si no: es un gym → actualiza `Gym.mpPreapprovalId` y `Gym.mpSubscriptionStatus`.
+7. Si la transición fue hacia `paused` o `cancelled`, envía email `payment-failed` (en try/catch — no bloquea la respuesta).
+8. Responde `200` en éxito, `500` si hubo un error interno (MP reintenta en caso de 500).
 
-El estado `mpSubscriptionStatus` es un string libre (`'pending'`, `'authorized'`, `'paused'`, `'cancelled'`). Si MP envía un valor desconocido, el parser lo mapea a `'unknown'` y loggea un warning. El gym sigue funcionando normalmente.
+El webhook funciona igual con preapprovals creados por plan (flujo viejo) y por API (flujo nuevo), ya que solo lee `external_reference` y `status` del preapproval.
 
 ---
 
-## 8.5. Flujo de pago fallido
+## 10. Flujo de pago fallido
 
-Cuando MP no puede cobrar la suscripción mensual de un gym:
+Cuando MP no puede cobrar la suscripción mensual:
 
-1. **MP reintenta automáticamente** según su política interna (típicamente varios días con intervalos crecientes).
+1. **MP reintenta automáticamente** según su política interna.
 2. **Cuando MP da por perdido el cobro**, pasa el `preapproval` a `paused` o `cancelled` y envía un webhook.
-3. **El webhook** actualiza el status en la DB, setea `mpSubscriptionStatusChangedAt = now()` (inicio del grace period) y **dispara un email al dueño del gym** explicando que el cobro falló y que tiene 7 días para actualizar su tarjeta.
-4. **El dueño tiene 7 días** para ir a `/<gymSlug>/admin/billing` y configurar una tarjeta nueva en MP.
-5. **Si regulariza**: MP envía un webhook con status `authorized` → el webhook resetea `mpSubscriptionStatusChangedAt` y el gym queda fuera de la query de bloqueo del cron.
-6. **Si no regulariza en 7 días**: el cron diario detecta el gym (status en paused/cancelled y `mpSubscriptionStatusChangedAt` hace más de 7 días) y aplica `blockedAt = now()`. El gym queda suspendido.
-
-El email se envía **solo en la transición real** desde un estado no-fallido hacia paused/cancelled. Si el webhook es idempotente (MP manda el mismo status), no se re-envía el email. Si el gym regulariza y vuelve a fallar, se envía un nuevo email (es un nuevo evento).
+3. **El webhook** actualiza el status en la DB, setea `mpSubscriptionStatusChangedAt = now()` (inicio del grace period) y **dispara un email al dueño/user** explicando que el cobro falló y que tiene 7 días para actualizar su tarjeta.
+4. **El dueño tiene 7 días** para ir a la página de billing y configurar una tarjeta nueva.
+5. **Si regulariza**: MP envía un webhook con status `authorized` → el webhook resetea `mpSubscriptionStatusChangedAt` y el tenant queda fuera de la query de bloqueo del cron.
+6. **Si no regulariza en 7 días**: el cron aplica `blockedAt = now()`. El tenant queda suspendido.
 
 ---
 
-## 9. Cómo probar el webhook (smoke test)
+## 11. Cómo probar el webhook (smoke test)
 
 1. Ir al panel de developers de MP → app Wody → Webhooks → "Simular notificación".
 2. Tipo de evento: `subscription_preapproval` o `subscription_authorized_payment`.
-3. Data ID: un `preapproval_id` real de tu cuenta (o sandbox si disponible).
-4. Verificar en los logs de Vercel que el handler procesó el evento y actualizó el gym.
+3. Data ID: un `preapproval_id` real (creado por API con el nuevo flujo, o un preapproval existente del flujo viejo).
+4. Verificar en los logs de Vercel que el handler procesó el evento y actualizó el gym/user.
 
 Alternativamente, para probar el cron localmente:
 
@@ -256,13 +249,13 @@ curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/cron/che
 
 ---
 
-## 10. Errores conocidos / pitfalls
+## 12. Errores conocidos / pitfalls
 
-- **Webhook responde 401 con firma válida**: verificar que `MP_WEBHOOK_SECRET` en Vercel coincide exactamente (sin espacios ni saltos de línea) con el secret configurado en el panel de MP para el modo productivo. Los secrets de sandbox y producción son diferentes.
+- **Webhook responde 401 con firma válida**: verificar que `MP_WEBHOOK_SECRET` en Vercel coincide exactamente (sin espacios ni saltos de línea) con el secret configurado en el panel de MP para el modo productivo.
 - **Cron responde 500 con "CRON_SECRET not configured"**: falta la env var `CRON_SECRET` en Vercel.
 - **Gym bloqueado por error**: el super-admin puede desbloquearlo desde `/admin/gyms/[id]` y marcar exento si corresponde.
-- **`mpSubscriptionStatus` queda en `'unknown'`**: MP envió un estado no contemplado en el parser. El gym sigue funcionando — solo loggea un warning. Si el estado nuevo es permanente, agregar el string al union `MpSubscriptionStatus` en `src/lib/mercadopago.ts`.
-- **El plan de MP no existe al hacer el deploy**: si `MP_PREAPPROVAL_PLAN_ID` apunta a un plan inexistente o no fue cargado, el botón "Configurar tarjeta" del dueño falla al construir la URL. Los gyms exentos y el resto de la plataforma siguen funcionando sin interrupciones.
-- **Suscripción creada antes de que el cron corra**: hay una latencia de hasta 24h entre que el trial vence y el cron bloquea el gym. Esta ventana es una decisión aceptada del modelo.
-- **`MP_PREAPPROVAL_PLAN_ID_RETURNING` no configurada**: si la env var no está cargada en Vercel, el código cae al plan original (`MP_PREAPPROVAL_PLAN_ID`) y loggea un warning. El gym que vuelve a suscribirse recibe otros 30 días de free_trial — es subóptimo pero no bloquea nada. Configurar la var para evitar el regalo involuntario.
-- **Gym bloqueado por pago fallido sin email previo**: si el webhook de MP no llegó (o llegó pero el email falló), el dueño puede no haberse enterado y sorprenderse con el bloqueo. El super-admin puede verificar los `EmailLog` del gym y el `mpSubscriptionStatusChangedAt` para entender la secuencia.
+- **`mpSubscriptionStatus` queda en `'unknown'`**: MP envió un estado no contemplado en el parser. El tenant sigue funcionando — solo loggea un warning.
+- **CardForm no monta**: verificar que `NEXT_PUBLIC_MP_PUBLIC_KEY` está correctamente seteada (es la Public Key, no el Access Token). Un Access Token en ese campo causará error silencioso del SDK.
+- **Token de tarjeta expirado o ya usado**: el `card_token_id` es de un solo uso y expira a los 7 días. Si la creación del preapproval falla con este error, la UI permite reintentar (el usuario debe completar el formulario de nuevo).
+- **Preapproval creado exitosamente pero sin cobro al final del trial**: verificar que `díasRestantes` se calculó correctamente en el momento de la creación y que MP recibió el `free_trial`. Consultar los logs de la server action.
+- **Suscripción creada antes de que el cron corra**: hay una latencia de hasta 24h entre que el trial vence y el cron bloquea. Esta ventana es una decisión aceptada del modelo.

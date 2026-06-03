@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getSubscriptionCheckoutUrl } from "@/lib/mercadopago";
+import { createGymSubscription } from "@/lib/mercadopago";
 import type { MpSubscriptionStatus } from "@/lib/mercadopago";
 
 export type SubscriptionStatus = {
@@ -47,15 +47,50 @@ export async function getMySubscriptionStatus(): Promise<SubscriptionStatus> {
   };
 }
 
-export async function getMyCheckoutUrl(): Promise<string> {
+type SubscribeGymResult = { success: true } | { success: false; error: string };
+
+/**
+ * Creates a MercadoPago preapproval for the gym using a card token obtained
+ * via MP Bricks in the client. Persists mpPreapprovalId and mpSubscriptionStatus
+ * only if the creation succeeds.
+ */
+export async function subscribeGym(params: {
+  cardTokenId: string;
+  payerEmail: string;
+}): Promise<SubscribeGymResult> {
   const session = await auth();
   if (session?.user?.role !== "ADMIN") {
-    throw new Error("forbidden");
+    return { success: false, error: "Acceso no autorizado" };
   }
   const gymId = session.user.gymId;
   if (!gymId) {
-    throw new Error("No gym associated with this session");
+    return { success: false, error: "No hay un gym asociado a esta sesión" };
   }
 
-  return await getSubscriptionCheckoutUrl(gymId);
+  const gym = await prisma.gym.findUniqueOrThrow({
+    where: { id: gymId },
+    select: { paymentExempt: true, trialEndsAt: true },
+  });
+
+  const result = await createGymSubscription({
+    cardTokenId: params.cardTokenId,
+    payerEmail: params.payerEmail,
+    gymId,
+    trialEndsAt: gym.trialEndsAt,
+  });
+
+  if (!result.ok) {
+    return { success: false, error: result.error };
+  }
+
+  await prisma.gym.update({
+    where: { id: gymId },
+    data: {
+      mpPreapprovalId: result.mpPreapprovalId,
+      mpSubscriptionStatus: result.mpSubscriptionStatus,
+      mpSubscriptionStatusChangedAt: new Date(),
+    },
+  });
+
+  return { success: true };
 }
