@@ -102,7 +102,7 @@ export function calcDaysRemaining(trialEndsAt: Date | null): number | null {
 // ---------------------------------------------------------------------------
 
 export type CreateSubscriptionResult =
-  | { ok: true; mpPreapprovalId: string; mpSubscriptionStatus: MpSubscriptionStatus }
+  | { ok: true; mpPreapprovalId: string; mpSubscriptionStatus: MpSubscriptionStatus; initPoint: string }
   | { ok: false; error: string };
 
 // ---------------------------------------------------------------------------
@@ -111,6 +111,8 @@ export type CreateSubscriptionResult =
 
 /**
  * Creates a MercadoPago preapproval for a gym subscription via API (no plan).
+ * Returns a pending preapproval with an init_point URL for the user to authorize
+ * the subscription via redirect (no card capture in-app).
  *
  * Monto: $40.000 ARS/mes (constante per spec; subscriptionMonthlyAmount en DB
  * es referencia interna del super-admin y no afecta el cobro real en MP).
@@ -119,12 +121,10 @@ export type CreateSubscriptionResult =
  * free_trial con esa cantidad de días; si <= 0, se omite (cobro inmediato).
  */
 export async function createGymSubscription(params: {
-  cardTokenId: string;
-  payerEmail: string;
   gymId: string;
   trialEndsAt: Date | null;
 }): Promise<CreateSubscriptionResult> {
-  const { cardTokenId, payerEmail, gymId, trialEndsAt } = params;
+  const { gymId, trialEndsAt } = params;
 
   const diasRestantes = calcDaysRemaining(trialEndsAt);
 
@@ -141,9 +141,7 @@ export async function createGymSubscription(params: {
   try {
     const response = await preApproval.create({
       body: {
-        card_token_id: cardTokenId,
-        payer_email: payerEmail,
-        status: "authorized",
+        status: "pending",
         external_reference: gymId,
         reason: "Suscripción mensual Wody",
         back_url: `${process.env.APP_URL ?? "https://wody.com.ar"}`,
@@ -155,6 +153,7 @@ export async function createGymSubscription(params: {
     });
 
     const id = response.id;
+    const initPoint = response.init_point;
     const rawStatus = response.status ?? "";
 
     if (!id) {
@@ -162,22 +161,20 @@ export async function createGymSubscription(params: {
       return { ok: false, error: "Mercado Pago no devolvió un ID de suscripción" };
     }
 
+    if (!initPoint) {
+      console.error("[mercadopago] createGymSubscription: no init_point in response", response);
+      return { ok: false, error: "Mercado Pago no devolvió la URL de autorización" };
+    }
+
     return {
       ok: true,
       mpPreapprovalId: id,
       mpSubscriptionStatus: parseMpSubscriptionStatus(rawStatus),
+      initPoint,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[mercadopago] createGymSubscription error", { gymId, error: msg });
-
-    // Surface a user-friendly message for common MP errors.
-    if (msg.includes("invalid_card_token") || msg.includes("token")) {
-      return { ok: false, error: "El token de tarjeta es inválido o expiró. Intentá de nuevo." };
-    }
-    if (msg.includes("rejected") || msg.includes("rechazada")) {
-      return { ok: false, error: "Tu tarjeta fue rechazada. Verificá los datos e intentá con otra." };
-    }
     return { ok: false, error: "Error al crear la suscripción. Intentá de nuevo." };
   }
 }
@@ -188,6 +185,8 @@ export async function createGymSubscription(params: {
 
 /**
  * Creates a MercadoPago preapproval for a Wody Personal user subscription via API (no plan).
+ * Returns a pending preapproval with an init_point URL for the user to authorize
+ * the subscription via redirect (no card capture in-app).
  *
  * Monto: $7.000 ARS/mes (constante per spec).
  * external_reference: "user_<userId>" (distingue de suscripciones de gym en el webhook).
@@ -196,12 +195,10 @@ export async function createGymSubscription(params: {
  * free_trial con esa cantidad de días; si <= 0, se omite (cobro inmediato).
  */
 export async function createPersonalSubscription(params: {
-  cardTokenId: string;
-  payerEmail: string;
   userId: string;
   trialEndsAt: Date | null;
 }): Promise<CreateSubscriptionResult> {
-  const { cardTokenId, payerEmail, userId, trialEndsAt } = params;
+  const { userId, trialEndsAt } = params;
 
   const diasRestantes = calcDaysRemaining(trialEndsAt);
 
@@ -218,9 +215,7 @@ export async function createPersonalSubscription(params: {
   try {
     const response = await preApproval.create({
       body: {
-        card_token_id: cardTokenId,
-        payer_email: payerEmail,
-        status: "authorized",
+        status: "pending",
         external_reference: `user_${userId}`,
         reason: "Suscripción mensual Wody Personal",
         back_url: `${process.env.APP_URL ?? "https://wody.com.ar"}`,
@@ -230,6 +225,7 @@ export async function createPersonalSubscription(params: {
     });
 
     const id = response.id;
+    const initPoint = response.init_point;
     const rawStatus = response.status ?? "";
 
     if (!id) {
@@ -237,21 +233,20 @@ export async function createPersonalSubscription(params: {
       return { ok: false, error: "Mercado Pago no devolvió un ID de suscripción" };
     }
 
+    if (!initPoint) {
+      console.error("[mercadopago] createPersonalSubscription: no init_point in response", response);
+      return { ok: false, error: "Mercado Pago no devolvió la URL de autorización" };
+    }
+
     return {
       ok: true,
       mpPreapprovalId: id,
       mpSubscriptionStatus: parseMpSubscriptionStatus(rawStatus),
+      initPoint,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[mercadopago] createPersonalSubscription error", { userId, error: msg });
-
-    if (msg.includes("invalid_card_token") || msg.includes("token")) {
-      return { ok: false, error: "El token de tarjeta es inválido o expiró. Intentá de nuevo." };
-    }
-    if (msg.includes("rejected") || msg.includes("rechazada")) {
-      return { ok: false, error: "Tu tarjeta fue rechazada. Verificá los datos e intentá con otra." };
-    }
     return { ok: false, error: "Error al crear la suscripción. Intentá de nuevo." };
   }
 }

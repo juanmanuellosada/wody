@@ -47,17 +47,16 @@ export async function getMySubscriptionStatus(): Promise<SubscriptionStatus> {
   };
 }
 
-type SubscribeGymResult = { success: true } | { success: false; error: string };
+type SubscribeGymResult =
+  | { success: true; initPoint: string }
+  | { success: false; error: string };
 
 /**
- * Creates a MercadoPago preapproval for the gym using a card token obtained
- * via MP Bricks in the client. Persists mpPreapprovalId and mpSubscriptionStatus
- * only if the creation succeeds.
+ * Creates a MercadoPago pending preapproval for the gym and returns the
+ * init_point URL so the user can authorize the subscription via redirect.
+ * Persists mpPreapprovalId and mpSubscriptionStatus only if the creation succeeds.
  */
-export async function subscribeGym(params: {
-  cardTokenId: string;
-  payerEmail: string;
-}): Promise<SubscribeGymResult> {
+export async function subscribeGym(): Promise<SubscribeGymResult> {
   const session = await auth();
   if (session?.user?.role !== "ADMIN") {
     return { success: false, error: "Acceso no autorizado" };
@@ -73,8 +72,6 @@ export async function subscribeGym(params: {
   });
 
   const result = await createGymSubscription({
-    cardTokenId: params.cardTokenId,
-    payerEmail: params.payerEmail,
     gymId,
     trialEndsAt: gym.trialEndsAt,
   });
@@ -92,5 +89,5 @@ export async function subscribeGym(params: {
     },
   });
 
-  return { success: true };
+  return { success: true, initPoint: result.initPoint };
 }

@@ -37,7 +37,7 @@ export default async function PersonalSuscripcionPage({ params }: Props) {
     getMyPersonalSubscriptionStatus(),
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { paymentExemptReason: true, email: true },
+      select: { paymentExemptReason: true },
     }),
   ]);
 
@@ -50,7 +50,6 @@ export default async function PersonalSuscripcionPage({ params }: Props) {
         mpSubscriptionStatus={status.mpSubscriptionStatus}
         mpPreapprovalId={status.mpPreapprovalId}
         daysLeftInTrial={status.daysLeftInTrial}
-        payerEmail={dbUser?.email ?? session.user.email ?? ""}
       />
 
       <div className="max-w-2xl mx-auto w-full border-t border-line pt-4">

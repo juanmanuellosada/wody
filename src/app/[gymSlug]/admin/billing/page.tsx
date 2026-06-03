@@ -46,7 +46,7 @@ export default async function BillingPage({ params }: Props) {
     status.mpPreapprovalId !== null &&
     (status.mpSubscriptionStatus === "paused" || status.mpSubscriptionStatus === "cancelled");
 
-  // Show card form when: not exempt AND (not authorized, OR paused/cancelled wanting to retry)
+  // Show subscribe button when: not exempt AND not authorized
   const showCardForm = !status.paymentExempt && !isAuthorized;
 
   return (
@@ -113,14 +113,14 @@ export default async function BillingPage({ params }: Props) {
         </div>
       )}
 
-      {/* Case 2: Trial or paused/cancelled — show card form */}
+      {/* Case 2: Trial or paused/cancelled — show subscribe button */}
       {showCardForm && (
         <div className="border border-line bg-panel p-6 flex flex-col gap-5">
           {isPausedOrCancelled && (
             <div className="flex items-center gap-2.5 border border-yellow-500/30 bg-yellow-500/5 px-4 py-2.5">
               <AlertTriangle size={14} className="text-yellow-400 flex-shrink-0" aria-hidden="true" />
               <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-yellow-300">
-                Suscripción {status.mpSubscriptionStatus === "paused" ? "pausada" : "cancelada"} — configurá una nueva tarjeta
+                Suscripción {status.mpSubscriptionStatus === "paused" ? "pausada" : "cancelada"} — suscribite nuevamente
               </p>
             </div>
           )}
@@ -143,7 +143,7 @@ export default async function BillingPage({ params }: Props) {
             </p>
           </div>
 
-          <GymCardFormSection payerEmail={session.user.email ?? ""} />
+          <GymCardFormSection />
         </div>
       )}
 

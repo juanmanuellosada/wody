@@ -58,15 +58,16 @@ export async function getMyPersonalSubscriptionStatus() {
   };
 }
 
+type SubscribePersonalResult =
+  | { success: true; initPoint: string }
+  | { success: false; error: string };
+
 /**
- * Creates a MercadoPago preapproval for the Personal user using a card token
- * obtained via MP Bricks in the client. Persists mpPreapprovalId and
- * mpSubscriptionStatus only if the creation succeeds.
+ * Creates a MercadoPago pending preapproval for the Personal user and returns
+ * the init_point URL so the user can authorize the subscription via redirect.
+ * Persists mpPreapprovalId and mpSubscriptionStatus only if the creation succeeds.
  */
-export async function subscribePersonal(params: {
-  cardTokenId: string;
-  payerEmail: string;
-}): Promise<ActionResult> {
+export async function subscribePersonal(): Promise<SubscribePersonalResult> {
   const { userId } = await getValidatedPersonalSession();
 
   const user = await prisma.user.findUniqueOrThrow({
@@ -79,8 +80,6 @@ export async function subscribePersonal(params: {
   }
 
   const result = await createPersonalSubscription({
-    cardTokenId: params.cardTokenId,
-    payerEmail: params.payerEmail,
     userId,
     trialEndsAt: user.trialEndsAt,
   });
@@ -98,7 +97,7 @@ export async function subscribePersonal(params: {
     },
   });
 
-  return { success: true };
+  return { success: true, initPoint: result.initPoint };
 }
 
 export async function cancelMySubscription(): Promise<ActionResult> {
