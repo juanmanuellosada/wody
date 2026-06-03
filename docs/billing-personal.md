@@ -2,24 +2,21 @@
 
 ## 1. Resumen
 
-Wody Personal cobra **$7.000 ARS/mes** a cada usuario individual mediante una suscripción de Mercado Pago. El modelo replica deliberadamente el de gyms (ver [billing-mercadopago.md](./billing-mercadopago.md)) pero opera a nivel `User` en vez de `Gym`: cada Personal user tiene sus propios campos MP en el modelo `User`, se suscribe individualmente y puede cancelar desde su perfil (self-service). Los usuarios existentes antes del deploy de mayo 2026 quedaron exentos automáticamente por la migración.
+Wody Personal cobra **$7.000 ARS/mes** a cada usuario individual mediante una suscripción de Mercado Pago creada por API **sin plan asociado**. El flujo es simétrico al de gyms (ver [billing-mercadopago.md](./billing-mercadopago.md)) pero opera a nivel `User` en vez de `Gym`: cada Personal user tiene sus propios campos MP en el modelo `User`, se suscribe individualmente capturando su tarjeta **in-app** (MP Bricks/CardForm) y puede cancelar desde su perfil (self-service). Los usuarios existentes antes del deploy de mayo 2026 quedaron exentos automáticamente por la migración.
 
 ---
 
 ## 2. Modelo de cobro Personal
 
-### Dos planes en Mercado Pago
+### Suscripción sin plan de MP
 
-| Plan | Env var | `free_trial` | Cuándo se usa |
-|---|---|---|---|
-| Plan original | `MP_PREAPPROVAL_PLAN_ID_PERSONAL` | 30 días | `User.mpPreapprovalId IS NULL` — primera suscripción |
-| Plan de re-activación | `MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING` | 0 días | `User.mpPreapprovalId IS NOT NULL` — el user ya tuvo al menos una sub anterior |
+Las suscripciones se crean mediante `preApproval.create(...)` del SDK `mercadopago@3.0.0` **sin `preapproval_plan_id`**: el monto ($7.000 ARS) y el ciclo (mensual) se definen directamente en el payload, igual que para gyms. No se crean ni se requieren planes en el dashboard de MP.
 
-La lógica de selección vive en `src/lib/mercadopago.ts::pickPersonalPlanIdForUser`. Si `MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING` no está configurada, el código cae al plan original y loggea un warning: el user devuelto recibe otros 30 días gratis (comportamiento de fallback aceptado).
+La server action es `subscribePersonal(cardTokenId, payerEmail)` en `src/actions/personal-billing.ts`.
 
-### Trial
+### Trial 100% en la app
 
-`User.trialEndsAt` se setea al crear el User Personal: `trialEndsAt = createdAt + 30d`. El plan de MP también está configurado con 30 días de free_trial, de modo que si el user carga tarjeta durante el trial, MP no cobra hasta el vencimiento propio del plan. Se produce la misma "ventana extra" que con gyms (analizada en el `design.md` §5 del cambio).
+`User.trialEndsAt` se setea al crear el User Personal: `trialEndsAt = createdAt + 30d`. Mercado Pago no gestiona ningún `free_trial` de plan. Al vincular la tarjeta, la app calcula cuántos días restan del trial (`díasRestantes = ceil((trialEndsAt - now) / 1 día)`) e incluye un `free_trial` dinámico en días en el payload del preapproval si `díasRestantes >= 1`. Si el trial ya venció (`díasRestantes <= 0`), el cobro es inmediato (~1h). Ver el flujo completo en [billing-mercadopago.md §6](./billing-mercadopago.md).
 
 ### Exención manual
 
@@ -67,63 +64,37 @@ Si la API de MP falla, retorna error sin modificar el estado local.
 
 | Componente | Propósito |
 |---|---|
-| `prisma/schema.prisma` (modelo `User`) | 4 campos nuevos: `mpPreapprovalId`, `mpSubscriptionStatus`, `mpSubscriptionStatusChangedAt`, `trialEndsAt` |
-| [`src/lib/mercadopago.ts`](../src/lib/mercadopago.ts) | `getPersonalSubscriptionCheckoutUrl(userId)`: selecciona plan según historial + prefix `user_` en `external_reference` |
+| `prisma/schema.prisma` (modelo `User`) | 4 campos: `mpPreapprovalId`, `mpSubscriptionStatus`, `mpSubscriptionStatusChangedAt`, `trialEndsAt` |
+| [`src/lib/mercadopago.ts`](../src/lib/mercadopago.ts) | `createPersonalSubscription(cardTokenId, payerEmail, userId, trialEndsAt)`: crea el preapproval por API con `free_trial` dinámico + prefix `user_` en `external_reference`. También `cancelMpPreapproval` y utilidades compartidas con gyms |
 | [`src/lib/billing-emails.ts`](../src/lib/billing-emails.ts) | `sendPersonalPaymentFailedEmail(user)`: manda email al user cuando MP no puede cobrar |
 | [`src/lib/email/templates/PersonalPaymentFailedEmail.tsx`](../src/lib/email/templates/PersonalPaymentFailedEmail.tsx) | Template del email de pago fallido |
-| [`src/actions/personal-billing.ts`](../src/actions/personal-billing.ts) | `getMyPersonalSubscriptionStatus`, `getMyPersonalCheckoutUrl`, `cancelMySubscription` |
+| [`src/actions/personal-billing.ts`](../src/actions/personal-billing.ts) | `getMyPersonalSubscriptionStatus`, `subscribePersonal(cardTokenId, payerEmail)`, `cancelMySubscription` |
 | [`src/app/api/webhooks/mercadopago/route.ts`](../src/app/api/webhooks/mercadopago/route.ts) | Rama `user_` prefix: actualiza `User` cuando el `external_reference` comienza con `"user_"` |
 | [`src/app/api/cron/check-gym-trials/route.ts`](../src/app/api/cron/check-gym-trials/route.ts) | Fases Personal 1 (trial vencido), 1.5 (pago fallido + grace), 2.5 (push notifications) |
 | [`src/app/[gymSlug]/perfil/suscripcion/page.tsx`](../src/app/[gymSlug]/perfil/suscripcion/page.tsx) | Server Component: valida sesión, renderiza la billing page |
-| [`src/components/personal/PersonalBillingPage.tsx`](../src/components/personal/PersonalBillingPage.tsx) | Client Component: 3 casos (exento / trial / sub activa) + botón de self-cancel |
+| [`src/components/personal/PersonalBillingPage.tsx`](../src/components/personal/PersonalBillingPage.tsx) | Client Component: 3 casos (exento / trial / sub activa) + CardForm in-app + botón de self-cancel |
 | [`src/components/billing/PersonalTrialEndingBanner.tsx`](../src/components/billing/PersonalTrialEndingBanner.tsx) | Banner persistente cuando `daysLeft <= 7`, sin sub activa, no exento |
 
 ---
 
 ## 5. Variables de entorno requeridas
 
-| Variable | Valor de producción |
+Las vars de MP son compartidas con gyms. No hay vars exclusivas de Personal:
+
+| Variable | Descripción |
 |---|---|
-| `MP_PREAPPROVAL_PLAN_ID_PERSONAL` | `8008d9112ad445a2925c5d87a069413d` |
-| `MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING` | `4066d47538cd43b8a429c49ffc7f9de1` |
+| `MP_ACCESS_TOKEN` | Access token de producción de MP |
+| `NEXT_PUBLIC_MP_PUBLIC_KEY` | Public key de producción de MP (expuesta al front para MP Bricks/CardForm) |
+| `MP_WEBHOOK_SECRET` | Secret para validar la firma HMAC del webhook |
+| `CRON_SECRET` | Secret del cron |
 
-Más las vars compartidas con gym (`MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `CRON_SECRET`): ver [billing-mercadopago.md §4](./billing-mercadopago.md).
+Ver descripción completa en [billing-mercadopago.md §4](./billing-mercadopago.md).
 
-Las vars se cargan en Vercel (Production + Preview). Los placeholders están en `.env.example`.
-
----
-
-## 6. Setup en Mercado Pago
-
-Este setup ya está hecho en producción. Si necesitás recrear los planes (ej: nueva app MP, nuevo entorno):
-
-### 6.1 Crear los dos planes
-
-Ir a [https://www.mercadopago.com.ar/subscriptions/plans](https://www.mercadopago.com.ar/subscriptions/plans).
-
-**Plan original** (`MP_PREAPPROVAL_PLAN_ID_PERSONAL`):
-- Nombre: "Suscripción mensual Wody Personal"
-- Monto: $7.000 ARS, frecuencia mensual
-- **Prueba gratis: 30 días**
-- back_url: `https://wody.com.ar/billing/return`
-
-**Plan de re-activación** (`MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING`):
-- Nombre: "Suscripción mensual Wody Personal — Re-activación"
-- Monto: $7.000 ARS, frecuencia mensual
-- **Prueba gratis: 0 días** — diferencia clave, evita segundos trials gratuitos
-- back_url: `https://wody.com.ar/billing/return`
-
-### 6.2 Webhook
-
-El webhook MP es **único y compartido con gym** — no hay que crear uno nuevo. El handler en `/api/webhooks/mercadopago` discrimina internamente por el prefix `user_` del `external_reference`. Ver §8 para el detalle.
-
-### 6.3 Cargar env vars en Vercel
-
-Cargar los IDs de los planes como `MP_PREAPPROVAL_PLAN_ID_PERSONAL` y `MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING` en Production + Preview.
+**No se requieren `MP_PREAPPROVAL_PLAN_ID_PERSONAL` ni `MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING`** — las suscripciones se crean sin plan asociado.
 
 ---
 
-## 7. Operación del super-admin para Wody Personal
+## 6. Operación del super-admin para Wody Personal
 
 ### Eximir un user
 
@@ -144,7 +115,7 @@ No existe un flow de "extender trial". La alternativa: marcá al user como exent
 
 ---
 
-## 8. Webhook: discriminación gym / Personal
+## 7. Webhook: discriminación gym / Personal
 
 El `external_reference` que se le pasa a MP distingue el tipo de suscripción:
 
@@ -165,15 +136,13 @@ if (externalReference.startsWith("user_")) {
 }
 ```
 
-Los gyms existentes suscriptos antes de este cambio tienen `external_reference = <gymId>` (cuid pelado) — son backward compat sin necesidad de migrarlos.
-
 **Idempotencia:** `mpSubscriptionStatusChangedAt` solo se actualiza cuando hay un cambio real de status. Si el mismo webhook llega dos veces con el mismo status, no se resetea el reloj del grace period.
 
 **User inexistente:** si el `userId` del prefix no existe en DB, el handler loggea un warning y responde `200 ok` sin crash.
 
 ---
 
-## 9. Cron Personal
+## 8. Cron Personal
 
 El cron `/api/cron/check-gym-trials` corre a las **06:00 UTC (03:00 ART)** todos los días. Además de las fases de gym, incluye:
 
@@ -189,13 +158,12 @@ El cron responde con campos adicionales: `personalTrialBlockedCount`, `personalT
 
 ---
 
-## 10. Cómo probar el flujo
+## 9. Cómo probar el flujo
 
 **Suscripción nueva:**
 1. Completar el registro en `/registro-personal` con un email whitelisteado.
-2. Ir a `/personal/perfil/suscripcion` → "Configurar tarjeta".
-3. Completar el form de MP.
-4. Verificar que llega un webhook con `status = 'authorized'` y que `User.mpSubscriptionStatus` queda `'authorized'`.
+2. Ir a `/personal/perfil/suscripcion` → completar el CardForm in-app con datos de tarjeta de prueba de MP.
+3. Verificar que llega un webhook con `status = 'authorized'` y que `User.mpSubscriptionStatus` queda `'authorized'`.
 
 **Cancel desde Wody:**
 1. Ir a `/personal/perfil/suscripcion` → "Cancelar suscripción".
@@ -217,9 +185,8 @@ El cron responde con campos adicionales: `personalTrialBlockedCount`, `personalT
 
 ---
 
-## 11. Errores conocidos / pitfalls
+## 10. Errores conocidos / pitfalls
 
-- **`MP_PREAPPROVAL_PLAN_ID_PERSONAL_RETURNING` no configurada:** el código cae al plan original y loggea warning. El user devuelto recibe otros 30 días gratis — subóptimo pero no bloquea nada. Configurar la var para evitarlo.
 - **MP no puede cobrar:** webhook `paused`/`cancelled` → email "no pudimos cobrar" → 7 días grace → bloqueo por cron. Si el user regulariza antes del día 7, el webhook de MP actualiza a `authorized` y queda fuera de la query de bloqueo.
 - **`getValidatedPersonalSession` retorna "Gym personal no encontrado":** falta el gym con `kind = 'PERSONAL'` en la DB. El seed lo crea; si fue borrado, hay que recrearlo manualmente.
 - **Webhook responde 401 con firma válida:** verificar que `MP_WEBHOOK_SECRET` coincide exactamente (sin espacios) con el configurado en el panel de MP para modo productivo.

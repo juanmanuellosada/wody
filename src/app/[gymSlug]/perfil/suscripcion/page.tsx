@@ -3,10 +3,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath } from "@/lib/gym";
-import {
-  getMyPersonalSubscriptionStatus,
-  getMyPersonalCheckoutUrl,
-} from "@/actions/personal-billing";
+import { getMyPersonalSubscriptionStatus } from "@/actions/personal-billing";
 import { PersonalBillingPage } from "@/components/personal/PersonalBillingPage";
 
 export const dynamic = "force-dynamic";
@@ -40,18 +37,9 @@ export default async function PersonalSuscripcionPage({ params }: Props) {
     getMyPersonalSubscriptionStatus(),
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { paymentExemptReason: true },
+      select: { paymentExemptReason: true, email: true },
     }),
   ]);
-
-  let checkoutUrl: string | undefined;
-  if (!status.paymentExempt) {
-    try {
-      checkoutUrl = await getMyPersonalCheckoutUrl();
-    } catch {
-      // Defensive: no crashea si falla la action.
-    }
-  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -62,7 +50,7 @@ export default async function PersonalSuscripcionPage({ params }: Props) {
         mpSubscriptionStatus={status.mpSubscriptionStatus}
         mpPreapprovalId={status.mpPreapprovalId}
         daysLeftInTrial={status.daysLeftInTrial}
-        checkoutUrl={checkoutUrl}
+        payerEmail={dbUser?.email ?? session.user.email ?? ""}
       />
 
       <div className="max-w-2xl mx-auto w-full border-t border-line pt-4">

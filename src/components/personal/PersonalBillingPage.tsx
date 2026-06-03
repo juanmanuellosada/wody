@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CheckCircle, CreditCard, AlertTriangle } from "lucide-react";
+import { CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { cancelMySubscription } from "@/actions/personal-billing";
+import { MpCardForm } from "@/components/billing/MpCardForm";
+import { cancelMySubscription, subscribePersonal } from "@/actions/personal-billing";
 
 interface Props {
   trialEndsAt: Date | null;
@@ -15,7 +16,7 @@ interface Props {
   mpSubscriptionStatus: string | null;
   mpPreapprovalId: string | null;
   daysLeftInTrial: number | null;
-  checkoutUrl?: string;
+  payerEmail?: string;
 }
 
 function trialHeadline(daysLeft: number | null): string {
@@ -33,7 +34,7 @@ export function PersonalBillingPage({
   mpSubscriptionStatus,
   mpPreapprovalId,
   daysLeftInTrial,
-  checkoutUrl,
+  payerEmail,
 }: Props) {
   const router = useRouter();
   const [isCancelPending, startCancelTransition] = useTransition();
@@ -64,6 +65,15 @@ export function PersonalBillingPage({
         toast.error(result.error);
       }
     });
+  }
+
+  async function handleToken(cardTokenId: string, email: string) {
+    const result = await subscribePersonal({ cardTokenId, payerEmail: email || payerEmail || "" });
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    toast.success("Suscripción configurada. El cobro se realizará al finalizar tu trial.");
+    router.refresh();
   }
 
   return (
@@ -125,23 +135,6 @@ export function PersonalBillingPage({
             </span>
           </div>
 
-          {checkoutUrl && (
-            <div className="flex flex-col gap-2">
-              <a
-                href={checkoutUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-elev border border-edge text-white text-xs font-heading font-bold uppercase tracking-[0.15em] hover:border-brand-red hover:text-brand-red transition-colors duration-200 w-fit"
-              >
-                <CreditCard size={14} aria-hidden="true" />
-                Reconfigurar tarjeta
-              </a>
-              <p className="text-xs text-gray-600 font-body">
-                Vas a ser redirigido a Mercado Pago para actualizar tu tarjeta de forma segura.
-              </p>
-            </div>
-          )}
-
           <div className="pt-2 border-t border-line">
             <Button
               type="button"
@@ -156,7 +149,7 @@ export function PersonalBillingPage({
         </div>
       )}
 
-      {/* Case 2: Trial or no active sub */}
+      {/* Case 2: Trial or no active sub — show card form */}
       {!paymentExempt && !isAuthorized && (
         <div className="border border-line bg-panel p-6 flex flex-col gap-5">
           {isPausedOrCancelled && (
@@ -186,26 +179,12 @@ export function PersonalBillingPage({
             </p>
           </div>
 
-          {checkoutUrl ? (
-            <div className="flex flex-col gap-2">
-              <a
-                href={checkoutUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-brand-red text-white text-sm font-heading font-bold uppercase tracking-[0.15em] hover:bg-brand-red-dark transition-colors duration-200 w-full sm:w-fit"
-              >
-                <CreditCard size={16} aria-hidden="true" />
-                Configurar tarjeta
-              </a>
-              <p className="text-xs text-gray-600 font-body">
-                Vas a ser redirigido a Mercado Pago para ingresar tu tarjeta de forma segura.
-              </p>
-            </div>
-          ) : (
-            <p className="text-xs text-gray-600 font-body">
-              Contactanos para configurar tu suscripción.
-            </p>
-          )}
+          <MpCardForm
+            onToken={handleToken}
+            payerEmail={payerEmail}
+            monthlyAmountLabel="$7.000 ARS/mes"
+            chargeHint="Podés configurar tu tarjeta en cualquier momento durante el trial. El cobro se realiza recién al finalizar el período de prueba."
+          />
         </div>
       )}
 
