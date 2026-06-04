@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { buildJoinUrl } from "./joinUrl";
 
 interface Props {
   gymSlug: string;
 }
 
 export function JoinLinkBox({ gymSlug }: Props) {
-  const url = `https://www.wody.com.ar/${gymSlug}/invitarme`;
+  const url = buildJoinUrl(gymSlug);
   const [copied, setCopied] = useState(false);
 
   async function copy() {

@@ -1,12 +1,15 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import QRCode from "qrcode";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath, isPersonalGym } from "@/lib/gym";
 import type { Metadata } from "next";
 import { JoinLinkBox } from "./JoinLinkBox";
+import { JoinQrPoster } from "./JoinQrPoster";
 import { ApproveJoinRequestButton } from "./ApproveJoinRequestButton";
 import { RejectJoinRequestButton } from "./RejectJoinRequestButton";
+import { buildJoinUrl } from "./joinUrl";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -45,8 +48,14 @@ export default async function InvitacionesPage({ params, searchParams }: Props) 
     redirect(gymPath(gymSlug, "/login"));
   }
 
-  const gym = await prisma.gym.findUnique({ where: { slug: gymSlug }, select: { id: true, name: true } });
+  const gym = await prisma.gym.findUnique({ where: { slug: gymSlug }, select: { id: true, name: true, logo: true } });
   if (!gym) notFound();
+
+  const joinUrl = buildJoinUrl(gymSlug);
+  const [qrSvg, qrPng] = await Promise.all([
+    QRCode.toString(joinUrl, { type: "svg", margin: 2, width: 320, errorCorrectionLevel: "M" }),
+    QRCode.toDataURL(joinUrl, { margin: 2, width: 1024, errorCorrectionLevel: "M" }),
+  ]);
 
   // Fetch active teachers/admins for the edit-before-approve form.
   const teachers = await prisma.user.findMany({
@@ -97,6 +106,16 @@ export default async function InvitacionesPage({ params, searchParams }: Props) 
 
       {/* Public link box */}
       <JoinLinkBox gymSlug={gymSlug} />
+
+      {/* QR poster */}
+      <JoinQrPoster
+        joinUrl={joinUrl}
+        qrSvg={qrSvg}
+        qrPng={qrPng}
+        gymName={gym.name}
+        gymLogo={gym.logo ?? null}
+        gymSlug={gymSlug}
+      />
 
       {/* Tabs */}
       <div className="border border-line bg-panel">
