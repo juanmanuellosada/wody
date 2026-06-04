@@ -10,6 +10,10 @@ export type FixedRoutineResult =
   | { success: true; id?: string }
   | { success: false; error: string };
 
+export type FixedRoutineGroupResult =
+  | { success: true; count: number }
+  | { success: false; error: string };
+
 // Returns the active fixed routine for a student (most recent, deletedAt = null)
 export async function getActiveFixedRoutine(studentId: string) {
   return prisma.fixedRoutine.findFirst({
@@ -353,4 +357,115 @@ export async function deleteFixedRoutine(routineId: string): Promise<FixedRoutin
   revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
 
   return { success: true };
+}
+
+// Creates a FixedRoutine for every MUSCULACION_LIBRE member of a group.
+// GYM-kind only. The caller must be TEACHER or ADMIN.
+// TEACHER guard: the group must belong to the calling teacher.
+// ADMIN guard: the group must belong to the same gym.
+export async function createFixedRoutineForGroup(
+  groupId: string,
+  title: string,
+  content: string,
+  renewAtStr?: string
+): Promise<FixedRoutineGroupResult> {
+  const session = await auth();
+
+  if (
+    !session?.user ||
+    (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")
+  ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const gymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+  const teacherId = session.user.id;
+
+  // GYM-only guard
+  const gym = await prisma.gym.findUnique({ where: { id: gymId }, select: { kind: true } });
+  if (!gym || gym.kind !== "GYM") {
+    return { success: false, error: "Las rutinas fijas solo están disponibles en gimnasios tradicionales." };
+  }
+
+  // Validate group ownership
+  const group = await prisma.group.findFirst({ where: { id: groupId, deletedAt: null } });
+  if (!group) {
+    return { success: false, error: "Grupo no encontrado." };
+  }
+  if (session.user.role === "TEACHER" && group.teacherId !== teacherId) {
+    return { success: false, error: "No autorizado para este grupo." };
+  }
+  // ADMIN: verify group belongs to the same gym via its teacher
+  if (session.user.role === "ADMIN") {
+    const groupTeacher = await prisma.user.findFirst({
+      where: { id: group.teacherId, gymId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!groupTeacher) {
+      return { success: false, error: "Grupo no encontrado." };
+    }
+  }
+
+  const trimmedTitle = title.trim();
+  const trimmedContent = content.trim();
+  if (!trimmedTitle) return { success: false, error: "El título es obligatorio." };
+  if (!trimmedContent) return { success: false, error: "El contenido es obligatorio." };
+
+  const assignedAt = new Date();
+  let renewAt: Date;
+  if (renewAtStr && renewAtStr.trim()) {
+    renewAt = new Date(`${renewAtStr.trim()}T00:00:00.000Z`);
+    if (isNaN(renewAt.getTime())) {
+      return { success: false, error: "Fecha de renovación inválida." };
+    }
+  } else {
+    renewAt = new Date(assignedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+    renewAt = new Date(Date.UTC(renewAt.getUTCFullYear(), renewAt.getUTCMonth(), renewAt.getUTCDate()));
+  }
+
+  // Find all active MUSCULACION_LIBRE members of the group in this gym
+  const members = await prisma.groupMember.findMany({
+    where: { groupId },
+    select: {
+      user: {
+        select: { id: true, studentType: true, gymId: true, deletedAt: true, role: true },
+      },
+    },
+  });
+
+  const muslibMembers = members
+    .map((m) => m.user)
+    .filter(
+      (u) =>
+        u.gymId === gymId &&
+        u.deletedAt === null &&
+        u.role === "STUDENT" &&
+        u.studentType === "MUSCULACION_LIBRE"
+    );
+
+  if (muslibMembers.length === 0) {
+    return { success: false, error: "El grupo no tiene alumnos de musculación libre." };
+  }
+
+  await prisma.fixedRoutine.createMany({
+    data: muslibMembers.map((u) => ({
+      gymId,
+      studentId: u.id,
+      teacherId,
+      title: trimmedTitle,
+      content: trimmedContent,
+      assignedAt,
+      renewAt,
+    })),
+  });
+
+  revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
+
+  return { success: true, count: muslibMembers.length };
 }

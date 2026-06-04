@@ -14,7 +14,7 @@ import { CopyWodDialog } from "@/components/wod/CopyWodDialog";
 import { TargetSelector, TargetBadge } from "@/components/wod/TargetSelector";
 import { createWod, updateWod, deleteWod } from "@/actions/wod";
 import type { WodTarget } from "@/actions/wod";
-import { createFixedRoutine } from "@/actions/fixed-routine";
+import { createFixedRoutine, createFixedRoutineForGroup } from "@/actions/fixed-routine";
 import { toInputDate, getTodayArgentina, formatDateArg } from "@/lib/dates";
 import type { Wod, WodTargetType } from "@prisma/client";
 import type { GymTerms } from "@/lib/gym-terms";
@@ -113,7 +113,7 @@ export function WodManagerClient({ wods, groups, students, muslibStudents, terms
 
   function handleTargetChange(newTarget: WodTarget) {
     setTarget(newTarget);
-    if (newTarget.type === "MUSCULACION_LIBRE") {
+    if (newTarget.type === "MUSCULACION_LIBRE" || newTarget.type === "MUSCULACION_LIBRE_GROUP") {
       setNewDate(thirtyDaysFromTodayStr);
     }
   }
@@ -137,6 +137,15 @@ export function WodManagerClient({ wods, groups, students, muslibStudents, terms
         }
         return;
       }
+      if (target.type === "MUSCULACION_LIBRE_GROUP") {
+        const result = await createFixedRoutineForGroup(target.groupId, editorTitle, editorContent, newDate);
+        if (result.success) {
+          setMode("view");
+        } else {
+          setFormError(result.error);
+        }
+        return;
+      }
       const result = await createWod(newDate, editorTitle, editorContent, target);
       if (result.success) {
         setMode("view");
@@ -149,8 +158,8 @@ export function WodManagerClient({ wods, groups, students, muslibStudents, terms
   function handleUpdate() {
     if (demo) { setMode("view"); setEditingWodId(null); return; }
     if (!editingWodId) return;
-    // MUSCULACION_LIBRE should never reach here (button hidden in edit mode), but guard anyway.
-    if (target.type === "MUSCULACION_LIBRE") return;
+    // MUSCULACION_LIBRE targets should never reach here (button hidden in edit mode), but guard anyway.
+    if (target.type === "MUSCULACION_LIBRE" || target.type === "MUSCULACION_LIBRE_GROUP") return;
     setFormError(null);
     startTransition(async () => {
       const result = await updateWod(editingWodId, editorTitle, editorContent, newDate, target);
@@ -184,7 +193,7 @@ export function WodManagerClient({ wods, groups, students, muslibStudents, terms
                 value={newDate}
                 onChange={setNewDate}
                 disabled={isPending}
-                label={target.type === "MUSCULACION_LIBRE" ? "Renueva el" : undefined}
+                label={(target.type === "MUSCULACION_LIBRE" || target.type === "MUSCULACION_LIBRE_GROUP") ? "Renueva el" : undefined}
               />
             </div>
           </div>

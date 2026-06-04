@@ -155,23 +155,28 @@ export async function assignStudentToGroup(
   }
 
   const teacherId = session.user.id;
-  const { gymSlug } = session.user;
+  const { gymSlug, gymId } = session.user;
+
+  if (!gymId) {
+    return { success: false, error: "No autorizado." };
+  }
 
   const group = await prisma.group.findFirst({ where: { id: groupId, deletedAt: null } });
   if (!group || (group.teacherId !== teacherId && session.user.role !== "ADMIN")) {
     return { success: false, error: "Grupo no encontrado." };
   }
 
-  const student = await prisma.user.findFirst({ where: { id: studentId, deletedAt: null } });
+  const student = await prisma.user.findFirst({ where: { id: studentId, gymId, deletedAt: null } });
   if (!student || student.role !== "STUDENT") {
     return { success: false, error: "Alumno no encontrado." };
   }
-  if (student.studentType !== "PERSONALIZED") {
-    return { success: false, error: "Solo alumnos personalizados pueden pertenecer a un grupo." };
+  if (student.studentType !== "PERSONALIZED" && student.studentType !== "MUSCULACION_LIBRE") {
+    return { success: false, error: "Solo alumnos personalizados o de musculación libre pueden pertenecer a un grupo." };
   }
 
-  // Verify the student is assigned to this teacher (or admin can assign any)
-  if (session.user.role !== "ADMIN") {
+  // Verify the student is assigned to this teacher (or admin can assign any).
+  // For MUSCULACION_LIBRE, group membership is sufficient — no TeacherStudent link required.
+  if (session.user.role !== "ADMIN" && student.studentType !== "MUSCULACION_LIBRE") {
     const link = await prisma.teacherStudent.findUnique({
       where: { teacherId_studentId: { teacherId, studentId } },
     });

@@ -212,11 +212,18 @@ export default async function AdminPage({ params, searchParams }: Props) {
         const assignedStudentIds = teacherStudentLinks
           .filter((l) => l.teacherId === teacher.id)
           .map((l) => l.studentId);
-        const teacherStudents = students.filter(
+        const teacherPersonalized = students.filter(
           (s) => s.studentType === "PERSONALIZED" && assignedStudentIds.includes(s.id)
         );
+        // MUSCULACION_LIBRE can join any group (no TeacherStudent link required).
+        // Only include them for GYM-kind gyms.
+        const muslibStudentsForGroups = gymConfig?.kind === "GYM"
+          ? students.filter((s) => s.studentType === "MUSCULACION_LIBRE")
+          : [];
+        // Candidates for group membership: personalized (linked to teacher) + muslib (any, gym-wide).
+        const groupCandidates = [...teacherPersonalized, ...muslibStudentsForGroups];
 
-        if (teacherGroups.length === 0 && teacherStudents.length === 0) return null;
+        if (teacherGroups.length === 0 && groupCandidates.length === 0) return null;
 
         return (
           <section key={teacher.id}>
@@ -231,7 +238,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
                 id: g.id,
                 name: g.name,
                 students: g.members.map((m) => m.user),
-                availableToAdd: teacherStudents
+                availableToAdd: groupCandidates
                   .filter((s) => !s.groupMemberships.some((m) => m.groupId === g.id))
                   .map((s) => ({ id: s.id, name: s.name })),
               }))}

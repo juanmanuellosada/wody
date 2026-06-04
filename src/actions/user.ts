@@ -854,8 +854,9 @@ export async function setStudentType(
     return { success: false, error: "El tipo de alumno no aplica a alumnos lite. Convertilo a cuenta completa primero." };
   }
 
-  // GENERAL and MUSCULACION_LIBRE can't belong to groups or have canCreateOwnRoutines
-  if (newType === "GENERAL" || newType === "MUSCULACION_LIBRE") {
+  // GENERAL can't belong to groups or have canCreateOwnRoutines.
+  // MUSCULACION_LIBRE can belong to groups but not have canCreateOwnRoutines.
+  if (newType === "GENERAL") {
     await prisma.$transaction([
       prisma.groupMember.deleteMany({ where: { userId } }),
       prisma.user.update({
@@ -863,6 +864,12 @@ export async function setStudentType(
         data: { studentType: newType, canCreateOwnRoutines: false },
       }),
     ]);
+  } else if (newType === "MUSCULACION_LIBRE") {
+    // Keep group memberships; just update type and clear canCreateOwnRoutines.
+    await prisma.user.update({
+      where: { id: userId },
+      data: { studentType: newType, canCreateOwnRoutines: false },
+    });
   } else {
     await prisma.user.update({
       where: { id: userId },
