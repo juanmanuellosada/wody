@@ -43,6 +43,7 @@ export function GymForm({ gym }: Props) {
   const [adminPassword, setAdminPassword] = useState("");
   const [adminName, setAdminName] = useState("");
 
+  const [selfManagedBilling, setSelfManagedBilling] = useState(gym?.selfManagedBilling ?? false);
   const [blockConfirmOpen, setBlockConfirmOpen] = useState(false);
   const [unblockConfirmOpen, setUnblockConfirmOpen] = useState(false);
 
@@ -63,6 +64,7 @@ export function GymForm({ gym }: Props) {
             subscriptionMonthlyAmount !== ""
               ? Math.round(Number(subscriptionMonthlyAmount) * 100)
               : null,
+          selfManagedBilling,
           logoFile: compressedLogo,
         });
         if (result.success) {
@@ -213,6 +215,25 @@ export function GymForm({ gym }: Props) {
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
+              checked={selfManagedBilling}
+              onChange={(e) => setSelfManagedBilling(e.target.checked)}
+              className="w-4 h-4 accent-brand-red"
+            />
+            <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
+              Cobro manual (sin Mercado Pago)
+            </span>
+          </label>
+          {selfManagedBilling && (
+            <p className="text-xs text-gray-500 font-body">
+              El gym paga por fuera de MP. El vencimiento lo gobierna la fecha de próximo pago, que se mueve a mano al cobrar.
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
               checked={hasPaymentDate}
               onChange={(e) => {
                 setHasPaymentDate(e.target.checked);
@@ -223,7 +244,7 @@ export function GymForm({ gym }: Props) {
               className="w-4 h-4 accent-brand-red"
             />
             <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
-              Próximo pago de suscripción (opcional)
+              {selfManagedBilling ? "Próximo pago del gym (cobro manual)" : "Próximo pago de suscripción (opcional)"}
             </span>
           </label>
           {hasPaymentDate && (

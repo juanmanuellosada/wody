@@ -135,6 +135,48 @@ export async function sendPersonalTrialEndingPush(
   return sendPushToUser(userId, title, body);
 }
 
+function selfBillingMessage(daysLeft: number): { title: string; body: string } {
+  if (daysLeft <= 0) {
+    return {
+      title: "Cuota de Wody vence hoy",
+      body: "Comunicate con el equipo de Wody para renovar el acceso de tu gym.",
+    };
+  }
+  if (daysLeft === 1) {
+    return {
+      title: "Cuota de Wody vence mañana",
+      body: "Renovar a tiempo evita la suspensión de tu gym.",
+    };
+  }
+  return {
+    title: `Cuota de Wody vence en ${daysLeft} días`,
+    body: "Acordate de renovar para mantener tu gym activo.",
+  };
+}
+
+export async function sendSelfBillingDuePush(
+  gymId: string,
+  daysLeft: number
+): Promise<{ totalSent: number; totalRemoved: number }> {
+  const { title, body } = selfBillingMessage(daysLeft);
+
+  const admins = await prisma.user.findMany({
+    where: { gymId, role: "ADMIN", deletedAt: null },
+    select: { id: true },
+  });
+
+  let totalSent = 0;
+  let totalRemoved = 0;
+
+  for (const admin of admins) {
+    const result = await sendPushToUser(admin.id, title, body);
+    totalSent += result.sent;
+    totalRemoved += result.removed;
+  }
+
+  return { totalSent, totalRemoved };
+}
+
 function bodyForDaysRemaining(days: number, word: string): string {
   if (days <= 0) return `Tu cuota vence hoy. Pasá por tu ${word} para renovar.`;
   if (days === 1)

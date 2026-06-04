@@ -28,6 +28,7 @@ export default async function EditGymPage({ params }: Props) {
     autoBlockAfterDays: gym.autoBlockAfterDays,
     subscriptionNextPaymentDate: gym.subscriptionNextPaymentDate,
     subscriptionMonthlyAmount: gym.subscriptionMonthlyAmount,
+    selfManagedBilling: gym.selfManagedBilling,
     createdAt: gym.createdAt,
   };
 

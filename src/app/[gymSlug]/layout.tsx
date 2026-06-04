@@ -9,6 +9,7 @@ import { NotificationPermissionButton } from "@/components/NotificationPermissio
 import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { TrialEndingBanner } from "@/components/billing/TrialEndingBanner";
 import { PersonalTrialEndingBanner } from "@/components/billing/PersonalTrialEndingBanner";
+import { GymBillingBanner } from "@/components/billing/GymBillingBanner";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
 import { gymPath, hasTeacherWhatsAppContact, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
@@ -120,12 +121,13 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
 
   const personalGym = isPersonalGym(gym.kind);
 
-  // Trial ending banner: only for ADMIN, non-exempt, non-authorized, within 7 days of expiry.
+  // Trial ending banner: only for ADMIN, non-exempt, non-manual, non-authorized, within 7 days of expiry.
   let trialBanner: React.ReactNode = null;
   if (
     role === "ADMIN" &&
     !personalGym &&
     !gym.paymentExempt &&
+    !gym.selfManagedBilling &&
     gym.mpSubscriptionStatus !== "authorized" &&
     gym.trialEndsAt !== null
   ) {
@@ -135,6 +137,13 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
     if (daysLeft <= 7) {
       trialBanner = <TrialEndingBanner daysLeft={daysLeft} gymSlug={gymSlug} />;
     }
+  }
+
+  // Self-managed billing banner: for ADMIN of gyms in manual billing mode.
+  if (role === "ADMIN" && !personalGym && gym.selfManagedBilling && trialBanner === null) {
+    trialBanner = (
+      <GymBillingBanner subscriptionNextPaymentDate={gym.subscriptionNextPaymentDate} />
+    );
   }
 
   // Personal trial ending banner: for STUDENT + canCreateOwnRoutines in the personal gym.
