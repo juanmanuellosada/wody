@@ -14,6 +14,7 @@ import { CopyWodDialog } from "@/components/wod/CopyWodDialog";
 import { TargetSelector, TargetBadge } from "@/components/wod/TargetSelector";
 import { createWod, updateWod, deleteWod } from "@/actions/wod";
 import type { WodTarget } from "@/actions/wod";
+import { createFixedRoutine } from "@/actions/fixed-routine";
 import { toInputDate, getTodayArgentina, formatDateArg } from "@/lib/dates";
 import type { Wod, WodTargetType } from "@prisma/client";
 import type { GymTerms } from "@/lib/gym-terms";
@@ -40,6 +41,7 @@ interface WodManagerClientProps {
   wods: WodForManager[];
   groups: GroupOption[];
   students: StudentOption[];
+  muslibStudents?: StudentOption[];
   terms: GymTerms;
   demo?: boolean;
   // Cuando se pasa, todos los WODs se crean/editan contra este target
@@ -49,8 +51,11 @@ interface WodManagerClientProps {
 
 type Mode = "view" | "create" | "edit";
 
-export function WodManagerClient({ wods, groups, students, terms, demo, lockedTarget }: WodManagerClientProps) {
+export function WodManagerClient({ wods, groups, students, muslibStudents, terms, demo, lockedTarget }: WodManagerClientProps) {
   const todayStr = toInputDate(getTodayArgentina());
+  const thirtyDaysFromTodayStr = toInputDate(
+    new Date(getTodayArgentina().getTime() + 30 * 24 * 60 * 60 * 1000)
+  );
 
   const [mode, setMode] = useState<Mode>("view");
   const [editingWodId, setEditingWodId] = useState<string | null>(null);
@@ -106,6 +111,13 @@ export function WodManagerClient({ wods, groups, students, terms, demo, lockedTa
     setFormError(null);
   }
 
+  function handleTargetChange(newTarget: WodTarget) {
+    setTarget(newTarget);
+    if (newTarget.type === "MUSCULACION_LIBRE") {
+      setNewDate(thirtyDaysFromTodayStr);
+    }
+  }
+
   function cancelForm() {
     setMode("view");
     setEditingWodId(null);
@@ -116,6 +128,15 @@ export function WodManagerClient({ wods, groups, students, terms, demo, lockedTa
     if (demo) { setMode("view"); return; }
     setFormError(null);
     startTransition(async () => {
+      if (target.type === "MUSCULACION_LIBRE") {
+        const result = await createFixedRoutine(target.studentId, editorTitle, editorContent, newDate);
+        if (result.success) {
+          setMode("view");
+        } else {
+          setFormError(result.error);
+        }
+        return;
+      }
       const result = await createWod(newDate, editorTitle, editorContent, target);
       if (result.success) {
         setMode("view");
@@ -128,6 +149,8 @@ export function WodManagerClient({ wods, groups, students, terms, demo, lockedTa
   function handleUpdate() {
     if (demo) { setMode("view"); setEditingWodId(null); return; }
     if (!editingWodId) return;
+    // MUSCULACION_LIBRE should never reach here (button hidden in edit mode), but guard anyway.
+    if (target.type === "MUSCULACION_LIBRE") return;
     setFormError(null);
     startTransition(async () => {
       const result = await updateWod(editingWodId, editorTitle, editorContent, newDate, target);
@@ -161,6 +184,7 @@ export function WodManagerClient({ wods, groups, students, terms, demo, lockedTa
                 value={newDate}
                 onChange={setNewDate}
                 disabled={isPending}
+                label={target.type === "MUSCULACION_LIBRE" ? "Renueva el" : undefined}
               />
             </div>
           </div>
@@ -171,8 +195,9 @@ export function WodManagerClient({ wods, groups, students, terms, demo, lockedTa
               <TargetSelector
                 groups={groups}
                 students={students}
+                muslibStudents={mode === "create" ? muslibStudents : undefined}
                 value={target}
-                onChange={setTarget}
+                onChange={handleTargetChange}
                 disabled={isPending}
               />
             )}

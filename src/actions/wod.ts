@@ -16,7 +16,8 @@ export type WodTarget =
   | { type: "ALL" }
   | { type: "PERSONALIZED" }
   | { type: "GROUP"; groupId: string }
-  | { type: "STUDENT"; studentId: string };
+  | { type: "STUDENT"; studentId: string }
+  | { type: "MUSCULACION_LIBRE"; studentId: string };
 
 export type WodResult =
   | { success: true; wodId?: string }
