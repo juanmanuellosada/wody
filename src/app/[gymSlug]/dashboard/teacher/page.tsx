@@ -71,7 +71,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
     role === "ADMIN" && isGym && gymId
       ? prisma.user.findMany({
           where: { gymId, studentType: "MUSCULACION_LIBRE", deletedAt: null, role: "STUDENT" },
-          select: { id: true, name: true },
+          select: { id: true, name: true, groupMemberships: { select: { groupId: true } } },
           orderBy: { name: "asc" },
         })
       : Promise.resolve(null),
@@ -91,6 +91,25 @@ export default async function TeacherDashboardPage({ params }: Props) {
       name: ts.student.name,
       groupIds: ts.student.groupMemberships.map((m) => m.groupId),
     }));
+
+  // Candidates for group membership: PERSONALIZED + MUSCULACION_LIBRE.
+  // For ADMIN: use all muslib from the gym; for TEACHER: from their linked students.
+  const muslibForGroups = isGym
+    ? role === "ADMIN" && allMuslibStudents !== null
+      ? allMuslibStudents.map((s) => ({
+          id: s.id,
+          name: s.name,
+          groupIds: s.groupMemberships.map((m) => m.groupId),
+        }))
+      : myStudents
+          .filter((ts) => ts.student.studentType === "MUSCULACION_LIBRE")
+          .map((ts) => ({
+            id: ts.student.id,
+            name: ts.student.name,
+            groupIds: ts.student.groupMemberships.map((m) => m.groupId),
+          }))
+    : [];
+  const groupCandidates = [...personalizedStudents, ...muslibForGroups];
 
   const muslibStudents = isGym
     ? role === "ADMIN" && allMuslibStudents !== null
@@ -152,7 +171,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
           id: g.id,
           name: g.name,
           students: g.members.map((m) => m.user),
-          availableToAdd: personalizedStudents.filter((s) => !s.groupIds.includes(g.id)),
+          availableToAdd: groupCandidates.filter((s) => !s.groupIds.includes(g.id)),
         }))}
       />
 
