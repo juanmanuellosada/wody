@@ -26,6 +26,8 @@ interface EditStudentButtonProps {
   isAdmin?: boolean;
   gymKind?: GymKind;
   demo?: boolean;
+  activeRoutineId?: string | null;
+  routineRenewAt?: Date | null;
 }
 
 export function EditStudentButton({
@@ -44,6 +46,8 @@ export function EditStudentButton({
   isAdmin,
   gymKind,
   demo,
+  activeRoutineId,
+  routineRenewAt,
 }: EditStudentButtonProps) {
   const [open, setOpen] = useState(false);
 
@@ -70,6 +74,8 @@ export function EditStudentButton({
           gymKind={gymKind}
           onClose={() => setOpen(false)}
           demo={demo}
+          activeRoutineId={activeRoutineId}
+          routineRenewAt={routineRenewAt}
         />
       )}
     </>

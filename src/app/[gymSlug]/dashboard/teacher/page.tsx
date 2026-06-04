@@ -8,7 +8,7 @@ import { WodManagerClient } from "@/components/wod/WodManagerClient";
 import { GroupManager } from "@/components/group/GroupManager";
 import { CheckinScannerButton } from "@/components/access/CheckinScannerButton";
 import { FixedRoutineManager } from "@/components/fixed-routine/FixedRoutineManager";
-import { getTeacherRenewalRoutines } from "@/actions/fixed-routine";
+import { getTeacherRenewalRoutines, getGymRenewalRoutines } from "@/actions/fixed-routine";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -30,8 +30,14 @@ export default async function TeacherDashboardPage({ params }: Props) {
   }
 
   const teacherId = session.user.id;
+  const role = session.user.role;
 
-  const [wods, groups, myStudents, gym, teacher, renewalRoutines] = await Promise.all([
+  // Fetch gym first to determine kind and gymId for admin-scoped queries.
+  const gym = await prisma.gym.findUnique({ where: { slug: gymSlug }, select: { id: true, kind: true } });
+  const isGym = gym?.kind === "GYM";
+  const gymId = gym?.id;
+
+  const [wods, groups, myStudents, teacher, renewalRoutines, allMuslibStudents] = await Promise.all([
     prisma.wod.findMany({
       where: { teacherId, deletedAt: null },
       orderBy: { date: "desc" },
@@ -56,12 +62,21 @@ export default async function TeacherDashboardPage({ params }: Props) {
       where: { teacherId },
       select: { student: { select: { id: true, name: true, studentType: true, groupMemberships: { select: { groupId: true } } } } },
     }),
-    prisma.gym.findUnique({ where: { slug: gymSlug }, select: { kind: true } }),
     prisma.user.findUnique({ where: { id: teacherId }, select: { memberNumber: true } }),
-    getTeacherRenewalRoutines(teacherId),
+    // ADMIN sees all gym renewal routines; TEACHER sees only their own.
+    role === "ADMIN" && gymId
+      ? getGymRenewalRoutines(gymId)
+      : getTeacherRenewalRoutines(teacherId),
+    // ADMIN: all muslib students in the gym (not filtered by TeacherStudent link).
+    role === "ADMIN" && isGym && gymId
+      ? prisma.user.findMany({
+          where: { gymId, studentType: "MUSCULACION_LIBRE", deletedAt: null, role: "STUDENT" },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve(null),
   ]);
   const terms = gymTerms(gym?.kind ?? "BOX");
-  const isGym = gym?.kind === "GYM";
 
   const wodsForClient = wods.map((w) => ({
     ...w,
@@ -78,9 +93,11 @@ export default async function TeacherDashboardPage({ params }: Props) {
     }));
 
   const muslibStudents = isGym
-    ? myStudents
-        .filter((ts) => ts.student.studentType === "MUSCULACION_LIBRE")
-        .map((ts) => ({ id: ts.student.id, name: ts.student.name }))
+    ? role === "ADMIN" && allMuslibStudents !== null
+      ? allMuslibStudents
+      : myStudents
+          .filter((ts) => ts.student.studentType === "MUSCULACION_LIBRE")
+          .map((ts) => ({ id: ts.student.id, name: ts.student.name }))
     : [];
 
   const groupOptions = groups.map((g) => ({ id: g.id, name: g.name }));
