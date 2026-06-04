@@ -13,6 +13,7 @@ export type SubscriptionStatus = {
   daysLeftInTrial: number | null;
   subscriptionNextPaymentDate: Date | null;
   selfManagedBilling: boolean;
+  subscriptionMonthlyAmount: number | null;
 };
 
 export async function getMySubscriptionStatus(): Promise<SubscriptionStatus> {
@@ -34,6 +35,7 @@ export async function getMySubscriptionStatus(): Promise<SubscriptionStatus> {
       mpPreapprovalId: true,
       subscriptionNextPaymentDate: true,
       selfManagedBilling: true,
+      subscriptionMonthlyAmount: true,
     },
   });
 
@@ -50,6 +52,7 @@ export async function getMySubscriptionStatus(): Promise<SubscriptionStatus> {
     daysLeftInTrial,
     subscriptionNextPaymentDate: gym.subscriptionNextPaymentDate,
     selfManagedBilling: gym.selfManagedBilling,
+    subscriptionMonthlyAmount: gym.subscriptionMonthlyAmount,
   };
 }
 
