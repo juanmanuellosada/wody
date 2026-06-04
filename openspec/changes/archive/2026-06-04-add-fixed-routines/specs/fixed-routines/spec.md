@@ -117,3 +117,87 @@ El sistema SHALL mostrar al profe, en su dashboard, una lista/indicador de sus r
 
 - **WHEN** una rutina fija tiene `renewAt` en el pasado y no fue renovada
 - **THEN** el alumno sigue viendo esa rutina y conserva el acceso normal a la app
+
+### Requirement: Selección del tipo musculación libre en los flujos de alta
+
+El sistema SHALL permitir elegir `studentType = MUSCULACION_LIBRE` (solo en gyms `kind = GYM`) en los tres flujos de alta de alumnos: el alta desde el panel admin (`UserForm`), el formulario público del link de invitación, y el modal de aprobación de solicitudes. El tipo elegido por el alumno en el formulario público SHALL persistirse en la solicitud (`JoinRequest.studentType`) y propagarse al usuario al aprobar (salvo override del admin). En gyms `kind != GYM`, la opción NO SHALL ofrecerse y el server SHALL caer a `PERSONALIZED`/rechazar.
+
+#### Scenario: Alta desde el panel admin con tipo musculación libre
+
+- **WHEN** un `ADMIN` de un gym `kind = GYM` crea un alumno eligiendo "Musculación libre"
+- **THEN** el sistema crea el usuario con `studentType = MUSCULACION_LIBRE`
+
+#### Scenario: El tipo elegido en el formulario público se propaga al aprobar
+
+- **WHEN** un alumno se registra por el link público de un gym `kind = GYM` eligiendo "Musculación libre"
+- **THEN** la solicitud guarda `studentType = MUSCULACION_LIBRE` y, al aprobarla sin override, el usuario creado queda con ese tipo
+
+### Requirement: Vínculo con profe y visibilidad para asignar rutinas
+
+El sistema SHALL permitir vincular un profe (`TeacherStudent`) a un alumno `MUSCULACION_LIBRE` en los flujos de alta y de edición. En el dashboard del profe, un usuario con `role = ADMIN` SHALL ver a **todos** los alumnos `MUSCULACION_LIBRE` del gym; un usuario con `role = TEACHER` SHALL ver solo los vinculados a él. La rutina fija de un alumno se crea/asigna desde el dashboard del profe y desde el formulario "Nueva Rutina".
+
+#### Scenario: Admin ve a todos los musculación libre del gym
+
+- **WHEN** un `ADMIN` abre el dashboard del profe en un gym `kind = GYM`
+- **THEN** el sistema lista a todos los alumnos `MUSCULACION_LIBRE` del gym para asignarles rutina
+
+#### Scenario: Profe ve solo sus alumnos vinculados
+
+- **WHEN** un `TEACHER` abre el dashboard del profe
+- **THEN** el sistema lista solo los alumnos `MUSCULACION_LIBRE` vinculados a él por `TeacherStudent`
+
+### Requirement: Edición de la fecha de renovación desde la ficha del alumno
+
+El sistema SHALL mostrar, en la edición de un alumno `MUSCULACION_LIBRE` (gym `kind = GYM`), la fecha de renovación de su rutina activa y SHALL permitir editarla sin alterar título ni contenido. Si el alumno no tiene rutina activa, el sistema SHALL indicar que la rutina se asigna desde el panel del profe.
+
+#### Scenario: Editar la fecha de renovación de la rutina activa
+
+- **WHEN** un `ADMIN`/`TEACHER` cambia la fecha de vencimiento en la ficha de un alumno con rutina activa
+- **THEN** el sistema actualiza `renewAt` de esa rutina sin tocar su contenido
+
+#### Scenario: Alumno sin rutina en la ficha
+
+- **WHEN** se edita un alumno `MUSCULACION_LIBRE` sin rutina activa
+- **THEN** el sistema indica que la rutina se asigna desde el panel del profe, sin campo de fecha
+
+### Requirement: Indicador de vencimiento para el propio alumno
+
+El sistema SHALL mostrar al alumno `MUSCULACION_LIBRE`, en la vista de su rutina activa, la fecha de renovación, y SHALL mostrar un aviso cuando la renovación esté dentro de los próximos 7 días o ya haya pasado (sugiriéndole hablar con su profe). El indicador SHALL ser solo visual (sin push al alumno).
+
+#### Scenario: El alumno ve la fecha de renovación
+
+- **WHEN** un alumno `MUSCULACION_LIBRE` con rutina activa abre su dashboard
+- **THEN** el sistema muestra la fecha de renovación de su rutina
+
+#### Scenario: Aviso de rutina por vencer o vencida
+
+- **WHEN** la `renewAt` de su rutina está dentro de 7 días o ya pasó
+- **THEN** el sistema muestra un aviso indicando que está por vencer/vencida y que hable con su profe
+
+### Requirement: Pertenencia a grupos de los alumnos musculación libre
+
+El sistema SHALL permitir que los alumnos `MUSCULACION_LIBRE` pertenezcan a grupos (`Group`/`GroupMember`), además de los `PERSONALIZED`. Para un alumno `MUSCULACION_LIBRE`, la membresía a un grupo SHALL ser suficiente (no SHALL requerirse vínculo `TeacherStudent`). Al cambiar el tipo de un alumno a `MUSCULACION_LIBRE`, el sistema NO SHALL borrar sus membresías de grupo (a diferencia de `GENERAL`). Toda asignación a grupo SHALL validar que el alumno pertenezca al gym de la sesión.
+
+#### Scenario: Agregar un alumno musculación libre a un grupo
+
+- **WHEN** un `TEACHER`/`ADMIN` agrega a un grupo a un alumno `MUSCULACION_LIBRE` del gym
+- **THEN** el sistema crea la membresía sin requerir vínculo `TeacherStudent`
+
+#### Scenario: Rechazo de alumno de otro gym
+
+- **WHEN** se intenta agregar a un grupo a un alumno que no pertenece al gym de la sesión
+- **THEN** la operación es rechazada
+
+### Requirement: Asignación de rutina fija por grupo
+
+El sistema SHALL permitir, desde el formulario "Nueva Rutina" con destinatario "Musculación libre", elegir un **grupo** y crear una `FixedRoutine` para **cada** miembro `MUSCULACION_LIBRE` de ese grupo (cada uno con su propio `renewAt` y su recordatorio). La operación SHALL validar `role` (TEACHER/ADMIN), `kind = GYM`, que el grupo pertenezca al gym (y al profe si es TEACHER), y SHALL crear rutinas solo para los miembros `MUSCULACION_LIBRE` del gym.
+
+#### Scenario: Crear rutina para un grupo
+
+- **WHEN** un `TEACHER`/`ADMIN` elige destinatario "Musculación libre" → un grupo, con título, contenido y fecha de renovación
+- **THEN** el sistema crea una `FixedRoutine` para cada miembro `MUSCULACION_LIBRE` del grupo
+
+#### Scenario: Grupo sin miembros musculación libre
+
+- **WHEN** el grupo elegido no tiene miembros `MUSCULACION_LIBRE`
+- **THEN** el sistema devuelve un error indicando que el grupo no tiene alumnos de musculación libre
