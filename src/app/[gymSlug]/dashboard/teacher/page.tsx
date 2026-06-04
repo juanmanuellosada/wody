@@ -7,6 +7,8 @@ import { formatMemberNumber } from "@/lib/memberNumber";
 import { WodManagerClient } from "@/components/wod/WodManagerClient";
 import { GroupManager } from "@/components/group/GroupManager";
 import { CheckinScannerButton } from "@/components/access/CheckinScannerButton";
+import { FixedRoutineManager } from "@/components/fixed-routine/FixedRoutineManager";
+import { getTeacherRenewalRoutines } from "@/actions/fixed-routine";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -29,7 +31,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
 
   const teacherId = session.user.id;
 
-  const [wods, groups, myStudents, gym, teacher] = await Promise.all([
+  const [wods, groups, myStudents, gym, teacher, renewalRoutines] = await Promise.all([
     prisma.wod.findMany({
       where: { teacherId, deletedAt: null },
       orderBy: { date: "desc" },
@@ -56,8 +58,10 @@ export default async function TeacherDashboardPage({ params }: Props) {
     }),
     prisma.gym.findUnique({ where: { slug: gymSlug }, select: { kind: true } }),
     prisma.user.findUnique({ where: { id: teacherId }, select: { memberNumber: true } }),
+    getTeacherRenewalRoutines(teacherId),
   ]);
   const terms = gymTerms(gym?.kind ?? "BOX");
+  const isGym = gym?.kind === "GYM";
 
   const wodsForClient = wods.map((w) => ({
     ...w,
@@ -72,6 +76,12 @@ export default async function TeacherDashboardPage({ params }: Props) {
       name: ts.student.name,
       groupIds: ts.student.groupMemberships.map((m) => m.groupId),
     }));
+
+  const muslibStudents = isGym
+    ? myStudents
+        .filter((ts) => ts.student.studentType === "MUSCULACION_LIBRE")
+        .map((ts) => ({ id: ts.student.id, name: ts.student.name }))
+    : [];
 
   const groupOptions = groups.map((g) => ({ id: g.id, name: g.name }));
 
@@ -128,6 +138,14 @@ export default async function TeacherDashboardPage({ params }: Props) {
           availableToAdd: personalizedStudents.filter((s) => !s.groupIds.includes(g.id)),
         }))}
       />
+
+      {/* Fixed routine manager — GYM only */}
+      {isGym && (
+        <FixedRoutineManager
+          muslibStudents={muslibStudents}
+          renewalRoutines={renewalRoutines}
+        />
+      )}
 
       {/* WOD manager */}
       <WodManagerClient
