@@ -4,18 +4,21 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { submitJoinRequest } from "@/actions/join-request";
+import type { GymKind } from "@prisma/client";
 
 interface Props {
   gymSlug: string;
   teachers: Array<{ id: string; name: string }>;
+  gymKind: GymKind;
 }
 
-export function JoinRequestForm({ gymSlug, teachers }: Props) {
+export function JoinRequestForm({ gymSlug, teachers, gymKind }: Props) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [teacherIds, setTeacherIds] = useState<string[]>([]);
+  const [studentType, setStudentType] = useState("PERSONALIZED");
   const [nextPaymentDate, setNextPaymentDate] = useState(() => {
     // Compute "today" in Argentina (UTC-3) at render time.
     const nowUTC = new Date();
@@ -55,6 +58,7 @@ export function JoinRequestForm({ gymSlug, teachers }: Props) {
         teacherIds: teacherIds.length > 0 ? teacherIds : undefined,
         nextPaymentDate,
         honeypot,
+        studentType: gymKind === "GYM" ? studentType : undefined,
       });
       if (result.ok) {
         setSubmitted(true);
@@ -130,6 +134,28 @@ export function JoinRequestForm({ gymSlug, teachers }: Props) {
         disabled={isPending}
         showPasswordToggle
       />
+
+      {gymKind === "GYM" && (
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="studentType"
+            className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
+          >
+            Tipo de membresía
+          </label>
+          <select
+            id="studentType"
+            value={studentType}
+            onChange={(e) => setStudentType(e.target.value)}
+            disabled={isPending}
+            className="bg-elev text-white font-body border border-edge px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
+          >
+            <option value="PERSONALIZED">Personalizado</option>
+            <option value="GENERAL">General</option>
+            <option value="MUSCULACION_LIBRE">Musculación libre</option>
+          </select>
+        </div>
+      )}
 
       {teachers.length > 0 && (
         <div className="flex flex-col gap-2">

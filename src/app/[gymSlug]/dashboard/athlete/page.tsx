@@ -76,6 +76,19 @@ export default async function StudentDashboardPage({ params }: Props) {
       },
     });
 
+    // Compute renewal indicator values before render.
+    const renewalDiffDays = activeRoutine
+      ? Math.floor((new Date(activeRoutine.renewAt).getTime() - getTodayArgentina().getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+    const renewalExpiringSoon = renewalDiffDays !== null && renewalDiffDays <= 7;
+    const renewalWarning = renewalExpiringSoon
+      ? (renewalDiffDays! < 0
+          ? "Tu rutina venció — hablá con tu profe para renovarla."
+          : renewalDiffDays === 0
+          ? "Tu rutina vence hoy — hablá con tu profe para renovarla."
+          : `Tu rutina está por vencer en ${renewalDiffDays} día${renewalDiffDays === 1 ? "" : "s"} — hablá con tu profe para renovarla.`)
+      : null;
+
     return (
       <div className="flex flex-col gap-10">
         {accessCard}
@@ -90,12 +103,17 @@ export default async function StudentDashboardPage({ params }: Props) {
                   {activeRoutine.title}
                 </h2>
                 <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500">
-                  Renovar: {formatDateArg(activeRoutine.renewAt)}
+                  Tu rutina se renueva el {formatDateArg(activeRoutine.renewAt)}
                   {activeRoutine.teacher && (
                     <span className="ml-3 text-gray-600">· Profe: {activeRoutine.teacher.name}</span>
                   )}
                 </p>
               </div>
+              {renewalWarning && (
+                <p className="text-xs font-heading font-bold uppercase tracking-[0.12em] text-amber-400">
+                  {renewalWarning}
+                </p>
+              )}
               <div className="w-12 h-1 bg-brand-red" aria-hidden="true" />
               <MarkdownRenderer content={activeRoutine.content} />
             </div>

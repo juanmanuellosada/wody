@@ -182,8 +182,16 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
   if (role !== "ADMIN" && role !== "TEACHER" && role !== "STUDENT") {
     return { success: false, error: "El rol debe ser Admin, Profe o Alumno." };
   }
-  if (studentType !== "GENERAL" && studentType !== "PERSONALIZED") {
+  if (studentType !== "GENERAL" && studentType !== "PERSONALIZED" && studentType !== "MUSCULACION_LIBRE") {
     return { success: false, error: "Tipo de alumno invalido." };
+  }
+
+  // MUSCULACION_LIBRE is only allowed for GYM kind, not BOX.
+  if (studentType === "MUSCULACION_LIBRE") {
+    const gym = await prisma.gym.findUnique({ where: { id: gymId }, select: { kind: true } });
+    if (!gym || gym.kind !== "GYM") {
+      return { success: false, error: "El tipo 'Musculación libre' solo está disponible en gimnasios." };
+    }
   }
 
   // Resolve canCreateOwnRoutines + teacher link according to role/type rules.
