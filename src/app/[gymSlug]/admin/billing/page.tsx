@@ -155,7 +155,7 @@ export default async function BillingPage({ params }: Props) {
           )}
           {selfManagedDaysLeft !== null && selfManagedDaysLeft > 7 && status.subscriptionMonthlyAmount !== null && (
             <p className="text-xs text-gray-500 font-body">
-              Próximo monto: ${status.subscriptionMonthlyAmount.toLocaleString("es-AR")} ARS
+              Próximo monto: ${(status.subscriptionMonthlyAmount / 100).toLocaleString("es-AR")} ARS
             </p>
           )}
 
@@ -185,7 +185,7 @@ export default async function BillingPage({ params }: Props) {
                     )}
                     {status.subscriptionMonthlyAmount !== null && (
                       <p className="text-xs text-gray-500 font-body">
-                        Próximo monto: ${status.subscriptionMonthlyAmount.toLocaleString("es-AR")} ARS
+                        Próximo monto: ${(status.subscriptionMonthlyAmount / 100).toLocaleString("es-AR")} ARS
                       </p>
                     )}
                   </div>
