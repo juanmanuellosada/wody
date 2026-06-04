@@ -8,6 +8,7 @@ import { createUser, previewNextMemberNumber } from "@/actions/user";
 import { formatMemberNumber } from "@/lib/memberNumber";
 import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import type { GymTerms } from "@/lib/gym-terms";
+import type { GymKind } from "@prisma/client";
 
 interface TeacherOption {
   id: string;
@@ -18,11 +19,12 @@ interface UserFormProps {
   terms: GymTerms;
   teachers: TeacherOption[];
   gymId: string;
+  gymKind?: GymKind;
 }
 
 const liteModeEnabled = process.env.NEXT_PUBLIC_ENABLE_LITE_USERS !== "false";
 
-export function UserForm({ terms, teachers, gymId }: UserFormProps) {
+export function UserForm({ terms, teachers, gymId, gymKind }: UserFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [successNumber, setSuccessNumber] = useState<number | null>(null);
   const [successEmail, setSuccessEmail] = useState<string | null>(null);
@@ -235,6 +237,9 @@ export function UserForm({ terms, teachers, gymId }: UserFormProps) {
           >
             <option value="PERSONALIZED">Personalizado ({terms.wods} + {terms.rms})</option>
             <option value="GENERAL">General (solo {terms.rms})</option>
+            {gymKind === "GYM" && (
+              <option value="MUSCULACION_LIBRE">Musculación libre</option>
+            )}
           </select>
         </div>
       )}

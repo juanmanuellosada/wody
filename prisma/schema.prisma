@@ -361,6 +361,7 @@ model JoinRequest {
   email           String
   passwordHash    String
   nextPaymentDate DateTime          @db.Date
+  studentType     StudentType       @default(PERSONALIZED)
   status          JoinRequestStatus @default(PENDING)
   reviewedById    String?
   reviewedBy      User?             @relation("JoinRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)

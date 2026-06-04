@@ -48,7 +48,7 @@ export default async function InvitacionesPage({ params, searchParams }: Props) 
     redirect(gymPath(gymSlug, "/login"));
   }
 
-  const gym = await prisma.gym.findUnique({ where: { slug: gymSlug }, select: { id: true, name: true, logo: true } });
+  const gym = await prisma.gym.findUnique({ where: { slug: gymSlug }, select: { id: true, name: true, logo: true, kind: true } });
   if (!gym) notFound();
 
   const joinUrl = buildJoinUrl(gymSlug);
@@ -172,7 +172,9 @@ export default async function InvitacionesPage({ params, searchParams }: Props) 
                       requestEmail={req.email}
                       requestTeacherIds={req.teachers.map((jt) => jt.teacher.id)}
                       requestNextPaymentDate={req.nextPaymentDate}
+                      requestStudentType={req.studentType}
                       teachers={teachers}
+                      gymKind={gym.kind}
                     />
                     <RejectJoinRequestButton
                       requestId={req.id}

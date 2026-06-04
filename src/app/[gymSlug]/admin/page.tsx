@@ -165,7 +165,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
             </h2>
           </div>
           <div className="p-5">
-            <UserForm terms={terms} teachers={allTeacherOptions} gymId={gymId} />
+            <UserForm terms={terms} teachers={allTeacherOptions} gymId={gymId} gymKind={gymConfig?.kind} />
           </div>
         </section>
 

@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function InvitarmePage({ params }: Props) {
   const { gymSlug } = await params;
-  const gym = await prisma.gym.findUnique({ where: { slug: gymSlug } });
+  const gym = await prisma.gym.findUnique({ where: { slug: gymSlug }, select: { id: true, name: true, logo: true, kind: true } });
   if (!gym) notFound();
 
   const teachers = await prisma.user.findMany({
@@ -85,7 +85,7 @@ export default async function InvitarmePage({ params }: Props) {
           <h2 className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-gray-400 mb-6">
             Solicitar alta
           </h2>
-          <JoinRequestForm gymSlug={gymSlug} teachers={teachers} />
+          <JoinRequestForm gymSlug={gymSlug} teachers={teachers} gymKind={gym.kind} />
         </div>
       </div>
     </main>

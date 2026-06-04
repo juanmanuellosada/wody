@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { approveJoinRequest } from "@/actions/join-request";
 import { formatDateArg, toInputDate } from "@/lib/dates";
+import type { GymKind } from "@prisma/client";
 
 interface TeacherOption {
   id: string;
@@ -18,7 +19,9 @@ interface Props {
   requestEmail: string;
   requestTeacherIds: string[];
   requestNextPaymentDate: Date;
+  requestStudentType: "GENERAL" | "PERSONALIZED" | "MUSCULACION_LIBRE";
   teachers: TeacherOption[];
+  gymKind: GymKind;
 }
 
 export function ApproveJoinRequestButton({
@@ -27,7 +30,9 @@ export function ApproveJoinRequestButton({
   requestEmail,
   requestTeacherIds,
   requestNextPaymentDate,
+  requestStudentType,
   teachers,
+  gymKind,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -37,7 +42,7 @@ export function ApproveJoinRequestButton({
 
   // Edit form state — defaults match the JoinRequest values.
   const [name, setName] = useState(requestName);
-  const [studentType, setStudentType] = useState<"GENERAL" | "PERSONALIZED">("PERSONALIZED");
+  const [studentType, setStudentType] = useState<"GENERAL" | "PERSONALIZED" | "MUSCULACION_LIBRE">(requestStudentType);
   const [teacherIds, setTeacherIds] = useState<string[]>(requestTeacherIds);
   const [canCreateOwnRoutines, setCanCreateOwnRoutines] = useState(false);
   const [nextPaymentDate, setNextPaymentDate] = useState(toInputDate(requestNextPaymentDate));
@@ -60,7 +65,7 @@ export function ApproveJoinRequestButton({
   function handleOpen() {
     // Reset edit form to current request defaults each time the modal opens.
     setName(requestName);
-    setStudentType("PERSONALIZED");
+    setStudentType(requestStudentType);
     setTeacherIds(requestTeacherIds);
     setCanCreateOwnRoutines(false);
     setNextPaymentDate(toInputDate(requestNextPaymentDate));
@@ -191,12 +196,15 @@ export function ApproveJoinRequestButton({
                 </label>
                 <select
                   value={studentType}
-                  onChange={(e) => setStudentType(e.target.value as "GENERAL" | "PERSONALIZED")}
+                  onChange={(e) => setStudentType(e.target.value as "GENERAL" | "PERSONALIZED" | "MUSCULACION_LIBRE")}
                   disabled={isPending}
                   className="bg-elev text-white font-body border border-edge px-4 py-3 text-sm min-h-[44px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all duration-200 disabled:opacity-50"
                 >
                   <option value="PERSONALIZED">Personalizado</option>
                   <option value="GENERAL">General</option>
+                  {gymKind === "GYM" && (
+                    <option value="MUSCULACION_LIBRE">Musculación libre</option>
+                  )}
                 </select>
               </div>
 

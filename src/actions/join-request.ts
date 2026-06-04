@@ -24,6 +24,7 @@ export async function submitJoinRequest({
   teacherIds,
   nextPaymentDate,
   honeypot,
+  studentType,
 }: {
   gymSlug: string;
   name: string;
@@ -33,6 +34,7 @@ export async function submitJoinRequest({
   teacherIds?: string[];
   nextPaymentDate: string;
   honeypot?: string;
+  studentType?: string;
 }): Promise<JoinResult> {
   // Honeypot: silently succeed so the bot gets no signal.
   if (honeypot && honeypot.trim().length > 0) return { ok: true };
@@ -96,6 +98,19 @@ export async function submitJoinRequest({
   });
   if (existingPending) return { ok: true };
 
+  // Validate and resolve studentType.
+  const validStudentTypes = ["GENERAL", "PERSONALIZED", "MUSCULACION_LIBRE"] as const;
+  type ResolvedStudentType = typeof validStudentTypes[number];
+  let resolvedStudentType: ResolvedStudentType = "PERSONALIZED";
+  if (studentType && validStudentTypes.includes(studentType as ResolvedStudentType)) {
+    if (studentType === "MUSCULACION_LIBRE" && gym.kind !== "GYM") {
+      // Silently fall back to PERSONALIZED rather than blocking the signup.
+      resolvedStudentType = "PERSONALIZED";
+    } else {
+      resolvedStudentType = studentType as ResolvedStudentType;
+    }
+  }
+
   // Hash password and create the request.
   const passwordHash = await hash(password, 10);
 
@@ -106,6 +121,7 @@ export async function submitJoinRequest({
       email: normalizedEmail,
       passwordHash,
       nextPaymentDate: parsedPaymentDate,
+      studentType: resolvedStudentType,
       status: "PENDING",
       teachers: validTeacherIds.length > 0
         ? { create: validTeacherIds.map((id) => ({ teacherId: id })) }
@@ -124,7 +140,7 @@ export async function submitJoinRequest({
 // Email and password are intentionally absent: they are never overrideable.
 type ApproveOverrides = {
   name?: string;
-  studentType?: "GENERAL" | "PERSONALIZED";
+  studentType?: "GENERAL" | "PERSONALIZED" | "MUSCULACION_LIBRE";
   teacherIds?: string[];
   canCreateOwnRoutines?: boolean;
   nextPaymentDate?: string;
@@ -175,7 +191,12 @@ export async function approveJoinRequest({
     : undefined;
 
   // Resolver los campos finales aplicando la regla heredada de createUser.
-  const studentType = safeOverrides?.studentType ?? "PERSONALIZED";
+  // Default to the request's own studentType (set by the public form), not "PERSONALIZED".
+  const studentType = safeOverrides?.studentType ?? request.studentType;
+  // Guard: MUSCULACION_LIBRE is only valid for GYM kind.
+  if (studentType === "MUSCULACION_LIBRE" && request.gym.kind !== "GYM") {
+    return { ok: false, error: "El tipo 'Musculación libre' solo está disponible en gimnasios." };
+  }
   const isPersonalizedStudent = studentType === "PERSONALIZED";
 
   // If overrides include teacherIds (even empty array), use that; otherwise fall back to request's teachers.
