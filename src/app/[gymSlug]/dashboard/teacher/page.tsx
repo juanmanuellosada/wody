@@ -169,6 +169,7 @@ export default async function TeacherDashboardPage({ params }: Props) {
         wods={wodsForClient}
         groups={groupOptions}
         students={personalizedStudents}
+        muslibStudents={isGym ? muslibStudents : undefined}
         terms={terms}
       />
     </div>

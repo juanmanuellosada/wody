@@ -15,6 +15,7 @@ interface StudentOption {
 interface TargetSelectorProps {
   groups: GroupOption[];
   students: StudentOption[];
+  muslibStudents?: StudentOption[];
   value: WodTarget;
   onChange: (target: WodTarget) => void;
   disabled?: boolean;
@@ -23,6 +24,7 @@ interface TargetSelectorProps {
 export function TargetSelector({
   groups,
   students,
+  muslibStudents,
   value,
   onChange,
   disabled,
@@ -96,6 +98,24 @@ export function TargetSelector({
             Alumno
           </button>
         )}
+
+        {muslibStudents && muslibStudents.length > 0 && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() =>
+              onChange({ type: "MUSCULACION_LIBRE", studentId: muslibStudents[0].id })
+            }
+            className={[
+              "px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-[0.1em] border transition-colors duration-200",
+              value.type === "MUSCULACION_LIBRE"
+                ? "border-brand-red text-white bg-brand-red/10"
+                : "border-edge text-gray-500 hover:border-gray-500",
+            ].join(" ")}
+          >
+            Musculación libre
+          </button>
+        )}
       </div>
 
       {value.type === "GROUP" && groups.length > 0 && (
@@ -123,6 +143,23 @@ export function TargetSelector({
           className="bg-panel border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
         >
           {students.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {value.type === "MUSCULACION_LIBRE" && muslibStudents && muslibStudents.length > 0 && (
+        <select
+          disabled={disabled}
+          value={"studentId" in value ? value.studentId : muslibStudents[0].id}
+          onChange={(e) =>
+            onChange({ type: "MUSCULACION_LIBRE", studentId: e.target.value })
+          }
+          className="bg-panel border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
+        >
+          {muslibStudents.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
             </option>
