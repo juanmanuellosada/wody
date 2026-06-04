@@ -198,9 +198,13 @@ export async function approveJoinRequest({
     return { ok: false, error: "El tipo 'Musculación libre' solo está disponible en gimnasios." };
   }
   const isPersonalizedStudent = studentType === "PERSONALIZED";
+  const isMuslibStudent = studentType === "MUSCULACION_LIBRE";
+
+  // PERSONALIZED and MUSCULACION_LIBRE both support a teacher link.
+  const canLinkTeacher = isPersonalizedStudent || isMuslibStudent;
 
   // If overrides include teacherIds (even empty array), use that; otherwise fall back to request's teachers.
-  const resolvedTeacherIds: string[] = isPersonalizedStudent
+  const resolvedTeacherIds: string[] = canLinkTeacher
     ? (safeOverrides?.teacherIds !== undefined
         ? safeOverrides.teacherIds
         : request.teachers.map((t) => t.teacherId))

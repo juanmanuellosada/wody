@@ -196,6 +196,7 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
 
   // Resolve canCreateOwnRoutines + teacher link according to role/type rules.
   const isPersonalizedStudent = role === "STUDENT" && studentType === "PERSONALIZED";
+  const isMuslibStudent = role === "STUDENT" && studentType === "MUSCULACION_LIBRE";
   const requestedCanCreate = canCreateOwnRoutinesRaw === "1" || canCreateOwnRoutinesRaw === "true";
 
   let canCreateOwnRoutines = false;
@@ -207,6 +208,9 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
     teacherIdToLink = teacherIdRaw;
     // Sin profe asignado el alumno tiene que autogestionarse.
     canCreateOwnRoutines = teacherIdToLink ? requestedCanCreate : true;
+  } else if (isMuslibStudent) {
+    // MUSCULACION_LIBRE can optionally be linked to a teacher (no canCreateOwnRoutines).
+    teacherIdToLink = teacherIdRaw;
   }
   // GENERAL students: flag stays false, no teacher link at creation time.
 

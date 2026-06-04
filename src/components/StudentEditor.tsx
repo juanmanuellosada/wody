@@ -13,6 +13,7 @@ import {
   setStudentType,
 } from "@/actions/user";
 import { setStudentPaymentDate } from "@/actions/payment";
+import { updateFixedRoutineRenewAt } from "@/actions/fixed-routine";
 import { toInputDate } from "@/lib/dates";
 import type { AccountKind, GymKind, StudentType } from "@prisma/client";
 
@@ -38,6 +39,8 @@ interface StudentEditorProps {
   gymKind?: GymKind;
   onClose: () => void;
   demo?: boolean;
+  activeRoutineId?: string | null;
+  routineRenewAt?: Date | null;
 }
 
 export function StudentEditor({
@@ -57,6 +60,8 @@ export function StudentEditor({
   gymKind,
   onClose,
   demo,
+  activeRoutineId,
+  routineRenewAt,
 }: StudentEditorProps) {
   const isLite = accountKind === "LITE";
   const isGym = gymKind === "GYM";
@@ -74,6 +79,9 @@ export function StudentEditor({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [addTeacherId, setAddTeacherId] = useState("");
+
+  const initialRenewAt = routineRenewAt ? toInputDate(routineRenewAt) : "";
+  const [renewAtDate, setRenewAtDate] = useState(initialRenewAt);
 
   const showCanCreateToggle = currentStudentType === "PERSONALIZED";
   // Sin profe asignado el alumno tiene que autogestionarse: bloqueamos el toggle en true.
@@ -195,6 +203,18 @@ export function StudentEditor({
         return;
       }
       setCanCreate(next);
+    });
+  }
+
+  function handleSaveRenewAt() {
+    if (!activeRoutineId || !renewAtDate || demo) return;
+    setError(null);
+    const date = new Date(`${renewAtDate}T00:00:00.000Z`);
+    startTransition(async () => {
+      const result = await updateFixedRoutineRenewAt(activeRoutineId, date);
+      if (!result.success) {
+        setError(result.error);
+      }
     });
   }
 
@@ -361,6 +381,37 @@ export function StudentEditor({
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Routine renewal date — GYM only, MUSCULACION_LIBRE only */}
+        {isGym && !isLite && currentStudentType === "MUSCULACION_LIBRE" && (
+          <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 block">
+              Vencimiento de la rutina
+            </label>
+            {activeRoutineId ? (
+              <div className="flex flex-col gap-2">
+                <DatePicker
+                  value={renewAtDate || toInputDate(new Date())}
+                  onChange={setRenewAtDate}
+                  disabled={isPending}
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSaveRenewAt}
+                  disabled={isPending || !renewAtDate || renewAtDate === initialRenewAt}
+                  loading={isPending}
+                >
+                  Guardar vencimiento
+                </Button>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 font-body leading-snug">
+                Todavía no tiene rutina. Asignala desde el panel del profe.
+              </p>
+            )}
           </div>
         )}
 

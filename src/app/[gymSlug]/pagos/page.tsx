@@ -208,7 +208,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
     }),
     prisma.gym.findUnique({
       where: { id: gymId },
-      select: { autoBlockAfterDays: true },
+      select: { autoBlockAfterDays: true, kind: true },
     }),
     // Last payment per student (for pre-filling the popup amount)
     prisma.payment.findMany({
@@ -219,6 +219,26 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
   ]);
 
   const autoBlockAfterDays = gymConfig?.autoBlockAfterDays ?? 45;
+
+  // Batch-fetch active fixed routines for MUSCULACION_LIBRE students (GYM only). Avoids N+1.
+  const muslibActiveRoutinesByStudentId = new Map<string, { id: string; renewAt: Date }>();
+  if (gymConfig?.kind === "GYM") {
+    const muslibStudentIds = students
+      .filter((s) => s.studentType === "MUSCULACION_LIBRE")
+      .map((s) => s.id);
+    if (muslibStudentIds.length > 0) {
+      const routines = await prisma.fixedRoutine.findMany({
+        where: { studentId: { in: muslibStudentIds }, gymId, deletedAt: null },
+        orderBy: { assignedAt: "desc" },
+        select: { id: true, studentId: true, renewAt: true },
+      });
+      for (const r of routines) {
+        if (!muslibActiveRoutinesByStudentId.has(r.studentId)) {
+          muslibActiveRoutinesByStudentId.set(r.studentId, { id: r.id, renewAt: r.renewAt });
+        }
+      }
+    }
+  }
 
   const teachersById = new Map(teachers.map((t) => [t.id, t]));
   const teachersByStudentId = new Map<string, { id: string; name: string }[]>();
@@ -500,6 +520,9 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                             assignedTeachers={row.assignedTeachers}
                             allTeachers={teachers}
                             isAdmin={isAdmin}
+                            gymKind={gymConfig?.kind}
+                            activeRoutineId={muslibActiveRoutinesByStudentId.get(row.id)?.id ?? null}
+                            routineRenewAt={muslibActiveRoutinesByStudentId.get(row.id)?.renewAt ?? null}
                           />
                           {isAdmin && (
                             <BlockUserButton
@@ -605,6 +628,9 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                           assignedTeachers={row.assignedTeachers}
                           allTeachers={teachers}
                           isAdmin={isAdmin}
+                          gymKind={gymConfig?.kind}
+                          activeRoutineId={muslibActiveRoutinesByStudentId.get(row.id)?.id ?? null}
+                          routineRenewAt={muslibActiveRoutinesByStudentId.get(row.id)?.renewAt ?? null}
                         />
                         {isAdmin && (
                           <BlockUserButton

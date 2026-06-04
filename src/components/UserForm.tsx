@@ -42,6 +42,9 @@ export function UserForm({ terms, teachers, gymId, gymKind }: UserFormProps) {
 
   const showStudentExtras =
     !isLite && selectedRole === "STUDENT" && studentType === "PERSONALIZED";
+  // MUSCULACION_LIBRE can also be linked to a teacher (but doesn't have the other PERSONALIZED extras).
+  const canLinkTeacher =
+    showStudentExtras || (!isLite && selectedRole === "STUDENT" && studentType === "MUSCULACION_LIBRE");
   // Sin profe asignado → el alumno debe poder autogestionarse.
   const mustSelfManage = showStudentExtras && !teacherId;
   const effectiveCanCreate = mustSelfManage ? true : canCreateOwnRoutines;
@@ -68,6 +71,9 @@ export function UserForm({ terms, teachers, gymId, gymKind }: UserFormProps) {
       if (showStudentExtras) {
         formData.set("canCreateOwnRoutines", effectiveCanCreate ? "1" : "0");
         if (teacherId) formData.set("teacherId", teacherId);
+      } else if (canLinkTeacher && teacherId) {
+        // MUSCULACION_LIBRE: pass teacherId without the PERSONALIZED extras.
+        formData.set("teacherId", teacherId);
       }
     }
 
@@ -244,8 +250,15 @@ export function UserForm({ terms, teachers, gymId, gymKind }: UserFormProps) {
         </div>
       )}
 
-      {/* Selector de profe — para invite/password/lite (solo PERSONALIZED o lite) */}
-      {(showStudentExtras || isLite) && (
+      {/* Hint for MUSCULACION_LIBRE: routine is managed from the teacher panel */}
+      {!isLite && selectedRole === "STUDENT" && studentType === "MUSCULACION_LIBRE" && (
+        <p className="text-xs text-gray-500 font-body leading-snug">
+          La rutina y su fecha de vencimiento se asignan desde el panel del profe.
+        </p>
+      )}
+
+      {/* Selector de profe — para invite/password/lite (PERSONALIZED, MUSCULACION_LIBRE o lite) */}
+      {(canLinkTeacher || isLite) && (
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400">
             Profe (opcional)

@@ -26,6 +26,44 @@ export async function getActiveFixedRoutine(studentId: string) {
   });
 }
 
+// Returns all active routines in a gym that are due for renewal (within 7 days or overdue).
+// Used by ADMIN on the teacher dashboard to see all pending renewals.
+export async function getGymRenewalRoutines(gymId: string) {
+  const today = getTodayArgentina();
+  const sevenDaysOut = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const routines = await prisma.fixedRoutine.findMany({
+    where: {
+      gymId,
+      deletedAt: null,
+      renewAt: { lte: sevenDaysOut },
+    },
+    orderBy: { renewAt: "asc" },
+    select: {
+      id: true,
+      renewAt: true,
+      student: { select: { id: true, name: true } },
+    },
+  });
+
+  const byStudent = new Map<string, typeof routines[number]>();
+  for (const r of routines) {
+    const existing = byStudent.get(r.student.id);
+    if (!existing || r.renewAt > existing.renewAt) {
+      byStudent.set(r.student.id, r);
+    }
+  }
+
+  const todayStr = toInputDate(today);
+  return Array.from(byStudent.values()).map((r) => ({
+    id: r.id,
+    studentId: r.student.id,
+    studentName: r.student.name,
+    renewAt: r.renewAt,
+    overdue: toInputDate(r.renewAt) < todayStr,
+  }));
+}
+
 // Returns the teacher's active routines that are due for renewal (within 7 days or overdue)
 export async function getTeacherRenewalRoutines(teacherId: string) {
   const today = getTodayArgentina();
@@ -218,6 +256,61 @@ export async function updateFixedRoutine(
 
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
   revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
+
+  return { success: true };
+}
+
+// Updates only the renewAt date of an existing active fixed routine.
+export async function updateFixedRoutineRenewAt(
+  routineId: string,
+  renewAt: Date
+): Promise<FixedRoutineResult> {
+  const session = await auth();
+
+  if (
+    !session?.user ||
+    (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")
+  ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const gymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+  const teacherId = session.user.id;
+
+  // GYM-only guard
+  const gym = await prisma.gym.findUnique({ where: { id: gymId }, select: { kind: true } });
+  if (!gym || gym.kind !== "GYM") {
+    return { success: false, error: "Las rutinas fijas solo están disponibles en gimnasios tradicionales." };
+  }
+
+  const routine = await prisma.fixedRoutine.findFirst({
+    where: { id: routineId, gymId, deletedAt: null },
+  });
+  if (!routine) {
+    return { success: false, error: "Rutina no encontrada." };
+  }
+
+  if (session.user.role === "TEACHER" && routine.teacherId !== teacherId) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (isNaN(renewAt.getTime())) {
+    return { success: false, error: "Fecha de renovación inválida." };
+  }
+
+  await prisma.fixedRoutine.update({
+    where: { id: routineId },
+    data: { renewAt },
+  });
+
+  revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
+  revalidatePath(gymPath(gymSlug, "/admin"));
 
   return { success: true };
 }

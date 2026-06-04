@@ -76,6 +76,27 @@ export default async function AdminPage({ params, searchParams }: Props) {
     }),
   ]);
 
+  // Batch-fetch active fixed routines for MUSCULACION_LIBRE students (GYM only). Avoids N+1.
+  const muslibActiveRoutinesByStudentId = new Map<string, { id: string; renewAt: Date }>();
+  if (gymConfig?.kind === "GYM") {
+    const muslibStudentIds = users
+      .filter((u) => u.role === "STUDENT" && u.studentType === "MUSCULACION_LIBRE")
+      .map((u) => u.id);
+    if (muslibStudentIds.length > 0) {
+      const routines = await prisma.fixedRoutine.findMany({
+        where: { studentId: { in: muslibStudentIds }, gymId, deletedAt: null },
+        orderBy: { assignedAt: "desc" },
+        select: { id: true, studentId: true, renewAt: true, assignedAt: true },
+      });
+      // Keep the most recent (first in desc order) per student.
+      for (const r of routines) {
+        if (!muslibActiveRoutinesByStudentId.has(r.studentId)) {
+          muslibActiveRoutinesByStudentId.set(r.studentId, { id: r.id, renewAt: r.renewAt });
+        }
+      }
+    }
+  }
+
   const autoBlockAfterDays = gymConfig?.autoBlockAfterDays ?? 45;
   const terms = gymTerms(gymConfig?.kind ?? "BOX");
 
@@ -395,6 +416,8 @@ export default async function AdminPage({ params, searchParams }: Props) {
                           assignedTeachers={teachersByStudentId.get(user.id) ?? []}
                           allTeachers={allTeacherOptions}
                           gymKind={gymConfig?.kind}
+                          activeRoutineId={muslibActiveRoutinesByStudentId.get(user.id)?.id ?? null}
+                          routineRenewAt={muslibActiveRoutinesByStudentId.get(user.id)?.renewAt ?? null}
                         />
                       )}
                       {isLite && (
@@ -526,6 +549,8 @@ export default async function AdminPage({ params, searchParams }: Props) {
                       assignedTeachers={teachersByStudentId.get(user.id) ?? []}
                       allTeachers={allTeacherOptions}
                       gymKind={gymConfig?.kind}
+                      activeRoutineId={muslibActiveRoutinesByStudentId.get(user.id)?.id ?? null}
+                      routineRenewAt={muslibActiveRoutinesByStudentId.get(user.id)?.renewAt ?? null}
                     />
                   )}
                   {isLite && (
