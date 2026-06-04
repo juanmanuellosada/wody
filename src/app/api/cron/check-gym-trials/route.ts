@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendTrialEndingPush, sendPersonalTrialEndingPush } from "@/lib/push";
+import { sendTrialEndingPush, sendPersonalTrialEndingPush, sendSelfBillingDuePush } from "@/lib/push";
 import { cleanupOldRateLimits } from "@/lib/rate-limit";
+import { getTodayArgentina } from "@/lib/dates";
 import type { Prisma } from "@prisma/client";
 
 // Vercel Cron: 06:00 UTC (03:00 ART) daily — see vercel.json.
@@ -49,11 +50,13 @@ export async function GET(req: NextRequest) {
   const now = new Date();
 
   // --- Phase 1: block gyms with expired trial and no subscription ---
+  // Excludes selfManagedBilling gyms (they're governed by the manual due-date phase below).
   const expiredGyms = await prisma.gym.findMany({
     where: {
       trialEndsAt: { lt: now },
       mpPreapprovalId: null,
       paymentExempt: false,
+      selfManagedBilling: false,
       blockedAt: null,
       kind: { not: "PERSONAL" },
     },
@@ -71,6 +74,7 @@ export async function GET(req: NextRequest) {
   }
 
   // --- Phase 1.5: block gyms with failed payment past grace period ---
+  // Excludes selfManagedBilling gyms (they never have mpPreapprovalId anyway).
   const FAILURE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
   const failureCutoff = new Date(now.getTime() - FAILURE_GRACE_MS);
   const paymentFailureGyms = await prisma.gym.findMany({
@@ -79,6 +83,7 @@ export async function GET(req: NextRequest) {
       mpSubscriptionStatusChangedAt: { lt: failureCutoff },
       blockedAt: null,
       paymentExempt: false,
+      selfManagedBilling: false,
       kind: { not: "PERSONAL" },
     },
     select: { id: true, slug: true },
@@ -208,6 +213,75 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // --- Phase 2.6: push reminders for self-managed billing gyms at milestone days ---
+  const SELF_BILLING_MILESTONES = new Set([10, 7, 3, 1, 0]);
+  const todayART = getTodayArgentina();
+
+  const selfBillingGyms = await prisma.gym.findMany({
+    where: {
+      selfManagedBilling: true,
+      paymentExempt: false,
+      blockedAt: null,
+      subscriptionNextPaymentDate: { not: null },
+      kind: { not: "PERSONAL" },
+    },
+    select: { id: true, slug: true, subscriptionNextPaymentDate: true },
+  });
+
+  const selfBillingPushSummary: { gymId: string; daysLeft: number; sent: number; removed: number }[] = [];
+
+  for (const gym of selfBillingGyms) {
+    // subscriptionNextPaymentDate is guaranteed non-null by the where clause above
+    const daysLeft = Math.round(
+      (gym.subscriptionNextPaymentDate!.getTime() - todayART.getTime()) / DAY_MS
+    );
+
+    if (!SELF_BILLING_MILESTONES.has(daysLeft)) continue;
+
+    try {
+      const { totalSent, totalRemoved } = await sendSelfBillingDuePush(gym.id, daysLeft);
+      console.log("[check-gym-trials] Sent self-billing reminder push", {
+        gymId: gym.id,
+        slug: gym.slug,
+        daysLeft,
+        totalSent,
+        totalRemoved,
+      });
+      selfBillingPushSummary.push({ gymId: gym.id, daysLeft, sent: totalSent, removed: totalRemoved });
+    } catch (err) {
+      console.warn("[check-gym-trials] Failed to send self-billing reminder push", {
+        gymId: gym.id,
+        slug: gym.slug,
+        daysLeft,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  // --- Phase 2.7: block self-managed billing gyms past their grace period ---
+  const selfBillingBlockedGymIds: string[] = [];
+
+  const overdueGraceGyms = await prisma.gym.findMany({
+    where: {
+      selfManagedBilling: true,
+      paymentExempt: false,
+      blockedAt: null,
+      subscriptionNextPaymentDate: { not: null },
+      kind: { not: "PERSONAL" },
+    },
+    select: { id: true, slug: true, subscriptionNextPaymentDate: true, autoBlockAfterDays: true },
+  });
+
+  for (const gym of overdueGraceGyms) {
+    const graceMs = gym.autoBlockAfterDays * DAY_MS;
+    const blockAfter = new Date(gym.subscriptionNextPaymentDate!.getTime() + graceMs);
+    if (now > blockAfter) {
+      await prisma.gym.update({ where: { id: gym.id }, data: { blockedAt: now } });
+      console.log("[check-gym-trials] Blocked self-managed gym past grace period", { gymId: gym.id, slug: gym.slug });
+      selfBillingBlockedGymIds.push(gym.id);
+    }
+  }
+
   // --- Phase 3: expire signup tokens past their expiry date ---
   const { count: expiredCount } = await prisma.gymSignupRequest.updateMany({
     where: {
@@ -228,6 +302,9 @@ export async function GET(req: NextRequest) {
     paymentFailureBlockedCount: paymentFailureBlockedGymIds.length,
     paymentFailureBlockedGymIds,
     pushSummary,
+    selfBillingPushSummary,
+    selfBillingBlockedCount: selfBillingBlockedGymIds.length,
+    selfBillingBlockedGymIds,
     personalTrialBlockedCount: personalTrialBlockedUserIds.length,
     personalTrialBlockedUserIds,
     personalPaymentFailureBlockedCount: personalPaymentFailureBlockedUserIds.length,

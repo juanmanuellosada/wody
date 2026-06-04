@@ -129,6 +129,7 @@ model Gym {
   trialEndsAt                 DateTime?
   paymentExempt               Boolean       @default(false)
   paymentExemptReason         String?
+  selfManagedBilling              Boolean       @default(false)
   mpPreapprovalId                 String?
   mpSubscriptionStatus            String?
   mpSubscriptionStatusChangedAt   DateTime?

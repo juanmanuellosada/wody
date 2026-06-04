@@ -26,6 +26,7 @@ export type GymRow = {
   autoBlockAfterDays: number;
   subscriptionNextPaymentDate: Date | null;
   subscriptionMonthlyAmount: number | null;
+  selfManagedBilling: boolean;
   createdAt: Date;
 };
 
@@ -48,6 +49,7 @@ export async function listAllGyms(): Promise<GymRow[]> {
       autoBlockAfterDays: true,
       subscriptionNextPaymentDate: true,
       subscriptionMonthlyAmount: true,
+      selfManagedBilling: true,
       createdAt: true,
     },
   });
@@ -160,6 +162,7 @@ export type UpdateGymInput = {
   autoBlockAfterDays?: number;
   subscriptionNextPaymentDate?: string | null;
   subscriptionMonthlyAmount?: number | null;
+  selfManagedBilling?: boolean;
   logoFile?: File;
 };
 
@@ -198,6 +201,9 @@ export async function updateGym(input: UpdateGymInput): Promise<ActionResult> {
       }),
       ...(input.subscriptionMonthlyAmount !== undefined && {
         subscriptionMonthlyAmount: input.subscriptionMonthlyAmount,
+      }),
+      ...(input.selfManagedBilling !== undefined && {
+        selfManagedBilling: input.selfManagedBilling,
       }),
       logo,
     },
