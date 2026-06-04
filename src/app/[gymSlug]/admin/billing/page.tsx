@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle, AlertTriangle, Clock } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { gymPath } from "@/lib/gym";
 import { getMySubscriptionStatus } from "@/actions/billing";
+import { getTodayArgentina, formatDateArg } from "@/lib/dates";
 import { GymCardFormSection } from "./GymCardFormSection";
 
 interface Props {
@@ -46,8 +47,21 @@ export default async function BillingPage({ params }: Props) {
     status.mpPreapprovalId !== null &&
     (status.mpSubscriptionStatus === "paused" || status.mpSubscriptionStatus === "cancelled");
 
-  // Show subscribe button when: not exempt AND not authorized
-  const showCardForm = !status.paymentExempt && !isAuthorized;
+  // Compute days left for self-managed billing (server-side)
+  const selfManagedNextDate = status.subscriptionNextPaymentDate ?? null;
+  const selfManagedDaysLeft =
+    selfManagedNextDate !== null
+      ? Math.round(
+          (selfManagedNextDate.getTime() - getTodayArgentina().getTime()) /
+            (24 * 60 * 60 * 1000)
+        )
+      : null;
+  const selfManagedFormatted =
+    selfManagedNextDate !== null ? formatDateArg(selfManagedNextDate) : null;
+
+  // Show subscribe button when: not exempt AND not authorized AND not self-managed
+  const showCardForm =
+    !status.paymentExempt && !isAuthorized && !status.selfManagedBilling;
 
   return (
     <div className="flex flex-col gap-8 max-w-2xl mx-auto">
@@ -109,6 +123,106 @@ export default async function BillingPage({ params }: Props) {
           </div>
           <p className="text-xs text-gray-500 font-body">
             Para cancelar tu suscripción, contactanos.
+          </p>
+        </div>
+      )}
+
+      {/* Case 4: Self-managed billing — no MP flow */}
+      {!status.paymentExempt && !isAuthorized && status.selfManagedBilling && (
+        <div className="border border-line bg-panel p-6 flex flex-col gap-4">
+          {/* Sub-state: active (daysLeft > 7) */}
+          {selfManagedDaysLeft !== null && selfManagedDaysLeft > 7 && (
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <CheckCircle
+                  size={20}
+                  className="text-emerald-400 flex-shrink-0"
+                  aria-hidden="true"
+                />
+                <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white">
+                  Tu suscripción está activa
+                </p>
+              </div>
+              <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                Activa
+              </span>
+            </div>
+          )}
+          {selfManagedDaysLeft !== null && selfManagedDaysLeft > 7 && selfManagedFormatted && (
+            <p className="text-xs text-gray-500 font-body">
+              Próximo pago: {selfManagedFormatted}
+            </p>
+          )}
+
+          {/* Sub-state: por vencer (0 <= daysLeft <= 7) */}
+          {selfManagedDaysLeft !== null &&
+            selfManagedDaysLeft >= 0 &&
+            selfManagedDaysLeft <= 7 && (
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <Clock
+                    size={20}
+                    className="text-yellow-400 flex-shrink-0"
+                    aria-hidden="true"
+                  />
+                  <div className="flex flex-col">
+                    <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-yellow-300">
+                      {selfManagedDaysLeft === 0
+                        ? "Tu cuota vence hoy"
+                        : selfManagedDaysLeft === 1
+                        ? "Tu cuota vence mañana"
+                        : `Tu cuota vence en ${selfManagedDaysLeft} días`}
+                    </p>
+                    {selfManagedFormatted && (
+                      <p className="text-xs text-gray-500 font-body">
+                        Fecha de vencimiento: {selfManagedFormatted}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 bg-yellow-500/10 text-yellow-400 border border-yellow-500/30">
+                  Por vencer
+                </span>
+              </div>
+            )}
+
+          {/* Sub-state: vencida (daysLeft < 0) */}
+          {selfManagedDaysLeft !== null && selfManagedDaysLeft < 0 && (
+            <div className="flex items-center gap-3">
+              <AlertTriangle
+                size={20}
+                className="text-brand-red flex-shrink-0"
+                aria-hidden="true"
+              />
+              <div className="flex flex-col">
+                <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-brand-red">
+                  Cuota vencida
+                </p>
+                {selfManagedFormatted && (
+                  <p className="text-xs text-gray-400 font-body">
+                    Vencida el {selfManagedFormatted}. Comunicate con el equipo de Wody para regularizar.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Sub-state: no date configured */}
+          {selfManagedDaysLeft === null && (
+            <div className="flex items-center gap-3">
+              <CheckCircle
+                size={20}
+                className="text-gray-400 flex-shrink-0"
+                aria-hidden="true"
+              />
+              <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white">
+                Tu suscripción se gestiona de forma directa con el equipo de Wody.
+              </p>
+            </div>
+          )}
+
+          <p className="text-xs text-gray-500 font-body">
+            Gestionás el pago directamente con el equipo de Wody (sin Mercado Pago).
           </p>
         </div>
       )}
