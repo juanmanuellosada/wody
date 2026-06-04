@@ -10,10 +10,11 @@ import {
   setUserBlocked,
   setCanCreateOwnRoutines,
   setStudentPaymentExempt,
+  setStudentType,
 } from "@/actions/user";
 import { setStudentPaymentDate } from "@/actions/payment";
 import { toInputDate } from "@/lib/dates";
-import type { AccountKind, StudentType } from "@prisma/client";
+import type { AccountKind, GymKind, StudentType } from "@prisma/client";
 
 interface TeacherOption {
   id: string;
@@ -34,6 +35,7 @@ interface StudentEditorProps {
   assignedTeachers: TeacherOption[];
   allTeachers: TeacherOption[];
   isAdmin: boolean;
+  gymKind?: GymKind;
   onClose: () => void;
   demo?: boolean;
 }
@@ -52,10 +54,12 @@ export function StudentEditor({
   assignedTeachers,
   allTeachers,
   isAdmin,
+  gymKind,
   onClose,
   demo,
 }: StudentEditorProps) {
   const isLite = accountKind === "LITE";
+  const isGym = gymKind === "GYM";
   const [name, setName] = useState(currentName);
   const [email, setEmail] = useState(currentEmail ?? "");
   const [password, setPassword] = useState("");
@@ -78,6 +82,17 @@ export function StudentEditor({
   const availableTeachers = allTeachers.filter(
     (t) => !assignedTeachers.some((at) => at.id === t.id)
   );
+
+  function handleSetStudentType(newType: StudentType) {
+    if (demo) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await setStudentType(studentId, newType);
+      if (!result.success) {
+        setError(result.error);
+      }
+    });
+  }
 
   function handleSave() {
     setError(null);
@@ -305,6 +320,49 @@ export function StudentEditor({
             </div>
           )}
         </div>
+
+        {/* Student type — GYM only: shows 3 options including MUSCULACION_LIBRE */}
+        {isGym && !isLite && (
+          <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 block">
+              Tipo de alumno
+            </label>
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  { value: "GENERAL", label: "General", description: "Ve los WODs del grupo general." },
+                  { value: "PERSONALIZED", label: "Personalizado", description: "Ve los WODs personalizados de su profe." },
+                  { value: "MUSCULACION_LIBRE", label: "Musculación libre", description: "Ve su rutina fija (no recibe WODs diarios)." },
+                ] as { value: StudentType; label: string; description: string }[]
+              ).map(({ value, label, description }) => {
+                const isActive = currentStudentType === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => !isActive && handleSetStudentType(value)}
+                    disabled={isPending || isActive}
+                    className={[
+                      "flex flex-col gap-0.5 text-left px-3 py-2 border transition-colors duration-200",
+                      isActive
+                        ? "border-brand-red bg-brand-red/5 cursor-default"
+                        : "border-edge hover:border-[#444444] cursor-pointer",
+                      isPending ? "opacity-50 cursor-not-allowed" : "",
+                    ].join(" ")}
+                  >
+                    <span className={[
+                      "text-xs font-heading font-bold uppercase tracking-[0.15em]",
+                      isActive ? "text-brand-red" : "text-white",
+                    ].join(" ")}>
+                      {label}
+                    </span>
+                    <span className="text-[10px] text-gray-500 font-body">{description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Self-service routines */}
         {showCanCreateToggle && (

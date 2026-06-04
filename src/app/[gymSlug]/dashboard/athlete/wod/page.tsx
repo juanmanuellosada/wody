@@ -51,6 +51,11 @@ export default async function WodFullPage({ params, searchParams }: Props) {
   ]);
   const terms = gymTerms(gym?.kind ?? "BOX");
 
+  // MUSCULACION_LIBRE students don't get WODs — redirect to their fixed routine view
+  if (student?.studentType === "MUSCULACION_LIBRE") {
+    redirect(athletePath);
+  }
+
   const isPersonalized = student?.studentType === "PERSONALIZED";
   const groupIds = student?.groupMemberships?.map((m) => m.groupId) ?? [];
 

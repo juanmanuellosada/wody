@@ -803,6 +803,67 @@ export async function toggleStudentType(userId: string): Promise<UserResult> {
   return { success: true };
 }
 
+// Sets the studentType to an explicit value. Supports MUSCULACION_LIBRE for GYM-kind gyms.
+// Used from the StudentEditor when the gym is kind=GYM.
+export async function setStudentType(
+  userId: string,
+  newType: StudentType
+): Promise<UserResult> {
+  const session = await auth();
+
+  if (
+    !session?.user ||
+    (session.user.role !== "ADMIN" && session.user.role !== "TEACHER")
+  ) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const gymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+
+  const gym = await prisma.gym.findUnique({ where: { id: gymId }, select: { kind: true } });
+
+  // MUSCULACION_LIBRE is GYM-only
+  if (newType === "MUSCULACION_LIBRE" && gym?.kind !== "GYM") {
+    return { success: false, error: "El tipo musculación libre solo está disponible en gimnasios tradicionales." };
+  }
+
+  const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+
+  if (!user || user.gymId !== gymId || user.role !== "STUDENT") {
+    return { success: false, error: "Alumno no encontrado." };
+  }
+
+  if (user.accountKind === "LITE") {
+    return { success: false, error: "El tipo de alumno no aplica a alumnos lite. Convertilo a cuenta completa primero." };
+  }
+
+  // GENERAL and MUSCULACION_LIBRE can't belong to groups or have canCreateOwnRoutines
+  if (newType === "GENERAL" || newType === "MUSCULACION_LIBRE") {
+    await prisma.$transaction([
+      prisma.groupMember.deleteMany({ where: { userId } }),
+      prisma.user.update({
+        where: { id: userId },
+        data: { studentType: newType, canCreateOwnRoutines: false },
+      }),
+    ]);
+  } else {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { studentType: newType },
+    });
+  }
+
+  revalidatePath(gymPath(gymSlug, "/admin"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
+  revalidatePath(gymPath(gymSlug, "/dashboard/athlete"));
+  return { success: true };
+}
+
 export async function promoteTeacherToAdmin(formData: FormData): Promise<UserResult> {
   const session = await auth();
 

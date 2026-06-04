@@ -339,12 +339,16 @@ export default async function AdminPage({ params, searchParams }: Props) {
                     </div>
                   </td>
                   <td className="px-4 py-3.5">
-                    {user.role === "STUDENT" && !isLite ? (
+                    {user.role === "STUDENT" && !isLite && user.studentType !== "MUSCULACION_LIBRE" ? (
                       <ToggleStudentTypeButton
                         userId={user.id}
                         currentType={user.studentType}
                         terms={terms}
                       />
+                    ) : user.role === "STUDENT" && !isLite && user.studentType === "MUSCULACION_LIBRE" ? (
+                      <span className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] px-2.5 py-1 bg-brand-red/10 text-brand-red border border-brand-red/20">
+                        Musc. libre
+                      </span>
                     ) : (
                       <span className="text-xs text-gray-500 font-heading">—</span>
                     )}
@@ -390,6 +394,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
                           canCreateOwnRoutines={user.canCreateOwnRoutines}
                           assignedTeachers={teachersByStudentId.get(user.id) ?? []}
                           allTeachers={allTeacherOptions}
+                          gymKind={gymConfig?.kind}
                         />
                       )}
                       {isLite && (
@@ -481,12 +486,17 @@ export default async function AdminPage({ params, searchParams }: Props) {
                           Lite
                         </span>
                       )}
-                      {user.role === "STUDENT" && !isLite && (
+                      {user.role === "STUDENT" && !isLite && user.studentType !== "MUSCULACION_LIBRE" && (
                         <ToggleStudentTypeButton
                           userId={user.id}
                           currentType={user.studentType}
                           terms={terms}
                         />
+                      )}
+                      {user.role === "STUDENT" && !isLite && user.studentType === "MUSCULACION_LIBRE" && (
+                        <span className="text-[10px] font-heading font-bold uppercase tracking-[0.15em] px-2 py-0.5 bg-brand-red/10 text-brand-red border border-brand-red/20">
+                          Musc. libre
+                        </span>
                       )}
                       {blockStatus.blocked && (
                         <span
@@ -515,6 +525,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
                       canCreateOwnRoutines={user.canCreateOwnRoutines}
                       assignedTeachers={teachersByStudentId.get(user.id) ?? []}
                       allTeachers={allTeacherOptions}
+                      gymKind={gymConfig?.kind}
                     />
                   )}
                   {isLite && (

@@ -177,6 +177,34 @@ export async function sendSelfBillingDuePush(
   return { totalSent, totalRemoved };
 }
 
+function routineRenewalMessage(studentName: string, daysLeft: number): { title: string; body: string } {
+  if (daysLeft <= 0) {
+    return {
+      title: "Rutina vencida",
+      body: `La rutina de ${studentName} venció hoy. Recordá renovarla.`,
+    };
+  }
+  if (daysLeft === 1) {
+    return {
+      title: "Rutina por vencer mañana",
+      body: `La rutina de ${studentName} vence mañana.`,
+    };
+  }
+  return {
+    title: `Rutina por vencer en ${daysLeft} días`,
+    body: `La rutina de ${studentName} vence en ${daysLeft} días.`,
+  };
+}
+
+export async function sendRoutineRenewalPush(
+  teacherId: string,
+  studentName: string,
+  daysLeft: number
+): Promise<{ sent: number; removed: number }> {
+  const { title, body } = routineRenewalMessage(studentName, daysLeft);
+  return sendPushToUser(teacherId, title, body);
+}
+
 function bodyForDaysRemaining(days: number, word: string): string {
   if (days <= 0) return `Tu cuota vence hoy. Pasá por tu ${word} para renovar.`;
   if (days === 1)

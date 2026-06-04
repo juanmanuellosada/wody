@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { StudentEditor } from "@/components/StudentEditor";
-import type { AccountKind, StudentType } from "@prisma/client";
+import type { AccountKind, GymKind, StudentType } from "@prisma/client";
 
 interface TeacherOption {
   id: string;
@@ -24,6 +24,7 @@ interface EditStudentButtonProps {
   assignedTeachers: TeacherOption[];
   allTeachers: TeacherOption[];
   isAdmin?: boolean;
+  gymKind?: GymKind;
   demo?: boolean;
 }
 
@@ -41,6 +42,7 @@ export function EditStudentButton({
   assignedTeachers,
   allTeachers,
   isAdmin,
+  gymKind,
   demo,
 }: EditStudentButtonProps) {
   const [open, setOpen] = useState(false);
@@ -65,6 +67,7 @@ export function EditStudentButton({
           assignedTeachers={assignedTeachers}
           allTeachers={allTeachers}
           isAdmin={isAdmin ?? false}
+          gymKind={gymKind}
           onClose={() => setOpen(false)}
           demo={demo}
         />

@@ -28,6 +28,7 @@ enum GymKind {
 enum StudentType {
   GENERAL
   PERSONALIZED
+  MUSCULACION_LIBRE
 }
 
 enum WodTargetType {
@@ -135,6 +136,7 @@ model Gym {
   mpSubscriptionStatusChangedAt   DateTime?
   users                       User[]
   accessLogs                  AccessLog[]
+  fixedRoutines               FixedRoutine[]
   emailLogs                   EmailLog[]
   joinRequests                JoinRequest[]
   payments                    Payment[]
@@ -184,6 +186,8 @@ model User {
   paymentsAsPayer           Payment[]            @relation("PaymentStudent")
   paymentsRecorded          Payment[]            @relation("PaymentRecordedBy")
   createdSignupRequests     GymSignupRequest[]
+  fixedRoutinesAsStudent    FixedRoutine[]       @relation("FixedRoutineStudent")
+  fixedRoutinesAsTeacher    FixedRoutine[]       @relation("FixedRoutineTeacher")
 
   // Unicidades parciales (solo filas activas, deletedAt IS NULL).
   // Los índices únicos totales fueron reemplazados por índices únicos parciales
@@ -457,4 +461,27 @@ model SignupRequestRateLimit {
   createdAt DateTime @default(now())
 
   @@index([ip, createdAt])
+}
+
+model FixedRoutine {
+  id                    String    @id @default(cuid())
+  gymId                 String
+  studentId             String
+  teacherId             String
+  title                 String
+  content               String
+  assignedAt            DateTime  @default(now())
+  renewAt               DateTime  @db.Date
+  lastRenewalNotifiedOn DateTime? @db.Date
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
+
+  gym     Gym  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  student User @relation("FixedRoutineStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  teacher User @relation("FixedRoutineTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([gymId])
+  @@index([studentId, deletedAt])
+  @@index([teacherId, renewAt])
 }

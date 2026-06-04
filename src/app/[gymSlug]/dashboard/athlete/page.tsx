@@ -1,15 +1,16 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Calendar, UserPlus } from "lucide-react";
+import { Calendar, Dumbbell, UserPlus } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getTodayArgentina, toInputDate } from "@/lib/dates";
+import { getTodayArgentina, toInputDate, formatDateArg } from "@/lib/dates";
 import { WodCard } from "@/components/wod/WodCard";
 import { WodHistory } from "@/components/wod/WodHistory";
 import { gymPath, hasAccessControl, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import { formatMemberNumber } from "@/lib/memberNumber";
 import { CheckinScannerButton } from "@/components/access/CheckinScannerButton";
+import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -60,6 +61,63 @@ export default async function StudentDashboardPage({ params }: Props) {
   ) : null;
 
   const wodPath = gymPath(gymSlug, "/dashboard/athlete/wod");
+
+  // MUSCULACION_LIBRE: show fixed routine instead of daily WODs
+  if (student?.studentType === "MUSCULACION_LIBRE") {
+    const activeRoutine = await prisma.fixedRoutine.findFirst({
+      where: { studentId, deletedAt: null },
+      orderBy: { assignedAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        renewAt: true,
+        teacher: { select: { name: true } },
+      },
+    });
+
+    return (
+      <div className="flex flex-col gap-10">
+        {accessCard}
+        <section>
+          <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white mb-5">
+            Mi Rutina
+          </h1>
+          {activeRoutine ? (
+            <div className="border border-line bg-panel p-6 sm:p-8 flex flex-col gap-6">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-xl font-heading font-black uppercase tracking-[0.08em] text-white">
+                  {activeRoutine.title}
+                </h2>
+                <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500">
+                  Renovar: {formatDateArg(activeRoutine.renewAt)}
+                  {activeRoutine.teacher && (
+                    <span className="ml-3 text-gray-600">· Profe: {activeRoutine.teacher.name}</span>
+                  )}
+                </p>
+              </div>
+              <div className="w-12 h-1 bg-brand-red" aria-hidden="true" />
+              <MarkdownRenderer content={activeRoutine.content} />
+            </div>
+          ) : (
+            <div className="border border-edge bg-panel p-8 sm:p-12 flex flex-col items-center text-center gap-5">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-brand-red/10 border border-brand-red/30">
+                <Dumbbell size={26} className="text-brand-red" aria-hidden="true" />
+              </div>
+              <div className="flex flex-col gap-2 max-w-sm">
+                <p className="text-lg font-heading font-black uppercase tracking-[0.1em] text-white">
+                  Todavía no tenés una rutina cargada
+                </p>
+                <p className="text-sm text-gray-400 font-body leading-relaxed">
+                  Avisale a tu profe para que te cargue tu rutina de musculación.
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
 
   // Student aún sin profe y sin autogestión habilitada: onboarding (no paywall).
   if (teacherIds.length === 0 && !canCreateOwn) {
