@@ -139,8 +139,15 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
     }
   }
 
-  // Self-managed billing banner: for ADMIN of gyms in manual billing mode.
-  if (role === "ADMIN" && !personalGym && gym.selfManagedBilling && trialBanner === null) {
+  // Due-date billing banner: for ADMIN of gyms with a subscriptionNextPaymentDate loaded.
+  // Independent of selfManagedBilling — governed by the date itself.
+  if (
+    role === "ADMIN" &&
+    !personalGym &&
+    !gym.paymentExempt &&
+    gym.subscriptionNextPaymentDate !== null &&
+    trialBanner === null
+  ) {
     trialBanner = (
       <GymBillingBanner subscriptionNextPaymentDate={gym.subscriptionNextPaymentDate} />
     );

@@ -13,6 +13,8 @@ Algunos gyms (hoy Atlas y Mila Fit) pagan el SaaS por fuera de Mercado Pago: el 
 - **El flujo de suscripción de MP queda oculto** para gyms en modo manual: el banner de fin de trial y la pantalla de configurar tarjeta no aplican.
 - **Cambio de datos**: `atlas-gym` y `mila-fit` pasan de `paymentExempt = true` a `paymentExempt = false` + `selfManagedBilling = true`, con su `subscriptionNextPaymentDate` cargada. Se hace desde el toggle del super-admin para no hardcodear slugs.
 
+**Refinamiento (iteración 2)**: el flag `selfManagedBilling` pasa a tener un **único** efecto — ocultar el flujo de pago por Mercado Pago. Los recordatorios push, el indicador in-app, el estado en la página de suscripción y el bloqueo por vencimiento + gracia se rigen por la presencia de `subscriptionNextPaymentDate` (no exento, no PERSONAL), independientemente del flag. Así, **cualquier** gym con fecha de vencimiento cargada muestra su vencimiento y recibe avisos; los gyms con MP autorizado quedan excluidos del bloqueo (los cobra MP).
+
 ## Capabilities
 
 ### New Capabilities

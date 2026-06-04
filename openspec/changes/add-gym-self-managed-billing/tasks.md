@@ -42,3 +42,14 @@
 - [ ] 8.1 Para `atlas-gym`: en `/admin/gyms/[id]` activar modo manual, cargar `subscriptionNextPaymentDate`, y desactivar exento en la misma edición
 - [ ] 8.2 Para `mila-fit`: ídem 8.1
 - [ ] 8.3 Confirmar que ambos gyms NO quedan bloqueados tras la próxima corrida del cron (fecha + gracia en el futuro)
+
+## 9. Generalización: recordatorio/indicador/bloqueo por fecha, no por flag
+
+El flag `selfManagedBilling` pasa a tener un único efecto: ocultar el flujo de Mercado Pago. Los recordatorios, el indicador y el bloqueo por vencimiento se rigen por `subscriptionNextPaymentDate`.
+
+- [x] 9.1 Cron `check-gym-trials`: cambiar el `where` de la fase de recordatorios (hitos 10/7/3/1/0) para que NO dependa de `selfManagedBilling`; gatillar por `subscriptionNextPaymentDate != null` AND `paymentExempt = false` AND `kind != PERSONAL`
+- [x] 9.2 Cron: cambiar la fase de bloqueo por vencimiento para que gatille por `subscriptionNextPaymentDate + autoBlockAfterDays < now()` AND `paymentExempt = false` AND `mpSubscriptionStatus != 'authorized'` AND `blockedAt = null` AND `kind != PERSONAL` (sin depender de `selfManagedBilling`; excluir MP autorizado)
+- [x] 9.3 Cron: en la Condición A (trial vencido) y Condición B (fallo MP), agregar `subscriptionNextPaymentDate IS NULL` a la exclusión (además de `selfManagedBilling = false`), para no bloquear por trial a gyms con fecha cargada
+- [x] 9.4 Layout `[gymSlug]/layout.tsx`: montar el `GymBillingBanner` cuando `subscriptionNextPaymentDate != null` (y no exento, no PERSONAL), en vez de cuando `selfManagedBilling = true`. Mantener `TrialEndingBanner` oculto cuando `selfManagedBilling = true`
+- [x] 9.5 Página `/[gymSlug]/admin/billing`: mostrar el estado de vencimiento siempre que haya `subscriptionNextPaymentDate` (no exento); seguir mostrando el botón/redirección de MP solo cuando `selfManagedBilling = false` (y no exento, no MP autorizado). Ambos bloques pueden coexistir
+- [x] 9.6 `npm run lint` y `npm run build` pasan; revisar multi-tenancy y exclusión de `kind = PERSONAL` en los nuevos `where`
