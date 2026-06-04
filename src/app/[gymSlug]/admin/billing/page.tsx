@@ -127,8 +127,8 @@ export default async function BillingPage({ params }: Props) {
         </div>
       )}
 
-      {/* Case 4: Self-managed billing — no MP flow */}
-      {!status.paymentExempt && !isAuthorized && status.selfManagedBilling && (
+      {/* Case 4: Due-date billing status — shown whenever subscriptionNextPaymentDate is set */}
+      {!status.paymentExempt && status.subscriptionNextPaymentDate !== null && (
         <div className="border border-line bg-panel p-6 flex flex-col gap-4">
           {/* Sub-state: active (daysLeft > 7) */}
           {selfManagedDaysLeft !== null && selfManagedDaysLeft > 7 && (
@@ -217,22 +217,8 @@ export default async function BillingPage({ params }: Props) {
             </div>
           )}
 
-          {/* Sub-state: no date configured */}
-          {selfManagedDaysLeft === null && (
-            <div className="flex items-center gap-3">
-              <CheckCircle
-                size={20}
-                className="text-gray-400 flex-shrink-0"
-                aria-hidden="true"
-              />
-              <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white">
-                Tu suscripción se gestiona de forma directa con el equipo de Wody.
-              </p>
-            </div>
-          )}
-
           <p className="text-xs text-gray-500 font-body">
-            Gestionás el pago directamente con el equipo de Wody (sin Mercado Pago).
+            Para consultas sobre tu suscripción, contactá al equipo de Wody.
           </p>
         </div>
       )}
