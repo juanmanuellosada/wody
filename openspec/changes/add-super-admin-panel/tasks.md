@@ -72,8 +72,8 @@
 
 ## 10. Deploy y verificación
 
-- [ ] 10.1 Mergear el PR a main
-- [ ] 10.2 Verificar build de Vercel exitoso
+- [x] 10.1 Mergear el PR a main — push directo de 3 commits temáticos (a9b8480, 5ba2543, ab08194)
+- [x] 10.2 Verificar build de Vercel exitoso
 - [x] 10.3 Correr `npx prisma migrate deploy` contra la DB de prod desde una shell separada con `DATABASE_URL` de prod (no usar `.env.local`)
 - [x] 10.4 Correr `npx tsx prisma/scripts/seed-superadmin.ts` contra prod para crear el super admin inicial — hecho vía INSERT SQL directo equivalente
 - [ ] 10.5 Smoke test en prod: login del super admin, navegar las tres secciones del panel, crear un gym de prueba, eliminarlo (soft delete), confirmar que aparece y desaparece de la landing
