@@ -4,7 +4,7 @@
 
 ## 1. Resumen
 
-Wody cobra a cada gym **$40.000 ARS/mes** y a cada usuario de Wody Personal **$7.000 ARS/mes** mediante suscripciones de Mercado Pago creadas por API (sin plan asociado). El período de prueba (30 días) es **propiedad exclusiva de la app**: `Gym.trialEndsAt` y `User.trialEndsAt` son la fuente de verdad del trial; Mercado Pago **no maneja ningún `free_trial` configurado en un plan**.
+Wody cobra a cada gym **$40.000 ARS/mes** y a cada usuario de Wody Personal **$7.000 ARS/mes** mediante suscripciones de Mercado Pago creadas por API (sin plan asociado). El período de prueba (15 días) es **propiedad exclusiva de la app**: `Gym.trialEndsAt` y `User.trialEndsAt` son la fuente de verdad del trial; Mercado Pago **no maneja ningún `free_trial` configurado en un plan**.
 
 Al vincular la tarjeta, la app calcula cuántos días restan del trial (`díasRestantes = ceil((trialEndsAt - now) / 1 día)`) y crea un `preapproval` sin plan con un `free_trial` dinámico en días. MP difiere el primer cobro hasta que venza ese free_trial — que coincide exactamente con el fin del trial de la app. Si el trial ya venció (`díasRestantes <= 0`), el cobro es inmediato (~1h).
 
@@ -27,7 +27,7 @@ Las suscripciones se crean mediante `POST /preapproval` **sin `preapproval_plan_
 
 ### Trial 100% en la app
 
-El período de prueba de 30 días está definido en `Gym.trialEndsAt` y `User.trialEndsAt`. Mercado Pago no gestiona ningún `free_trial` de plan. Al vincular la tarjeta, la app calcula `díasRestantes` y, si `>= 1`, incluye:
+El período de prueba de 15 días está definido en `Gym.trialEndsAt` y `User.trialEndsAt`. Mercado Pago no gestiona ningún `free_trial` de plan. Al vincular la tarjeta, la app calcula `díasRestantes` y, si `>= 1`, incluye:
 
 ```json
 "auto_recurring": {

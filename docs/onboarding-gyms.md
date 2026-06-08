@@ -2,7 +2,7 @@
 
 ## 1. Resumen
 
-El funnel de alta de gyms permite que cualquier visitante de la landing solicite unirse a Wody sin intervención tuya, pero con revisión humana antes de que el dueño pueda configurar su gym. El flujo cubre todo: form público de contacto → bandeja de leads en el panel super-admin → aprobación → link de onboarding con expiración de 7 días → creación de gym y primer admin en una transacción. Al terminar, el gym arranca con un trial de 30 días; el dueño configura su tarjeta cuando quiera desde `/<slug>/admin/billing` (ver [billing-mercadopago.md](./billing-mercadopago.md)). El flujo manual de `/admin/gyms/new` sigue disponible para casos excepcionales donde el super-admin quiera crear el gym completo sin pasar por este funnel.
+El funnel de alta de gyms permite que cualquier visitante de la landing solicite unirse a Wody sin intervención tuya, pero con revisión humana antes de que el dueño pueda configurar su gym. El flujo cubre todo: form público de contacto → bandeja de leads en el panel super-admin → aprobación → link de onboarding con expiración de 7 días → creación de gym y primer admin en una transacción. Al terminar, el gym arranca con un trial de 15 días; el dueño configura su tarjeta cuando quiera desde `/<slug>/admin/billing` (ver [billing-mercadopago.md](./billing-mercadopago.md)). El flujo manual de `/admin/gyms/new` sigue disponible para casos excepcionales donde el super-admin quiera crear el gym completo sin pasar por este funnel.
 
 ---
 
@@ -24,7 +24,7 @@ Super-admin abre /admin/signup-requests → ve leads PENDING
 Dueño aprobado abre /onboarding/<token>
     └── Form: slug + password + kind + logo? + color?
         └── Submit → transacción Prisma:
-                ├── Gym.create (trialEndsAt = now + 30d)
+                ├── Gym.create (trialEndsAt = now + 15d)
                 ├── User.create (role ADMIN, memberNumber 1)
                 └── GymSignupRequest.update (COMPLETED)
             → auto-login → redirect /<slug>/admin
@@ -165,6 +165,6 @@ curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/cron/che
 
 ## 10. Punteros
 
-- [docs/billing-mercadopago.md](./billing-mercadopago.md) — modelo de cobro post-onboarding (trial de 30 días, configuración de tarjeta, cron de bloqueo)
+- [docs/billing-mercadopago.md](./billing-mercadopago.md) — modelo de cobro post-onboarding (trial de 15 días, configuración de tarjeta, cron de bloqueo)
 - [prisma/README.md](../prisma/README.md) — seguridad de seeds y procedimiento de reset local
 - [AGENTS.md](../AGENTS.md) — guía general del proyecto (stack, comandos, convenciones)

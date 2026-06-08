@@ -16,7 +16,7 @@ La server action es `subscribePersonal(cardTokenId, payerEmail)` en `src/actions
 
 ### Trial 100% en la app
 
-`User.trialEndsAt` se setea al crear el User Personal: `trialEndsAt = createdAt + 30d`. Mercado Pago no gestiona ningún `free_trial` de plan. Al vincular la tarjeta, la app calcula cuántos días restan del trial (`díasRestantes = ceil((trialEndsAt - now) / 1 día)`) e incluye un `free_trial` dinámico en días en el payload del preapproval si `díasRestantes >= 1`. Si el trial ya venció (`díasRestantes <= 0`), el cobro es inmediato (~1h). Ver el flujo completo en [billing-mercadopago.md §6](./billing-mercadopago.md).
+`User.trialEndsAt` se setea al crear el User Personal: `trialEndsAt = createdAt + 15d`. Mercado Pago no gestiona ningún `free_trial` de plan. Al vincular la tarjeta, la app calcula cuántos días restan del trial (`díasRestantes = ceil((trialEndsAt - now) / 1 día)`) e incluye un `free_trial` dinámico en días en el payload del preapproval si `díasRestantes >= 1`. Si el trial ya venció (`díasRestantes <= 0`), el cobro es inmediato (~1h). Ver el flujo completo en [billing-mercadopago.md §6](./billing-mercadopago.md).
 
 ### Exención manual
 

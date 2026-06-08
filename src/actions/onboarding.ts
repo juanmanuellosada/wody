@@ -138,7 +138,7 @@ export async function submitOnboarding(
           kind: input.kind,
           primaryColor: input.primaryColor ?? null,
           logo: logoUrl,
-          trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          trialEndsAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
           paymentExempt: false,
           autoBlockAfterDays: 45,
         },

@@ -27,7 +27,7 @@ export function PricingSection() {
             Todo lo que tu gym necesita, en un solo lugar
           </h2>
           <p className="text-sm text-gray-500 font-body text-center mb-12 max-w-md mx-auto">
-            Cobros, rutinas, accesos, comunicación: lo que tu gym hace todos los días, organizado y sin planillas. Probalo 30 días sin pagar.
+            Cobros, rutinas, accesos, comunicación: lo que tu gym hace todos los días, organizado y sin planillas. Probalo 15 días sin pagar.
           </p>
 
           <div className="max-w-sm mx-auto border border-white/[0.08] bg-white/[0.02] p-8 flex flex-col gap-6">
@@ -42,7 +42,7 @@ export function PricingSection() {
                 <span className="text-sm text-gray-500 font-body mb-1">ARS / mes</span>
               </div>
               <p className="text-xs text-emerald-400 font-heading font-bold uppercase tracking-[0.1em] mt-1">
-                30 días gratis · sin tarjeta · sin compromiso
+                15 días gratis · sin tarjeta · sin compromiso
               </p>
             </div>
 

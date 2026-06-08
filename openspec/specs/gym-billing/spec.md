@@ -1,16 +1,16 @@
 # gym-billing Specification
 
 ## Purpose
-Cobro mensual del SaaS Wody a cada gym mediante suscripciones de Mercado Pago ($40.000 ARS/mes). Incluye un trial de 30 días desde la creación del gym, dos planes en MP (uno para gyms nuevos con free_trial de 30 días, otro para re-suscripciones sin free_trial), exención manual a nivel gym controlada solo por el super-admin, sincronización de estado vía webhook firmado, bloqueo automático por cron diario (tanto por trial vencido sin suscripción como por pago fallido con grace period de 7 días), push notifications a los `ADMIN` en hitos del fin del trial, y email transaccional al dueño cuando MP no puede cobrar.
+Cobro mensual del SaaS Wody a cada gym mediante suscripciones de Mercado Pago ($40.000 ARS/mes). Incluye un trial de 15 días desde la creación del gym, dos planes en MP (uno para gyms nuevos con free_trial de 15 días, otro para re-suscripciones sin free_trial), exención manual a nivel gym controlada solo por el super-admin, sincronización de estado vía webhook firmado, bloqueo automático por cron diario (tanto por trial vencido sin suscripción como por pago fallido con grace period de 7 días), push notifications a los `ADMIN` en hitos del fin del trial, y email transaccional al dueño cuando MP no puede cobrar.
 ## Requirements
-### Requirement: Cada gym tiene un ciclo de trial de 30 días desde su creación
+### Requirement: Cada gym tiene un ciclo de trial de 15 días desde su creación
 
-El sistema SHALL asignar a todo `Gym` recién creado un campo `trialEndsAt` igual a `createdAt + 30 días`. Durante el trial, el gym opera con todas las funcionalidades habilitadas sin requerir suscripción activa en Mercado Pago.
+El sistema SHALL asignar a todo `Gym` recién creado un campo `trialEndsAt` igual a `createdAt + 15 días`. Durante el trial, el gym opera con todas las funcionalidades habilitadas sin requerir suscripción activa en Mercado Pago.
 
 #### Scenario: Trial nuevo en alta de gym
 
 - **WHEN** el super-admin crea un gym desde `/admin/gyms/new`
-- **THEN** el sistema persiste `trialEndsAt = createdAt + 30 días`, `paymentExempt = false`, `mpPreapprovalId = null`, `mpSubscriptionStatus = null`, `blockedAt = null`
+- **THEN** el sistema persiste `trialEndsAt = createdAt + 15 días`, `paymentExempt = false`, `mpPreapprovalId = null`, `mpSubscriptionStatus = null`, `blockedAt = null`
 
 #### Scenario: Gyms pre-existentes al deploy quedan exentos
 

@@ -117,6 +117,7 @@ export async function submitPersonalRegistration({
             memberNumber,
             emailVerifiedAt: null,
             nextPaymentDate: new Date("9999-12-31"),
+            trialEndsAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
             blockedAt: null,
             deletedAt: null,
           },

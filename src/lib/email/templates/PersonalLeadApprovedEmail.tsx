@@ -70,7 +70,7 @@ export function PersonalLeadApprovedEmail({
           </Text>
 
           <Text style={{ fontSize: "15px", color: "#3f3f46", lineHeight: "1.6", margin: "0 0 24px 0" }}>
-            Vas a tener <strong>30 días gratis</strong> para probar la app sin necesidad de tarjeta.
+            Vas a tener <strong>15 días gratis</strong> para probar la app sin necesidad de tarjeta.
           </Text>
 
           <Section style={{ textAlign: "center", margin: "0 0 24px 0" }}>

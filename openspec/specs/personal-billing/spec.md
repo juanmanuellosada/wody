@@ -1,16 +1,16 @@
 # personal-billing Specification
 
 ## Purpose
-Cobro mensual del producto Wody Personal (B2C) a los usuarios individuales mediante suscripción de Mercado Pago ($7.000 ARS/mes). Opera a nivel `User` (no `Gym`), con un trial de 30 días desde el registro del user, dos planes en MP (uno con free_trial 30 días para users nuevos, otro con 0 días para re-activación), exención manual a nivel user controlada por el super-admin, sincronización vía webhook firmado con discriminador por prefix (`external_reference = "user_<userId>"`), bloqueo automático por cron diario (trial vencido + pago fallido con grace period de 7 días), **self-cancellation** desde el perfil del user (UX B2C, distinto a gym), push notifications en hitos del trial, y email transaccional al user cuando MP no puede cobrar.
+Cobro mensual del producto Wody Personal (B2C) a los usuarios individuales mediante suscripción de Mercado Pago ($7.000 ARS/mes). Opera a nivel `User` (no `Gym`), con un trial de 15 días desde el registro del user, dos planes en MP (uno con free_trial 15 días para users nuevos, otro con 0 días para re-activación), exención manual a nivel user controlada por el super-admin, sincronización vía webhook firmado con discriminador por prefix (`external_reference = "user_<userId>"`), bloqueo automático por cron diario (trial vencido + pago fallido con grace period de 7 días), **self-cancellation** desde el perfil del user (UX B2C, distinto a gym), push notifications en hitos del trial, y email transaccional al user cuando MP no puede cobrar.
 ## Requirements
-### Requirement: Cada Personal user tiene un ciclo de trial de 30 días desde su creación
+### Requirement: Cada Personal user tiene un ciclo de trial de 15 días desde su creación
 
-El sistema SHALL asignar a todo `User` recién creado dentro del gym Personal (con `role = STUDENT` y `canCreateOwnRoutines = true`) un campo `trialEndsAt` igual a `createdAt + 30 días`. Durante el trial, el user opera con todas las funcionalidades habilitadas sin requerir suscripción activa en Mercado Pago.
+El sistema SHALL asignar a todo `User` recién creado dentro del gym Personal (con `role = STUDENT` y `canCreateOwnRoutines = true`) un campo `trialEndsAt` igual a `createdAt + 15 días`. Durante el trial, el user opera con todas las funcionalidades habilitadas sin requerir suscripción activa en Mercado Pago.
 
 #### Scenario: Trial nuevo en registro Personal
 
 - **WHEN** un visitante completa `/registro-personal` con un email whitelisteado y se crea su `User`
-- **THEN** el sistema persiste `trialEndsAt = createdAt + 30 días`, `paymentExempt = false`, `mpPreapprovalId = null`, `mpSubscriptionStatus = null`, `blockedAt = null`
+- **THEN** el sistema persiste `trialEndsAt = createdAt + 15 días`, `paymentExempt = false`, `mpPreapprovalId = null`, `mpSubscriptionStatus = null`, `blockedAt = null`
 
 #### Scenario: Personal users pre-existentes al deploy quedan exentos
 
