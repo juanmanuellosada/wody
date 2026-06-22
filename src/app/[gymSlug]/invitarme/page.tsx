@@ -75,6 +75,7 @@ export default async function InvitarmePage({ params }: Props) {
             width={80}
             height={22}
             className="w-16 h-auto mx-auto opacity-50"
+            unoptimized
             priority
           />
           <p className="text-xs text-gray-500 mt-4">
