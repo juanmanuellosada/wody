@@ -50,6 +50,7 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
             height={80}
             className="w-48 sm:w-72 h-auto mx-auto"
             priority
+            unoptimized
           />
         </div>
 
@@ -67,6 +68,7 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
               height={160}
               className="w-28 sm:w-40 h-auto mx-auto"
               priority
+              unoptimized
             />
           ) : (
             <h1 className="text-4xl sm:text-6xl font-heading font-black uppercase tracking-tight text-white">

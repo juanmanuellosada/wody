@@ -134,12 +134,12 @@ export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, t
           href={gymPath(gymSlug, "/dashboard/athlete")}
           className="flex items-center gap-2.5 group cursor-pointer"
         >
-          <Image src={wodyBlanco} alt="WODY" width={22} height={22} className="opacity-90 group-hover:opacity-100 transition-opacity duration-200" />
+          <Image src={wodyBlanco} alt="WODY" width={22} height={22} className="opacity-90 group-hover:opacity-100 transition-opacity duration-200" unoptimized />
           <span className="w-px h-5 bg-edge" aria-hidden="true" />
           {horizontalLogo ? (
-            <Image src={horizontalLogo.src} alt={horizontalLogo.alt} width={120} height={36} className="h-9 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
+            <Image src={horizontalLogo.src} alt={horizontalLogo.alt} width={120} height={36} className="h-9 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-200" unoptimized />
           ) : squareLogo ? (
-            <Image src={squareLogo} alt={gymName} width={36} height={36} className="h-9 w-9 object-contain opacity-80 group-hover:opacity-100 transition-opacity duration-200" />
+            <Image src={squareLogo} alt={gymName} width={36} height={36} className="h-9 w-9 object-contain opacity-80 group-hover:opacity-100 transition-opacity duration-200" unoptimized />
           ) : (
             <span className="text-xs font-heading font-bold uppercase tracking-[0.1em] text-gray-400 opacity-80 group-hover:opacity-100 transition-opacity duration-200">
               {gymName}

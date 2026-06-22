@@ -103,6 +103,7 @@ export default async function LandingPage() {
               height={100}
               className="w-56 sm:w-80 lg:w-96 h-auto mx-auto"
               priority
+              unoptimized
             />
           </div>
 

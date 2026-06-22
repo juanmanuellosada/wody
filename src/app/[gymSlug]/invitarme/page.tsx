@@ -51,6 +51,7 @@ export default async function InvitarmePage({ params }: Props) {
               height={140}
               className="w-28 h-auto mx-auto mb-4"
               priority
+              unoptimized
             />
           ) : gym.logo ? (
             <Image
