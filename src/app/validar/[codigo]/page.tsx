@@ -41,6 +41,7 @@ export default async function ValidarPage({ params }: PageProps) {
           height={26}
           className="w-24 h-auto opacity-60 hover:opacity-100 transition-opacity"
           priority
+          unoptimized
         />
       </Link>
 
@@ -145,6 +146,7 @@ function ResultCard({
                 width={80}
                 height={80}
                 className="w-full h-full object-contain p-1"
+                unoptimized
               />
             ) : (
               <span className="text-2xl font-heading font-black uppercase text-brand-red">

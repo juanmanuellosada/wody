@@ -25,6 +25,7 @@ function MerchantAvatar({ name, logoKey }: { name: string; logoKey: string | nul
           width={64}
           height={64}
           className="w-full h-full object-contain p-1"
+          unoptimized
         />
       ) : (
         <span className="text-xl font-heading font-black uppercase text-brand-red">

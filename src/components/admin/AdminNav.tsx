@@ -45,6 +45,7 @@ export function AdminNav({ userName, onSignOut }: AdminNavProps) {
             width={22}
             height={22}
             className="opacity-90 group-hover:opacity-100 transition-opacity duration-200"
+            unoptimized
           />
           <span className="w-px h-5 bg-edge" aria-hidden="true" />
           <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-brand-red">

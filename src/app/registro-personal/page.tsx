@@ -29,6 +29,7 @@ export default function RegistroPersonalPage() {
             height={22}
             className="w-16 h-auto mx-auto opacity-50"
             priority
+            unoptimized
           />
           <p className="text-xs text-gray-500 mt-4">
             Pedí acceso a Wody Personal: si tu email está autorizado, te llegará un mail de confirmación.

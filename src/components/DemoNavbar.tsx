@@ -60,7 +60,7 @@ export function DemoNavbar() {
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
         <Link href="/demo" className="flex items-center gap-2.5 group cursor-pointer">
-          <Image src={wodyBlanco} alt="WODY" width={22} height={22} className="opacity-90 group-hover:opacity-100 transition-opacity duration-200" />
+          <Image src={wodyBlanco} alt="WODY" width={22} height={22} className="opacity-90 group-hover:opacity-100 transition-opacity duration-200" unoptimized />
           <span className="w-px h-5 bg-edge" aria-hidden="true" />
           <span className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400 group-hover:text-white transition-colors duration-200">
             Demo
