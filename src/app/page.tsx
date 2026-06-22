@@ -289,6 +289,7 @@ export default async function LandingPage() {
                       alt={gym.name}
                       width={80}
                       height={80}
+                      unoptimized
                       className="w-20 h-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300"
                     />
                   ) : (
