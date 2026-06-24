@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, signIn } from "@/lib/auth";
+import { auth, signIn, signOut } from "@/lib/auth";
 import { gymPath } from "@/lib/gym";
 
 // Switches the active gym session for a STUDENT who has accounts in multiple gyms.
@@ -28,7 +28,10 @@ export async function POST(req: NextRequest) {
   const email = session.user.email;
 
   if (!session.user.isEmailVerified) {
-    // Unverified email: fall back to login with email prefilled.
+    // Unverified email: sign out first so the cross-gym proxy guard doesn't
+    // bounce the user back to the current gym. Without an active session the
+    // proxy lets the browser reach the target gym's login page normally.
+    await signOut({ redirect: false });
     const loginUrl = gymPath(targetSlug, `/login?email=${encodeURIComponent(email)}`);
     return NextResponse.redirect(new URL(loginUrl, req.url));
   }
