@@ -57,7 +57,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const secret = process.env.AUTH_SECRET;
           if (!secret) return null;
 
-          const token = await getToken({ req: request, secret }).catch(() => null);
+          const isSecure = request.url.startsWith("https:");
+          const token = await getToken({ req: request, secret, secureCookie: isSecure }).catch(() => null);
 
           // Must have an active session with emailVerifiedAt (carried in the token as emailVerifiedAt).
           // The emailVerifiedAt flag is added to the token by the jwt callback below when it's a switch.

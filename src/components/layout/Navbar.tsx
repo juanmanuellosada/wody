@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { GymKind, Role } from "@prisma/client";
 import { gymPath, hasAccessControl, isPersonalGym } from "@/lib/gym";
 import type { GymTerms } from "@/lib/gym-terms";
@@ -109,21 +109,14 @@ function getNavLinks(
   ];
 }
 
-export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, terms, canCreateOwnRoutines = false, pendingJoinRequestsCount = 0, gymSwitcherList = [], emailVerified = false }: NavbarProps) {
+export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, terms, canCreateOwnRoutines = false, pendingJoinRequestsCount = 0, gymSwitcherList = [] }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
   const links = getNavLinks(role, gymSlug, gymKind, terms, canCreateOwnRoutines, pendingJoinRequestsCount);
 
   async function handleGymSwitch(targetSlug: string) {
     if (targetSlug === gymSlug || switching) return;
-
-    if (!emailVerified) {
-      // Unverified: go to login with email prefilled (server will handle the redirect).
-      router.push(gymPath(targetSlug, "/login"));
-      return;
-    }
 
     setSwitching(true);
     try {
@@ -134,15 +127,18 @@ export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, t
         body: formData,
         redirect: "follow",
       });
-      // After the switch the server redirects to the target gym dashboard.
-      // Follow the final URL.
+      // For verified users: server switches the session and redirects to the
+      // target gym dashboard. For unverified users: server signs out first
+      // (clears the session cookie so the proxy guard doesn't bounce) then
+      // redirects to the target gym's login page with ?email= prefilled.
+      // In both cases, follow the final URL.
       if (res.ok || res.redirected) {
         window.location.href = res.url || gymPath(targetSlug, "/dashboard/athlete");
       } else {
-        router.push(gymPath(targetSlug, "/login"));
+        window.location.href = gymPath(targetSlug, "/login");
       }
     } catch {
-      router.push(gymPath(targetSlug, "/login"));
+      window.location.href = gymPath(targetSlug, "/login");
     } finally {
       setSwitching(false);
     }
