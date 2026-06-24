@@ -1,6 +1,7 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
+import { getToken } from "@auth/core/jwt";
 import { prisma } from "@/lib/prisma";
 import type { Role, StudentType, GymKind } from "@prisma/client";
 import { getBlockStatus } from "@/lib/blocking";
@@ -40,8 +41,58 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
         gymSlug: { label: "Gym Slug", type: "text" },
+        __switchMode: { label: "Switch Mode", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
+        // ── Switch-gym branch ──────────────────────────────────────────────
+        // Triggered by the /api/auth/switch-gym route handler.
+        // No password check: security is enforced by verifying the current
+        // session cookie (same email, emailVerifiedAt present).
+        if (credentials?.__switchMode === "1") {
+          const targetSlug = typeof credentials.gymSlug === "string" ? credentials.gymSlug.trim() : null;
+          if (!targetSlug) return null;
+
+          // Decode the current session from the cookie in this very request.
+          // getToken uses AUTH_SECRET and defaults salt to the cookie name.
+          const secret = process.env.AUTH_SECRET;
+          if (!secret) return null;
+
+          const token = await getToken({ req: request, secret }).catch(() => null);
+
+          // Must have an active session with emailVerifiedAt (carried in the token as emailVerifiedAt).
+          // The emailVerifiedAt flag is added to the token by the jwt callback below when it's a switch.
+          // For standard logins we also store it. Check both the flag and the email match.
+          const tokenEmail = typeof token?.email === "string" ? token.email : null;
+          const tokenEmailVerified = Boolean(token?.isEmailVerified);
+          if (!token || !tokenEmail || !tokenEmailVerified) return null;
+
+          // Resolve the destination user.
+          const destUser = await prisma.user.findFirst({
+            where: {
+              email: tokenEmail,
+              deletedAt: null,
+              role: "STUDENT",
+              gym: { slug: targetSlug },
+            },
+            include: { gym: { select: { id: true, slug: true, kind: true } } },
+          });
+          if (!destUser || !destUser.gym) return null;
+
+          return {
+            id: destUser.id,
+            email: destUser.email,
+            name: destUser.name,
+            role: destUser.role as Role,
+            studentType: destUser.studentType as StudentType,
+            canCreateOwnRoutines: destUser.canCreateOwnRoutines,
+            gymId: destUser.gym.id,
+            gymSlug: destUser.gym.slug,
+            gymKind: destUser.gym.kind as GymKind,
+            isEmailVerified: destUser.emailVerifiedAt !== null,
+          };
+        }
+        // ── End switch-gym branch ──────────────────────────────────────────
+
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
@@ -100,6 +151,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               gymId: null,
               gymSlug: null,
               gymKind: null,
+              isEmailVerified: user.emailVerifiedAt !== null,
             };
           }
 
@@ -145,6 +197,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             gymId: user.gym.id,
             gymSlug: user.gym.slug,
             gymKind: user.gym.kind as GymKind,
+            isEmailVerified: user.emailVerifiedAt !== null,
           };
         }
 
@@ -162,6 +215,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (token as Record<string, unknown>).gymId = user.gymId;
         (token as Record<string, unknown>).gymSlug = user.gymSlug;
         (token as Record<string, unknown>).gymKind = user.gymKind;
+        (token as Record<string, unknown>).isEmailVerified = user.isEmailVerified ?? false;
       }
       return token;
     },
@@ -176,6 +230,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.gymId = ((token as Record<string, unknown>).gymId as string | null) ?? null;
         session.user.gymSlug = ((token as Record<string, unknown>).gymSlug as string | null) ?? null;
         session.user.gymKind = ((token as Record<string, unknown>).gymKind as GymKind | null) ?? null;
+        session.user.isEmailVerified = Boolean((token as Record<string, unknown>).isEmailVerified);
       }
       return session;
     },

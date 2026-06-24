@@ -61,12 +61,13 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
     return <div style={accentVars}>{children}</div>;
   }
 
-  const { id: userId, name, role, canCreateOwnRoutines } = session.user;
+  const { id: userId, name, role, canCreateOwnRoutines, email: sessionEmail, isEmailVerified } = session.user;
 
   // One DB read covers both: the blocked check (every request) and the
   // student's next payment date used for the status banner.
   // For ADMIN, also fetch the pending join requests count in parallel.
-  const [dbUser, pendingJoinRequestsCount] = await Promise.all([
+  // For STUDENT, also fetch all gyms this email belongs to (for the gym switcher).
+  const [dbUser, pendingJoinRequestsCount, studentGyms] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -83,7 +84,19 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
     role === "ADMIN"
       ? prisma.joinRequest.count({ where: { gymId: gym.id, status: "PENDING" } })
       : Promise.resolve(0),
+    role === "STUDENT" && sessionEmail
+      ? prisma.user.findMany({
+          where: { email: sessionEmail, deletedAt: null, role: "STUDENT" },
+          select: { gym: { select: { slug: true, name: true, logo: true } } },
+        })
+      : Promise.resolve([]),
   ]);
+
+  // Flatten into a list of gym descriptors; only pass to Navbar if 2+.
+  const switcherGyms = studentGyms
+    .map((u) => u.gym)
+    .filter((g): g is NonNullable<typeof g> => g !== null);
+  const gymSwitcherList = switcherGyms.length >= 2 ? switcherGyms : [];
 
   if (dbUser) {
     if (dbUser.deletedAt !== null) {
@@ -184,6 +197,8 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         terms={gymTerms(gym.kind)}
         canCreateOwnRoutines={canCreateOwnRoutines}
         pendingJoinRequestsCount={pendingJoinRequestsCount}
+        gymSwitcherList={gymSwitcherList}
+        emailVerified={isEmailVerified}
       />
       {trialBanner}
       <main
