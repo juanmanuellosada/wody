@@ -87,7 +87,7 @@ export async function proxy(request: NextRequest) {
   // bounce to the session's own gym on the same subPath. Prevents the
   // "wrong gym data at wrong URL" bug where a Gym A admin typing /gymB/admin
   // would render Gym A's data under Gym B's URL.
-  if (isAuthenticated && sessionGymSlug && sessionGymSlug !== gymSlug) {
+  if (isAuthenticated && sessionGymSlug && sessionGymSlug !== gymSlug && subPath !== "/login") {
     return NextResponse.redirect(
       new URL(gymPath(sessionGymSlug, subPath), nextUrl)
     );
@@ -95,7 +95,7 @@ export async function proxy(request: NextRequest) {
 
   // Gym landing + login page: public (no auth required)
   if (subPath === "/login" || subPath === "/" || subPath === "") {
-    if (isAuthenticated) {
+    if (isAuthenticated && (!sessionGymSlug || sessionGymSlug === gymSlug)) {
       let destination: string;
       if (role === "ADMIN") {
         destination = gymPath(gymSlug, "/admin");
