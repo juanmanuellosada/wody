@@ -11,6 +11,8 @@ declare module "next-auth" {
       gymId: string | null;
       gymSlug: string | null;
       gymKind: GymKind | null;
+      /** Whether the user's email was verified at login time (used for gym-switch gate). */
+      isEmailVerified: boolean;
     } & DefaultSession["user"];
   }
 
@@ -21,6 +23,8 @@ declare module "next-auth" {
     gymId: string | null;
     gymSlug: string | null;
     gymKind: GymKind | null;
+    /** Whether the user's email was verified at login time (used for gym-switch gate). */
+    isEmailVerified?: boolean;
   }
 }
 
@@ -33,6 +37,8 @@ declare module "@auth/core/types" {
     gymId: string | null;
     gymSlug: string | null;
     gymKind: GymKind | null;
+    /** Whether the user's email was verified at login time (used for gym-switch gate). */
+    isEmailVerified?: boolean;
   }
 }
 
