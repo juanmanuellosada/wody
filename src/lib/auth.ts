@@ -60,12 +60,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const isSecure = request.url.startsWith("https:");
           const token = await getToken({ req: request, secret, secureCookie: isSecure }).catch(() => null);
 
-          // Must have an active session with emailVerifiedAt (carried in the token as emailVerifiedAt).
-          // The emailVerifiedAt flag is added to the token by the jwt callback below when it's a switch.
-          // For standard logins we also store it. Check both the flag and the email match.
+          // Must have an active session with a valid email to identify the user.
           const tokenEmail = typeof token?.email === "string" ? token.email : null;
-          const tokenEmailVerified = Boolean(token?.isEmailVerified);
-          if (!token || !tokenEmail || !tokenEmailVerified) return null;
+          if (!token || !tokenEmail) return null;
 
           // Resolve the destination user.
           const destUser = await prisma.user.findFirst({
