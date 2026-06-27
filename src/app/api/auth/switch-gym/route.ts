@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, signIn, signOut } from "@/lib/auth";
+import { auth, signIn } from "@/lib/auth";
 import { gymPath } from "@/lib/gym";
 import { prisma } from "@/lib/prisma";
 
@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 // Must be called via POST (the Navbar GymSwitcher does a form POST).
 //
 // Security model:
-// 1. This route verifies the current session is a STUDENT with emailVerifiedAt.
+// 1. This route verifies the current session is a STUDENT with a valid email.
 // 2. The actual token mint happens inside `authorize` in src/lib/auth.ts (switch branch),
 //    which re-verifies the session from the cookie — so a direct POST to the
 //    NextAuth callback without a valid session cannot forge a token.
@@ -27,15 +27,6 @@ export async function POST(req: NextRequest) {
   }
 
   const email = session.user.email;
-
-  if (!session.user.isEmailVerified) {
-    // Unverified email: sign out first so the cross-gym proxy guard doesn't
-    // bounce the user back to the current gym. Without an active session the
-    // proxy lets the browser reach the target gym's login page normally.
-    await signOut({ redirect: false });
-    const loginUrl = gymPath(targetSlug, `/login?email=${encodeURIComponent(email)}`);
-    return NextResponse.redirect(new URL(loginUrl, req.url));
-  }
 
   // Already at this gym — redirect to dashboard (no-op).
   if (session.user.gymSlug === targetSlug) {
