@@ -2,9 +2,37 @@ import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { getToken } from "@auth/core/jwt";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { Role, StudentType, GymKind } from "@prisma/client";
 import { getBlockStatus } from "@/lib/blocking";
+import { sendSelfBillingDuePush } from "@/lib/push";
+import { getTodayArgentina } from "@/lib/dates";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// ADMIN de un gym con cuota por vencer (<=7 días) o vencida: dispara la push
+// de recordatorio de facturación. No bloqueante, a prueba de errores.
+async function notifyBillingDueIfNeeded(gymId: string) {
+  try {
+    const gym = await prisma.gym.findUnique({
+      where: { id: gymId },
+      select: { kind: true, paymentExempt: true, subscriptionNextPaymentDate: true },
+    });
+    if (!gym || gym.paymentExempt || gym.kind === "PERSONAL" || !gym.subscriptionNextPaymentDate) {
+      return;
+    }
+
+    const daysLeft = Math.round(
+      (gym.subscriptionNextPaymentDate.getTime() - getTodayArgentina().getTime()) / DAY_MS
+    );
+    if (daysLeft <= 7) {
+      await sendSelfBillingDuePush(gymId, daysLeft);
+    }
+  } catch (err) {
+    console.error("[auth] Failed to send billing due push on signIn", err);
+  }
+}
 
 // Apply type augmentations
 import "@/types/index";
@@ -231,6 +259,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.isEmailVerified = Boolean((token as Record<string, unknown>).isEmailVerified);
       }
       return session;
+    },
+  },
+  events: {
+    async signIn({ user }) {
+      if (user.role === "ADMIN" && user.gymId) {
+        after(() => notifyBillingDueIfNeeded(user.gymId as string));
+      }
     },
   },
 });
