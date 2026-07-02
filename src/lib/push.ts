@@ -136,7 +136,14 @@ export async function sendPersonalTrialEndingPush(
 }
 
 function selfBillingMessage(daysLeft: number): { title: string; body: string } {
-  if (daysLeft <= 0) {
+  if (daysLeft < 0) {
+    const overdueDays = -daysLeft;
+    return {
+      title: "Cuota de Wody vencida",
+      body: `Tu cuota está vencida hace ${overdueDays} ${overdueDays === 1 ? "día" : "días"}. Comunicate con el equipo de Wody para renovar el acceso de tu gym.`,
+    };
+  }
+  if (daysLeft === 0) {
     return {
       title: "Cuota de Wody vence hoy",
       body: "Comunicate con el equipo de Wody para renovar el acceso de tu gym.",
