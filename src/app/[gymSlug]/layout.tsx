@@ -10,11 +10,13 @@ import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 import { TrialEndingBanner } from "@/components/billing/TrialEndingBanner";
 import { PersonalTrialEndingBanner } from "@/components/billing/PersonalTrialEndingBanner";
 import { GymBillingBanner } from "@/components/billing/GymBillingBanner";
+import { GymBillingOverdueModal } from "@/components/GymBillingOverdueModal";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
 import { gymPath, hasTeacherWhatsAppContact, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import { getBlockStatus } from "@/lib/blocking";
 import { sendDueReminderIfNeeded } from "@/lib/push";
+import { getTodayArgentina } from "@/lib/dates";
 
 interface GymLayoutProps {
   children: React.ReactNode;
@@ -154,16 +156,29 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
 
   // Due-date billing banner: for ADMIN of gyms with a subscriptionNextPaymentDate loaded.
   // Independent of selfManagedBilling — governed by the date itself.
+  // Same exclusions as notifyBillingDueIfNeeded (src/lib/auth.ts): not exempt, not PERSONAL, has date.
+  let overdueModal: React.ReactNode = null;
   if (
     role === "ADMIN" &&
     !personalGym &&
     !gym.paymentExempt &&
-    gym.subscriptionNextPaymentDate !== null &&
-    trialBanner === null
+    gym.subscriptionNextPaymentDate !== null
   ) {
-    trialBanner = (
-      <GymBillingBanner subscriptionNextPaymentDate={gym.subscriptionNextPaymentDate} />
+    if (trialBanner === null) {
+      trialBanner = (
+        <GymBillingBanner subscriptionNextPaymentDate={gym.subscriptionNextPaymentDate} />
+      );
+    }
+
+    const daysLeft = Math.round(
+      (gym.subscriptionNextPaymentDate.getTime() - getTodayArgentina().getTime()) /
+        (24 * 60 * 60 * 1000)
     );
+    if (daysLeft < 0) {
+      overdueModal = (
+        <GymBillingOverdueModal gymId={gym.id} gymSlug={gymSlug} daysOverdue={-daysLeft} />
+      );
+    }
   }
 
   // Personal trial ending banner: for STUDENT + canCreateOwnRoutines in the personal gym.
@@ -201,6 +216,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         emailVerified={isEmailVerified}
       />
       {trialBanner}
+      {overdueModal}
       <main
         className={[
           "flex-1 max-w-6xl mx-auto w-full px-4 py-8 sm:py-10",
