@@ -1,16 +1,20 @@
 /**
- * Panel de estadísticas de recaudación — Server Component.
+ * Panel de recaudación — Server Component.
  * Calcula métricas y evolución mensual en el servidor y pasa datos serializados
- * a los Client Components (gráfico, filtros, historial).
+ * a los Client Components (filtros, gráfico, historial).
+ *
+ * Solo se debe renderizar cuando el usuario tiene permiso para ver la
+ * recaudación (role ADMIN + canViewRevenue): el caller es responsable de
+ * ese gate, así los datos ni se calculan ni se envían al cliente si no aplica.
  */
 
+import type { GymKind } from "@prisma/client";
 import { getPaymentStats, getMonthlyEvolution, getPaymentHistory } from "@/lib/payment-stats";
 import { PaymentEvolutionChart } from "@/components/PaymentEvolutionChart";
 import { PaymentFilters } from "@/components/PaymentFilters";
 import { PaymentHistorySection } from "@/components/PaymentHistorySection";
-import { RegisterPaymentButton } from "@/components/RegisterPaymentSection";
 import type { PaymentStatsFilters, PaymentMethod } from "@/lib/payment-stats";
-import type { PaymentStudent } from "@/components/RegisterPaymentDialog";
+import type { StudentType } from "@prisma/client";
 
 interface Teacher {
   id: string;
@@ -20,14 +24,14 @@ interface Teacher {
 interface Props {
   filters: PaymentStatsFilters;
   teachers: Teacher[];
-  isAdmin: boolean;
-  paymentStudents: PaymentStudent[];
+  gymKind: GymKind | null | undefined;
   /** Parsed filter values to pass down to PaymentFilters for current state display */
   activeFilters: {
     from: string;
     to: string;
     teacherIds: string[];
     methodIds: PaymentMethod[];
+    studentType: StudentType | "";
   };
 }
 
@@ -53,13 +57,7 @@ function ChangeIndicator({ change }: { change: number | null }) {
   );
 }
 
-export async function PaymentStatsPanel({
-  filters,
-  teachers,
-  isAdmin,
-  paymentStudents,
-  activeFilters,
-}: Props) {
+export async function RevenuePanel({ filters, teachers, gymKind, activeFilters }: Props) {
   const [stats, evolution, history] = await Promise.all([
     getPaymentStats(filters),
     getMonthlyEvolution(filters),
@@ -70,17 +68,12 @@ export async function PaymentStatsPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Top bar: filters + register button */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <PaymentFilters
-          teachers={teachers}
-          isAdmin={isAdmin}
-          current={activeFilters}
-        />
-        {paymentStudents.length > 0 && (
-          <RegisterPaymentButton students={paymentStudents} size="lg" />
-        )}
-      </div>
+      <PaymentFilters
+        teachers={teachers}
+        isAdmin
+        gymKind={gymKind}
+        current={activeFilters}
+      />
 
       {/* Metric cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -126,7 +119,7 @@ export async function PaymentStatsPanel({
       </div>
 
       {/* Payment history (with edit/delete for ADMIN) */}
-      <PaymentHistorySection payments={history} isAdmin={isAdmin} />
+      <PaymentHistorySection payments={history} isAdmin />
     </div>
   );
 }

@@ -995,6 +995,59 @@ export async function setCanCreateOwnRoutines(
   return { success: true };
 }
 
+/** Habilita/deshabilita canViewRevenue sobre otro ADMIN del mismo gym. */
+export async function setCanViewRevenue(
+  targetUserId: string,
+  next: boolean
+): Promise<UserResult> {
+  const session = await auth();
+
+  if (!session?.user || session.user.role !== "ADMIN" || !session.user.canViewRevenue) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  if (!session.user.gymId || !session.user.gymSlug) {
+    return { success: false, error: "No autorizado." };
+  }
+
+  const gymId = session.user.gymId;
+  const gymSlug = session.user.gymSlug;
+
+  const target = await prisma.user.findFirst({
+    where: { id: targetUserId, deletedAt: null },
+    select: { id: true, gymId: true, role: true, canViewRevenue: true },
+  });
+
+  if (!target || target.gymId !== gymId) {
+    return { success: false, error: "Usuario no encontrado." };
+  }
+
+  if (target.role !== "ADMIN") {
+    return { success: false, error: "Solo se puede asignar este permiso a administradores." };
+  }
+
+  if (!next && target.canViewRevenue) {
+    const designatedCount = await prisma.user.count({
+      where: { gymId, role: "ADMIN", deletedAt: null, canViewRevenue: true },
+    });
+    if (designatedCount <= 1) {
+      return {
+        success: false,
+        error: "No podés quitarle el permiso: es el único admin que ve la recaudación en este gym.",
+      };
+    }
+  }
+
+  await prisma.user.update({
+    where: { id: target.id },
+    data: { canViewRevenue: next },
+  });
+
+  revalidatePath(gymPath(gymSlug, "/admin"));
+  revalidatePath(gymPath(gymSlug, "/caja"));
+  return { success: true };
+}
+
 export async function setStudentPaymentExempt(
   studentId: string,
   exempt: boolean,

@@ -17,6 +17,7 @@ export interface PaymentRecord {
 }
 
 import { prisma } from "@/lib/prisma";
+import type { StudentType } from "@prisma/client";
 
 export interface PaymentStatsFilters {
   gymId: string;
@@ -32,6 +33,8 @@ export interface PaymentStatsFilters {
   teacherIds?: string[];
   /** Filtrar por uno o varios métodos de pago. Filas con paymentMethod null no matchean. */
   methodIds?: PaymentMethod[];
+  /** Filtrar por tipo de alumno. */
+  studentType?: StudentType;
 }
 
 export interface PeriodStats {
@@ -100,7 +103,8 @@ function buildWhereClause(
   from: Date,
   to: Date,
   studentIds: string[] | undefined,
-  methodIds?: PaymentMethod[]
+  methodIds?: PaymentMethod[],
+  studentType?: StudentType
 ) {
   return {
     gymId,
@@ -109,6 +113,7 @@ function buildWhereClause(
     ...(methodIds && methodIds.length > 0
       ? { paymentMethod: { in: methodIds } }
       : {}),
+    ...(studentType ? { student: { studentType } } : {}),
   };
 }
 
@@ -117,14 +122,15 @@ async function computePeriodStats(
   from: Date,
   to: Date,
   studentIds: string[] | undefined,
-  methodIds?: PaymentMethod[]
+  methodIds?: PaymentMethod[],
+  studentType?: StudentType
 ): Promise<PeriodStats> {
   // If scope is empty array, return zeros immediately
   if (studentIds !== undefined && studentIds.length === 0) {
     return { total: 0, count: 0 };
   }
 
-  const where = buildWhereClause(gymId, from, to, studentIds, methodIds);
+  const where = buildWhereClause(gymId, from, to, studentIds, methodIds, studentType);
   const agg = await prisma.payment.aggregate({
     where,
     _sum: { amount: true },
@@ -162,8 +168,8 @@ export async function getPaymentStats(
   const prev = previousPeriod(filters.from, filters.to);
 
   const [current, previous] = await Promise.all([
-    computePeriodStats(filters.gymId, filters.from, filters.to, studentIds, filters.methodIds),
-    computePeriodStats(filters.gymId, prev.from, prev.to, studentIds, filters.methodIds),
+    computePeriodStats(filters.gymId, filters.from, filters.to, studentIds, filters.methodIds, filters.studentType),
+    computePeriodStats(filters.gymId, prev.from, prev.to, studentIds, filters.methodIds, filters.studentType),
   ]);
 
   return {
@@ -195,7 +201,7 @@ export async function getMonthlyEvolution(
   // Use findMany + group in app layer to avoid complex raw SQL branching with method filter.
   // This is acceptable: the result set is bounded by period + gym scope.
   const payments = await prisma.payment.findMany({
-    where: buildWhereClause(filters.gymId, filters.from, filters.to, studentIds, filters.methodIds),
+    where: buildWhereClause(filters.gymId, filters.from, filters.to, studentIds, filters.methodIds, filters.studentType),
     select: { paidAt: true, amount: true },
     orderBy: { paidAt: "asc" },
   });
@@ -228,7 +234,7 @@ export async function getPaymentHistory(
   }
 
   const payments = await prisma.payment.findMany({
-    where: buildWhereClause(filters.gymId, filters.from, filters.to, studentIds, filters.methodIds),
+    where: buildWhereClause(filters.gymId, filters.from, filters.to, studentIds, filters.methodIds, filters.studentType),
     orderBy: { paidAt: "desc" },
     select: {
       id: true,

@@ -4,6 +4,8 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTransition, useState, useRef, useEffect } from "react";
 import { DatePicker } from "@/components/ui/DatePicker";
 import type { PaymentMethod } from "@/lib/payment-stats";
+import type { GymKind, StudentType } from "@prisma/client";
+import { STUDENT_TYPE_LABELS, studentTypeOptions } from "@/lib/student-type";
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   EFECTIVO: "Efectivo",
@@ -27,12 +29,14 @@ interface Teacher {
 interface Props {
   teachers: Teacher[];
   isAdmin: boolean;
+  gymKind: GymKind | null | undefined;
   /** Currently active filter values (parsed from searchParams server-side) */
   current: {
     from: string;  // YYYY-MM-DD
     to: string;    // YYYY-MM-DD
     teacherIds: string[];
     methodIds: PaymentMethod[];
+    studentType: StudentType | "";
   };
 }
 
@@ -204,7 +208,7 @@ function MultiSelectDropdown<T extends string>({
   );
 }
 
-export function PaymentFilters({ teachers, isAdmin, current }: Props) {
+export function PaymentFilters({ teachers, isAdmin, gymKind, current }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -273,6 +277,10 @@ export function PaymentFilters({ teachers, isAdmin, current }: Props) {
     navigate({ statsMethods: [] });
   }
 
+  function handleStudentTypeChange(value: string) {
+    navigate({ statsStudentType: value });
+  }
+
   return (
     <div className="flex flex-wrap gap-3 items-end">
       {/* Date range: Desde */}
@@ -316,6 +324,25 @@ export function PaymentFilters({ teachers, isAdmin, current }: Props) {
         onClear={handleClearMethods}
         triggerWidth="w-[180px]"
       />
+
+      {/* Student type select */}
+      <div className="w-[180px]">
+        <label className="block text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400 mb-1.5">
+          Tipo de alumno
+        </label>
+        <select
+          value={current.studentType}
+          onChange={(e) => handleStudentTypeChange(e.target.value)}
+          className="w-full bg-elev border border-edge text-white text-sm font-heading font-bold uppercase tracking-[0.08em] px-4 py-3 min-h-[44px] focus:outline-none focus:border-brand-red transition-colors duration-200 cursor-pointer"
+        >
+          <option value="">Todos los tipos</option>
+          {studentTypeOptions(gymKind).map((opt) => (
+            <option key={opt} value={opt}>
+              {STUDENT_TYPE_LABELS[opt]}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

@@ -8,6 +8,8 @@ declare module "next-auth" {
       role: Role;
       studentType: StudentType;
       canCreateOwnRoutines: boolean;
+      /** Permite ver la recaudación y el historial de pagos en /caja. Solo semánticamente válido para ADMIN. */
+      canViewRevenue: boolean;
       gymId: string | null;
       gymSlug: string | null;
       gymKind: GymKind | null;
@@ -20,6 +22,7 @@ declare module "next-auth" {
     role: Role;
     studentType: StudentType;
     canCreateOwnRoutines: boolean;
+    canViewRevenue: boolean;
     gymId: string | null;
     gymSlug: string | null;
     gymKind: GymKind | null;
@@ -34,6 +37,7 @@ declare module "@auth/core/types" {
     role: Role;
     studentType: StudentType;
     canCreateOwnRoutines: boolean;
+    canViewRevenue: boolean;
     gymId: string | null;
     gymSlug: string | null;
     gymKind: GymKind | null;

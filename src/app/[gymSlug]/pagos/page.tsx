@@ -3,15 +3,13 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath, isPersonalGym } from "@/lib/gym";
-import { formatDateArg, getTodayArgentina, addOneMonth, toInputDate } from "@/lib/dates";
+import { formatDateArg, getTodayArgentina } from "@/lib/dates";
 import { Card } from "@/components/ui/Card";
 import { EditStudentButton } from "@/components/EditStudentButton";
 import { BlockUserButton } from "@/components/BlockUserButton";
+import { StudentTypeSelect } from "@/components/StudentTypeSelect";
 import { getBlockStatus } from "@/lib/blocking";
-import { RegisterPaymentRowButton } from "@/components/RegisterPaymentSection";
-import { PaymentStatsPanel } from "@/components/PaymentStatsPanel";
-import type { PaymentStudent } from "@/components/RegisterPaymentDialog";
-import type { PaymentStatsFilters, PaymentMethod } from "@/lib/payment-stats";
+import type { StudentType } from "@prisma/client";
 
 type StatusFilter = "all" | "overdue" | "due-soon" | "ok" | "exempt";
 
@@ -19,10 +17,7 @@ interface Props {
   params: Promise<{ gymSlug: string }>;
   searchParams: Promise<{
     status?: string;
-    statsFrom?: string;
-    statsTo?: string;
-    statsTeacherIds?: string;
-    statsMethods?: string;
+    type?: string;
   }>;
 }
 
@@ -33,51 +28,10 @@ function parseFilter(value: string | undefined): StatusFilter {
   return "all";
 }
 
-const VALID_METHODS: PaymentMethod[] = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADO_PAGO"];
+const VALID_STUDENT_TYPES: StudentType[] = ["GENERAL", "PERSONALIZED", "MUSCULACION_LIBRE"];
 
-/** Parses stats filter params (always range mode). Defaults to current full month. */
-function parseStatsFilters(sp: {
-  statsFrom?: string;
-  statsTo?: string;
-  statsTeacherIds?: string;
-  statsMethods?: string;
-}): {
-  from: Date;
-  to: Date;
-  fromStr: string;
-  toStr: string;
-  teacherIds: string[];
-  methodIds: PaymentMethod[];
-} {
-  const today = getTodayArgentina();
-  const firstOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-  const lastDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)).getUTCDate();
-  const lastOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), lastDay));
-
-  const defaultFromStr = toInputDate(firstOfMonth);
-  const defaultToStr = toInputDate(lastOfMonth);
-
-  const fromStr =
-    /^\d{4}-\d{2}-\d{2}$/.test(sp.statsFrom ?? "") ? sp.statsFrom! : defaultFromStr;
-  const toStr =
-    /^\d{4}-\d{2}-\d{2}$/.test(sp.statsTo ?? "") ? sp.statsTo! : defaultToStr;
-
-  const from = new Date(`${fromStr}T00:00:00.000Z`);
-  const to = new Date(`${toStr}T23:59:59.999Z`);
-
-  // statsTeacherIds is a comma-separated string (e.g. "id1,id2,id3") or absent
-  const teacherIds: string[] = sp.statsTeacherIds
-    ? sp.statsTeacherIds.split(",").filter(Boolean)
-    : [];
-
-  // statsMethods is a comma-separated string of PaymentMethod values
-  const methodIds: PaymentMethod[] = sp.statsMethods
-    ? (sp.statsMethods.split(",").filter((m): m is PaymentMethod =>
-        VALID_METHODS.includes(m as PaymentMethod)
-      ))
-    : [];
-
-  return { from, to, fromStr, toStr, teacherIds, methodIds };
+function parseTypeFilter(value: string | undefined): StudentType | "" {
+  return VALID_STUDENT_TYPES.includes(value as StudentType) ? (value as StudentType) : "";
 }
 
 type PaymentRow = {
@@ -131,15 +85,9 @@ function statusClasses(s: Status): string {
 
 export default async function PaymentsPage({ params, searchParams }: Props) {
   const { gymSlug } = await params;
-  const {
-    status: statusParam,
-    statsFrom,
-    statsTo,
-    statsTeacherIds,
-    statsMethods,
-  } = await searchParams;
+  const { status: statusParam, type: typeParam } = await searchParams;
   const activeFilter = parseFilter(statusParam);
-  const statsParsed = parseStatsFilters({ statsFrom, statsTo, statsTeacherIds, statsMethods });
+  const activeType = parseTypeFilter(typeParam);
   const session = await auth();
 
   if (session?.user && session.user.gymKind && isPersonalGym(session.user.gymKind)) {
@@ -160,7 +108,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
   const gymId = session.user.gymId;
   const isAdmin = session.user.role === "ADMIN";
 
-  const [students, teacherLinks, teachers, gymConfig, lastPayments] = await Promise.all([
+  const [students, teacherLinks, teachers, gymConfig] = await Promise.all([
     isAdmin
       ? prisma.user.findMany({
           where: { gymId, role: "STUDENT", deletedAt: null },
@@ -210,12 +158,6 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
       where: { id: gymId },
       select: { autoBlockAfterDays: true, kind: true },
     }),
-    // Last payment per student (for pre-filling the popup amount)
-    prisma.payment.findMany({
-      where: { gymId },
-      orderBy: { paidAt: "desc" },
-      select: { studentId: true, amount: true, paidAt: true },
-    }),
   ]);
 
   const autoBlockAfterDays = gymConfig?.autoBlockAfterDays ?? 45;
@@ -256,24 +198,6 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
     assignedTeachers: teachersByStudentId.get(s.id) ?? [],
   }));
 
-  // Build last-amount map: first occurrence per studentId in the desc-ordered list
-  const lastAmountByStudentId = new Map<string, number>();
-  for (const p of lastPayments) {
-    if (!lastAmountByStudentId.has(p.studentId)) {
-      lastAmountByStudentId.set(p.studentId, Number(p.amount));
-    }
-  }
-
-  // PaymentStudent list scoped to visible students (already filtered by role above)
-  const paymentStudents: PaymentStudent[] = students.map((s) => ({
-    id: s.id,
-    name: s.name,
-    suggestedNextDate: toInputDate(addOneMonth(s.nextPaymentDate)),
-    lastAmount: lastAmountByStudentId.get(s.id) ?? null,
-    paymentExempt: s.paymentExempt,
-    paymentExemptReason: s.paymentExemptReason,
-  }));
-
   // Exentos se excluyen de los contadores de mora.
   const nonExemptRows = rows.filter((r) => !r.paymentExempt);
   const exemptCount = rows.length - nonExemptRows.length;
@@ -286,7 +210,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
   ).length;
   const okCount = nonExemptRows.length - overdueCount - dueSoonCount;
 
-  const visibleRows =
+  const statusFilteredRows =
     activeFilter === "all"
       ? rows
       : activeFilter === "exempt"
@@ -295,40 +219,21 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
           (r) => computeStatus(r.nextPaymentDate, today).kind === activeFilter
         );
 
+  const visibleRows = activeType
+    ? statusFilteredRows.filter((r) => r.studentType === activeType)
+    : statusFilteredRows;
+
   const basePath = gymPath(gymSlug, "/pagos");
-  const filterHref = (f: StatusFilter) =>
-    f === "all" ? basePath : `${basePath}?status=${f}`;
-
-  // Build stats filters object
-  const statsFilters: PaymentStatsFilters = {
-    gymId,
-    role: isAdmin ? "ADMIN" : "TEACHER",
-    userId: isAdmin ? undefined : session.user.id,
-    from: statsParsed.from,
-    to: statsParsed.to,
-    teacherIds: isAdmin && statsParsed.teacherIds.length > 0 ? statsParsed.teacherIds : undefined,
-    methodIds: statsParsed.methodIds.length > 0 ? statsParsed.methodIds : undefined,
+  const filterHref = (f: StatusFilter) => {
+    const qs = new URLSearchParams();
+    if (f !== "all") qs.set("status", f);
+    if (activeType) qs.set("type", activeType);
+    const s = qs.toString();
+    return s ? `${basePath}?${s}` : basePath;
   };
-
-  // Teacher list for stats filters (only ADMIN can filter by teacher)
-  const statsTeachers = isAdmin ? teachers : [];
 
   return (
     <div className="flex flex-col gap-10">
-      {/* Panel de estadísticas + botón Registrar pago */}
-      <PaymentStatsPanel
-        filters={statsFilters}
-        teachers={statsTeachers}
-        isAdmin={isAdmin}
-        paymentStudents={paymentStudents}
-        activeFilters={{
-          from: statsParsed.fromStr,
-          to: statsParsed.toStr,
-          teacherIds: statsParsed.teacherIds,
-          methodIds: statsParsed.methodIds,
-        }}
-      />
-
       {/* Header + tarjetas de estado */}
       <div className="border border-line bg-panel p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -340,70 +245,73 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
               Pagos
             </h1>
           </div>
-          <div className="flex flex-wrap gap-2 sm:gap-3">
-            {(
-              [
-                {
-                  key: "all",
-                  label: "Todos",
-                  value: rows.length,
-                  valueClass: "text-white",
-                  activeClass: "border-white/60 bg-white/5",
-                },
-                {
-                  key: "overdue",
-                  label: "Atrasados",
-                  value: overdueCount,
-                  valueClass: "text-brand-red",
-                  activeClass: "border-brand-red/60 bg-brand-red/10",
-                },
-                {
-                  key: "due-soon",
-                  label: "Por vencer",
-                  value: dueSoonCount,
-                  valueClass: "text-yellow-400",
-                  activeClass: "border-yellow-500/60 bg-yellow-500/10",
-                },
-                {
-                  key: "ok",
-                  label: "Al día",
-                  value: okCount,
-                  valueClass: "text-green-400",
-                  activeClass: "border-green-500/60 bg-green-500/10",
-                },
-                {
-                  key: "exempt",
-                  label: "Exentos",
-                  value: exemptCount,
-                  valueClass: "text-purple-400",
-                  activeClass: "border-purple-500/60 bg-purple-500/10",
-                },
-              ] as const
-            ).map((tile) => {
-              const isActive = activeFilter === tile.key;
-              return (
-                <Link
-                  key={tile.key}
-                  href={filterHref(tile.key)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={[
-                    "text-center px-4 py-2 border transition-colors duration-200",
-                    isActive
-                      ? tile.activeClass
-                      : "border-line hover:border-edge hover:bg-white/[0.02]",
-                  ].join(" ")}
-                >
-                  <p
-                    className={`text-2xl font-heading font-black tabular-nums ${tile.valueClass}`}
+          <div className="flex flex-wrap items-end gap-3">
+            <StudentTypeSelect gymKind={gymConfig?.kind} paramName="type" value={activeType} />
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              {(
+                [
+                  {
+                    key: "all",
+                    label: "Todos",
+                    value: rows.length,
+                    valueClass: "text-white",
+                    activeClass: "border-white/60 bg-white/5",
+                  },
+                  {
+                    key: "overdue",
+                    label: "Atrasados",
+                    value: overdueCount,
+                    valueClass: "text-brand-red",
+                    activeClass: "border-brand-red/60 bg-brand-red/10",
+                  },
+                  {
+                    key: "due-soon",
+                    label: "Por vencer",
+                    value: dueSoonCount,
+                    valueClass: "text-yellow-400",
+                    activeClass: "border-yellow-500/60 bg-yellow-500/10",
+                  },
+                  {
+                    key: "ok",
+                    label: "Al día",
+                    value: okCount,
+                    valueClass: "text-green-400",
+                    activeClass: "border-green-500/60 bg-green-500/10",
+                  },
+                  {
+                    key: "exempt",
+                    label: "Exentos",
+                    value: exemptCount,
+                    valueClass: "text-purple-400",
+                    activeClass: "border-purple-500/60 bg-purple-500/10",
+                  },
+                ] as const
+              ).map((tile) => {
+                const isActive = activeFilter === tile.key;
+                return (
+                  <Link
+                    key={tile.key}
+                    href={filterHref(tile.key)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={[
+                      "text-center px-4 py-2 border transition-colors duration-200",
+                      isActive
+                        ? tile.activeClass
+                        : "border-line hover:border-edge hover:bg-white/[0.02]",
+                    ].join(" ")}
                   >
-                    {tile.value}
-                  </p>
-                  <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
-                    {tile.label}
-                  </p>
-                </Link>
-              );
-            })}
+                    <p
+                      className={`text-2xl font-heading font-black tabular-nums ${tile.valueClass}`}
+                    >
+                      {tile.value}
+                    </p>
+                    <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-600">
+                      {tile.label}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -503,10 +411,6 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center justify-end gap-2 flex-wrap">
-                          <RegisterPaymentRowButton
-                            students={paymentStudents}
-                            studentId={row.id}
-                          />
                           <EditStudentButton
                             studentId={row.id}
                             name={row.name}
@@ -611,10 +515,6 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap justify-end">
-                        <RegisterPaymentRowButton
-                          students={paymentStudents}
-                          studentId={row.id}
-                        />
                         <EditStudentButton
                           studentId={row.id}
                           name={row.name}
