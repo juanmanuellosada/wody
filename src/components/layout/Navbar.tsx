@@ -168,7 +168,7 @@ export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, t
       role="navigation"
       aria-label="Navegacion principal"
     >
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div className="px-4 h-16 flex items-center justify-between">
         {/* Logo: wody icon + gym logo */}
         <Link
           href={gymPath(gymSlug, "/dashboard/athlete")}
