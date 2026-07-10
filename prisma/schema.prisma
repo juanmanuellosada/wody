@@ -152,6 +152,7 @@ model User {
   role                 Role
   studentType          StudentType @default(PERSONALIZED)
   canCreateOwnRoutines Boolean     @default(false)
+  canViewRevenue       Boolean     @default(false)
   gymId                String?
   createdAt            DateTime    @default(now())
   nextPaymentDate      DateTime    @default(now()) @db.Date

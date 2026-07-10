@@ -8,6 +8,7 @@ import { ToggleStudentTypeButton } from "@/components/ToggleStudentTypeButton";
 import { AssignStudentForm } from "@/components/AssignStudentForm";
 import { EditStudentButton } from "@/components/EditStudentButton";
 import { PromoteTeacherButton } from "@/components/PromoteTeacherButton";
+import { ToggleCanViewRevenueButton } from "@/components/ToggleCanViewRevenueButton";
 import { ResendInvitationButton } from "@/components/ResendInvitationButton";
 import { GroupManager } from "@/components/group/GroupManager";
 import { Card } from "@/components/ui/Card";
@@ -53,7 +54,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
     prisma.user.findMany({
       where: { gymId, deletedAt: null },
       orderBy: [{ role: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, email: true, role: true, studentType: true, canCreateOwnRoutines: true, createdAt: true, groupMemberships: { select: { groupId: true } }, nextPaymentDate: true, blockedAt: true, memberNumber: true, password: true, accountKind: true },
+      select: { id: true, name: true, email: true, role: true, studentType: true, canCreateOwnRoutines: true, canViewRevenue: true, createdAt: true, groupMemberships: { select: { groupId: true } }, nextPaymentDate: true, blockedAt: true, memberNumber: true, password: true, accountKind: true },
     }),
     prisma.group.findMany({
       where: { teacher: { gymId }, deletedAt: null },
@@ -104,6 +105,9 @@ export default async function AdminPage({ params, searchParams }: Props) {
     (u) => u.role === "TEACHER" || u.role === "ADMIN"
   );
   const students = users.filter((u) => u.role === "STUDENT");
+  const designatedAdminCount = users.filter(
+    (u) => u.role === "ADMIN" && u.canViewRevenue
+  ).length;
 
   const teachersById = new Map(teachers.map((t) => [t.id, { id: t.id, name: t.name }]));
   const teachersByStudentId = new Map<string, { id: string; name: string }[]>();
@@ -440,6 +444,12 @@ export default async function AdminPage({ params, searchParams }: Props) {
                           user={{ id: user.id, name: user.name, blockedAt: user.blockedAt }}
                         />
                       )}
+                      {user.role === "ADMIN" && session.user.canViewRevenue && (
+                        <ToggleCanViewRevenueButton
+                          user={{ id: user.id, name: user.name, canViewRevenue: user.canViewRevenue }}
+                          isLastDesignated={designatedAdminCount <= 1}
+                        />
+                      )}
                       {user.password === null && !isLite && (
                         <ResendInvitationButton userId={user.id} userEmail={user.email} />
                       )}
@@ -571,6 +581,12 @@ export default async function AdminPage({ params, searchParams }: Props) {
                   {user.role === "TEACHER" && (
                     <PromoteTeacherButton
                       user={{ id: user.id, name: user.name, blockedAt: user.blockedAt }}
+                    />
+                  )}
+                  {user.role === "ADMIN" && session.user.canViewRevenue && (
+                    <ToggleCanViewRevenueButton
+                      user={{ id: user.id, name: user.name, canViewRevenue: user.canViewRevenue }}
+                      isLastDesignated={designatedAdminCount <= 1}
                     />
                   )}
                   {user.password === null && !isLite && (

@@ -111,6 +111,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             role: destUser.role as Role,
             studentType: destUser.studentType as StudentType,
             canCreateOwnRoutines: destUser.canCreateOwnRoutines,
+            canViewRevenue: destUser.canViewRevenue,
             gymId: destUser.gym.id,
             gymSlug: destUser.gym.slug,
             gymKind: destUser.gym.kind as GymKind,
@@ -174,6 +175,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               role: user.role as Role,
               studentType: user.studentType as StudentType,
               canCreateOwnRoutines: user.canCreateOwnRoutines,
+              canViewRevenue: user.canViewRevenue,
               gymId: null,
               gymSlug: null,
               gymKind: null,
@@ -220,6 +222,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             role: user.role as Role,
             studentType: user.studentType as StudentType,
             canCreateOwnRoutines: user.canCreateOwnRoutines,
+            canViewRevenue: user.canViewRevenue,
             gymId: user.gym.id,
             gymSlug: user.gym.slug,
             gymKind: user.gym.kind as GymKind,
@@ -238,6 +241,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (token as Record<string, unknown>).role = user.role as Role;
         (token as Record<string, unknown>).studentType = user.studentType as StudentType;
         (token as Record<string, unknown>).canCreateOwnRoutines = user.canCreateOwnRoutines;
+        (token as Record<string, unknown>).canViewRevenue = user.canViewRevenue;
         (token as Record<string, unknown>).gymId = user.gymId;
         (token as Record<string, unknown>).gymSlug = user.gymSlug;
         (token as Record<string, unknown>).gymKind = user.gymKind;
@@ -252,6 +256,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.studentType = (token as Record<string, unknown>).studentType as StudentType;
         session.user.canCreateOwnRoutines = Boolean(
           (token as Record<string, unknown>).canCreateOwnRoutines
+        );
+        session.user.canViewRevenue = Boolean(
+          (token as Record<string, unknown>).canViewRevenue
         );
         session.user.gymId = ((token as Record<string, unknown>).gymId as string | null) ?? null;
         session.user.gymSlug = ((token as Record<string, unknown>).gymSlug as string | null) ?? null;

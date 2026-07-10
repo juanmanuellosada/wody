@@ -148,5 +148,6 @@ Ver documentación completa en `prisma/README.md`.
 - `docs/alta-nuevo-box.md` — alta de box de CrossFit
 - `docs/billing-mercadopago.md` — cobros con Mercado Pago
 - `docs/control-accesos.md` — check-in / puerta
+- `docs/caja-recaudacion.md` — separación Pagos/Caja, permiso `canViewRevenue`
 - `docs/notificaciones-push.md` — web-push
 - `prisma/README.md` — modelo de seeds, seguridad, procedimiento de reset local
