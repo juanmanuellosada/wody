@@ -109,6 +109,16 @@ export default async function AdminPage({ params, searchParams }: Props) {
     (u) => u.role === "ADMIN" && u.canViewRevenue
   ).length;
 
+  // Lee canViewRevenue fresco desde la DB (no confiar en session.user.canViewRevenue,
+  // que queda stale en el JWT hasta el próximo login).
+  const currentUserInList = users.find((u) => u.id === currentUserId);
+  const currentUserCanViewRevenue = currentUserInList
+    ? currentUserInList.canViewRevenue
+    : ((await prisma.user.findUnique({
+        where: { id: currentUserId },
+        select: { canViewRevenue: true },
+      }))?.canViewRevenue ?? false);
+
   const teachersById = new Map(teachers.map((t) => [t.id, { id: t.id, name: t.name }]));
   const teachersByStudentId = new Map<string, { id: string; name: string }[]>();
   for (const link of teacherStudentLinks) {
@@ -444,7 +454,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
                           user={{ id: user.id, name: user.name, blockedAt: user.blockedAt }}
                         />
                       )}
-                      {user.role === "ADMIN" && session.user.canViewRevenue && (
+                      {user.role === "ADMIN" && currentUserCanViewRevenue && (
                         <ToggleCanViewRevenueButton
                           user={{ id: user.id, name: user.name, canViewRevenue: user.canViewRevenue }}
                           isLastDesignated={designatedAdminCount <= 1}
@@ -583,7 +593,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
                       user={{ id: user.id, name: user.name, blockedAt: user.blockedAt }}
                     />
                   )}
-                  {user.role === "ADMIN" && session.user.canViewRevenue && (
+                  {user.role === "ADMIN" && currentUserCanViewRevenue && (
                     <ToggleCanViewRevenueButton
                       user={{ id: user.id, name: user.name, canViewRevenue: user.canViewRevenue }}
                       isLastDesignated={designatedAdminCount <= 1}
