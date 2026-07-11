@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { createCategory, deleteCategory } from "@/actions/product";
+import { createCategory, deleteCategory, updateCategory } from "@/actions/product";
 import type { ProductCategoryOption } from "@/components/products/ProductDialog";
 
 interface Props {
@@ -18,6 +18,10 @@ export function CategoryManager({ initialCategories }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<ProductCategoryOption | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isEditing, startEditTransition] = useTransition();
 
   function handleCreate() {
     const trimmed = newName.trim();
@@ -31,6 +35,36 @@ export function CategoryManager({ initialCategories }: Props) {
       }
       setCategories((prev) => [...prev, result.category]);
       setNewName("");
+    });
+  }
+
+  function startEdit(category: ProductCategoryOption) {
+    setEditingId(category.id);
+    setEditValue(category.name);
+    setEditError(null);
+  }
+
+  function cancelEdit() {
+    if (isEditing) return;
+    setEditingId(null);
+    setEditError(null);
+  }
+
+  function handleSaveEdit() {
+    if (!editingId) return;
+    const trimmed = editValue.trim();
+    if (!trimmed) return;
+    setEditError(null);
+    startEditTransition(async () => {
+      const result = await updateCategory(editingId, trimmed);
+      if (!result.success) {
+        setEditError(result.error);
+        return;
+      }
+      setCategories((prev) =>
+        prev.map((c) => (c.id === editingId ? { ...c, name: trimmed } : c))
+      );
+      setEditingId(null);
     });
   }
 
@@ -58,26 +92,59 @@ export function CategoryManager({ initialCategories }: Props) {
         <p className="text-sm text-gray-500 font-body italic">Todavía no hay categorías.</p>
       ) : (
         <ul className="flex flex-wrap gap-2">
-          {categories.map((c) => (
-            <li
-              key={c.id}
-              className="flex items-center gap-2 bg-elev border border-edge px-3 py-1.5 text-xs font-body text-gray-300"
-            >
-              {c.name}
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteError(null);
-                  setDeleteTarget(c);
-                }}
-                className="text-gray-500 hover:text-brand-red transition-colors duration-200 cursor-pointer"
-                aria-label={`Eliminar categoría ${c.name}`}
+          {categories.map((c) =>
+            editingId === c.id ? (
+              <li key={c.id} className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  disabled={isEditing}
+                  autoFocus
+                  className="bg-elev border border-edge text-white text-xs font-body px-2 py-1.5 w-32 focus:outline-none focus:border-brand-red transition-colors duration-200"
+                />
+                <Button variant="secondary" size="sm" onClick={handleSaveEdit} loading={isEditing}>
+                  Guardar
+                </Button>
+                <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={isEditing}>
+                  Cancelar
+                </Button>
+              </li>
+            ) : (
+              <li
+                key={c.id}
+                className="flex items-center gap-2 bg-elev border border-edge px-3 py-1.5 text-xs font-body text-gray-300"
               >
-                &#215;
-              </button>
-            </li>
-          ))}
+                {c.name}
+                <button
+                  type="button"
+                  onClick={() => startEdit(c)}
+                  className="text-gray-500 hover:text-white transition-colors duration-200 cursor-pointer"
+                  aria-label={`Editar categoría ${c.name}`}
+                >
+                  &#9998;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setDeleteTarget(c);
+                  }}
+                  className="text-gray-500 hover:text-brand-red transition-colors duration-200 cursor-pointer"
+                  aria-label={`Eliminar categoría ${c.name}`}
+                >
+                  &#215;
+                </button>
+              </li>
+            )
+          )}
         </ul>
+      )}
+
+      {editError && (
+        <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
+          {editError}
+        </p>
       )}
 
       <div className="flex gap-2">

@@ -255,6 +255,33 @@ export async function createCategory(name: string): Promise<CreateCategoryResult
   }
 }
 
+export async function updateCategory(categoryId: string, newName: string): Promise<ProductResult> {
+  const check = await assertCanManageProducts();
+  if (!check.ok) return { success: false, error: check.error };
+
+  const category = await prisma.productCategory.findFirst({
+    where: { id: categoryId, gymId: check.gymId },
+  });
+  if (!category) return { success: false, error: "Categoría no encontrada." };
+
+  const trimmed = newName.trim();
+  if (!trimmed) return { success: false, error: "El nombre es obligatorio." };
+
+  try {
+    await prisma.productCategory.update({
+      where: { id: categoryId },
+      data: { name: trimmed },
+    });
+    revalidateProductViews(check.gymSlug);
+    return { success: true };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { success: false, error: "Ya existe una categoría con ese nombre en este gym." };
+    }
+    throw error;
+  }
+}
+
 /** Impide eliminar una categoría que todavía tiene productos asociados (incluso inactivos: la FK es Restrict a nivel DB). */
 export async function deleteCategory(categoryId: string): Promise<ProductResult> {
   const check = await assertCanManageProducts();
