@@ -19,11 +19,11 @@ El sistema SHALL persistir cada cobro como un registro `Payment` independiente, 
 
 ### Requirement: Flujo "Registrar pago"
 
-El sistema SHALL ofrecer un botón "Registrar pago" prominente en el bloque de estadísticas y un acceso equivalente en cada fila de la lista de alumnos. Ambos abren el mismo popup con los campos alumno, importe y próxima fecha de pago. El flujo "Marcar pagado" por fila SHALL dejar de existir.
+El sistema SHALL ofrecer un botón "Registrar pago" prominente en la sección `/[gymSlug]/caja` (disponible para `ADMIN` y `TEACHER`). El registro de pagos NO SHALL estar disponible en `/[gymSlug]/pagos` (ni botón standalone ni acceso por fila). El botón abre un popup con los campos alumno, importe y próxima fecha de pago. El flujo "Marcar pagado" por fila SHALL dejar de existir.
 
-#### Scenario: Registrar pago desde el botón principal
+#### Scenario: Registrar pago desde el botón principal en Caja
 
-- **WHEN** el usuario abre el popup desde el botón "Registrar pago" del bloque de estadísticas
+- **WHEN** el usuario abre el popup desde el botón "Registrar pago" de la sección Caja
 - **THEN** el popup muestra un buscador de alumno sin pre-seleccionar, un campo de importe y un campo de próxima fecha de pago
 
 #### Scenario: Buscador de alumno con typeahead
@@ -31,10 +31,10 @@ El sistema SHALL ofrecer un botón "Registrar pago" prominente en el bloque de e
 - **WHEN** el usuario escribe en el campo de alumno del popup
 - **THEN** la lista de alumnos se filtra en tiempo real por nombre y el usuario puede elegir uno haciendo clic en la coincidencia; al elegir, se mantiene el pre-llenado de importe y fecha
 
-#### Scenario: Registrar pago desde una fila
+#### Scenario: No se puede registrar un pago desde /pagos
 
-- **WHEN** el usuario abre el popup desde el acceso de la fila de un alumno
-- **THEN** el popup se abre con ese alumno ya pre-seleccionado en el buscador
+- **WHEN** un usuario abre el Control de Pagos en `/[gymSlug]/pagos`
+- **THEN** no encuentra ningún botón ni acceso para registrar un pago; el registro solo está disponible en `/[gymSlug]/caja`
 
 #### Scenario: El importe se pre-llena con el último pago del alumno
 
@@ -98,7 +98,14 @@ El sistema SHALL conservar la edición manual del `nextPaymentDate` de un alumno
 
 ### Requirement: Estadísticas de recaudación
 
-La sección `/[gymSlug]/pagos` SHALL mostrar un panel de estadísticas arriba de la lista de alumnos. El panel SHALL exponer la recaudación total y la cantidad de pagos del período, junto con un gráfico de evolución mensual de la recaudación. El panel SHALL permitir filtrar por período (siempre un rango de fechas) y por profesor, y comparar el período seleccionado contra el período anterior.
+La sección `/[gymSlug]/caja` SHALL mostrar el panel de estadísticas de recaudación, visible únicamente a usuarios `ADMIN` con `canViewRevenue = true`. El panel SHALL exponer la recaudación total y la cantidad de pagos del período, junto con un gráfico de evolución mensual de la recaudación, y SHALL incluir el historial de pagos. El panel SHALL permitir filtrar por período (siempre un rango de fechas), por profesor, por método de pago y por tipo de alumno (`StudentType`), y comparar el período seleccionado contra el período anterior. La sección `/[gymSlug]/pagos` NO SHALL mostrar este panel, sus gráficos ni el historial de pagos.
+
+#### Scenario: El panel de recaudación vive en Caja y está gateado
+
+- **WHEN** un `ADMIN` con `canViewRevenue = true` abre `/[gymSlug]/caja`
+- **THEN** ve el panel de estadísticas de recaudación con sus métricas, el gráfico de evolución y el historial de pagos
+- **WHEN** el mismo usuario abre `/[gymSlug]/pagos`
+- **THEN** no ve el panel de recaudación, ni el gráfico, ni el historial de pagos
 
 #### Scenario: Métricas del período seleccionado
 
@@ -107,7 +114,7 @@ La sección `/[gymSlug]/pagos` SHALL mostrar un panel de estadísticas arriba de
 
 #### Scenario: Rango de fechas por defecto (mes actual completo)
 
-- **WHEN** el usuario abre la sección de pagos sin elegir un período
+- **WHEN** el usuario abre la sección Caja sin elegir un período
 - **THEN** el panel muestra como período por defecto el mes en curso completo (primer día → último día del mes actual), y el usuario PUEDE ajustar el rango con los controles de fecha Desde / Hasta
 
 #### Scenario: Comparación contra el período anterior
@@ -124,6 +131,11 @@ La sección `/[gymSlug]/pagos` SHALL mostrar un panel de estadísticas arriba de
 
 - **WHEN** el usuario selecciona uno o varios métodos de pago en el filtro (pills multi-select, search param `statsMethods` coma-separado)
 - **THEN** el panel considera solo los pagos cuyo `paymentMethod` coincide con alguno de los seleccionados; los pagos con `paymentMethod` null no matchean ningún filtro de método concreto; sin selección el panel considera todos los métodos
+
+#### Scenario: Filtro por tipo de alumno
+
+- **WHEN** el usuario selecciona un tipo de alumno (`StudentType`) en el filtro
+- **THEN** el panel considera solo los pagos de alumnos de ese `studentType`; sin selección considera todos los tipos; la opción `MUSCULACION_LIBRE` se ofrece solo en gyms `kind = GYM`
 
 ### Requirement: Alcance de pagos por rol
 
@@ -257,4 +269,23 @@ El sistema SHALL permitir registrar un `Payment` a un alumno marcado como exento
 
 - **WHEN** el usuario confirma el pago de un alumno exento
 - **THEN** el sistema crea el `Payment` normalmente, actualiza `nextPaymentDate` y el flag `paymentExempt` queda en `true` sin cambios; si el usuario quiere desactivar la exención, lo hace explícito desde el editor del alumno
+
+### Requirement: Control de Pagos en `/pagos`
+
+La sección `/[gymSlug]/pagos` SHALL mostrar el "Control de Pagos": la lista de alumnos con su estado de cuota (al día, atrasado, por vencer, exento), la edición de alumno y el bloqueo, sin exponer la recaudación agregada, el historial de pagos ni el registro de pagos. El sistema SHALL permitir filtrar esta lista por estado de cuota y por tipo de alumno (`StudentType`), de forma combinable.
+
+#### Scenario: /pagos muestra solo el Control de Pagos
+
+- **WHEN** un `ADMIN` o `TEACHER` abre `/[gymSlug]/pagos`
+- **THEN** ve la lista de alumnos con su estado de cuota, la edición y el bloqueo por fila, y no ve recaudación, gráficos, historial ni acción de registrar pago
+
+#### Scenario: Filtrar el Control de Pagos por tipo de alumno
+
+- **WHEN** el usuario selecciona un tipo de alumno (`StudentType`) en el filtro del Control de Pagos
+- **THEN** la lista muestra únicamente alumnos de ese `studentType`
+
+#### Scenario: Filtros de estado y tipo combinables
+
+- **WHEN** el usuario selecciona a la vez un estado de cuota y un tipo de alumno
+- **THEN** la lista muestra los alumnos que cumplen ambos criterios; la opción `MUSCULACION_LIBRE` se ofrece solo en gyms `kind = GYM`
 
