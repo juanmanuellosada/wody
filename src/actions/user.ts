@@ -1033,7 +1033,7 @@ export async function setCanViewRevenue(
     if (designatedCount <= 1) {
       return {
         success: false,
-        error: "No podés quitarle el permiso: es el único admin que ve la recaudación en este gym.",
+        error: "No podés quitarle el permiso: es el único admin con acceso a recaudación y gastos en este gym.",
       };
     }
   }
