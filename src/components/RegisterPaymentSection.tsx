@@ -23,7 +23,7 @@ export function RegisterPaymentButton({ students, demo, size = "sm" }: Props) {
   return (
     <>
       <Button variant="primary" size={size} onClick={() => setOpen(true)}>
-        Registrar pago
+        Registrar cuota
       </Button>
       <RegisterPaymentDialog
         students={students}

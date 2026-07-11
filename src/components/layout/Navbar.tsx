@@ -73,7 +73,7 @@ function getNavLinks(
       },
       { href: gymPath(gymSlug, "/dashboard/teacher"), label: "Dashboard Profe" },
       ...(canCreateOwnRoutines ? [myRoutinesLink] : []),
-      { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
+      { href: gymPath(gymSlug, "/cuotas"), label: "Cuotas" },
       { href: gymPath(gymSlug, "/caja"), label: "Caja" },
       ...(canViewRevenue ? [{ href: gymPath(gymSlug, "/productos"), label: "Productos" }] : []),
       ...(accessControl
@@ -89,7 +89,7 @@ function getNavLinks(
     return [
       { href: gymPath(gymSlug, "/dashboard/teacher"), label: `${terms.wods} de mis alumnos` },
       ...(canCreateOwnRoutines ? [myRoutinesLink] : []),
-      { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
+      { href: gymPath(gymSlug, "/cuotas"), label: "Cuotas" },
       { href: gymPath(gymSlug, "/caja"), label: "Caja" },
       { href: gymPath(gymSlug, "/dashboard/rms"), label: `Mis ${terms.rms}` },
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },

@@ -345,7 +345,7 @@ function DialogForm({
     >
       <div className="bg-panel border border-edge p-6 w-full max-w-md mx-4 flex flex-col gap-4">
         <h3 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
-          Registrar Pago
+          Registrar Cuota
         </h3>
 
         <div className="flex flex-col gap-3">

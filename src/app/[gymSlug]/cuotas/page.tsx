@@ -223,7 +223,7 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
     ? statusFilteredRows.filter((r) => r.studentType === activeType)
     : statusFilteredRows;
 
-  const basePath = gymPath(gymSlug, "/pagos");
+  const basePath = gymPath(gymSlug, "/cuotas");
   const filterHref = (f: StatusFilter) => {
     const qs = new URLSearchParams();
     if (f !== "all") qs.set("status", f);
@@ -239,10 +239,10 @@ export default async function PaymentsPage({ params, searchParams }: Props) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-1">
-              Control de Pagos
+              Control de Cuotas
             </p>
             <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white">
-              Pagos
+              Cuotas
             </h1>
           </div>
           <div className="flex flex-wrap items-end gap-3">

@@ -53,7 +53,7 @@ async function assertCanEditStudent(studentId: string) {
 }
 
 function revalidatePaymentViews(gymSlug: string) {
-  revalidatePath(gymPath(gymSlug, "/pagos"));
+  revalidatePath(gymPath(gymSlug, "/cuotas"));
   revalidatePath(gymPath(gymSlug, "/admin"));
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
 }

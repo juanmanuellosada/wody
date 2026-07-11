@@ -762,7 +762,7 @@ export async function setUserBlocked(
   });
 
   revalidatePath(gymPath(gymSlug, "/admin"));
-  revalidatePath(gymPath(gymSlug, "/pagos"));
+  revalidatePath(gymPath(gymSlug, "/cuotas"));
   revalidatePath(gymPath(gymSlug, "/dashboard/teacher"));
   return { success: true };
 }
@@ -1087,7 +1087,7 @@ export async function setStudentPaymentExempt(
   });
 
   revalidatePath(gymPath(gymSlug, "/admin"));
-  revalidatePath(gymPath(gymSlug, "/pagos"));
+  revalidatePath(gymPath(gymSlug, "/cuotas"));
   return { success: true };
 }
 
