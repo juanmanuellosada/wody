@@ -29,6 +29,7 @@ interface NavbarProps {
   pendingJoinRequestsCount?: number;
   gymSwitcherList?: GymSwitcherItem[];
   emailVerified?: boolean;
+  canViewRevenue?: boolean;
 }
 
 interface NavLink {
@@ -43,7 +44,8 @@ function getNavLinks(
   gymKind: GymKind,
   terms: GymTerms,
   canCreateOwnRoutines: boolean,
-  pendingJoinRequestsCount: number
+  pendingJoinRequestsCount: number,
+  canViewRevenue: boolean
 ): NavLink[] {
   if (isPersonalGym(gymKind)) {
     return [
@@ -73,6 +75,7 @@ function getNavLinks(
       ...(canCreateOwnRoutines ? [myRoutinesLink] : []),
       { href: gymPath(gymSlug, "/pagos"), label: "Pagos" },
       { href: gymPath(gymSlug, "/caja"), label: "Caja" },
+      ...(canViewRevenue ? [{ href: gymPath(gymSlug, "/productos"), label: "Productos" }] : []),
       ...(accessControl
         ? [{ href: gymPath(gymSlug, "/ingresos"), label: "Ingresos" }]
         : []),
@@ -111,11 +114,11 @@ function getNavLinks(
   ];
 }
 
-export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, terms, canCreateOwnRoutines = false, pendingJoinRequestsCount = 0, gymSwitcherList = [] }: NavbarProps) {
+export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, terms, canCreateOwnRoutines = false, pendingJoinRequestsCount = 0, gymSwitcherList = [], canViewRevenue = false }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const pathname = usePathname();
-  const links = getNavLinks(role, gymSlug, gymKind, terms, canCreateOwnRoutines, pendingJoinRequestsCount);
+  const links = getNavLinks(role, gymSlug, gymKind, terms, canCreateOwnRoutines, pendingJoinRequestsCount, canViewRevenue);
 
   async function handleGymSwitch(targetSlug: string) {
     if (targetSlug === gymSlug || switching) return;

@@ -4,8 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { gymPath, isPersonalGym } from "@/lib/gym";
 import { addOneMonth, getTodayArgentina, toInputDate } from "@/lib/dates";
 import { RegisterPaymentButton } from "@/components/RegisterPaymentSection";
+import { NewSaleButton } from "@/components/NewSaleButton";
+import { RegisterExpenseButton } from "@/components/RegisterExpenseButton";
 import { RevenuePanel } from "@/components/RevenuePanel";
+import { getProductCatalog } from "@/actions/product";
 import type { PaymentStudent } from "@/components/RegisterPaymentDialog";
+import type { RevenueView } from "@/components/RevenueViewSelector";
 import type { PaymentStatsFilters, PaymentMethod } from "@/lib/payment-stats";
 import type { StudentType } from "@prisma/client";
 
@@ -17,11 +21,14 @@ interface Props {
     statsTeacherIds?: string;
     statsMethods?: string;
     statsStudentType?: string;
+    statsCategoryId?: string;
+    revenueView?: string;
   }>;
 }
 
 const VALID_METHODS: PaymentMethod[] = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADO_PAGO"];
 const VALID_STUDENT_TYPES: StudentType[] = ["GENERAL", "PERSONALIZED", "MUSCULACION_LIBRE"];
+const VALID_REVENUE_VIEWS: RevenueView[] = ["alumnos", "productos", "mixta"];
 
 /** Parses stats filter params (always range mode). Defaults to current full month. */
 function parseStatsFilters(sp: {
@@ -30,6 +37,7 @@ function parseStatsFilters(sp: {
   statsTeacherIds?: string;
   statsMethods?: string;
   statsStudentType?: string;
+  statsCategoryId?: string;
 }): {
   from: Date;
   to: Date;
@@ -38,6 +46,7 @@ function parseStatsFilters(sp: {
   teacherIds: string[];
   methodIds: PaymentMethod[];
   studentType: StudentType | "";
+  categoryId: string;
 } {
   const today = getTodayArgentina();
   const firstOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
@@ -67,13 +76,26 @@ function parseStatsFilters(sp: {
     ? (sp.statsStudentType as StudentType)
     : "";
 
-  return { from, to, fromStr, toStr, teacherIds, methodIds, studentType };
+  const categoryId = sp.statsCategoryId?.trim() ?? "";
+
+  return { from, to, fromStr, toStr, teacherIds, methodIds, studentType, categoryId };
 }
 
 export default async function CajaPage({ params, searchParams }: Props) {
   const { gymSlug } = await params;
-  const { statsFrom, statsTo, statsTeacherIds, statsMethods, statsStudentType } = await searchParams;
-  const statsParsed = parseStatsFilters({ statsFrom, statsTo, statsTeacherIds, statsMethods, statsStudentType });
+  const { statsFrom, statsTo, statsTeacherIds, statsMethods, statsStudentType, statsCategoryId, revenueView } =
+    await searchParams;
+  const statsParsed = parseStatsFilters({
+    statsFrom,
+    statsTo,
+    statsTeacherIds,
+    statsMethods,
+    statsStudentType,
+    statsCategoryId,
+  });
+  const parsedRevenueView: RevenueView = VALID_REVENUE_VIEWS.includes(revenueView as RevenueView)
+    ? (revenueView as RevenueView)
+    : "alumnos";
   const session = await auth();
 
   if (session?.user && session.user.gymKind && isPersonalGym(session.user.gymKind)) {
@@ -102,7 +124,7 @@ export default async function CajaPage({ params, searchParams }: Props) {
   });
   const showRevenue = isAdmin && dbUser?.canViewRevenue === true;
 
-  const [students, lastPayments, teachers, gymConfig] = await Promise.all([
+  const [students, lastPayments, teachers, gymConfig, productCatalog, categories] = await Promise.all([
     isAdmin
       ? prisma.user.findMany({
           where: { gymId, role: "STUDENT", deletedAt: null },
@@ -143,6 +165,10 @@ export default async function CajaPage({ params, searchParams }: Props) {
       where: { id: gymId },
       select: { kind: true },
     }),
+    getProductCatalog(),
+    showRevenue
+      ? prisma.productCategory.findMany({ where: { gymId }, orderBy: { name: "asc" }, select: { id: true, name: true } })
+      : Promise.resolve([]),
   ]);
 
   const lastAmountByStudentId = new Map<string, number>();
@@ -183,16 +209,22 @@ export default async function CajaPage({ params, searchParams }: Props) {
               Caja
             </h1>
           </div>
-          {paymentStudents.length > 0 && (
-            <RegisterPaymentButton students={paymentStudents} size="lg" />
-          )}
+          <div className="flex flex-wrap gap-3">
+            <NewSaleButton products={productCatalog} size="lg" />
+            {showRevenue && <RegisterExpenseButton size="lg" />}
+            {paymentStudents.length > 0 && (
+              <RegisterPaymentButton students={paymentStudents} size="lg" />
+            )}
+          </div>
         </div>
       </div>
 
       {showRevenue && (
         <RevenuePanel
+          view={parsedRevenueView}
           filters={statsFilters}
           teachers={teachers}
+          categories={categories}
           gymKind={gymConfig?.kind}
           activeFilters={{
             from: statsParsed.fromStr,
@@ -200,6 +232,7 @@ export default async function CajaPage({ params, searchParams }: Props) {
             teacherIds: statsParsed.teacherIds,
             methodIds: statsParsed.methodIds,
             studentType: statsParsed.studentType,
+            categoryId: statsParsed.categoryId,
           }}
         />
       )}

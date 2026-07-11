@@ -81,6 +81,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         paymentExemptReason: true,
         trialEndsAt: true,
         mpSubscriptionStatus: true,
+        canViewRevenue: true,
       },
     }),
     role === "ADMIN"
@@ -214,6 +215,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         pendingJoinRequestsCount={pendingJoinRequestsCount}
         gymSwitcherList={gymSwitcherList}
         emailVerified={isEmailVerified}
+        canViewRevenue={role === "ADMIN" ? (dbUser?.canViewRevenue ?? false) : false}
       />
       {trialBanner}
       {overdueModal}

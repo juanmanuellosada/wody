@@ -125,6 +125,7 @@ model Gym {
   blockedAt                   DateTime?
   autoBlockAfterDays          Int           @default(45)
   nextMemberNumber            Int           @default(1)
+  nextProductCode             Int           @default(1)
   subscriptionNextPaymentDate DateTime?
   subscriptionMonthlyAmount   Int?          @default(40000)
   trialEndsAt                 DateTime?
@@ -141,6 +142,10 @@ model Gym {
   joinRequests                JoinRequest[]
   payments                    Payment[]
   signupRequest               GymSignupRequest?
+  productCategories           ProductCategory[]
+  products                    Product[]
+  sales                       Sale[]
+  expenses                    Expense[]
 }
 
 model User {
@@ -189,6 +194,8 @@ model User {
   createdSignupRequests     GymSignupRequest[]
   fixedRoutinesAsStudent    FixedRoutine[]       @relation("FixedRoutineStudent")
   fixedRoutinesAsTeacher    FixedRoutine[]       @relation("FixedRoutineTeacher")
+  salesRecorded             Sale[]               @relation("SaleRecordedBy")
+  expensesRecorded          Expense[]            @relation("ExpenseRecordedBy")
 
   // Unicidades parciales (solo filas activas, deletedAt IS NULL).
   // Los índices únicos totales fueron reemplazados por índices únicos parciales
@@ -427,6 +434,77 @@ model Payment {
 
   @@index([gymId, paidAt])
   @@index([studentId])
+}
+
+model ProductCategory {
+  id        String    @id @default(cuid())
+  gymId     String
+  name      String
+  createdAt DateTime  @default(now())
+
+  gym      Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([gymId, name])
+  @@index([gymId])
+}
+
+model Product {
+  id          String    @id @default(cuid())
+  gymId       String
+  code        Int
+  description String
+  categoryId  String
+  salePrice   Decimal   @db.Decimal(12, 2)
+  stock       Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  gym      Gym             @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  category ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  sales    Sale[]
+
+  // Unicidad parcial: (gymId, code) solo entre productos activos (deletedAt IS
+  // NULL). Prisma no soporta WHERE en @@unique, por eso el índice único real
+  // vive en la migration SQL (mismo patrón que User.memberNumber) y acá solo
+  // declaramos el índice no único para la ergonomía de queries.
+  @@index([gymId, code])
+  @@index([gymId])
+}
+
+model Sale {
+  id            String        @id @default(cuid())
+  gymId         String
+  productId     String
+  quantity      Int
+  unitAmount    Decimal       @db.Decimal(12, 2)
+  totalAmount   Decimal       @db.Decimal(12, 2)
+  paymentMethod PaymentMethod
+  soldAt        DateTime
+  recordedById  String
+  createdAt     DateTime      @default(now())
+
+  gym        Gym     @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  product    Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  recordedBy User    @relation("SaleRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([gymId, soldAt])
+}
+
+model Expense {
+  id           String   @id @default(cuid())
+  gymId        String
+  amount       Decimal  @db.Decimal(12, 2)
+  description  String
+  spentAt      DateTime
+  recordedById String
+  createdAt    DateTime @default(now())
+
+  gym        Gym  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  recordedBy User @relation("ExpenseRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([gymId, spentAt])
 }
 
 model GymSignupRequest {
