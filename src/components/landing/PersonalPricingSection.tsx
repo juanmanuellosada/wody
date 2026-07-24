@@ -25,7 +25,7 @@ export function PersonalPricingSection() {
             Tu entrenamiento, en un solo lugar
           </h2>
           <p className="text-sm text-gray-500 font-body text-center mb-12 max-w-md mx-auto">
-            Armá tus rutinas, registrá tus PRs y mirá tu progreso desde tu celular. Probalo 15 días sin pagar.
+            Armá tus rutinas, registrá tus PRs y mirá tu progreso desde tu celular. Probalo 7 días sin pagar.
           </p>
 
           <div className="max-w-sm mx-auto border border-purple-500/20 bg-purple-500/[0.03] p-8 flex flex-col gap-6">
@@ -40,7 +40,7 @@ export function PersonalPricingSection() {
                 <span className="text-sm text-gray-500 font-body mb-1">ARS / mes</span>
               </div>
               <p className="text-xs text-emerald-400 font-heading font-bold uppercase tracking-[0.1em] mt-1">
-                15 días gratis · sin tarjeta · sin compromiso · cancelás cuando quieras
+                7 días gratis · sin tarjeta · sin compromiso · cancelás cuando quieras
               </p>
             </div>
 

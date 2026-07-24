@@ -127,7 +127,7 @@ export async function createGym(input: CreateGymInput): Promise<ActionResult> {
             ? new Date(input.subscriptionNextPaymentDate)
             : null,
           subscriptionMonthlyAmount: input.subscriptionMonthlyAmount ?? null,
-          trialEndsAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+          trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         },
       });
 

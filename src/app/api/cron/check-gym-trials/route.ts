@@ -9,7 +9,7 @@ import type { Prisma } from "@prisma/client";
 // Blocks gyms with expired trials and sends push notifications at milestone days.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const PUSH_MILESTONES = new Set([7, 3, 1, 0]);
+const PUSH_MILESTONES = new Set([3, 1, 0]);
 
 type PersonalUserPhaseCondition = Omit<
   Prisma.UserWhereInput,
@@ -159,7 +159,7 @@ export async function GET(req: NextRequest) {
 
       if (!PUSH_MILESTONES.has(daysLeft)) continue;
 
-      const milestone = daysLeft as 7 | 3 | 1 | 0;
+      const milestone = daysLeft as 3 | 1 | 0;
       try {
         const { sent, removed } = await sendPersonalTrialEndingPush(user.id, milestone);
         console.log("[check-gym-trials] Sent Personal trial push", { userId: user.id, daysLeft, sent, removed });
@@ -194,7 +194,7 @@ export async function GET(req: NextRequest) {
 
     if (!PUSH_MILESTONES.has(daysLeft)) continue;
 
-    const milestone = daysLeft as 7 | 3 | 1 | 0;
+    const milestone = daysLeft as 3 | 1 | 0;
     try {
       const { totalSent, totalRemoved } = await sendTrialEndingPush(gym.id, milestone);
       console.log("[check-gym-trials] Sent trial push", {

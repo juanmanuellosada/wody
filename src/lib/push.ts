@@ -66,11 +66,7 @@ export async function sendPushToUser(
   return { sent, removed };
 }
 
-const TRIAL_MESSAGES: Record<0 | 1 | 3 | 7, { title: string; body: string }> = {
-  7: {
-    title: "Tu trial termina en 7 días",
-    body: "Configurá tu tarjeta para que tu gym no se suspenda.",
-  },
+const TRIAL_MESSAGES: Record<0 | 1 | 3, { title: string; body: string }> = {
   3: {
     title: "Tu trial termina en 3 días",
     body: "Faltan pocos días para configurar tu tarjeta.",
@@ -87,7 +83,7 @@ const TRIAL_MESSAGES: Record<0 | 1 | 3 | 7, { title: string; body: string }> = {
 
 export async function sendTrialEndingPush(
   gymId: string,
-  daysLeft: 7 | 3 | 1 | 0
+  daysLeft: 3 | 1 | 0
 ): Promise<{ totalSent: number; totalRemoved: number }> {
   const { title, body } = TRIAL_MESSAGES[daysLeft];
 
@@ -108,11 +104,7 @@ export async function sendTrialEndingPush(
   return { totalSent, totalRemoved };
 }
 
-const PERSONAL_TRIAL_MESSAGES: Record<0 | 1 | 3 | 7, { title: string; body: string }> = {
-  7: {
-    title: "Tu trial termina en 7 días",
-    body: "Configurá tu tarjeta para no perder acceso.",
-  },
+const PERSONAL_TRIAL_MESSAGES: Record<0 | 1 | 3, { title: string; body: string }> = {
   3: {
     title: "Tu trial termina en 3 días",
     body: "Faltan pocos días para configurar tu tarjeta.",
@@ -129,7 +121,7 @@ const PERSONAL_TRIAL_MESSAGES: Record<0 | 1 | 3 | 7, { title: string; body: stri
 
 export async function sendPersonalTrialEndingPush(
   userId: string,
-  daysLeft: 7 | 3 | 1 | 0
+  daysLeft: 3 | 1 | 0
 ): Promise<{ sent: number; removed: number }> {
   const { title, body } = PERSONAL_TRIAL_MESSAGES[daysLeft];
   return sendPushToUser(userId, title, body);
