@@ -193,7 +193,10 @@ export async function GET(req: NextRequest) {
         blockedAt: null,
         paymentExempt: false,
         email: { not: null },
-        mpSubscriptionStatus: { not: "authorized" },
+        OR: [
+          { mpSubscriptionStatus: null },
+          { mpSubscriptionStatus: { not: "authorized" } },
+        ],
         nextPaymentDate: { not: PERSONAL_NEXT_PAYMENT_SENTINEL },
       },
       select: { id: true, name: true, email: true, nextPaymentDate: true, lastDueEmailedOn: true },
@@ -332,7 +335,7 @@ export async function GET(req: NextRequest) {
         );
         gymDueEmailsSent += sent;
         gymDueEmailsFailed += failed;
-        if (sent > 0) {
+        if (failed === 0 && sent > 0) {
           await prisma.gym.update({ where: { id: gym.id }, data: { lastBillingEmailedOn: todayART } });
         }
       } catch (err) {

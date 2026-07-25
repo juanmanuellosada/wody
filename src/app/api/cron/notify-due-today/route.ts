@@ -83,11 +83,20 @@ export async function GET(req: NextRequest) {
     const daysRemaining = Math.round(
       (user.nextPaymentDate.getTime() - today.getTime()) / DAY_MS
     );
-    const result = await sendPaymentDueStudentEmail(user, user.gym, user.nextPaymentDate, daysRemaining);
-    if (result.ok) {
-      await prisma.user.update({ where: { id: user.id }, data: { lastDueEmailedOn: today } });
-      emailsSent++;
-    } else {
+    try {
+      const result = await sendPaymentDueStudentEmail(user, user.gym, user.nextPaymentDate, daysRemaining);
+      if (result.ok) {
+        await prisma.user.update({ where: { id: user.id }, data: { lastDueEmailedOn: today } });
+        emailsSent++;
+      } else {
+        emailsFailed++;
+      }
+    } catch (err) {
+      console.warn("[notify-due-today] Failed to send due email", {
+        userId: user.id,
+        daysRemaining,
+        error: err instanceof Error ? err.message : String(err),
+      });
       emailsFailed++;
     }
   }
