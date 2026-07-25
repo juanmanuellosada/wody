@@ -64,6 +64,26 @@ En el dashboard de Vercel → proyecto Wody → **Settings → Environment Varia
 
 ---
 
+## Recordatorios de vencimiento de cuota
+
+Tres mails recurrentes, uno por cada relación de cobro de la plataforma. A diferencia del resto de los mails (evento puntual), estos se disparan por calendario, mes a mes, para toda la base — ver `openspec/changes/add-payment-due-emails/design.md` para el detalle de las decisiones.
+
+| Mail | `EmailLogType` | Disparador | Destinatario | Cadencia (hitos) | Dedup |
+|---|---|---|---|---|---|
+| Cuota del alumno al gym | `PAYMENT_DUE_STUDENT` | Cron `notify-due-today` (fase de email, separada de la push) | Alumnos (`role = STUDENT`) con `nextPaymentDate` en el hito, `email` cargado, gym `kind != PERSONAL` | 2 y 0 días antes de `User.nextPaymentDate` | `User.lastDueEmailedOn` (1/día) |
+| Cuota del gym a Wody | `PAYMENT_DUE_GYM` | Cron `check-gym-trials`, fase 2.6 | `ADMIN` de gyms con `subscriptionNextPaymentDate` en el hito | 2 y 0 días antes de `Gym.subscriptionNextPaymentDate` | `Gym.lastBillingEmailedOn` (1/día) |
+| Cuota de Wody Personal | `PAYMENT_DUE_PERSONAL` | Cron `check-gym-trials`, fase Personal 2.6 | Usuarios del tenant `personal` cobrados a mano (`nextPaymentDate` real, no el centinela `9999-12-31`) y sin débito automático de MP (`mpSubscriptionStatus != "authorized"`) | 2 y 0 días antes de `User.nextPaymentDate` | `User.lastDueEmailedOn` (1/día, compartido con el mail de alumno — mutuamente excluyentes) |
+
+Los tres hitos del canal email (`{2, 0}`) son **independientes de los hitos de la push equivalente** (alumno: ventana `[hoy, hoy+2]`; gym: `{10, 7, 3, 1, 0}`) y del disparador de login del gym (`notifyBillingDueIfNeeded` en `src/lib/auth.ts`) — el email sale **solo desde los crons diarios**, nunca desde un login. Un fallo de envío en un destinatario no interrumpe el resto del loop; los tres crons acumulan contadores `sent`/`failed` y los exponen en el JSON de respuesta.
+
+Los tres tipos cuentan para el monitoreo de cuota mensual (`api/cron/email-quota`), igual que `INVITE` y `RESET`.
+
+### Deuda técnica conocida
+
+- La **push** de alumno (`notify-due-today`) sigue sin excluir a los usuarios de Wody Personal — les llega el copy de "Pasá por tu gym para renovar", que no les corresponde. El mail nuevo (`PAYMENT_DUE_STUDENT`) nace con el filtro correcto (`gym.kind != PERSONAL`); la push no se tocó.
+- La fase 2.6 de `check-gym-trials` (recordatorio del gym, push y email) sigue sin excluir gyms con `mpSubscriptionStatus = "authorized"` — un gym en débito automático de MP que además tiene una fecha cargada a mano recibe recordatorios que no le corresponden. El mail hereda el mismo comportamiento que la push, de forma consistente. Para Wody Personal sí se excluye.
+- El chrome standalone (Html/Head/Body/Container + fix de host `www.`) sigue duplicado a mano en cada template standalone (`PaymentFailedEmail`, `PersonalPaymentFailedEmail`, `PaymentDueGymEmail`, `PaymentDuePersonalEmail`, etc.). No se extrajo un `WodyEmailLayout` para no mezclar un refactor de todos los templates con esta feature.
+
 ## Operación cotidiana
 
 ### Monitorear cuota

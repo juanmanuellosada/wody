@@ -76,6 +76,9 @@ enum EmailLogType {
   PERSONAL_LEAD_APPROVED
   PERSONAL_LEAD_REJECTED
   PERSONAL_PAYMENT_FAILED
+  PAYMENT_DUE_STUDENT
+  PAYMENT_DUE_GYM
+  PAYMENT_DUE_PERSONAL
 }
 
 enum SignupRequestType {
@@ -135,6 +138,7 @@ model Gym {
   mpPreapprovalId                 String?
   mpSubscriptionStatus            String?
   mpSubscriptionStatusChangedAt   DateTime?
+  lastBillingEmailedOn            DateTime?     @db.Date
   users                       User[]
   accessLogs                  AccessLog[]
   fixedRoutines               FixedRoutine[]
@@ -164,6 +168,7 @@ model User {
   blockedAt            DateTime?
   deletedAt            DateTime?
   lastDueNotifiedOn    DateTime?   @db.Date
+  lastDueEmailedOn     DateTime?   @db.Date
   memberNumber         Int
   emailVerifiedAt      DateTime?
   paymentExempt        Boolean     @default(false)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendDueReminderIfNeeded, sendRoutineRenewalPush } from "@/lib/push";
+import { sendPaymentDueStudentEmail } from "@/lib/billing-emails";
 import { getTodayArgentina, toInputDate } from "@/lib/dates";
 
 // Vercel Cron: 12:00 ART (15:00 UTC) daily — see vercel.json.
@@ -46,6 +47,49 @@ export async function GET(req: NextRequest) {
   for (const { id } of candidates) {
     const result = await sendDueReminderIfNeeded(id, today);
     if (result.sent) sent++;
+  }
+
+  // Phase 1.5: email reminders (hitos {2, 0} — independientes de la ventana [hoy, hoy+2] de la push)
+  const todayPlus2 = new Date(today.getTime() + 2 * DAY_MS);
+
+  const emailCandidates = await prisma.user.findMany({
+    where: {
+      role: "STUDENT",
+      deletedAt: null,
+      blockedAt: null,
+      paymentExempt: false,
+      email: { not: null },
+      gym: { blockedAt: null, kind: { not: "PERSONAL" } },
+      nextPaymentDate: { in: [today, todayPlus2] },
+      OR: [
+        { lastDueEmailedOn: null },
+        { lastDueEmailedOn: { lt: today } },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      nextPaymentDate: true,
+      gym: { select: { id: true, name: true, primaryColor: true, logo: true, kind: true } },
+    },
+  });
+
+  let emailsSent = 0;
+  let emailsFailed = 0;
+
+  for (const user of emailCandidates) {
+    if (!user.gym) continue; // gymId is optional in schema; the where clause already requires it in practice
+    const daysRemaining = Math.round(
+      (user.nextPaymentDate.getTime() - today.getTime()) / DAY_MS
+    );
+    const result = await sendPaymentDueStudentEmail(user, user.gym, user.nextPaymentDate, daysRemaining);
+    if (result.ok) {
+      await prisma.user.update({ where: { id: user.id }, data: { lastDueEmailedOn: today } });
+      emailsSent++;
+    } else {
+      emailsFailed++;
+    }
   }
 
   // Phase 2: fixed routine renewal reminders for teachers (GYM-only)
@@ -123,6 +167,8 @@ export async function GET(req: NextRequest) {
     ok: true,
     candidates: candidates.length,
     pushesSent: sent,
+    emailsSent,
+    emailsFailed,
     renewalRemindersSent: renewalPushesSent,
   });
 }
