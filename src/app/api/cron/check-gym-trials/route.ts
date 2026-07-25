@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendTrialEndingPush, sendPersonalTrialEndingPush, sendSelfBillingDuePush } from "@/lib/push";
+import { sendPaymentDueGymEmail, sendPaymentDuePersonalEmail } from "@/lib/billing-emails";
 import { cleanupOldRateLimits } from "@/lib/rate-limit";
-import { getTodayArgentina } from "@/lib/dates";
+import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import type { Prisma } from "@prisma/client";
 
 // Vercel Cron: 06:00 UTC (03:00 ART) daily — see vercel.json.
@@ -10,6 +11,10 @@ import type { Prisma } from "@prisma/client";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PUSH_MILESTONES = new Set([3, 1, 0]);
+// Hitos del canal email — independientes de los hitos de la push (D3 del design de add-payment-due-emails).
+const DUE_EMAIL_MILESTONES = new Set([2, 0]);
+// Sentinela asignado a los usuarios Personal que nunca fueron cobrados a mano (ver personal-registration.ts).
+const PERSONAL_NEXT_PAYMENT_SENTINEL = new Date("9999-12-31");
 
 type PersonalUserPhaseCondition = Omit<
   Prisma.UserWhereInput,
@@ -48,6 +53,7 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
+  const todayART = getTodayArgentina();
 
   // --- Phase 1: block gyms with expired trial and no subscription ---
   // Excludes selfManagedBilling gyms and gyms with a due-date loaded (governed by Phase 2.7).
@@ -106,6 +112,8 @@ export async function GET(req: NextRequest) {
   const personalTrialBlockedUserIds: string[] = [];
   const personalPaymentFailureBlockedUserIds: string[] = [];
   const personalPushSummary: { userId: string; daysLeft: number; sent: number; removed: number }[] = [];
+  let personalDueEmailsSent = 0;
+  let personalDueEmailsFailed = 0;
 
   if (!personalGym) {
     console.log("[check-gym-trials] No PERSONAL gym found — skipping Personal phases");
@@ -172,6 +180,52 @@ export async function GET(req: NextRequest) {
         });
       }
     }
+
+    // --- Fase Personal 2.6: email de recordatorio de cuota (hitos {2, 0}) ---
+    // Sólo alcanza a usuarios Personal cobrados a mano (nextPaymentDate real, no el centinela)
+    // y que no estén en débito automático de MP.
+    const personalDueCandidates = await prisma.user.findMany({
+      where: {
+        gymId: personalGym.id,
+        role: "STUDENT",
+        canCreateOwnRoutines: true,
+        deletedAt: null,
+        blockedAt: null,
+        paymentExempt: false,
+        email: { not: null },
+        OR: [
+          { mpSubscriptionStatus: null },
+          { mpSubscriptionStatus: { not: "authorized" } },
+        ],
+        nextPaymentDate: { not: PERSONAL_NEXT_PAYMENT_SENTINEL },
+      },
+      select: { id: true, name: true, email: true, nextPaymentDate: true, lastDueEmailedOn: true },
+    });
+
+    for (const user of personalDueCandidates) {
+      const daysLeft = Math.round(
+        (user.nextPaymentDate.getTime() - todayART.getTime()) / DAY_MS
+      );
+      if (!DUE_EMAIL_MILESTONES.has(daysLeft)) continue;
+      if (user.lastDueEmailedOn && toInputDate(user.lastDueEmailedOn) === toInputDate(todayART)) continue;
+
+      try {
+        const result = await sendPaymentDuePersonalEmail(user, user.nextPaymentDate, daysLeft);
+        if (result.ok) {
+          await prisma.user.update({ where: { id: user.id }, data: { lastDueEmailedOn: todayART } });
+          personalDueEmailsSent++;
+        } else {
+          personalDueEmailsFailed++;
+        }
+      } catch (err) {
+        console.warn("[check-gym-trials] Failed to send Personal due email", {
+          userId: user.id,
+          daysLeft,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        personalDueEmailsFailed++;
+      }
+    }
   }
 
   // --- Phase 2: send push notifications at trial milestone days ---
@@ -215,10 +269,11 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // --- Phase 2.6: push reminders at milestone days for gyms with a due-date ---
+  // --- Phase 2.6: reminders at milestone days for gyms with a due-date ---
   // Governed by subscriptionNextPaymentDate (independent of selfManagedBilling).
+  // Dos canales con hitos independientes: push {10,7,3,1,0} y email {2,0} — el email
+  // NO puede evaluarse dentro del `continue` de la push, porque 2 no es hito de la push.
   const SELF_BILLING_MILESTONES = new Set([10, 7, 3, 1, 0]);
-  const todayART = getTodayArgentina();
 
   const selfBillingGyms = await prisma.gym.findMany({
     where: {
@@ -227,10 +282,19 @@ export async function GET(req: NextRequest) {
       blockedAt: null,
       kind: { not: "PERSONAL" },
     },
-    select: { id: true, slug: true, subscriptionNextPaymentDate: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      subscriptionNextPaymentDate: true,
+      subscriptionMonthlyAmount: true,
+      lastBillingEmailedOn: true,
+    },
   });
 
   const selfBillingPushSummary: { gymId: string; daysLeft: number; sent: number; removed: number }[] = [];
+  let gymDueEmailsSent = 0;
+  let gymDueEmailsFailed = 0;
 
   for (const gym of selfBillingGyms) {
     // subscriptionNextPaymentDate is guaranteed non-null by the where clause above
@@ -238,25 +302,51 @@ export async function GET(req: NextRequest) {
       (gym.subscriptionNextPaymentDate!.getTime() - todayART.getTime()) / DAY_MS
     );
 
-    if (!SELF_BILLING_MILESTONES.has(daysLeft)) continue;
+    if (SELF_BILLING_MILESTONES.has(daysLeft)) {
+      try {
+        const { totalSent, totalRemoved } = await sendSelfBillingDuePush(gym.id, daysLeft);
+        console.log("[check-gym-trials] Sent self-billing reminder push", {
+          gymId: gym.id,
+          slug: gym.slug,
+          daysLeft,
+          totalSent,
+          totalRemoved,
+        });
+        selfBillingPushSummary.push({ gymId: gym.id, daysLeft, sent: totalSent, removed: totalRemoved });
+      } catch (err) {
+        console.warn("[check-gym-trials] Failed to send self-billing reminder push", {
+          gymId: gym.id,
+          slug: gym.slug,
+          daysLeft,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
-    try {
-      const { totalSent, totalRemoved } = await sendSelfBillingDuePush(gym.id, daysLeft);
-      console.log("[check-gym-trials] Sent self-billing reminder push", {
-        gymId: gym.id,
-        slug: gym.slug,
-        daysLeft,
-        totalSent,
-        totalRemoved,
-      });
-      selfBillingPushSummary.push({ gymId: gym.id, daysLeft, sent: totalSent, removed: totalRemoved });
-    } catch (err) {
-      console.warn("[check-gym-trials] Failed to send self-billing reminder push", {
-        gymId: gym.id,
-        slug: gym.slug,
-        daysLeft,
-        error: err instanceof Error ? err.message : String(err),
-      });
+    if (
+      DUE_EMAIL_MILESTONES.has(daysLeft) &&
+      !(gym.lastBillingEmailedOn && toInputDate(gym.lastBillingEmailedOn) === toInputDate(todayART))
+    ) {
+      try {
+        const { sent, failed } = await sendPaymentDueGymEmail(
+          { id: gym.id, name: gym.name, slug: gym.slug, subscriptionMonthlyAmount: gym.subscriptionMonthlyAmount },
+          gym.subscriptionNextPaymentDate!,
+          daysLeft
+        );
+        gymDueEmailsSent += sent;
+        gymDueEmailsFailed += failed;
+        if (failed === 0 && sent > 0) {
+          await prisma.gym.update({ where: { id: gym.id }, data: { lastBillingEmailedOn: todayART } });
+        }
+      } catch (err) {
+        console.warn("[check-gym-trials] Failed to send self-billing due email", {
+          gymId: gym.id,
+          slug: gym.slug,
+          daysLeft,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        gymDueEmailsFailed++;
+      }
     }
   }
 
@@ -307,6 +397,8 @@ export async function GET(req: NextRequest) {
     paymentFailureBlockedGymIds,
     pushSummary,
     selfBillingPushSummary,
+    gymDueEmailsSent,
+    gymDueEmailsFailed,
     selfBillingBlockedCount: selfBillingBlockedGymIds.length,
     selfBillingBlockedGymIds,
     personalTrialBlockedCount: personalTrialBlockedUserIds.length,
@@ -314,6 +406,8 @@ export async function GET(req: NextRequest) {
     personalPaymentFailureBlockedCount: personalPaymentFailureBlockedUserIds.length,
     personalPaymentFailureBlockedUserIds,
     personalPushSummary,
+    personalDueEmailsSent,
+    personalDueEmailsFailed,
     expiredSignupRequestsCount: expiredCount,
     cleanedRateLimits,
   });

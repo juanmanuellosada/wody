@@ -1,5 +1,7 @@
 # Notificaciones push
 
+> El recordatorio de vencimiento de cuota es **multicanal**: push (este doc) + email. El canal email sale exclusivamente de los crons diarios (`notify-due-today` para el alumno, `check-gym-trials` para el gym y Wody Personal), nunca del login, y tiene sus propios hitos (`{2, 0}` días), independientes de los de la push. Ver [`docs/emails-resend.md`](./emails-resend.md#recordatorios-de-vencimiento-de-cuota) para el detalle del canal email.
+
 Se mandan a alumnos (STUDENT) cuyo `nextPaymentDate` cae en el rango **[hoy, hoy+2]** (ART). Es decir: hoy, mañana o en 2 días. Copy personalizado según los días restantes:
 - 0 días → "Tu cuota vence hoy. Pasá por tu {box|gym} para renovar."
 - 1 día → "Tu cuota vence mañana. Pasá por tu {box|gym} para renovar."

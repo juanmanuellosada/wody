@@ -37,7 +37,15 @@ export async function GET(req: NextRequest) {
     where: {
       status: "SENT",
       sentAt: { gte: startOfMonth },
-      type: { in: ["INVITE", "RESET"] },
+      type: {
+        in: [
+          "INVITE",
+          "RESET",
+          "PAYMENT_DUE_STUDENT",
+          "PAYMENT_DUE_GYM",
+          "PAYMENT_DUE_PERSONAL",
+        ],
+      },
     },
   });
 
