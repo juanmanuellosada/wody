@@ -155,7 +155,10 @@ export async function GET(req: NextRequest) {
         canCreateOwnRoutines: true,
         deletedAt: null,
         paymentExempt: false,
-        mpSubscriptionStatus: { not: "authorized" },
+        OR: [
+          { mpSubscriptionStatus: null },
+          { mpSubscriptionStatus: { not: "authorized" } },
+        ],
         blockedAt: null,
         trialEndsAt: { not: null },
       },
@@ -232,7 +235,10 @@ export async function GET(req: NextRequest) {
   const trialingGyms = await prisma.gym.findMany({
     where: {
       paymentExempt: false,
-      mpSubscriptionStatus: { not: "authorized" },
+      OR: [
+        { mpSubscriptionStatus: null },
+        { mpSubscriptionStatus: { not: "authorized" } },
+      ],
       kind: { not: "PERSONAL" },
       blockedAt: null,
       trialEndsAt: { not: null },
@@ -353,6 +359,7 @@ export async function GET(req: NextRequest) {
   // --- Phase 2.7: block gyms with a due-date past their grace period ---
   // Governed by subscriptionNextPaymentDate (independent of selfManagedBilling).
   // Gyms with an authorized MP subscription are excluded (MP governs their billing).
+  // Gyms with no MP subscription at all (manual billing, mpSubscriptionStatus null) are included.
   const selfBillingBlockedGymIds: string[] = [];
 
   const overdueGraceGyms = await prisma.gym.findMany({
@@ -360,7 +367,10 @@ export async function GET(req: NextRequest) {
       subscriptionNextPaymentDate: { not: null },
       paymentExempt: false,
       blockedAt: null,
-      mpSubscriptionStatus: { not: "authorized" },
+      OR: [
+        { mpSubscriptionStatus: null },
+        { mpSubscriptionStatus: { not: "authorized" } },
+      ],
       kind: { not: "PERSONAL" },
     },
     select: { id: true, slug: true, subscriptionNextPaymentDate: true, autoBlockAfterDays: true },
