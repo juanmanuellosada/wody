@@ -74,6 +74,14 @@ export async function subscribeGym(): Promise<SubscribeGymResult> {
   if (!gymId) {
     return { success: false, error: "No hay un gym asociado a esta sesión" };
   }
+  const payerEmail = session.user.email;
+  if (!payerEmail) {
+    return {
+      success: false,
+      error:
+        "Tu cuenta de administrador no tiene un email cargado. Cargá un email en tu perfil para poder suscribirte.",
+    };
+  }
 
   const gym = await prisma.gym.findUniqueOrThrow({
     where: { id: gymId },
@@ -83,6 +91,7 @@ export async function subscribeGym(): Promise<SubscribeGymResult> {
   const result = await createGymSubscription({
     gymId,
     trialEndsAt: gym.trialEndsAt,
+    payerEmail,
   });
 
   if (!result.ok) {

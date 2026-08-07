@@ -6,9 +6,9 @@
 
 Wody cobra a cada gym **$40.000 ARS/mes** y a cada usuario de Wody Personal **$7.000 ARS/mes** mediante suscripciones de Mercado Pago creadas por API (sin plan asociado). El período de prueba (15 días) es **propiedad exclusiva de la app**: `Gym.trialEndsAt` y `User.trialEndsAt` son la fuente de verdad del trial; Mercado Pago **no maneja ningún `free_trial` configurado en un plan**.
 
-Al vincular la tarjeta, la app calcula cuántos días restan del trial (`díasRestantes = ceil((trialEndsAt - now) / 1 día)`) y crea un `preapproval` sin plan con un `free_trial` dinámico en días. MP difiere el primer cobro hasta que venza ese free_trial — que coincide exactamente con el fin del trial de la app. Si el trial ya venció (`díasRestantes <= 0`), el cobro es inmediato (~1h).
+Al suscribirse, la app calcula cuántos días restan del trial (`díasRestantes = ceil((trialEndsAt - now) / 1 día)`) y crea un `preapproval` sin plan, en estado `"pending"`, con un `free_trial` dinámico en días. MP difiere el primer cobro hasta que venza ese free_trial — que coincide exactamente con el fin del trial de la app. Si el trial ya venció (`díasRestantes <= 0`), el cobro es inmediato (~1h).
 
-La captura de tarjeta es **in-app** (MP Bricks/CardForm): MP tokeniza la tarjeta en el navegador y devuelve un `card_token_id` de un solo uso; Wody nunca recibe los datos de la tarjeta.
+La vinculación del medio de pago es **vía redirect**: MP devuelve un `init_point` al que se redirige al usuario para que autorice la suscripción en el sitio de Mercado Pago; no hay captura de tarjeta in-app en Wody.
 
 ---
 
@@ -23,7 +23,8 @@ Las suscripciones se crean mediante `POST /preapproval` **sin `preapproval_plan_
 | `transaction_amount` | `40000` | `7000` |
 | `currency_id` | `ARS` | `ARS` |
 | `external_reference` | `gymId` | `"user_<userId>"` |
-| `status` | `"authorized"` | `"authorized"` |
+| `payer_email` | email del ADMIN | email del user Personal |
+| `status` | `"pending"` | `"pending"` |
 
 ### Trial 100% en la app
 
@@ -79,7 +80,6 @@ El cron también bloquea tenants con suscripción en `paused` o `cancelled` que 
 | [`src/lib/mercadopago.ts`](../src/lib/mercadopago.ts) | Cliente MP (singleton), `createGymSubscription`, `createPersonalSubscription` (crean el preapproval por API con `free_trial` dinámico), `calcDaysRemaining`, validación de firma HMAC del webhook, `cancelMpPreapproval`, union type `MpSubscriptionStatus` y parser tolerante |
 | [`src/actions/billing.ts`](../src/actions/billing.ts) | Server actions para el dueño del gym: `getMySubscriptionStatus` (estado, días restantes de trial) y `subscribeGym` (recibe `card_token_id` + `payer_email`, crea el preapproval) |
 | [`src/actions/personal-billing.ts`](../src/actions/personal-billing.ts) | Server actions para el user Personal: `getMyPersonalSubscriptionStatus`, `subscribePersonal` y `cancelMySubscription` |
-| [`src/components/billing/MpCardForm.tsx`](../src/components/billing/MpCardForm.tsx) | Componente cliente que carga el SDK de MP vía script CDN, monta el CardForm de MP Bricks, tokeniza la tarjeta y llama al callback `onToken(cardTokenId, payerEmail)` |
 | [`src/actions/super-admin/gym.ts`](../src/actions/super-admin/gym.ts) | `setGymPaymentExempt(gymId, exempt, reason)` y `cancelGymSubscription(gymId)` — solo invocables por SUPERADMIN |
 | [`src/app/api/webhooks/mercadopago/route.ts`](../src/app/api/webhooks/mercadopago/route.ts) | Handler POST del webhook de MP: valida firma, parsea evento, actualiza `mpPreapprovalId` y `mpSubscriptionStatus` en el gym/user correspondiente |
 | [`src/app/api/cron/check-gym-trials/route.ts`](../src/app/api/cron/check-gym-trials/route.ts) | Cron diario: bloqueo por trial vencido o pago fallido + push notifications en hitos |
@@ -142,16 +142,16 @@ Este setup es manual y debe hacerse **antes del primer deploy** a producción (o
 
 ### 6.1 Alta de tarjeta (gym o Personal)
 
-1. El dueño/user entra a la página de billing (`/[gymSlug]/admin/billing` o `/personal/perfil/suscripcion`).
-2. Completa el formulario de tarjeta (MP Bricks/CardForm), que tokeniza la tarjeta del lado del cliente.
-3. El token (`card_token_id`) viaja a la server action (`subscribeGym` o `subscribePersonal`).
-4. La server action llama a `createGymSubscription` / `createPersonalSubscription`:
+1. El dueño/user entra a la página de billing (`/[gymSlug]/admin/billing` o `/personal/perfil/suscripcion`) y confirma la suscripción.
+2. La server action (`subscribeGym` o `subscribePersonal`) toma el email del ADMIN (de la sesión) o del user Personal (de la DB) como `payer_email` — si no tiene email cargado, devuelve un error accionable sin llamar a MP.
+3. La server action llama a `createGymSubscription` / `createPersonalSubscription`:
    - Calcula `díasRestantes = ceil((trialEndsAt - now) / 1 día)`.
    - Si `díasRestantes >= 1`: incluye `auto_recurring.free_trial = { frequency: díasRestantes, frequency_type: "days" }`.
    - Si `díasRestantes <= 0`: omite `free_trial` (cobro inmediato ~1h).
-   - Llama a `preApproval.create(...)` del SDK `mercadopago@3.0.0` **sin `preapproval_plan_id`**.
-5. Si la creación tiene éxito: se persiste `mpPreapprovalId` y `mpSubscriptionStatus` en la DB.
-6. Si falla (tarjeta rechazada, token inválido, error de API): se devuelve un error a la UI y se permite reintentar sin persistir nada.
+   - Llama a `preApproval.create(...)` del SDK `mercadopago@3.0.0` con `status: "pending"` y `payer_email`, **sin `preapproval_plan_id`**.
+4. Si la creación tiene éxito: se persiste `mpPreapprovalId` y `mpSubscriptionStatus` en la DB, y se devuelve el `init_point` de MP.
+5. El usuario es redirigido a `init_point`, donde autoriza la suscripción y vincula su medio de pago en el sitio de Mercado Pago. Wody nunca recibe ni procesa datos de tarjeta.
+6. Si falla la creación del preapproval (error de API, email inválido, etc.): se devuelve un error a la UI y se permite reintentar sin persistir nada.
 
 ### 6.2 Compatibilidad con suscripciones existentes
 

@@ -106,6 +106,43 @@ export type CreateSubscriptionResult =
   | { ok: false; error: string };
 
 // ---------------------------------------------------------------------------
+// Error description helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts a readable message from an unknown thrown value for logging.
+ *
+ * The `mercadopago` SDK (v3.0.0) does `throw await response.json()` on API
+ * errors — a plain object, not an `Error` — so `err instanceof Error` is
+ * false and `String(err)` collapses to `"[object Object]"`, losing the real
+ * MP error body (`message`, `status`, `error`, and the `cause` array with
+ * per-field detail). This pulls those fields out so logs stay useful.
+ */
+function describeMpError(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message;
+  }
+  if (err && typeof err === "object") {
+    const obj = err as Record<string, unknown>;
+    const parts: string[] = [];
+    if (typeof obj.message === "string") parts.push(obj.message);
+    if (typeof obj.error === "string") parts.push(obj.error);
+    if (obj.status !== undefined) parts.push(`status=${String(obj.status)}`);
+    if (Array.isArray(obj.cause) && obj.cause.length > 0) {
+      parts.push(`cause=${JSON.stringify(obj.cause)}`);
+    }
+    if (parts.length > 0) {
+      return parts.join(" | ");
+    }
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Gym subscription (no plan, free_trial dynamic)
 // ---------------------------------------------------------------------------
 
@@ -123,8 +160,9 @@ export type CreateSubscriptionResult =
 export async function createGymSubscription(params: {
   gymId: string;
   trialEndsAt: Date | null;
+  payerEmail: string;
 }): Promise<CreateSubscriptionResult> {
-  const { gymId, trialEndsAt } = params;
+  const { gymId, trialEndsAt, payerEmail } = params;
 
   const diasRestantes = calcDaysRemaining(trialEndsAt);
 
@@ -143,6 +181,7 @@ export async function createGymSubscription(params: {
       body: {
         status: "pending",
         external_reference: gymId,
+        payer_email: payerEmail,
         reason: "Suscripción mensual Wody",
         back_url: `${process.env.APP_URL ?? "https://wody.com.ar"}`,
         // Cast needed: SDK types PreApprovalRequest.auto_recurring as
@@ -173,7 +212,7 @@ export async function createGymSubscription(params: {
       initPoint,
     };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = describeMpError(err);
     console.error("[mercadopago] createGymSubscription error", { gymId, error: msg });
     return { ok: false, error: "Error al crear la suscripción. Intentá de nuevo." };
   }
@@ -197,8 +236,9 @@ export async function createGymSubscription(params: {
 export async function createPersonalSubscription(params: {
   userId: string;
   trialEndsAt: Date | null;
+  payerEmail: string;
 }): Promise<CreateSubscriptionResult> {
-  const { userId, trialEndsAt } = params;
+  const { userId, trialEndsAt, payerEmail } = params;
 
   const diasRestantes = calcDaysRemaining(trialEndsAt);
 
@@ -217,6 +257,7 @@ export async function createPersonalSubscription(params: {
       body: {
         status: "pending",
         external_reference: `user_${userId}`,
+        payer_email: payerEmail,
         reason: "Suscripción mensual Wody Personal",
         back_url: `${process.env.APP_URL ?? "https://wody.com.ar"}`,
         // Cast needed: same as createGymSubscription.
@@ -245,7 +286,7 @@ export async function createPersonalSubscription(params: {
       initPoint,
     };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = describeMpError(err);
     console.error("[mercadopago] createPersonalSubscription error", { userId, error: msg });
     return { ok: false, error: "Error al crear la suscripción. Intentá de nuevo." };
   }

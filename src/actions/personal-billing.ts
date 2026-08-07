@@ -72,16 +72,25 @@ export async function subscribePersonal(): Promise<SubscribePersonalResult> {
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { paymentExempt: true, trialEndsAt: true },
+    select: { paymentExempt: true, trialEndsAt: true, email: true },
   });
 
   if (user.paymentExempt) {
     return { success: false, error: "Tu cuenta está exenta, no hace falta configurar suscripción" };
   }
 
+  if (!user.email) {
+    return {
+      success: false,
+      error:
+        "Tu cuenta no tiene un email cargado. Cargá un email en tu perfil para poder suscribirte.",
+    };
+  }
+
   const result = await createPersonalSubscription({
     userId,
     trialEndsAt: user.trialEndsAt,
+    payerEmail: user.email,
   });
 
   if (!result.ok) {
