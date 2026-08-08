@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle, AlertTriangle, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cancelMySubscription, subscribePersonal } from "@/actions/personal-billing";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface Props {
   trialEndsAt: Date | null;
@@ -15,6 +18,7 @@ interface Props {
   mpSubscriptionStatus: string | null;
   mpPreapprovalId: string | null;
   daysLeftInTrial: number | null;
+  userEmail: string;
 }
 
 function trialHeadline(daysLeft: number | null): string {
@@ -32,12 +36,14 @@ export function PersonalBillingPage({
   mpSubscriptionStatus,
   mpPreapprovalId,
   daysLeftInTrial,
+  userEmail,
 }: Props) {
   const router = useRouter();
   const [isCancelPending, startCancelTransition] = useTransition();
   const [isSubscribePending, startSubscribeTransition] = useTransition();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
+  const [email, setEmail] = useState(userEmail);
 
   const isAuthorized = mpSubscriptionStatus === "authorized";
   const isPausedOrCancelled =
@@ -68,8 +74,13 @@ export function PersonalBillingPage({
 
   function handleSubscribe() {
     setSubscribeError(null);
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !EMAIL_REGEX.test(trimmedEmail)) {
+      setSubscribeError("Ingresá un email válido de tu cuenta de Mercado Pago.");
+      return;
+    }
     startSubscribeTransition(async () => {
-      const result = await subscribePersonal();
+      const result = await subscribePersonal(trimmedEmail);
       if (!result.success) {
         setSubscribeError(result.error);
         return;
@@ -182,6 +193,16 @@ export function PersonalBillingPage({
           </div>
 
           <div className="flex flex-col gap-3">
+            <Input
+              label="Email de tu cuenta de Mercado Pago"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="tu@email.com"
+              disabled={isSubscribePending}
+              hint="Tiene que ser el email exacto de la cuenta con la que vas a pagar en Mercado Pago. Si no coincide, el pago se rechaza."
+            />
+
             {subscribeError && (
               <div className="flex items-start gap-2.5 border border-brand-red/30 bg-brand-red/5 px-4 py-3">
                 <AlertTriangle size={14} className="text-brand-red flex-shrink-0 mt-0.5" aria-hidden="true" />

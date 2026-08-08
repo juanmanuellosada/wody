@@ -50,6 +50,7 @@ export default async function PersonalSuscripcionPage({ params }: Props) {
         mpSubscriptionStatus={status.mpSubscriptionStatus}
         mpPreapprovalId={status.mpPreapprovalId}
         daysLeftInTrial={status.daysLeftInTrial}
+        userEmail={session.user.email ?? ""}
       />
 
       <div className="max-w-2xl mx-auto w-full border-t border-line pt-4">

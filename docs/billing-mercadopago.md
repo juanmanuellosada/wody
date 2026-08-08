@@ -23,8 +23,10 @@ Las suscripciones se crean mediante `POST /preapproval` **sin `preapproval_plan_
 | `transaction_amount` | `40000` | `7000` |
 | `currency_id` | `ARS` | `ARS` |
 | `external_reference` | `gymId` | `"user_<userId>"` |
-| `payer_email` | email del ADMIN | email del user Personal |
+| `payer_email` | email de la cuenta de MP del ADMIN, ingresado por input | email de la cuenta de MP del user Personal, ingresado por input |
 | `status` | `"pending"` | `"pending"` |
+
+**`payer_email` se pide por input, no se toma de la sesión.** Mercado Pago hace cumplir el `payer_email` del preapproval contra la cuenta con la que el pagador se loguea en el checkout: si no coinciden exactamente, el checkout corta con "Tu e-mail no coincide con el de la suscripción". El email de la sesión de Wody (o el del `User` en la DB) no tiene por qué ser el de la cuenta de MP con la que la persona va a pagar, así que la UI pide el email de la cuenta de MP en un input (pre-cargado con el email de sesión/DB como sugerencia editable) y ese valor —no el de la sesión— es el que se manda como `payer_email`. No se persiste: viaja solo en el form de cada intento de suscripción.
 
 ### Trial 100% en la app
 
@@ -142,16 +144,18 @@ Este setup es manual y debe hacerse **antes del primer deploy** a producción (o
 
 ### 6.1 Alta de tarjeta (gym o Personal)
 
-1. El dueño/user entra a la página de billing (`/[gymSlug]/admin/billing` o `/personal/perfil/suscripcion`) y confirma la suscripción.
-2. La server action (`subscribeGym` o `subscribePersonal`) toma el email del ADMIN (de la sesión) o del user Personal (de la DB) como `payer_email` — si no tiene email cargado, devuelve un error accionable sin llamar a MP.
-3. La server action llama a `createGymSubscription` / `createPersonalSubscription`:
+1. El dueño/user entra a la página de billing (`/[gymSlug]/admin/billing` o `/personal/perfil/suscripcion`) y ve un input "Email de tu cuenta de Mercado Pago", pre-cargado (editable) con el email de la sesión (ADMIN) o del `User` en la DB (Personal). Confirma la suscripción.
+2. El cliente valida el formato del email antes de llamar a la action; si está vacío o mal formado, muestra el error sin llamar al server.
+3. La server action (`subscribeGym(payerEmail)` o `subscribePersonal(payerEmail)`) recibe ese email desde el form —no lo lee de la sesión ni de la DB— y lo vuelve a validar en el servidor (trim, no vacío, formato). Si no valida, devuelve un error accionable sin llamar a MP.
+4. Si el gym/user ya tiene un `mpPreapprovalId` seteado (reintento tras un checkout fallido, por ejemplo), la action intenta cancelarlo con `cancelMpPreapproval` antes de crear el nuevo preapproval. Es best-effort: el fallo se loguea con `describeMpError` y no bloquea el alta — el objetivo es no dejar preapprovals huérfanos acumulándose en MP.
+5. La server action llama a `createGymSubscription` / `createPersonalSubscription`:
    - Calcula `díasRestantes = ceil((trialEndsAt - now) / 1 día)`.
    - Si `díasRestantes >= 1`: incluye `auto_recurring.free_trial = { frequency: díasRestantes, frequency_type: "days" }`.
    - Si `díasRestantes <= 0`: omite `free_trial` (cobro inmediato ~1h).
-   - Llama a `preApproval.create(...)` del SDK `mercadopago@3.0.0` con `status: "pending"` y `payer_email`, **sin `preapproval_plan_id`**.
-4. Si la creación tiene éxito: se persiste `mpPreapprovalId` y `mpSubscriptionStatus` en la DB, y se devuelve el `init_point` de MP.
-5. El usuario es redirigido a `init_point`, donde autoriza la suscripción y vincula su medio de pago en el sitio de Mercado Pago. Wody nunca recibe ni procesa datos de tarjeta.
-6. Si falla la creación del preapproval (error de API, email inválido, etc.): se devuelve un error a la UI y se permite reintentar sin persistir nada.
+   - Llama a `preApproval.create(...)` del SDK `mercadopago@3.0.0` con `status: "pending"` y el `payer_email` del input, **sin `preapproval_plan_id`**.
+6. Si la creación tiene éxito: se persiste `mpPreapprovalId` y `mpSubscriptionStatus` en la DB, y se devuelve el `init_point` de MP.
+7. El usuario es redirigido a `init_point`. En el checkout de MP debe loguearse con **la misma cuenta cuyo email coincide exactamente con el `payer_email` enviado** — si se loguea con una cuenta distinta, MP corta con "Tu e-mail no coincide con el de la suscripción". Wody nunca recibe ni procesa datos de tarjeta.
+8. Si falla la creación del preapproval (error de API, email inválido, etc.): se devuelve un error a la UI y se permite reintentar sin persistir nada.
 
 ### 6.2 Compatibilidad con suscripciones existentes
 

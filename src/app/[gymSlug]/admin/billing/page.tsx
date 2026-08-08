@@ -253,7 +253,7 @@ export default async function BillingPage({ params }: Props) {
             </p>
           </div>
 
-          <GymCardFormSection />
+          <GymCardFormSection adminEmail={session.user.email ?? ""} />
         </div>
       )}
 

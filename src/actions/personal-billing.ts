@@ -5,7 +5,10 @@ import { prisma } from "@/lib/prisma";
 import {
   createPersonalSubscription,
   cancelMpPreapproval,
+  describeMpError,
 } from "@/lib/mercadopago";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type ActionResult = { success: true } | { success: false; error: string };
 
@@ -67,30 +70,42 @@ type SubscribePersonalResult =
  * the init_point URL so the user can authorize the subscription via redirect.
  * Persists mpPreapprovalId and mpSubscriptionStatus only if the creation succeeds.
  */
-export async function subscribePersonal(): Promise<SubscribePersonalResult> {
+export async function subscribePersonal(payerEmailInput: string): Promise<SubscribePersonalResult> {
   const { userId } = await getValidatedPersonalSession();
+
+  const payerEmail = payerEmailInput.trim();
+  if (!payerEmail || !EMAIL_REGEX.test(payerEmail)) {
+    return {
+      success: false,
+      error: "Ingresá un email válido de tu cuenta de Mercado Pago.",
+    };
+  }
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { paymentExempt: true, trialEndsAt: true, email: true },
+    select: { paymentExempt: true, trialEndsAt: true, mpPreapprovalId: true },
   });
 
   if (user.paymentExempt) {
     return { success: false, error: "Tu cuenta está exenta, no hace falta configurar suscripción" };
   }
 
-  if (!user.email) {
-    return {
-      success: false,
-      error:
-        "Tu cuenta no tiene un email cargado. Cargá un email en tu perfil para poder suscribirte.",
-    };
+  if (user.mpPreapprovalId) {
+    try {
+      await cancelMpPreapproval(user.mpPreapprovalId);
+    } catch (err) {
+      console.error("[personal-billing] subscribePersonal: failed to cancel previous preapproval", {
+        userId,
+        preapprovalId: user.mpPreapprovalId,
+        error: describeMpError(err),
+      });
+    }
   }
 
   const result = await createPersonalSubscription({
     userId,
     trialEndsAt: user.trialEndsAt,
-    payerEmail: user.email,
+    payerEmail,
   });
 
   if (!result.ok) {

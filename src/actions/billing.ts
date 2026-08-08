@@ -2,8 +2,10 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createGymSubscription } from "@/lib/mercadopago";
+import { createGymSubscription, cancelMpPreapproval, describeMpError } from "@/lib/mercadopago";
 import type { MpSubscriptionStatus } from "@/lib/mercadopago";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type SubscriptionStatus = {
   trialEndsAt: Date | null;
@@ -65,7 +67,7 @@ type SubscribeGymResult =
  * init_point URL so the user can authorize the subscription via redirect.
  * Persists mpPreapprovalId and mpSubscriptionStatus only if the creation succeeds.
  */
-export async function subscribeGym(): Promise<SubscribeGymResult> {
+export async function subscribeGym(payerEmailInput: string): Promise<SubscribeGymResult> {
   const session = await auth();
   if (session?.user?.role !== "ADMIN") {
     return { success: false, error: "Acceso no autorizado" };
@@ -74,19 +76,31 @@ export async function subscribeGym(): Promise<SubscribeGymResult> {
   if (!gymId) {
     return { success: false, error: "No hay un gym asociado a esta sesión" };
   }
-  const payerEmail = session.user.email;
-  if (!payerEmail) {
+
+  const payerEmail = payerEmailInput.trim();
+  if (!payerEmail || !EMAIL_REGEX.test(payerEmail)) {
     return {
       success: false,
-      error:
-        "Tu cuenta de administrador no tiene un email cargado. Cargá un email en tu perfil para poder suscribirte.",
+      error: "Ingresá un email válido de tu cuenta de Mercado Pago.",
     };
   }
 
   const gym = await prisma.gym.findUniqueOrThrow({
     where: { id: gymId },
-    select: { paymentExempt: true, trialEndsAt: true },
+    select: { paymentExempt: true, trialEndsAt: true, mpPreapprovalId: true },
   });
+
+  if (gym.mpPreapprovalId) {
+    try {
+      await cancelMpPreapproval(gym.mpPreapprovalId);
+    } catch (err) {
+      console.error("[billing] subscribeGym: failed to cancel previous preapproval", {
+        gymId,
+        preapprovalId: gym.mpPreapprovalId,
+        error: describeMpError(err),
+      });
+    }
+  }
 
   const result = await createGymSubscription({
     gymId,

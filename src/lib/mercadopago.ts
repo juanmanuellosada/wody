@@ -118,7 +118,7 @@ export type CreateSubscriptionResult =
  * MP error body (`message`, `status`, `error`, and the `cause` array with
  * per-field detail). This pulls those fields out so logs stay useful.
  */
-function describeMpError(err: unknown): string {
+export function describeMpError(err: unknown): string {
   if (err instanceof Error) {
     return err.message;
   }
