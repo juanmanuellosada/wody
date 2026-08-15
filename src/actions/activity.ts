@@ -42,7 +42,6 @@ export type ActivityRow = {
   id: string;
   name: string;
   description: string | null;
-  color: string | null;
   teacherId: string | null;
   teacherName: string | null;
   allowsRecurring: boolean;
@@ -64,7 +63,6 @@ const ACTIVITY_SELECT = {
   id: true,
   name: true,
   description: true,
-  color: true,
   teacherId: true,
   allowsRecurring: true,
   cancelWindowHours: true,
@@ -77,7 +75,6 @@ function toActivityRow(a: {
   id: string;
   name: string;
   description: string | null;
-  color: string | null;
   teacherId: string | null;
   allowsRecurring: boolean;
   cancelWindowHours: number;
@@ -89,7 +86,6 @@ function toActivityRow(a: {
     id: a.id,
     name: a.name,
     description: a.description,
-    color: a.color,
     teacherId: a.teacherId,
     teacherName: a.teacher?.name ?? null,
     allowsRecurring: a.allowsRecurring,
@@ -173,7 +169,6 @@ function validateActivityInput(input: {
 export type ActivityInput = {
   name: string;
   description?: string | null;
-  color?: string | null;
   /** undefined = no tocar (solo relevante en edición para TEACHER); ADMIN siempre debe mandar un valor explícito. */
   teacherId?: string | null;
   allowsRecurring: boolean;
@@ -222,7 +217,6 @@ export async function createActivity(
         gymId: check.gymId,
         name: input.name.trim(),
         description: input.description?.trim() || null,
-        color: input.color?.trim() || null,
         teacherId,
         allowsRecurring: input.allowsRecurring,
         cancelWindowHours: Math.round(input.cancelWindowHours),
@@ -289,7 +283,6 @@ export async function updateActivity(activityId: string, input: ActivityInput): 
     data: {
       name: input.name.trim(),
       description: input.description?.trim() || null,
-      color: input.color?.trim() || null,
       teacherId,
       allowsRecurring: input.allowsRecurring,
       cancelWindowHours: Math.round(input.cancelWindowHours),

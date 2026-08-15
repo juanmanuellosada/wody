@@ -7,7 +7,7 @@ Este cambio agrega el módulo **Turnos**: un centro define actividades con horar
 ## What Changes
 
 **Gestión de actividades (ADMIN / TEACHER)**
-- Alta de Actividad: nombre, descripción, profe a cargo (opcional), color.
+- Alta de Actividad: nombre, descripción, profe a cargo (opcional).
 - Uno o más horarios recurrentes semanales por actividad (ej. lunes 14:00–15:00, miércoles 14:00–15:00).
 - Cupo **opcional** por horario: con límite de personas o sin límite.
 - Flag por actividad: si acepta inscripción recurrente o solo reserva fecha por fecha.

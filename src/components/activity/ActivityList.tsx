@@ -95,13 +95,6 @@ export function ActivityList({ gymSlug, activities: initial, teachers, canAssign
           {activities.map((a) => (
             <li key={a.id} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
-                {a.color && (
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: a.color }}
-                    aria-hidden="true"
-                  />
-                )}
                 <div>
                   <Link
                     href={gymPath(gymSlug, `/turnos/gestion/${a.id}`)}

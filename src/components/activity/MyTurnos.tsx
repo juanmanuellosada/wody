@@ -9,7 +9,6 @@ import { DAY_NAMES, formatMinutes } from "@/components/activity/format";
 export interface MyBookingRow {
   bookingId: string;
   activityName: string;
-  activityColor: string | null;
   date: string; // ISO (@db.Date)
   startsAt: string; // ISO
   endsAt: string; // ISO
@@ -18,7 +17,6 @@ export interface MyBookingRow {
 export interface MyEnrollmentRow {
   enrollmentId: string;
   activityName: string;
-  activityColor: string | null;
   dayOfWeek: number;
   startMinute: number;
   endMinute: number;
@@ -91,9 +89,6 @@ export function MyTurnos({ timezone, bookings: initialBookings, enrollments: ini
               {bookings.map((b) => (
                 <li key={b.bookingId} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-2">
-                    {b.activityColor && (
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: b.activityColor }} />
-                    )}
                     <p className="text-white font-heading font-bold text-sm">
                       {b.activityName} · {formatDateArg(new Date(b.date))} · {formatTime(b.startsAt, timezone)}–
                       {formatTime(b.endsAt, timezone)}
@@ -128,9 +123,6 @@ export function MyTurnos({ timezone, bookings: initialBookings, enrollments: ini
               {enrollments.map((e) => (
                 <li key={e.enrollmentId} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-2">
-                    {e.activityColor && (
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: e.activityColor }} />
-                    )}
                     <p className="text-white font-heading font-bold text-sm">
                       {e.activityName} · Todos los {DAY_NAMES[e.dayOfWeek]} · {formatMinutes(e.startMinute)}–
                       {formatMinutes(e.endMinute)}

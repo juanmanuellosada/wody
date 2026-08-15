@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
+import { TimePicker } from "@/components/ui/TimePicker";
 import { createActivitySlot, updateActivitySlot, deactivateActivitySlot } from "@/actions/activity";
 import { DAY_NAMES, formatMinutes, parseTimeToMinutes } from "@/components/activity/format";
 
@@ -187,27 +188,19 @@ export function ActivitySlotManager({ activityId, slots: initial }: Props) {
 
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-                    Inicio
-                  </label>
-                  <input
-                    type="time"
+                  <TimePicker
+                    label="Inicio"
                     value={form.startTime}
-                    onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                    onChange={(v) => setForm((f) => ({ ...f, startTime: v }))}
                     disabled={isPending}
-                    className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-                    Fin
-                  </label>
-                  <input
-                    type="time"
+                  <TimePicker
+                    label="Fin"
                     value={form.endTime}
-                    onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                    onChange={(v) => setForm((f) => ({ ...f, endTime: v }))}
                     disabled={isPending}
-                    className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
                   />
                 </div>
               </div>

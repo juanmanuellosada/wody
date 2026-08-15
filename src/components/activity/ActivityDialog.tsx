@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
+import { TimePicker } from "@/components/ui/TimePicker";
 import { createActivity, updateActivity, type ActivityRow, type SlotInput } from "@/actions/activity";
 import { DAY_NAMES, parseTimeToMinutes } from "@/components/activity/format";
 
@@ -37,7 +38,6 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
   const isEdit = !!activity;
   const [name, setName] = useState(activity?.name ?? "");
   const [description, setDescription] = useState(activity?.description ?? "");
-  const [color, setColor] = useState(activity?.color ?? "#E31414");
   const [teacherId, setTeacherId] = useState(activity?.teacherId ?? "");
   const [allowsRecurring, setAllowsRecurring] = useState(activity?.allowsRecurring ?? true);
   const [cancelWindowHours, setCancelWindowHours] = useState(String(activity?.cancelWindowHours ?? 2));
@@ -120,7 +120,6 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
       const input = {
         name: name.trim(),
         description: description.trim() || null,
-        color: color || null,
         teacherId: canAssignTeacher ? teacherId || null : undefined,
         allowsRecurring,
         cancelWindowHours: parsedWindow,
@@ -174,33 +173,19 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
             />
           </div>
 
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-                Color
-              </label>
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                disabled={isPending}
-                className="w-full h-10 bg-elev border border-edge cursor-pointer"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-                Ventana de cancelación (hs)
-              </label>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={cancelWindowHours}
-                onChange={(e) => setCancelWindowHours(e.target.value)}
-                disabled={isPending}
-                className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
-              />
-            </div>
+          <div>
+            <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
+              Ventana de cancelación (hs)
+            </label>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={cancelWindowHours}
+              onChange={(e) => setCancelWindowHours(e.target.value)}
+              disabled={isPending}
+              className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
+            />
           </div>
 
           <div>
@@ -284,28 +269,20 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
                     ))}
                   </select>
                 </div>
-                <div className="min-w-[90px]">
-                  <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-                    Inicio
-                  </label>
-                  <input
-                    type="time"
+                <div className="min-w-[110px]">
+                  <TimePicker
+                    label="Inicio"
                     value={draft.startTime}
-                    onChange={(e) => updateSlotDraft(i, { startTime: e.target.value })}
+                    onChange={(v) => updateSlotDraft(i, { startTime: v })}
                     disabled={isPending}
-                    className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
                   />
                 </div>
-                <div className="min-w-[90px]">
-                  <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-                    Fin
-                  </label>
-                  <input
-                    type="time"
+                <div className="min-w-[110px]">
+                  <TimePicker
+                    label="Fin"
                     value={draft.endTime}
-                    onChange={(e) => updateSlotDraft(i, { endTime: e.target.value })}
+                    onChange={(v) => updateSlotDraft(i, { endTime: v })}
                     disabled={isPending}
-                    className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
                   />
                 </div>
                 <div className="min-w-[90px]">

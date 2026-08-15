@@ -44,7 +44,7 @@ export default async function MisTurnosPage({ params }: Props) {
             date: true,
             startsAt: true,
             endsAt: true,
-            slot: { select: { activity: { select: { name: true, color: true } } } },
+            slot: { select: { activity: { select: { name: true } } } },
           },
         },
       },
@@ -59,7 +59,7 @@ export default async function MisTurnosPage({ params }: Props) {
             dayOfWeek: true,
             startMinute: true,
             endMinute: true,
-            activity: { select: { name: true, color: true } },
+            activity: { select: { name: true } },
           },
         },
       },
@@ -70,7 +70,6 @@ export default async function MisTurnosPage({ params }: Props) {
     .map((b) => ({
       bookingId: b.id,
       activityName: b.session.slot.activity.name,
-      activityColor: b.session.slot.activity.color,
       date: b.session.date.toISOString(),
       startsAt: b.session.startsAt.toISOString(),
       endsAt: b.session.endsAt.toISOString(),
@@ -80,7 +79,6 @@ export default async function MisTurnosPage({ params }: Props) {
   const enrollmentRows = enrollments.map((e) => ({
     enrollmentId: e.id,
     activityName: e.slot.activity.name,
-    activityColor: e.slot.activity.color,
     dayOfWeek: e.slot.dayOfWeek,
     startMinute: e.slot.startMinute,
     endMinute: e.slot.endMinute,

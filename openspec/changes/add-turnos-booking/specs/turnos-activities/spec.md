@@ -2,7 +2,7 @@
 
 ### Requirement: Alta de Actividad
 
-El sistema SHALL permitir a un `ADMIN` crear una `Activity` dentro de su gym con `name`, `description` (opcional), `teacherId` a cargo (opcional), `color`, `allowsRecurring` (booleano), `cancelWindowHours` (numérico, horas) y `capacity` (opcional, cupo por defecto de la actividad). Un `TEACHER` SHALL poder crear una `Activity` únicamente asignándose a sí mismo como `teacherId` a cargo. La `Activity` creada SHALL quedar asociada al `gymId` del creador.
+El sistema SHALL permitir a un `ADMIN` crear una `Activity` dentro de su gym con `name`, `description` (opcional), `teacherId` a cargo (opcional), `allowsRecurring` (booleano), `cancelWindowHours` (numérico, horas) y `capacity` (opcional, cupo por defecto de la actividad). Un `TEACHER` SHALL poder crear una `Activity` únicamente asignándose a sí mismo como `teacherId` a cargo. La `Activity` creada SHALL quedar asociada al `gymId` del creador.
 
 #### Scenario: Un ADMIN crea una actividad sin profe asignado
 
@@ -21,7 +21,7 @@ El sistema SHALL permitir a un `ADMIN` crear una `Activity` dentro de su gym con
 
 ### Requirement: Edición de Actividad y cupo por defecto
 
-El sistema SHALL permitir editar los campos de una `Activity` (`name`, `description`, `teacherId`, `color`, `allowsRecurring`, `cancelWindowHours`, `capacity`). `Activity.capacity` es el cupo por defecto de la actividad: un `ActivitySlot` sin cupo propio (`capacity = null`) SHALL tomar el de su `Activity` al materializar la sesión (`slot.capacity ?? activity.capacity ?? null`); si tampoco la actividad tiene cupo, la sesión queda sin límite. `active = false` se establece únicamente a través del flujo de eliminación (ver "Eliminación de Actividad"), nunca como una acción de edición independiente. Una `Activity` con `active = false` NO SHALL aparecer en el calendario de reserva del alumno ni admitir nuevas inscripciones o reservas, y sus `ActivitySlot` y `ActivitySession` existentes NO SHALL borrarse.
+El sistema SHALL permitir editar los campos de una `Activity` (`name`, `description`, `teacherId`, `allowsRecurring`, `cancelWindowHours`, `capacity`). `Activity.capacity` es el cupo por defecto de la actividad: un `ActivitySlot` sin cupo propio (`capacity = null`) SHALL tomar el de su `Activity` al materializar la sesión (`slot.capacity ?? activity.capacity ?? null`); si tampoco la actividad tiene cupo, la sesión queda sin límite. `active = false` se establece únicamente a través del flujo de eliminación (ver "Eliminación de Actividad"), nunca como una acción de edición independiente. Una `Activity` con `active = false` NO SHALL aparecer en el calendario de reserva del alumno ni admitir nuevas inscripciones o reservas, y sus `ActivitySlot` y `ActivitySession` existentes NO SHALL borrarse.
 
 #### Scenario: Un slot sin cupo propio hereda el cupo de la actividad
 

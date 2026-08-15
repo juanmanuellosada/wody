@@ -1,7 +1,7 @@
 ## 1. Schema y migración
 
 - [x] 1.1 Agregar a `Gym` en `prisma/schema.prisma`: `bookingEnabled Boolean @default(false)`, `trainingEnabled Boolean @default(true)`, `timezone String @default("America/Argentina/Buenos_Aires")`, `reminderLeadHours Int @default(2)`
-- [x] 1.2 Crear modelo `Activity` (gymId, name, description, color, teacherId opcional, allowsRecurring, cancelWindowHours default 2, active, timestamps) con índice `[gymId, active]`
+- [x] 1.2 Crear modelo `Activity` (gymId, name, description, teacherId opcional, allowsRecurring, cancelWindowHours default 2, active, timestamps) con índice `[gymId, active]`
 - [x] 1.3 Crear modelo `ActivitySlot` (activityId, dayOfWeek 0-6, startMinute, endMinute, capacity nullable, active) con índice `[activityId, active]`
 - [x] 1.4 Crear modelo `ActivitySession` (gymId desnormalizado, slotId, date, startsAt, endsAt, capacity snapshot, bookedCount default 0, cancelled) con `@@unique([slotId, date])` e índice `[gymId, startsAt]`
 - [x] 1.5 Crear modelo `ActivityEnrollment` (gymId, slotId, userId, createdAt, cancelledAt) con `@@unique([slotId, userId])` e índice `[gymId, userId]`
@@ -69,3 +69,8 @@
 - [x] 7.5 Verificar que con `trainingEnabled=false` no se puede acceder a WODs, RMs ni rutinas, y que `PERSONAL` sigue funcionando igual (lectura de código: `dashboard/athlete`, `dashboard/teacher`, `dashboard/mis-rutinas`, `dashboard/rms` llaman a `isTrainingModuleEnabled` y redirigen a `/beneficios`; la rama `isPersonalGym` se excluye del chequeo en los 4 casos)
 - [x] 7.6 Verificar que ningún gym existente cambió de comportamiento tras la migración (`bookingEnabled=false` por default) (verificado previamente contra la DB por otro agente: los 9 gyms existentes quedaron con `bookingEnabled=false`; no re-verificado en esta pasada)
 - [x] 7.7 Correr `npm run lint` y `npm run build` (`lint` falla con los 2 errores preexistentes de `react-hooks/purity` en `[gymSlug]/layout.tsx:151,197` — sin hallazgos nuevos; `build` termina OK, exit code 0)
+
+## 8. Ajustes post-implementación
+
+- [x] 8.1 Eliminar el campo `Activity.color` (sin uso real en producción): schema, server actions, selects de las 3 páginas de `turnos/`, `ActivityDialog`, `ActivityList`, `TurnosCalendar` y `MyTurnos`
+- [x] 8.2 Crear `src/components/ui/TimePicker.tsx` (consistente con `DatePicker`/`ColorPicker`) y reemplazar los 4 `<input type="time">` nativos en `ActivityDialog` y `ActivitySlotManager`

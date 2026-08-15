@@ -75,7 +75,7 @@ export default async function TurnosPage({ params }: Props) {
       slot: {
         select: {
           dayOfWeek: true,
-          activity: { select: { name: true, color: true, allowsRecurring: true } },
+          activity: { select: { name: true, allowsRecurring: true } },
         },
       },
     },
@@ -100,7 +100,6 @@ export default async function TurnosPage({ params }: Props) {
     slotId: s.slotId,
     dayOfWeek: s.slot.dayOfWeek,
     activityName: s.slot.activity.name,
-    activityColor: s.slot.activity.color,
     allowsRecurring: s.slot.activity.allowsRecurring,
     date: s.date.toISOString(),
     startsAt: s.startsAt.toISOString(),

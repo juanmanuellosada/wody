@@ -13,7 +13,6 @@ export interface StudentSessionRow {
   slotId: string;
   dayOfWeek: number;
   activityName: string;
-  activityColor: string | null;
   allowsRecurring: boolean;
   date: string; // ISO (@db.Date)
   startsAt: string; // ISO
@@ -120,9 +119,6 @@ export function TurnosCalendar({ timezone, sessions: initial, canBook }: Props) 
           return (
             <li key={s.id} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2">
-                {s.activityColor && (
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.activityColor }} />
-                )}
                 <div>
                   <p className="text-white font-heading font-bold text-sm">
                     {s.activityName} · {formatDateArg(new Date(s.date))} · {formatTime(s.startsAt, timezone)}–

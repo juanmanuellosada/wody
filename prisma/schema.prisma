@@ -598,7 +598,6 @@ model Activity {
   gymId             String
   name              String
   description       String?
-  color             String?
   teacherId         String?
   allowsRecurring   Boolean  @default(true)
   cancelWindowHours Int      @default(2)
