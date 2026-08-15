@@ -47,6 +47,8 @@ export type ActivityRow = {
   teacherName: string | null;
   allowsRecurring: boolean;
   cancelWindowHours: number;
+  /** Cupo por defecto de la actividad; lo usa un ActivitySlot cuando el suyo propio es null. */
+  capacity: number | null;
   active: boolean;
 };
 
@@ -66,6 +68,7 @@ const ACTIVITY_SELECT = {
   teacherId: true,
   allowsRecurring: true,
   cancelWindowHours: true,
+  capacity: true,
   active: true,
   teacher: { select: { name: true } },
 } satisfies Prisma.ActivitySelect;
@@ -78,6 +81,7 @@ function toActivityRow(a: {
   teacherId: string | null;
   allowsRecurring: boolean;
   cancelWindowHours: number;
+  capacity: number | null;
   active: boolean;
   teacher: { name: string } | null;
 }): ActivityRow {
@@ -90,6 +94,7 @@ function toActivityRow(a: {
     teacherName: a.teacher?.name ?? null,
     allowsRecurring: a.allowsRecurring,
     cancelWindowHours: a.cancelWindowHours,
+    capacity: a.capacity,
     active: a.active,
   };
 }
@@ -150,10 +155,17 @@ async function assertSlotManager(slotId: string) {
   return { ...check, slot };
 }
 
-function validateActivityInput(input: { name: string; cancelWindowHours: number }): string | null {
+function validateActivityInput(input: {
+  name: string;
+  cancelWindowHours: number;
+  capacity: number | null;
+}): string | null {
   if (!input.name.trim()) return "El nombre es obligatorio.";
   if (!Number.isFinite(input.cancelWindowHours) || input.cancelWindowHours < 0) {
     return "La ventana de cancelación debe ser un número mayor o igual a cero.";
+  }
+  if (input.capacity !== null && (!Number.isInteger(input.capacity) || input.capacity <= 0)) {
+    return "El cupo debe ser un número entero positivo, o vacío para sin límite.";
   }
   return null;
 }
@@ -166,14 +178,29 @@ export type ActivityInput = {
   teacherId?: string | null;
   allowsRecurring: boolean;
   cancelWindowHours: number;
+  /** Cupo por defecto de la actividad (null = sin límite); cada ActivitySlot puede pisarlo con el suyo propio. */
+  capacity: number | null;
 };
 
-export async function createActivity(input: ActivityInput): Promise<ActivityActionResult> {
+/**
+ * Crea la Activity y sus horarios (ActivitySlot) en una sola operación
+ * (spec: "Alta de Actividad con horarios en un solo paso"). Requiere al
+ * menos un horario; los valida igual que createActivitySlot y además
+ * rechaza solapamientos entre horarios del mismo día dentro de la misma
+ * alta.
+ */
+export async function createActivity(
+  input: ActivityInput,
+  slots: SlotInput[]
+): Promise<ActivityActionResult> {
   const check = await assertCanManageActivities();
   if (!check.ok) return { success: false, error: check.error };
 
   const validationError = validateActivityInput(input);
   if (validationError) return { success: false, error: validationError };
+
+  const slotsError = validateSlots(slots);
+  if (slotsError) return { success: false, error: slotsError };
 
   let teacherId: string | null = null;
   if (check.role === "TEACHER") {
@@ -189,18 +216,46 @@ export async function createActivity(input: ActivityInput): Promise<ActivityActi
     teacherId = teacher.id;
   }
 
-  const activity = await prisma.activity.create({
-    data: {
-      gymId: check.gymId,
-      name: input.name.trim(),
-      description: input.description?.trim() || null,
-      color: input.color?.trim() || null,
-      teacherId,
-      allowsRecurring: input.allowsRecurring,
-      cancelWindowHours: Math.round(input.cancelWindowHours),
-    },
-    select: ACTIVITY_SELECT,
+  const { activity, slotIds } = await prisma.$transaction(async (tx) => {
+    const created = await tx.activity.create({
+      data: {
+        gymId: check.gymId,
+        name: input.name.trim(),
+        description: input.description?.trim() || null,
+        color: input.color?.trim() || null,
+        teacherId,
+        allowsRecurring: input.allowsRecurring,
+        cancelWindowHours: Math.round(input.cancelWindowHours),
+        capacity: input.capacity,
+      },
+      select: ACTIVITY_SELECT,
+    });
+
+    const ids: string[] = [];
+    for (const s of slots) {
+      const slot = await tx.activitySlot.create({
+        data: {
+          activityId: created.id,
+          dayOfWeek: s.dayOfWeek,
+          startMinute: s.startMinute,
+          endMinute: s.endMinute,
+          capacity: s.capacity,
+        },
+        select: { id: true },
+      });
+      ids.push(slot.id);
+    }
+
+    return { activity: created, slotIds: ids };
   });
+
+  // Materializar de inmediato, igual que createActivitySlot: sin esto el
+  // admin no ve ninguna sesión hasta que corra el cron del día siguiente.
+  await Promise.all(
+    slotIds.map((id) =>
+      ensureSessionsForSlot(id, addWeeks(new Date(), SESSION_HORIZON_WEEKS)).catch(() => 0)
+    )
+  );
 
   revalidateActivityViews(check.gymSlug);
   return { success: true, activity: toActivityRow(activity) };
@@ -238,21 +293,13 @@ export async function updateActivity(activityId: string, input: ActivityInput): 
       teacherId,
       allowsRecurring: input.allowsRecurring,
       cancelWindowHours: Math.round(input.cancelWindowHours),
+      capacity: input.capacity,
     },
     select: ACTIVITY_SELECT,
   });
 
   revalidateActivityViews(check.gymSlug, activityId);
   return { success: true, activity: toActivityRow(activity) };
-}
-
-export async function deactivateActivity(activityId: string): Promise<SimpleActionResult> {
-  const check = await assertActivityManager(activityId);
-  if (!check.ok) return { success: false, error: check.error };
-
-  await prisma.activity.update({ where: { id: activityId }, data: { active: false } });
-  revalidateActivityViews(check.gymSlug, activityId);
-  return { success: true };
 }
 
 export type SlotRow = {
@@ -287,6 +334,25 @@ function validateSlotInput(input: SlotInput): string | null {
   }
   if (input.capacity !== null && (!Number.isInteger(input.capacity) || input.capacity <= 0)) {
     return "El cupo debe ser un número entero positivo, o vacío para sin límite.";
+  }
+  return null;
+}
+
+function slotsOverlap(a: SlotInput, b: SlotInput): boolean {
+  return a.dayOfWeek === b.dayOfWeek && a.startMinute < b.endMinute && b.startMinute < a.endMinute;
+}
+
+/** Valida la lista de horarios del alta en un paso: al menos uno, cada uno válido, sin solapamientos el mismo día. */
+function validateSlots(slots: SlotInput[]): string | null {
+  if (slots.length === 0) return "Agregá al menos un horario.";
+  for (const s of slots) {
+    const err = validateSlotInput(s);
+    if (err) return err;
+  }
+  for (let i = 0; i < slots.length; i++) {
+    for (let j = i + 1; j < slots.length; j++) {
+      if (slotsOverlap(slots[i], slots[j])) return "Hay horarios superpuestos el mismo día.";
+    }
   }
   return null;
 }
@@ -457,6 +523,102 @@ export async function cancelActivitySession(sessionId: string): Promise<SimpleAc
   revalidateActivityViews(check.gymSlug, activityId);
   revalidatePath(gymPath(check.gymSlug, `/turnos/gestion/${activityId}/sesiones/${sessionId}`));
   return { success: true };
+}
+
+/** Alguna vez tuvo una ActivityBooking (confirmada o cancelada) en cualquiera de sus sesiones. */
+async function activityHasAnyBookingEver(activityId: string): Promise<boolean> {
+  const booking = await prisma.activityBooking.findFirst({
+    where: { session: { slot: { activityId } } },
+    select: { id: true },
+  });
+  return !!booking;
+}
+
+function futureConfirmedBookingsWhere(activityId: string) {
+  return {
+    status: "CONFIRMED" as const,
+    session: { slot: { activityId }, cancelled: false, startsAt: { gte: new Date() } },
+  };
+}
+
+export type DeleteActivityPreview =
+  | { success: true; willArchive: boolean; futureBookedStudents: number }
+  | { success: false; error: string };
+
+/**
+ * Calcula qué va a pasar si se elimina la actividad, para mostrarlo en la
+ * confirmación antes de ejecutar (spec: "Eliminación de Actividad").
+ */
+export async function previewActivityDeletion(activityId: string): Promise<DeleteActivityPreview> {
+  const check = await assertActivityManager(activityId);
+  if (!check.ok) return { success: false, error: check.error };
+
+  const willArchive = await activityHasAnyBookingEver(activityId);
+  const futureBookedStudents = willArchive
+    ? await prisma.activityBooking.count({ where: futureConfirmedBookingsWhere(activityId) })
+    : 0;
+
+  return { success: true, willArchive, futureBookedStudents };
+}
+
+export type DeleteActivityResult =
+  | { success: true; mode: "deleted" | "archived"; futureBookedStudents: number }
+  | { success: false; error: string };
+
+/**
+ * Único botón "Eliminar" (spec: "Eliminación de Actividad"). Si la actividad
+ * nunca tuvo una ActivityBooking, borrado real (la cascada del schema se
+ * lleva slots y sesiones). Si tuvo alguna vez, se archiva (`active = false`)
+ * preservando el historial, y se notifica por push a los alumnos con reserva
+ * confirmada en sesiones futuras, igual que cancelActivitySession.
+ */
+export async function deleteActivity(activityId: string): Promise<DeleteActivityResult> {
+  const check = await assertActivityManager(activityId);
+  if (!check.ok) return { success: false, error: check.error };
+
+  const hadAnyBooking = await activityHasAnyBookingEver(activityId);
+
+  if (!hadAnyBooking) {
+    await prisma.activity.delete({ where: { id: activityId } });
+    revalidateActivityViews(check.gymSlug, activityId);
+    return { success: true, mode: "deleted", futureBookedStudents: 0 };
+  }
+
+  const details = await prisma.activity.findUniqueOrThrow({
+    where: { id: activityId },
+    select: { name: true, gym: { select: { timezone: true } } },
+  });
+
+  const futureBookings = await prisma.activityBooking.findMany({
+    where: futureConfirmedBookingsWhere(activityId),
+    select: { userId: true, session: { select: { startsAt: true } } },
+  });
+
+  await prisma.$transaction([
+    prisma.activity.update({ where: { id: activityId }, data: { active: false } }),
+    prisma.activityBooking.updateMany({
+      where: futureConfirmedBookingsWhere(activityId),
+      data: { status: "CANCELLED", cancelledAt: new Date() },
+    }),
+  ]);
+
+  await Promise.all(
+    futureBookings.map(async ({ userId, session }) => {
+      const { title, body } = buildSessionCancellationMessage(details.name, session.startsAt, details.gym.timezone);
+      try {
+        await sendPushToUser(userId, title, body);
+      } catch (err) {
+        console.warn("[activity] Failed to send activity archival push", {
+          activityId,
+          userId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    })
+  );
+
+  revalidateActivityViews(check.gymSlug, activityId);
+  return { success: true, mode: "archived", futureBookedStudents: futureBookings.length };
 }
 
 export type BookActionResult =

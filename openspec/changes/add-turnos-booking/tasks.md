@@ -27,6 +27,9 @@
 - [x] 3.6 Anotar y desanotar alumnos manualmente desde la vista de sesión (necesario para cuentas `LITE`, que no tienen login), registrando `createdById`
 - [x] 3.7 Cancelar una sesión puntual sin borrar el horario recurrente
 - [x] 3.8 Notificar por push a los alumnos con reserva confirmada cuando el gym cancela una sesión (el spec lo exige y quedó sin implementar en 3.7)
+- [x] 3.9 Alta de Actividad con horarios en un solo paso: `Activity.capacity` (cupo por defecto, `prisma/schema.prisma`) y `ActivityDialog` permite agregar/quitar filas de horario (día, inicio, fin, cupo opcional) antes de guardar; `createActivity` crea `Activity` + `ActivitySlot[]` en una transacción, valida al menos un horario, fin > inicio y sin solapamientos del mismo día, y deja claro en la UI que cada horario se repite todas las semanas
+- [x] 3.10 Cupo por defecto a nivel Actividad: resolución `slot.capacity ?? activity.capacity ?? null` en `ensureSessionsForSlot` (`src/lib/activity-schedule.ts`) al materializar cada `ActivitySession`
+- [x] 3.11 Eliminación de Actividad: botón único "Eliminar" en `ActivityList`; `deleteActivity` borra en cascada si la actividad nunca tuvo `ActivityBooking`, o archiva (`active=false`, desaparece de listas de gestión y calendario del alumno) si tuvo alguna vez, preservando el historial; `previewActivityDeletion` informa alumnos con reserva futura para la confirmación previa; notificación push a los afectados reusando el patrón de `cancelActivitySession`; permisos ADMIN/TEACHER validados en el server action
 
 ## 4. Materialización de sesiones
 

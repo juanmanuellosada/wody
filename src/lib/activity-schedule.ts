@@ -90,6 +90,7 @@ export async function ensureSessionsForSlot(slotId: string, through: Date): Prom
         select: {
           gymId: true,
           active: true,
+          capacity: true,
           gym: { select: { timezone: true, bookingEnabled: true } },
         },
       },
@@ -117,7 +118,8 @@ export async function ensureSessionsForSlot(slotId: string, through: Date): Prom
     date,
     startsAt: localMinutesToInstant(date, slot.startMinute, timezone),
     endsAt: localMinutesToInstant(date, slot.endMinute, timezone),
-    capacity: slot.capacity,
+    // Cupo propio del horario; si no tiene, cae al cupo por defecto de la actividad.
+    capacity: slot.capacity ?? slot.activity.capacity,
     bookedCount: 0,
     cancelled: false,
   }));

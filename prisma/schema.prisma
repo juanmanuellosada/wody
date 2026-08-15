@@ -602,6 +602,7 @@ model Activity {
   teacherId         String?
   allowsRecurring   Boolean  @default(true)
   cancelWindowHours Int      @default(2)
+  capacity          Int?
   active            Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

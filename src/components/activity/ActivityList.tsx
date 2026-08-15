@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
-import { deactivateActivity } from "@/actions/activity";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { previewActivityDeletion, deleteActivity } from "@/actions/activity";
 import { gymPath } from "@/lib/gym";
 import { ActivityDialog, type ActivityRow, type TeacherOption } from "@/components/activity/ActivityDialog";
 
@@ -18,21 +19,61 @@ export function ActivityList({ gymSlug, activities: initial, teachers, canAssign
   const [activities, setActivities] = useState(initial);
   const [editing, setEditing] = useState<ActivityRow | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ActivityRow | null>(null);
+  const [deletePreview, setDeletePreview] = useState<{ willArchive: boolean; futureBookedStudents: number } | null>(
+    null
+  );
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [isDeleting, startDeleteTransition] = useTransition();
 
-  function handleDeactivate(id: string) {
+  async function openDeleteConfirm(a: ActivityRow) {
     setError(null);
-    setBusyId(id);
-    startTransition(async () => {
-      const result = await deactivateActivity(id);
+    setResultMessage(null);
+    setDeleteTarget(a);
+    setDeletePreview(null);
+    setPreviewLoading(true);
+    const preview = await previewActivityDeletion(a.id);
+    setPreviewLoading(false);
+    if (!preview.success) {
+      setError(preview.error);
+      setDeleteTarget(null);
+      return;
+    }
+    setDeletePreview(preview);
+  }
+
+  function handleDelete() {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    startDeleteTransition(async () => {
+      const result = await deleteActivity(target.id);
+      setDeleteTarget(null);
+      setDeletePreview(null);
       if (!result.success) {
         setError(result.error);
-      } else {
-        setActivities((prev) => prev.map((a) => (a.id === id ? { ...a, active: false } : a)));
+        return;
       }
-      setBusyId(null);
+      setActivities((prev) => prev.filter((a) => a.id !== target.id));
+      setResultMessage(
+        result.mode === "deleted"
+          ? `Se eliminó "${target.name}".`
+          : `Se archivó "${target.name}" porque ya tenía alumnos anotados; el historial se conserva.`
+      );
     });
+  }
+
+  function confirmMessage(): string {
+    if (!deleteTarget) return "";
+    if (previewLoading || !deletePreview) return "Calculando impacto...";
+    if (deletePreview.willArchive) {
+      const studentsNote =
+        deletePreview.futureBookedStudents > 0
+          ? ` ${deletePreview.futureBookedStudents} alumno(s) con reserva futura van a ser notificados.`
+          : "";
+      return `"${deleteTarget.name}" ya tuvo alumnos anotados alguna vez, así que se va a archivar: desaparece de la gestión y del calendario, pero se conserva el historial.${studentsNote}`;
+    }
+    return `¿Eliminar "${deleteTarget.name}"? Nunca tuvo alumnos anotados, así que se borra por completo.`;
   }
 
   return (
@@ -68,26 +109,21 @@ export function ActivityList({ gymSlug, activities: initial, teachers, canAssign
                   >
                     {a.name}
                   </Link>
-                  <p className="text-gray-500 text-xs font-body">
-                    {a.teacherName ?? "Sin profe asignado"}
-                    {!a.active && <span className="ml-2 text-brand-red">· Desactivada</span>}
-                  </p>
+                  <p className="text-gray-500 text-xs font-body">{a.teacherName ?? "Sin profe asignado"}</p>
                 </div>
               </div>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm" onClick={() => setEditing(a)}>
                   Editar
                 </Button>
-                {a.active && (
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    loading={isPending && busyId === a.id}
-                    onClick={() => handleDeactivate(a.id)}
-                  >
-                    Desactivar
-                  </Button>
-                )}
+                <Button
+                  variant="danger"
+                  size="sm"
+                  disabled={isDeleting}
+                  onClick={() => openDeleteConfirm(a)}
+                >
+                  Eliminar
+                </Button>
               </div>
             </li>
           ))}
@@ -97,6 +133,15 @@ export function ActivityList({ gymSlug, activities: initial, teachers, canAssign
       {error && (
         <p className="px-4 py-2 border-t border-line text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
           {error}
+        </p>
+      )}
+
+      {resultMessage && (
+        <p
+          className="px-4 py-2 border-t border-line text-xs font-heading font-bold text-green-500 uppercase tracking-wide"
+          role="status"
+        >
+          {resultMessage}
         </p>
       )}
 
@@ -114,6 +159,21 @@ export function ActivityList({ gymSlug, activities: initial, teachers, canAssign
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Eliminar actividad"
+        message={confirmMessage()}
+        confirmLabel="Eliminar"
+        variant="danger"
+        loading={isDeleting || previewLoading}
+        onConfirm={handleDelete}
+        onCancel={() => {
+          if (isDeleting) return;
+          setDeleteTarget(null);
+          setDeletePreview(null);
+        }}
+      />
     </div>
   );
 }

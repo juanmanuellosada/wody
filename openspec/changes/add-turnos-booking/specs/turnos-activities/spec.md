@@ -2,7 +2,7 @@
 
 ### Requirement: Alta de Actividad
 
-El sistema SHALL permitir a un `ADMIN` crear una `Activity` dentro de su gym con `name`, `description` (opcional), `teacherId` a cargo (opcional), `color`, `allowsRecurring` (booleano) y `cancelWindowHours` (numérico, horas). Un `TEACHER` SHALL poder crear una `Activity` únicamente asignándose a sí mismo como `teacherId` a cargo. La `Activity` creada SHALL quedar asociada al `gymId` del creador.
+El sistema SHALL permitir a un `ADMIN` crear una `Activity` dentro de su gym con `name`, `description` (opcional), `teacherId` a cargo (opcional), `color`, `allowsRecurring` (booleano), `cancelWindowHours` (numérico, horas) y `capacity` (opcional, cupo por defecto de la actividad). Un `TEACHER` SHALL poder crear una `Activity` únicamente asignándose a sí mismo como `teacherId` a cargo. La `Activity` creada SHALL quedar asociada al `gymId` del creador.
 
 #### Scenario: Un ADMIN crea una actividad sin profe asignado
 
@@ -19,16 +19,21 @@ El sistema SHALL permitir a un `ADMIN` crear una `Activity` dentro de su gym con
 - **WHEN** un `TEACHER` intenta crear una `Activity` con `teacherId` de otro usuario
 - **THEN** el sistema rechaza la operación
 
-### Requirement: Edición y desactivación de Actividad
+### Requirement: Edición de Actividad y cupo por defecto
 
-El sistema SHALL permitir editar los campos de una `Activity` (`name`, `description`, `teacherId`, `color`, `allowsRecurring`, `cancelWindowHours`) y desactivarla (`active = false`). Desactivar una `Activity` NO SHALL borrar sus `ActivitySlot` ni sus `ActivitySession` existentes. Una `Activity` desactivada NO SHALL aparecer en el calendario de reserva del alumno ni admitir nuevas inscripciones o reservas.
+El sistema SHALL permitir editar los campos de una `Activity` (`name`, `description`, `teacherId`, `color`, `allowsRecurring`, `cancelWindowHours`, `capacity`). `Activity.capacity` es el cupo por defecto de la actividad: un `ActivitySlot` sin cupo propio (`capacity = null`) SHALL tomar el de su `Activity` al materializar la sesión (`slot.capacity ?? activity.capacity ?? null`); si tampoco la actividad tiene cupo, la sesión queda sin límite. `active = false` se establece únicamente a través del flujo de eliminación (ver "Eliminación de Actividad"), nunca como una acción de edición independiente. Una `Activity` con `active = false` NO SHALL aparecer en el calendario de reserva del alumno ni admitir nuevas inscripciones o reservas, y sus `ActivitySlot` y `ActivitySession` existentes NO SHALL borrarse.
 
-#### Scenario: Desactivar una actividad oculta la reserva pero conserva el historial
+#### Scenario: Un slot sin cupo propio hereda el cupo de la actividad
 
-- **GIVEN** una `Activity` con sesiones pasadas y futuras
-- **WHEN** un `ADMIN` la desactiva
-- **THEN** la actividad deja de listarse en el calendario del alumno
-- **AND** las `ActivitySession` y `ActivityBooking` existentes no se eliminan
+- **GIVEN** una `Activity` con `capacity = 20` y un `ActivitySlot` con `capacity = null`
+- **WHEN** se materializa una `ActivitySession` de ese slot
+- **THEN** la sesión toma `capacity = 20`
+
+#### Scenario: El cupo del slot tiene prioridad sobre el de la actividad
+
+- **GIVEN** una `Activity` con `capacity = 20` y un `ActivitySlot` con `capacity = 5`
+- **WHEN** se materializa una `ActivitySession` de ese slot
+- **THEN** la sesión toma `capacity = 5`
 
 #### Scenario: No se puede reservar en una actividad desactivada
 
@@ -38,11 +43,11 @@ El sistema SHALL permitir editar los campos de una `Activity` (`name`, `descript
 
 ### Requirement: Horarios recurrentes semanales
 
-El sistema SHALL permitir definir uno o más `ActivitySlot` por `Activity`, cada uno con día de la semana, hora de inicio, hora de fin y `capacity` opcional. `capacity = null` SHALL significar sin límite de cupo. El sistema SHALL permitir editar y eliminar un `ActivitySlot` existente.
+El sistema SHALL permitir definir uno o más `ActivitySlot` por `Activity`, cada uno con día de la semana, hora de inicio, hora de fin y `capacity` opcional. `capacity = null` SHALL significar sin límite propio (ver "Edición de Actividad y cupo por defecto" para la resolución contra el cupo de la actividad). El sistema SHALL permitir editar y eliminar un `ActivitySlot` existente.
 
-#### Scenario: Un slot sin cupo admite reservas ilimitadas
+#### Scenario: Un slot sin cupo propio ni cupo de actividad admite reservas ilimitadas
 
-- **GIVEN** un `ActivitySlot` con `capacity = null`
+- **GIVEN** un `ActivitySlot` con `capacity = null` cuya `Activity` también tiene `capacity = null`
 - **WHEN** se materializa una `ActivitySession` de ese slot
 - **THEN** la sesión no aplica límite de reservas
 
@@ -50,6 +55,58 @@ El sistema SHALL permitir definir uno o más `ActivitySlot` por `Activity`, cada
 
 - **WHEN** un `ADMIN` agrega un `ActivitySlot` los lunes 14:00–15:00 y otro los miércoles 14:00–15:00 a la misma `Activity`
 - **THEN** el sistema guarda ambos horarios asociados a esa actividad
+
+### Requirement: Alta de Actividad con horarios en un solo paso
+
+El sistema SHALL permitir crear una `Activity` junto con uno o más `ActivitySlot` en una única operación transaccional, sin requerir un paso separado posterior. Cada horario cargado en el alta SHALL repetirse todas las semanas (misma semántica que "Horarios recurrentes semanales"; el alta en un paso no introduce otra frecuencia). El sistema SHALL rechazar el alta si no se especifica al menos un horario, si algún horario tiene hora de fin anterior o igual a la de inicio, o si dos horarios de la misma actividad se solapan en el mismo día de la semana. La edición de horarios después del alta SHALL seguir haciéndose desde la vista de detalle de la actividad (`ActivitySlotManager`), que no se ve afectada por este requerimiento.
+
+#### Scenario: Alta con horarios crea la actividad y sus slots juntos
+
+- **WHEN** un `ADMIN` crea una `Activity` con dos horarios (lunes 09:00–10:00 y miércoles 09:00–10:00)
+- **THEN** el sistema crea la `Activity` y ambos `ActivitySlot` en la misma operación
+
+#### Scenario: El alta rechaza una actividad sin ningún horario
+
+- **WHEN** un `ADMIN` intenta crear una `Activity` sin cargar ningún horario
+- **THEN** el sistema rechaza la operación
+
+#### Scenario: El alta rechaza horarios superpuestos el mismo día
+
+- **WHEN** un `ADMIN` intenta crear una `Activity` con dos horarios los lunes que se superponen en el tiempo
+- **THEN** el sistema rechaza la operación
+
+### Requirement: Eliminación de Actividad
+
+El sistema SHALL permitir a un `ADMIN`, o a un `TEACHER` a cargo de la actividad, eliminar una `Activity` mediante una única acción ("Eliminar"). Si la `Activity` nunca tuvo ninguna `ActivityBooking` (ni `CONFIRMED` ni `CANCELLED`, en ninguna de sus sesiones), el sistema SHALL borrarla junto con sus `ActivitySlot` y `ActivitySession` (borrado en cascada, sin historial que preservar). Si la `Activity` tuvo alguna vez al menos una `ActivityBooking`, el sistema NO SHALL borrarla: SHALL archivarla (`active = false`), preservando su historial, y la actividad archivada SHALL desaparecer de toda vista de gestión (listados de ADMIN/TEACHER) y del calendario de reserva del alumno. En ambos casos el sistema SHALL informar al cliente cuál de las dos operaciones ocurrió. Antes de ejecutar la eliminación, el sistema SHALL permitir consultar cuántos alumnos tienen reservas confirmadas futuras en esa actividad, para mostrarlo en una confirmación explícita previa. Si al archivar existían `ActivityBooking` `CONFIRMED` en sesiones futuras, el sistema SHALL cancelarlas y notificar por push a los alumnos afectados, con el mismo mecanismo que la cancelación de una sesión puntual; el fallo de un envío individual NO SHALL abortar la operación.
+
+#### Scenario: Eliminar una actividad sin historial la borra por completo
+
+- **GIVEN** una `Activity` que nunca tuvo ninguna `ActivityBooking`
+- **WHEN** un `ADMIN` la elimina
+- **THEN** el sistema borra la `Activity` junto con sus `ActivitySlot` y `ActivitySession`
+- **AND** informa al cliente que la operación fue un borrado
+
+#### Scenario: Eliminar una actividad con historial la archiva en su lugar
+
+- **GIVEN** una `Activity` que tuvo al menos una `ActivityBooking` alguna vez
+- **WHEN** un `ADMIN` la elimina
+- **THEN** el sistema la marca `active = false` en lugar de borrarla
+- **AND** la actividad deja de listarse en la gestión y en el calendario del alumno
+- **AND** informa al cliente que la operación fue un archivado, preservando el historial
+
+#### Scenario: Archivar una actividad notifica a los alumnos con reservas futuras
+
+- **GIVEN** una `Activity` con `ActivityBooking` `CONFIRMED` en sesiones futuras
+- **WHEN** un `ADMIN` la elimina y el sistema la archiva
+- **THEN** esas `ActivityBooking` quedan `CANCELLED`
+- **AND** el sistema intenta notificar por push a cada alumno afectado
+- **AND** un fallo de envío a un alumno no impide notificar al resto ni revierte el archivado
+
+#### Scenario: Un TEACHER no puede eliminar la actividad de otro profe
+
+- **GIVEN** dos `Activity` del mismo gym, cada una a cargo de un `TEACHER` distinto
+- **WHEN** el `TEACHER` A intenta eliminar la actividad a cargo del `TEACHER` B
+- **THEN** el sistema rechaza la operación
 
 ### Requirement: Materialización de sesiones por cron
 
@@ -98,7 +155,7 @@ El sistema SHALL permitir a un `ADMIN`, o a un `TEACHER` a cargo de la actividad
 
 ### Requirement: Permisos de gestión de Actividades
 
-El sistema SHALL permitir a un `ADMIN` gestionar (crear, editar, desactivar, definir horarios, cancelar sesiones, anotar/desanotar) todas las `Activity` de su gym. El sistema SHALL permitir a un `TEACHER` gestionar únicamente las `Activity` donde figura como `teacherId` a cargo. Un `STUDENT` o `ACCESS` NO SHALL tener acceso a la gestión de Actividades.
+El sistema SHALL permitir a un `ADMIN` gestionar (crear con horarios, editar, eliminar, definir horarios, cancelar sesiones, anotar/desanotar) todas las `Activity` de su gym. El sistema SHALL permitir a un `TEACHER` gestionar únicamente las `Activity` donde figura como `teacherId` a cargo. Un `STUDENT` o `ACCESS` NO SHALL tener acceso a la gestión de Actividades.
 
 #### Scenario: Un TEACHER no puede gestionar la actividad de otro profe
 

@@ -32,7 +32,9 @@ export default async function TurnosGestionPage({ params }: Props) {
 
   const [activities, teachers] = await Promise.all([
     prisma.activity.findMany({
-      where: isAdmin ? { gymId } : { gymId, teacherId: session.user.id },
+      // active: true — una actividad archivada (eliminada con historial, ver
+      // deleteActivity) desaparece de todas las listas de gestión.
+      where: isAdmin ? { gymId, active: true } : { gymId, teacherId: session.user.id, active: true },
       orderBy: { name: "asc" },
       select: {
         id: true,
@@ -42,6 +44,7 @@ export default async function TurnosGestionPage({ params }: Props) {
         teacherId: true,
         allowsRecurring: true,
         cancelWindowHours: true,
+        capacity: true,
         active: true,
         teacher: { select: { name: true } },
       },
@@ -64,6 +67,7 @@ export default async function TurnosGestionPage({ params }: Props) {
     teacherName: a.teacher?.name ?? null,
     allowsRecurring: a.allowsRecurring,
     cancelWindowHours: a.cancelWindowHours,
+    capacity: a.capacity,
     active: a.active,
   }));
 
