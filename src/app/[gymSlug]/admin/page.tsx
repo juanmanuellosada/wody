@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserForm } from "@/components/UserForm";
@@ -73,7 +74,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
     }),
     prisma.gym.findUnique({
       where: { id: gymId },
-      select: { autoBlockAfterDays: true, kind: true },
+      select: { autoBlockAfterDays: true, kind: true, bookingEnabled: true },
     }),
   ]);
 
@@ -189,6 +190,17 @@ export default async function AdminPage({ params, searchParams }: Props) {
           </div>
         </div>
       </div>
+
+      {gymConfig?.bookingEnabled && (
+        <div className="flex justify-end">
+          <Link
+            href={gymPath(gymSlug, "/admin/ajustes")}
+            className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-white transition-colors duration-200"
+          >
+            Ajustes de turnos →
+          </Link>
+        </div>
+      )}
 
       {/* Create user + Assign students — grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

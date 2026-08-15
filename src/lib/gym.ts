@@ -29,3 +29,18 @@ const GYMS_WITHOUT_TEACHER_WHATSAPP = new Set<string>(["atlas-gym"]);
 export function hasTeacherWhatsAppContact(gymSlug: string): boolean {
   return !GYMS_WITHOUT_TEACHER_WHATSAPP.has(gymSlug);
 }
+
+// Módulo de Turnos (agenda/reservas). Se prende por gym desde el panel de
+// super-admin (Gym.bookingEnabled). Cada página de /turnos debe revalidar
+// este flag contra la DB en cada request — no confiar en el valor propagado
+// por el token de sesión (ver openspec/changes/add-turnos-booking/design.md D7).
+export function hasBookingModule(bookingEnabled: boolean): boolean {
+  return bookingEnabled;
+}
+
+// Módulo de Entrenamiento (WODs, RMs, rutinas). Prendido por default en todo
+// gym existente y nuevo (Gym.trainingEnabled). Igual que hasBookingModule,
+// cada página gateada debe revalidar contra la DB.
+export function hasTrainingModule(trainingEnabled: boolean): boolean {
+  return trainingEnabled;
+}

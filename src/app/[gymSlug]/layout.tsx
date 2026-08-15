@@ -216,6 +216,8 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
         gymSwitcherList={gymSwitcherList}
         emailVerified={isEmailVerified}
         canViewRevenue={role === "ADMIN" ? (dbUser?.canViewRevenue ?? false) : false}
+        bookingEnabled={gym.bookingEnabled}
+        trainingEnabled={gym.trainingEnabled}
       />
       {trialBanner}
       {overdueModal}

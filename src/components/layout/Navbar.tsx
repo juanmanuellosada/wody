@@ -30,6 +30,8 @@ interface NavbarProps {
   gymSwitcherList?: GymSwitcherItem[];
   emailVerified?: boolean;
   canViewRevenue?: boolean;
+  bookingEnabled?: boolean;
+  trainingEnabled?: boolean;
 }
 
 interface NavLink {
@@ -45,7 +47,9 @@ function getNavLinks(
   terms: GymTerms,
   canCreateOwnRoutines: boolean,
   pendingJoinRequestsCount: number,
-  canViewRevenue: boolean
+  canViewRevenue: boolean,
+  bookingEnabled: boolean,
+  trainingEnabled: boolean
 ): NavLink[] {
   if (isPersonalGym(gymKind)) {
     return [
@@ -63,8 +67,19 @@ function getNavLinks(
     label: `Mis ${terms.wods}`,
   };
 
+  // WODs / rutinas / RMs: rutas del módulo de Entrenamiento, ocultadas cuando
+  // trainingEnabled es false (D7). No aplica a la rama isPersonalGym de arriba.
+  const trainingPaths = new Set([
+    gymPath(gymSlug, "/dashboard/athlete"),
+    gymPath(gymSlug, "/dashboard/teacher"),
+    gymPath(gymSlug, "/dashboard/mis-rutinas"),
+    gymPath(gymSlug, "/dashboard/rms"),
+  ]);
+
+  let links: NavLink[];
+
   if (role === "ADMIN") {
-    return [
+    links = [
       { href: gymPath(gymSlug, "/admin"), label: "Panel Admin" },
       {
         href: gymPath(gymSlug, "/admin/invitaciones"),
@@ -84,9 +99,8 @@ function getNavLinks(
       { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
       { href: gymPath(gymSlug, "/admin/billing"), label: "Suscripción" },
     ];
-  }
-  if (role === "TEACHER") {
-    return [
+  } else if (role === "TEACHER") {
+    links = [
       { href: gymPath(gymSlug, "/dashboard/teacher"), label: `${terms.wods} de mis alumnos` },
       ...(canCreateOwnRoutines ? [myRoutinesLink] : []),
       { href: gymPath(gymSlug, "/cuotas"), label: "Cuotas" },
@@ -95,30 +109,43 @@ function getNavLinks(
       { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
       { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
     ];
-  }
-  if (role === "ACCESS") {
+  } else if (role === "ACCESS") {
     if (!accessControl) return [];
     return [
       { href: gymPath(gymSlug, "/ingresos"), label: "Ingresos" },
       { href: gymPath(gymSlug, "/ingresos/historial"), label: "Historial" },
     ];
+  } else {
+    links = [
+      { href: gymPath(gymSlug, "/dashboard/athlete"), label: `Mi ${terms.wod}` },
+      ...(canCreateOwnRoutines
+        ? [{ href: gymPath(gymSlug, "/dashboard/mis-rutinas"), label: "Mis rutinas" }]
+        : []),
+      { href: gymPath(gymSlug, "/dashboard/rms"), label: `Mis ${terms.rms}` },
+      { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
+      { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
+    ];
   }
-  return [
-    { href: gymPath(gymSlug, "/dashboard/athlete"), label: `Mi ${terms.wod}` },
-    ...(canCreateOwnRoutines
-      ? [{ href: gymPath(gymSlug, "/dashboard/mis-rutinas"), label: "Mis rutinas" }]
-      : []),
-    { href: gymPath(gymSlug, "/dashboard/rms"), label: `Mis ${terms.rms}` },
-    { href: gymPath(gymSlug, "/dashboard/timers"), label: "Cronómetros" },
-    { href: gymPath(gymSlug, "/beneficios"), label: "Beneficios" },
-  ];
+
+  if (!trainingEnabled) {
+    links = links.filter((link) => !trainingPaths.has(link.href));
+  }
+
+  // Turnos: visible para ADMIN, TEACHER y STUDENT cuando bookingEnabled está
+  // prendido. El alumno reserva; ADMIN/TEACHER gestionan.
+  if (bookingEnabled) {
+    const turnosPath = role === "STUDENT" ? "/turnos" : "/turnos/gestion";
+    links.push({ href: gymPath(gymSlug, turnosPath), label: "Turnos" });
+  }
+
+  return links;
 }
 
-export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, terms, canCreateOwnRoutines = false, pendingJoinRequestsCount = 0, gymSwitcherList = [], canViewRevenue = false }: NavbarProps) {
+export function Navbar({ userName, role, gymSlug, gymName, gymKind, onSignOut, terms, canCreateOwnRoutines = false, pendingJoinRequestsCount = 0, gymSwitcherList = [], canViewRevenue = false, bookingEnabled = false, trainingEnabled = true }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const pathname = usePathname();
-  const links = getNavLinks(role, gymSlug, gymKind, terms, canCreateOwnRoutines, pendingJoinRequestsCount, canViewRevenue);
+  const links = getNavLinks(role, gymSlug, gymKind, terms, canCreateOwnRoutines, pendingJoinRequestsCount, canViewRevenue, bookingEnabled, trainingEnabled);
 
   async function handleGymSwitch(targetSlug: string) {
     if (targetSlug === gymSlug || switching) return;

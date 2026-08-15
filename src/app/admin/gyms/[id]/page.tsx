@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { GymForm } from "@/components/admin/GymForm";
 import { SubscriptionSection } from "@/components/admin/SubscriptionSection";
+import { GymModulesSection } from "@/components/admin/GymModulesSection";
 import type { GymRow } from "@/actions/super-admin/gym";
 
 interface Props {
@@ -29,6 +30,8 @@ export default async function EditGymPage({ params }: Props) {
     subscriptionNextPaymentDate: gym.subscriptionNextPaymentDate,
     subscriptionMonthlyAmount: gym.subscriptionMonthlyAmount,
     selfManagedBilling: gym.selfManagedBilling,
+    bookingEnabled: gym.bookingEnabled,
+    trainingEnabled: gym.trainingEnabled,
     createdAt: gym.createdAt,
   };
 
@@ -46,6 +49,12 @@ export default async function EditGymPage({ params }: Props) {
       </div>
 
       <GymForm gym={gymRow} />
+
+      <GymModulesSection
+        gymId={gym.id}
+        bookingEnabled={gym.bookingEnabled}
+        trainingEnabled={gym.trainingEnabled}
+      />
 
       <SubscriptionSection
         gymId={gym.id}

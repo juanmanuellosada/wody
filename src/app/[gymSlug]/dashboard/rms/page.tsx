@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { RmsClient } from "@/components/RmsClient";
-import { gymPath } from "@/lib/gym";
+import { gymPath, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
+import { isTrainingModuleEnabled } from "@/lib/gym-module-guards";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -15,6 +16,13 @@ export default async function RmsPage({ params }: Props) {
 
   if (!session?.user) {
     redirect(gymPath(gymSlug, "/login"));
+  }
+
+  // Con trainingEnabled apagado, el acceso directo por URL se rechaza (no
+  // solo se oculta del menú). No aplica a PERSONAL (D7).
+  const isPersonal = session.user.gymKind ? isPersonalGym(session.user.gymKind) : false;
+  if (!isPersonal && !(await isTrainingModuleEnabled(gymSlug))) {
+    redirect(gymPath(gymSlug, "/beneficios"));
   }
 
   const [rms, gym] = await Promise.all([

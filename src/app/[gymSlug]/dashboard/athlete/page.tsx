@@ -11,6 +11,7 @@ import { gymTerms } from "@/lib/gym-terms";
 import { formatMemberNumber } from "@/lib/memberNumber";
 import { CheckinScannerButton } from "@/components/access/CheckinScannerButton";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { isTrainingModuleEnabled } from "@/lib/gym-module-guards";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -26,6 +27,13 @@ export default async function StudentDashboardPage({ params }: Props) {
 
   if (!session?.user || session.user.role !== "STUDENT") {
     redirect(gymPath(gymSlug, "/login"));
+  }
+
+  // Con trainingEnabled apagado, el acceso directo por URL se rechaza (no
+  // solo se oculta del menú). Ya descartamos isPersonalGym arriba: D7 no
+  // afecta esa rama.
+  if (!(await isTrainingModuleEnabled(gymSlug))) {
+    redirect(gymPath(gymSlug, "/beneficios"));
   }
 
   const studentId = session.user.id;

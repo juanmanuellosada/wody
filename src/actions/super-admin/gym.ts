@@ -27,6 +27,8 @@ export type GymRow = {
   subscriptionNextPaymentDate: Date | null;
   subscriptionMonthlyAmount: number | null;
   selfManagedBilling: boolean;
+  bookingEnabled: boolean;
+  trainingEnabled: boolean;
   createdAt: Date;
 };
 
@@ -50,6 +52,8 @@ export async function listAllGyms(): Promise<GymRow[]> {
       subscriptionNextPaymentDate: true,
       subscriptionMonthlyAmount: true,
       selfManagedBilling: true,
+      bookingEnabled: true,
+      trainingEnabled: true,
       createdAt: true,
     },
   });
@@ -260,6 +264,27 @@ export async function setGymPaymentExempt(
       paymentExempt: exempt,
       paymentExemptReason: exempt ? reason.trim() : null,
     },
+  });
+
+  return { success: true };
+}
+
+// bookingEnabled / trainingEnabled solo los cambia el super-admin (permite
+// controlar el rollout gym por gym), nunca el admin del gym — ver
+// openspec/changes/add-turnos-booking/design.md D7 y "Decisiones cerradas".
+export async function setGymModules(
+  gymId: string,
+  bookingEnabled: boolean,
+  trainingEnabled: boolean
+): Promise<ActionResult> {
+  await assertSuperAdmin();
+
+  const gym = await prisma.gym.findUnique({ where: { id: gymId } });
+  if (!gym) return { success: false, error: "Gym no encontrado." };
+
+  await prisma.gym.update({
+    where: { id: gymId },
+    data: { bookingEnabled, trainingEnabled },
   });
 
   return { success: true };

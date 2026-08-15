@@ -117,90 +117,112 @@ enum AccountKind {
   LITE
 }
 
+enum BookingSource {
+  ENROLLMENT
+  SINGLE
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
 model Gym {
-  id                          String        @id @default(cuid())
-  name                        String
-  slug                        String        @unique
-  kind                        GymKind       @default(BOX)
-  logo                        String?
-  primaryColor                String?
-  createdAt                   DateTime      @default(now())
-  blockedAt                   DateTime?
-  autoBlockAfterDays          Int           @default(45)
-  nextMemberNumber            Int           @default(1)
-  nextProductCode             Int           @default(1)
-  subscriptionNextPaymentDate DateTime?
-  subscriptionMonthlyAmount   Int?          @default(40000)
-  trialEndsAt                 DateTime?
-  paymentExempt               Boolean       @default(false)
-  paymentExemptReason         String?
-  selfManagedBilling              Boolean       @default(false)
-  mpPreapprovalId                 String?
-  mpSubscriptionStatus            String?
-  mpSubscriptionStatusChangedAt   DateTime?
-  lastBillingEmailedOn            DateTime?     @db.Date
-  users                       User[]
-  accessLogs                  AccessLog[]
-  fixedRoutines               FixedRoutine[]
-  emailLogs                   EmailLog[]
-  joinRequests                JoinRequest[]
-  payments                    Payment[]
-  signupRequest               GymSignupRequest?
-  productCategories           ProductCategory[]
-  products                    Product[]
-  sales                       Sale[]
-  expenses                    Expense[]
+  id                            String               @id @default(cuid())
+  name                          String
+  slug                          String               @unique
+  kind                          GymKind              @default(BOX)
+  logo                          String?
+  primaryColor                  String?
+  createdAt                     DateTime             @default(now())
+  blockedAt                     DateTime?
+  autoBlockAfterDays            Int                  @default(45)
+  nextMemberNumber              Int                  @default(1)
+  nextProductCode               Int                  @default(1)
+  subscriptionNextPaymentDate   DateTime?
+  subscriptionMonthlyAmount     Int?                 @default(40000)
+  trialEndsAt                   DateTime?
+  paymentExempt                 Boolean              @default(false)
+  paymentExemptReason           String?
+  selfManagedBilling            Boolean              @default(false)
+  mpPreapprovalId               String?
+  mpSubscriptionStatus          String?
+  mpSubscriptionStatusChangedAt DateTime?
+  lastBillingEmailedOn          DateTime?            @db.Date
+  bookingEnabled                Boolean              @default(false)
+  trainingEnabled               Boolean              @default(true)
+  timezone                      String               @default("America/Argentina/Buenos_Aires")
+  reminderLeadHours             Int                  @default(2)
+  users                         User[]
+  accessLogs                    AccessLog[]
+  fixedRoutines                 FixedRoutine[]
+  emailLogs                     EmailLog[]
+  joinRequests                  JoinRequest[]
+  payments                      Payment[]
+  signupRequest                 GymSignupRequest?
+  productCategories             ProductCategory[]
+  products                      Product[]
+  sales                         Sale[]
+  expenses                      Expense[]
+  activities                    Activity[]
+  activitySessions              ActivitySession[]
+  activityEnrollments           ActivityEnrollment[]
+  activityBookings              ActivityBooking[]
 }
 
 model User {
-  id                   String      @id @default(cuid())
-  email                String?
-  password             String?
-  accountKind          AccountKind @default(FULL)
-  name                 String
-  role                 Role
-  studentType          StudentType @default(PERSONALIZED)
-  canCreateOwnRoutines Boolean     @default(false)
-  canViewRevenue       Boolean     @default(false)
-  gymId                String?
-  createdAt            DateTime    @default(now())
-  nextPaymentDate      DateTime    @default(now()) @db.Date
-  blockedAt            DateTime?
-  deletedAt            DateTime?
-  lastDueNotifiedOn    DateTime?   @db.Date
-  lastDueEmailedOn     DateTime?   @db.Date
-  memberNumber         Int
-  emailVerifiedAt      DateTime?
-  paymentExempt        Boolean     @default(false)
-  paymentExemptReason  String?
+  id                            String      @id @default(cuid())
+  email                         String?
+  password                      String?
+  accountKind                   AccountKind @default(FULL)
+  name                          String
+  role                          Role
+  studentType                   StudentType @default(PERSONALIZED)
+  canCreateOwnRoutines          Boolean     @default(false)
+  canViewRevenue                Boolean     @default(false)
+  gymId                         String?
+  createdAt                     DateTime    @default(now())
+  nextPaymentDate               DateTime    @default(now()) @db.Date
+  blockedAt                     DateTime?
+  deletedAt                     DateTime?
+  lastDueNotifiedOn             DateTime?   @db.Date
+  lastDueEmailedOn              DateTime?   @db.Date
+  memberNumber                  Int
+  emailVerifiedAt               DateTime?
+  paymentExempt                 Boolean     @default(false)
+  paymentExemptReason           String?
   mpPreapprovalId               String?
   mpSubscriptionStatus          String?
   mpSubscriptionStatusChangedAt DateTime?
   trialEndsAt                   DateTime?
 
-  gym Gym? @relation(fields: [gymId], references: [id])
+  gym Gym? @relation(fields: [gymId], references: [id], onDelete: Restrict)
 
-  wodsAsTeacher        Wod[]                @relation("TeacherWods")
-  wodsTargetedTo       Wod[]                @relation("WodTargetStudent")
-  rms                  RM[]
-  teacherOf            TeacherStudent[]     @relation("TeacherRel")
-  studentOf            TeacherStudent[]     @relation("StudentRel")
-  teacherGroups        Group[]              @relation("TeacherGroups")
-  groupMemberships     GroupMember[]
-  redemptions          CouponRedemption[]
-  pushSubscriptions    PushSubscription[]
-  accessesAsUser       AccessLog[]          @relation("AccessLogUser")
-  accessesDecidedBy    AccessLog[]          @relation("AccessLogDecidedBy")
-  verificationTokens   VerificationToken[]
-  joinRequestTeachers  JoinRequestTeacher[] @relation("JoinRequestTeacherToUser")
-  joinRequestsReviewed JoinRequest[]        @relation("JoinRequestReviewer")
-  paymentsAsPayer           Payment[]            @relation("PaymentStudent")
-  paymentsRecorded          Payment[]            @relation("PaymentRecordedBy")
-  createdSignupRequests     GymSignupRequest[]
-  fixedRoutinesAsStudent    FixedRoutine[]       @relation("FixedRoutineStudent")
-  fixedRoutinesAsTeacher    FixedRoutine[]       @relation("FixedRoutineTeacher")
-  salesRecorded             Sale[]               @relation("SaleRecordedBy")
-  expensesRecorded          Expense[]            @relation("ExpenseRecordedBy")
+  wodsAsTeacher           Wod[]                @relation("TeacherWods")
+  wodsTargetedTo          Wod[]                @relation("WodTargetStudent")
+  rms                     RM[]
+  teacherOf               TeacherStudent[]     @relation("TeacherRel")
+  studentOf               TeacherStudent[]     @relation("StudentRel")
+  teacherGroups           Group[]              @relation("TeacherGroups")
+  groupMemberships        GroupMember[]
+  redemptions             CouponRedemption[]
+  pushSubscriptions       PushSubscription[]
+  accessesAsUser          AccessLog[]          @relation("AccessLogUser")
+  accessesDecidedBy       AccessLog[]          @relation("AccessLogDecidedBy")
+  verificationTokens      VerificationToken[]
+  joinRequestTeachers     JoinRequestTeacher[] @relation("JoinRequestTeacherToUser")
+  joinRequestsReviewed    JoinRequest[]        @relation("JoinRequestReviewer")
+  paymentsAsPayer         Payment[]            @relation("PaymentStudent")
+  paymentsRecorded        Payment[]            @relation("PaymentRecordedBy")
+  createdSignupRequests   GymSignupRequest[]
+  fixedRoutinesAsStudent  FixedRoutine[]       @relation("FixedRoutineStudent")
+  fixedRoutinesAsTeacher  FixedRoutine[]       @relation("FixedRoutineTeacher")
+  salesRecorded           Sale[]               @relation("SaleRecordedBy")
+  expensesRecorded        Expense[]            @relation("ExpenseRecordedBy")
+  activitiesAsTeacher     Activity[]           @relation("ActivityTeacher")
+  activityEnrollments     ActivityEnrollment[]
+  activityBookings        ActivityBooking[]    @relation("ActivityBookingUser")
+  activityBookingsCreated ActivityBooking[]    @relation("ActivityBookingCreatedBy")
 
   // Unicidades parciales (solo filas activas, deletedAt IS NULL).
   // Los índices únicos totales fueron reemplazados por índices únicos parciales
@@ -442,10 +464,10 @@ model Payment {
 }
 
 model ProductCategory {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   gymId     String
   name      String
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   gym      Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
   products Product[]
@@ -513,25 +535,25 @@ model Expense {
 }
 
 model GymSignupRequest {
-  id                  String               @id @default(cuid())
-  type                SignupRequestType    @default(GYM)
-  email               String
-  contactName         String
-  gymName             String?
-  gymKindSuggested    String?
-  phone               String?
-  expectedStudents    Int?
-  message             String?
-  status              SignupRequestStatus  @default(PENDING)
-  createdAt           DateTime             @default(now())
-  approvedAt          DateTime?
-  rejectedAt          DateTime?
-  completedAt         DateTime?
-  onboardingToken     String?              @unique
-  tokenExpiresAt      DateTime?
-  rejectionReason     String?
-  gymId               String?              @unique
-  createdByAdminId    String?
+  id               String              @id @default(cuid())
+  type             SignupRequestType   @default(GYM)
+  email            String
+  contactName      String
+  gymName          String?
+  gymKindSuggested String?
+  phone            String?
+  expectedStudents Int?
+  message          String?
+  status           SignupRequestStatus @default(PENDING)
+  createdAt        DateTime            @default(now())
+  approvedAt       DateTime?
+  rejectedAt       DateTime?
+  completedAt      DateTime?
+  onboardingToken  String?             @unique
+  tokenExpiresAt   DateTime?
+  rejectionReason  String?
+  gymId            String?             @unique
+  createdByAdminId String?
 
   gym            Gym?  @relation(fields: [gymId], references: [id], onDelete: SetNull)
   createdByAdmin User? @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
@@ -569,4 +591,97 @@ model FixedRoutine {
   @@index([gymId])
   @@index([studentId, deletedAt])
   @@index([teacherId, renewAt])
+}
+
+model Activity {
+  id                String   @id @default(cuid())
+  gymId             String
+  name              String
+  description       String?
+  color             String?
+  teacherId         String?
+  allowsRecurring   Boolean  @default(true)
+  cancelWindowHours Int      @default(2)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  gym     Gym            @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  teacher User?          @relation("ActivityTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  slots   ActivitySlot[]
+
+  @@index([gymId, active])
+}
+
+model ActivitySlot {
+  id          String  @id @default(cuid())
+  activityId  String
+  dayOfWeek   Int
+  startMinute Int
+  endMinute   Int
+  capacity    Int?
+  active      Boolean @default(true)
+
+  activity    Activity             @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  sessions    ActivitySession[]
+  enrollments ActivityEnrollment[]
+
+  @@index([activityId, active])
+}
+
+model ActivitySession {
+  id          String   @id @default(cuid())
+  gymId       String
+  slotId      String
+  date        DateTime @db.Date
+  startsAt    DateTime
+  endsAt      DateTime
+  capacity    Int?
+  bookedCount Int      @default(0)
+  cancelled   Boolean  @default(false)
+
+  gym      Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  slot     ActivitySlot      @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  bookings ActivityBooking[]
+
+  @@unique([slotId, date])
+  @@index([gymId, startsAt])
+}
+
+model ActivityEnrollment {
+  id          String    @id @default(cuid())
+  gymId       String
+  slotId      String
+  userId      String
+  createdAt   DateTime  @default(now())
+  cancelledAt DateTime?
+
+  gym  Gym          @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  slot ActivitySlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([slotId, userId])
+  @@index([gymId, userId])
+}
+
+model ActivityBooking {
+  id             String        @id @default(cuid())
+  gymId          String
+  sessionId      String
+  userId         String
+  source         BookingSource
+  status         BookingStatus @default(CONFIRMED)
+  createdById    String?
+  reminderSentAt DateTime?
+  createdAt      DateTime      @default(now())
+  cancelledAt    DateTime?
+
+  gym       Gym             @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  session   ActivitySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user      User            @relation("ActivityBookingUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User?           @relation("ActivityBookingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, userId])
+  @@index([gymId, userId])
+  @@index([sessionId, status])
 }
