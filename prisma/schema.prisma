@@ -127,6 +127,11 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum ActivityScheduleKind {
+  WEEKLY
+  ONE_OFF
+}
+
 model Gym {
   id                            String               @id @default(cuid())
   name                          String
@@ -594,17 +599,18 @@ model FixedRoutine {
 }
 
 model Activity {
-  id                String   @id @default(cuid())
+  id                String               @id @default(cuid())
   gymId             String
   name              String
   description       String?
   teacherId         String?
-  allowsRecurring   Boolean  @default(true)
-  cancelWindowHours Int      @default(2)
+  scheduleKind      ActivityScheduleKind @default(WEEKLY)
+  allowsRecurring   Boolean              @default(true)
+  cancelWindowHours Int                  @default(2)
   capacity          Int?
-  active            Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  active            Boolean              @default(true)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
   gym     Gym            @relation(fields: [gymId], references: [id], onDelete: Cascade)
   teacher User?          @relation("ActivityTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
@@ -614,13 +620,14 @@ model Activity {
 }
 
 model ActivitySlot {
-  id          String  @id @default(cuid())
+  id          String    @id @default(cuid())
   activityId  String
-  dayOfWeek   Int
+  dayOfWeek   Int?
+  date        DateTime? @db.Date
   startMinute Int
   endMinute   Int
   capacity    Int?
-  active      Boolean @default(true)
+  active      Boolean   @default(true)
 
   activity    Activity             @relation(fields: [activityId], references: [id], onDelete: Cascade)
   sessions    ActivitySession[]

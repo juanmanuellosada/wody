@@ -75,7 +75,7 @@ export default async function TurnosPage({ params }: Props) {
       slot: {
         select: {
           dayOfWeek: true,
-          activity: { select: { name: true, allowsRecurring: true } },
+          activity: { select: { name: true, allowsRecurring: true, scheduleKind: true } },
         },
       },
     },
@@ -100,7 +100,9 @@ export default async function TurnosPage({ params }: Props) {
     slotId: s.slotId,
     dayOfWeek: s.slot.dayOfWeek,
     activityName: s.slot.activity.name,
-    allowsRecurring: s.slot.activity.allowsRecurring,
+    // Una actividad ONE_OFF no ofrece "a todas o solo a esta": allowsRecurring
+    // es un flag distinto que queda irrelevante en ese modo (ver design.md).
+    allowsRecurring: s.slot.activity.allowsRecurring && s.slot.activity.scheduleKind !== "ONE_OFF",
     date: s.date.toISOString(),
     startsAt: s.startsAt.toISOString(),
     endsAt: s.endsAt.toISOString(),

@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { ActivityScheduleKind } from "@prisma/client";
 import { Button } from "@/components/ui/Button";
 import { TimePicker } from "@/components/ui/TimePicker";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { createActivity, updateActivity, type ActivityRow, type SlotInput } from "@/actions/activity";
 import { DAY_NAMES, parseTimeToMinutes } from "@/components/activity/format";
+import { toInputDate } from "@/lib/dates";
 
 export type { ActivityRow };
 
@@ -25,13 +28,25 @@ interface Props {
 
 interface SlotDraft {
   dayOfWeek: number;
+  date: string;
   startTime: string;
   endTime: string;
   capacity: string;
 }
 
 function newSlotDraft(): SlotDraft {
-  return { dayOfWeek: 1, startTime: "09:00", endTime: "10:00", capacity: "" };
+  return { dayOfWeek: 1, date: toInputDate(new Date()), startTime: "09:00", endTime: "10:00", capacity: "" };
+}
+
+function slotDraftsOverlap(a: SlotDraft, b: SlotDraft, scheduleKind: ActivityScheduleKind): boolean {
+  const sameBucket = scheduleKind === "WEEKLY" ? a.dayOfWeek === b.dayOfWeek : a.date === b.date;
+  if (!sameBucket) return false;
+  const aStart = parseTimeToMinutes(a.startTime);
+  const aEnd = parseTimeToMinutes(a.endTime);
+  const bStart = parseTimeToMinutes(b.startTime);
+  const bEnd = parseTimeToMinutes(b.endTime);
+  if (aStart === null || aEnd === null || bStart === null || bEnd === null) return false;
+  return aStart < bEnd && bStart < aEnd;
 }
 
 export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, onSaved }: Props) {
@@ -39,6 +54,7 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
   const [name, setName] = useState(activity?.name ?? "");
   const [description, setDescription] = useState(activity?.description ?? "");
   const [teacherId, setTeacherId] = useState(activity?.teacherId ?? "");
+  const [scheduleKind, setScheduleKind] = useState<ActivityScheduleKind>(activity?.scheduleKind ?? "WEEKLY");
   const [allowsRecurring, setAllowsRecurring] = useState(activity?.allowsRecurring ?? true);
   const [cancelWindowHours, setCancelWindowHours] = useState(String(activity?.cancelWindowHours ?? 2));
   const [capacity, setCapacity] = useState(activity?.capacity != null ? String(activity.capacity) : "");
@@ -101,14 +117,18 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
           }
           slotCapacity = n;
         }
-        slots.push({ dayOfWeek: draft.dayOfWeek, startMinute, endMinute, capacity: slotCapacity });
+        slots.push({
+          dayOfWeek: scheduleKind === "WEEKLY" ? draft.dayOfWeek : null,
+          date: scheduleKind === "ONE_OFF" ? draft.date : null,
+          startMinute,
+          endMinute,
+          capacity: slotCapacity,
+        });
       }
-      for (let i = 0; i < slots.length; i++) {
-        for (let j = i + 1; j < slots.length; j++) {
-          const a = slots[i];
-          const b = slots[j];
-          if (a.dayOfWeek === b.dayOfWeek && a.startMinute < b.endMinute && b.startMinute < a.endMinute) {
-            setError("Hay horarios superpuestos el mismo día.");
+      for (let i = 0; i < slotDrafts.length; i++) {
+        for (let j = i + 1; j < slotDrafts.length; j++) {
+          if (slotDraftsOverlap(slotDrafts[i], slotDrafts[j], scheduleKind)) {
+            setError("Hay horarios superpuestos.");
             return;
           }
         }
@@ -121,6 +141,7 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
         name: name.trim(),
         description: description.trim() || null,
         teacherId: canAssignTeacher ? teacherId || null : undefined,
+        scheduleKind,
         allowsRecurring,
         cancelWindowHours: parsedWindow,
         capacity: parsedCapacity,
@@ -228,15 +249,37 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
             </div>
           )}
 
-          <label className="flex items-center gap-2 text-sm font-body text-gray-300 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={allowsRecurring}
-              onChange={(e) => setAllowsRecurring(e.target.checked)}
-              disabled={isPending}
-            />
-            Admite inscripción recurrente (&quot;todos los lunes&quot;)
-          </label>
+          {!isEdit && (
+            <div>
+              <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
+                Modo de agenda
+              </label>
+              <select
+                value={scheduleKind}
+                onChange={(e) => setScheduleKind(e.target.value as ActivityScheduleKind)}
+                disabled={isPending}
+                className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
+              >
+                <option value="WEEKLY">Recurrente semanal</option>
+                <option value="ONE_OFF">Fecha única</option>
+              </select>
+              <p className="text-xs text-gray-500 font-body mt-1">
+                No se puede cambiar después de creada la actividad.
+              </p>
+            </div>
+          )}
+
+          {scheduleKind === "WEEKLY" && (
+            <label className="flex items-center gap-2 text-sm font-body text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allowsRecurring}
+                onChange={(e) => setAllowsRecurring(e.target.checked)}
+                disabled={isPending}
+              />
+              Admite inscripción recurrente (&quot;todos los lunes&quot;)
+            </label>
+          )}
         </div>
 
         {!isEdit && (
@@ -246,28 +289,41 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
                 Horarios
               </p>
               <p className="text-xs text-gray-500 font-body mt-1">
-                Cada horario se repite todas las semanas. Se pueden ajustar después desde la actividad.
+                {scheduleKind === "WEEKLY"
+                  ? "Cada horario se repite todas las semanas. Se pueden ajustar después desde la actividad."
+                  : "Cada horario ocurre una única vez, en la fecha indicada. Se pueden ajustar después desde la actividad."}
               </p>
             </div>
 
             {slotDrafts.map((draft, i) => (
               <div key={i} className="flex items-end gap-2 flex-wrap">
                 <div className="flex-1 min-w-[110px]">
-                  <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-                    Día
-                  </label>
-                  <select
-                    value={draft.dayOfWeek}
-                    onChange={(e) => updateSlotDraft(i, { dayOfWeek: Number(e.target.value) })}
-                    disabled={isPending}
-                    className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
-                  >
-                    {DAY_NAMES.map((dayName, idx) => (
-                      <option key={idx} value={idx}>
-                        {dayName}
-                      </option>
-                    ))}
-                  </select>
+                  {scheduleKind === "WEEKLY" ? (
+                    <>
+                      <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
+                        Día
+                      </label>
+                      <select
+                        value={draft.dayOfWeek}
+                        onChange={(e) => updateSlotDraft(i, { dayOfWeek: Number(e.target.value) })}
+                        disabled={isPending}
+                        className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
+                      >
+                        {DAY_NAMES.map((dayName, idx) => (
+                          <option key={idx} value={idx}>
+                            {dayName}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    <DatePicker
+                      label="Fecha"
+                      value={draft.date}
+                      onChange={(v) => updateSlotDraft(i, { date: v })}
+                      disabled={isPending}
+                    />
+                  )}
                 </div>
                 <div className="min-w-[110px]">
                   <TimePicker

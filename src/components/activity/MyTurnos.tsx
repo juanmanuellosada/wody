@@ -17,7 +17,8 @@ export interface MyBookingRow {
 export interface MyEnrollmentRow {
   enrollmentId: string;
   activityName: string;
-  dayOfWeek: number;
+  /** Las inscripciones recurrentes solo existen sobre actividades WEEKLY: nunca es null en la práctica. */
+  dayOfWeek: number | null;
   startMinute: number;
   endMinute: number;
 }
@@ -124,8 +125,8 @@ export function MyTurnos({ timezone, bookings: initialBookings, enrollments: ini
                 <li key={e.enrollmentId} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-2">
                     <p className="text-white font-heading font-bold text-sm">
-                      {e.activityName} · Todos los {DAY_NAMES[e.dayOfWeek]} · {formatMinutes(e.startMinute)}–
-                      {formatMinutes(e.endMinute)}
+                      {e.activityName} · Todos los {e.dayOfWeek !== null ? DAY_NAMES[e.dayOfWeek] : ""} ·{" "}
+                      {formatMinutes(e.startMinute)}–{formatMinutes(e.endMinute)}
                     </p>
                   </div>
                   <Button

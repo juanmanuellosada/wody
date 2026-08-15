@@ -11,7 +11,8 @@ import { DAY_NAMES } from "@/components/activity/format";
 export interface StudentSessionRow {
   id: string;
   slotId: string;
-  dayOfWeek: number;
+  /** null en actividades ONE_OFF (sin día de la semana fijo). */
+  dayOfWeek: number | null;
   activityName: string;
   allowsRecurring: boolean;
   date: string; // ISO (@db.Date)
@@ -165,7 +166,7 @@ export function TurnosCalendar({ timezone, sessions: initial, canBook }: Props) 
       <RecurringChoiceDialog
         open={choiceRow !== null}
         activityName={choiceRow?.activityName ?? ""}
-        dayLabel={choiceRow ? `los ${DAY_NAMES[choiceRow.dayOfWeek]}` : ""}
+        dayLabel={choiceRow?.dayOfWeek !== null && choiceRow?.dayOfWeek !== undefined ? `los ${DAY_NAMES[choiceRow.dayOfWeek]}` : ""}
         loading={isPending}
         onChooseSingle={() => choiceRow && bookSingle(choiceRow)}
         onChooseAll={() => choiceRow && enrollAll(choiceRow)}

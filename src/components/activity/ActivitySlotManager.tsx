@@ -1,14 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { ActivityScheduleKind } from "@prisma/client";
 import { Button } from "@/components/ui/Button";
 import { TimePicker } from "@/components/ui/TimePicker";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { createActivitySlot, updateActivitySlot, deactivateActivitySlot } from "@/actions/activity";
-import { DAY_NAMES, formatMinutes, parseTimeToMinutes } from "@/components/activity/format";
+import { DAY_NAMES, formatMinutes, formatSlotSchedule, parseTimeToMinutes } from "@/components/activity/format";
+import { toInputDate } from "@/lib/dates";
 
 export interface SlotRow {
   id: string;
-  dayOfWeek: number;
+  dayOfWeek: number | null;
+  date: string | null;
   startMinute: number;
   endMinute: number;
   capacity: number | null;
@@ -17,29 +21,34 @@ export interface SlotRow {
 
 interface Props {
   activityId: string;
+  /** Fijo por Activity: determina si el formulario pide día de la semana o fecha concreta. */
+  scheduleKind: ActivityScheduleKind;
   slots: SlotRow[];
 }
 
-const EMPTY_FORM = { dayOfWeek: 1, startTime: "09:00", endTime: "10:00", capacity: "" };
+function emptyForm() {
+  return { dayOfWeek: 1, date: toInputDate(new Date()), startTime: "09:00", endTime: "10:00", capacity: "" };
+}
 
-export function ActivitySlotManager({ activityId, slots: initial }: Props) {
+export function ActivitySlotManager({ activityId, scheduleKind, slots: initial }: Props) {
   const [slots, setSlots] = useState(initial);
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function startCreate() {
     setEditingId("new");
-    setForm(EMPTY_FORM);
+    setForm(emptyForm());
     setError(null);
   }
 
   function startEdit(slot: SlotRow) {
     setEditingId(slot.id);
     setForm({
-      dayOfWeek: slot.dayOfWeek,
+      dayOfWeek: slot.dayOfWeek ?? 1,
+      date: slot.date ?? toInputDate(new Date()),
       startTime: formatMinutes(slot.startMinute),
       endTime: formatMinutes(slot.endMinute),
       capacity: slot.capacity !== null ? String(slot.capacity) : "",
@@ -69,7 +78,13 @@ export function ActivitySlotManager({ activityId, slots: initial }: Props) {
     }
 
     setError(null);
-    const input = { dayOfWeek: form.dayOfWeek, startMinute, endMinute, capacity: parsedCapacity };
+    const input = {
+      dayOfWeek: scheduleKind === "WEEKLY" ? form.dayOfWeek : null,
+      date: scheduleKind === "ONE_OFF" ? form.date : null,
+      startMinute,
+      endMinute,
+      capacity: parsedCapacity,
+    };
     const currentEditingId = editingId;
 
     startTransition(async () => {
@@ -124,7 +139,7 @@ export function ActivitySlotManager({ activityId, slots: initial }: Props) {
             <li key={s.id} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <p className="text-white font-heading font-bold text-sm">
-                  {DAY_NAMES[s.dayOfWeek]} {formatMinutes(s.startMinute)}–{formatMinutes(s.endMinute)}
+                  {formatSlotSchedule(s)} {formatMinutes(s.startMinute)}–{formatMinutes(s.endMinute)}
                 </p>
                 <p className="text-gray-500 text-xs font-body">
                   {s.capacity === null ? "Sin límite de cupo" : `Cupo: ${s.capacity}`}
@@ -168,23 +183,32 @@ export function ActivitySlotManager({ activityId, slots: initial }: Props) {
             </h3>
 
             <div className="flex flex-col gap-3">
-              <div>
-                <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-                  Día
-                </label>
-                <select
-                  value={form.dayOfWeek}
-                  onChange={(e) => setForm((f) => ({ ...f, dayOfWeek: Number(e.target.value) }))}
+              {scheduleKind === "WEEKLY" ? (
+                <div>
+                  <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
+                    Día
+                  </label>
+                  <select
+                    value={form.dayOfWeek}
+                    onChange={(e) => setForm((f) => ({ ...f, dayOfWeek: Number(e.target.value) }))}
+                    disabled={isPending}
+                    className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
+                  >
+                    {DAY_NAMES.map((name, i) => (
+                      <option key={i} value={i}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <DatePicker
+                  label="Fecha"
+                  value={form.date}
+                  onChange={(v) => setForm((f) => ({ ...f, date: v }))}
                   disabled={isPending}
-                  className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
-                >
-                  {DAY_NAMES.map((name, i) => (
-                    <option key={i} value={i}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                />
+              )}
 
               <div className="flex gap-3">
                 <div className="flex-1">

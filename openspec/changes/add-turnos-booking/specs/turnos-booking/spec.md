@@ -39,6 +39,23 @@ Al anotarse por primera vez a un `ActivitySlot` cuya `Activity` tiene `allowsRec
 - **WHEN** el alumno se anota a una `ActivitySession`
 - **THEN** el sistema no le pregunta "a todas o solo a esta" y reserva únicamente esa fecha
 
+### Requirement: Actividades de fecha única no admiten inscripción recurrente
+
+Una `Activity` con `scheduleKind = ONE_OFF` NO SHALL admitir `ActivityEnrollment`, sin importar el valor de `allowsRecurring` (que es un flag distinto y queda irrelevante en este modo). El sistema NO SHALL ofrecer la pregunta "¿a todas o solo a esta?" para estas actividades, y el server action de inscripción recurrente SHALL rechazar el intento aunque se lo invoque directamente, no solo ocultarlo en la interfaz.
+
+#### Scenario: El calendario no ofrece inscripción recurrente en una actividad de fecha única
+
+- **GIVEN** una `Activity` con `scheduleKind = ONE_OFF`
+- **WHEN** el alumno se anota a su `ActivitySession`
+- **THEN** el sistema no le pregunta "a todas o solo a esta" y reserva únicamente esa fecha
+
+#### Scenario: El server action rechaza la inscripción recurrente sobre una actividad de fecha única
+
+- **GIVEN** un `ActivitySlot` de una `Activity` con `scheduleKind = ONE_OFF`
+- **WHEN** se invoca la inscripción recurrente sobre ese slot, aunque no se pase por la UI
+- **THEN** el sistema rechaza la operación con un error de negocio
+- **AND** no se crea ninguna `ActivityEnrollment`
+
 ### Requirement: Cancelación de una fecha no afecta la inscripción recurrente
 
 Cancelar la `ActivityBooking` de una fecha concreta SHALL dejar intacta la `ActivityEnrollment` del alumno sobre ese `ActivitySlot`, si existe. Cancelar la `ActivityEnrollment` SHALL cancelar todas las `ActivityBooking` futuras derivadas de esa inscripción, pero NO SHALL afectar reservas de otros slots ni reservas puntuales del alumno.

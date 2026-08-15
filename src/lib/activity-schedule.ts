@@ -75,13 +75,25 @@ export function localMinutesToInstant(date: Date, minutes: number, timezone: str
   return new Date(instant);
 }
 
-/** Materializa las sesiones faltantes de un slot hasta `through` (inclusive). Idempotente. */
+/**
+ * Materializa las sesiones faltantes de un slot hasta `through` (inclusive). Idempotente.
+ *
+ * `WEEKLY`: genera una sesión por cada fecha entre hoy y `through` que caiga en
+ * `slot.dayOfWeek` (comportamiento original, sin cambios).
+ *
+ * `ONE_OFF`: genera exactamente una sesión en `slot.date`, sin importar `through`
+ * — una fecha única a meses vista también debe poder materializarse (ver
+ * openspec/changes/add-turnos-booking/design.md, sección de actividades de
+ * fecha única). La unicidad `@@unique([slotId, date])` la vuelve idempotente
+ * igual que el caso WEEKLY.
+ */
 export async function ensureSessionsForSlot(slotId: string, through: Date): Promise<number> {
   const slot = await prisma.activitySlot.findUnique({
     where: { id: slotId },
     select: {
       id: true,
       dayOfWeek: true,
+      date: true,
       startMinute: true,
       endMinute: true,
       capacity: true,
@@ -91,6 +103,7 @@ export async function ensureSessionsForSlot(slotId: string, through: Date): Prom
           gymId: true,
           active: true,
           capacity: true,
+          scheduleKind: true,
           gym: { select: { timezone: true, bookingEnabled: true } },
         },
       },
@@ -103,6 +116,30 @@ export async function ensureSessionsForSlot(slotId: string, through: Date): Prom
 
   const timezone = slot.activity.gym.timezone;
   const gymId = slot.activity.gymId;
+
+  if (slot.activity.scheduleKind === "ONE_OFF") {
+    if (!slot.date) return 0;
+    const date = slot.date;
+    const result = await prisma.activitySession.createMany({
+      data: [
+        {
+          gymId,
+          slotId: slot.id,
+          date,
+          startsAt: localMinutesToInstant(date, slot.startMinute, timezone),
+          endsAt: localMinutesToInstant(date, slot.endMinute, timezone),
+          capacity: slot.capacity ?? slot.activity.capacity,
+          bookedCount: 0,
+          cancelled: false,
+        },
+      ],
+      skipDuplicates: true,
+    });
+    return result.count;
+  }
+
+  if (slot.dayOfWeek === null) return 0;
+
   const today = getTodayInTimezone(timezone);
   if (through < today) return 0;
 

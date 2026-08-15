@@ -3,7 +3,19 @@
 // src/lib/activity-schedule.ts, que resuelve la conversión hora local ↔
 // instante absoluto — esto es solo texto para mostrar en la UI.
 
+import { formatDateArg } from "@/lib/dates";
+
 export const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+/**
+ * Texto de "cuándo" de un ActivitySlot: día de la semana si es WEEKLY, fecha
+ * concreta (dd/mm/yyyy) si es ONE_OFF. Nunca mezcla ambos (ver design.md).
+ */
+export function formatSlotSchedule(slot: { dayOfWeek: number | null; date: string | null }): string {
+  if (slot.date !== null) return formatDateArg(new Date(`${slot.date}T00:00:00.000Z`));
+  if (slot.dayOfWeek !== null) return DAY_NAMES[slot.dayOfWeek];
+  return "";
+}
 
 /** minutos desde medianoche → "HH:MM" (mismo formato que <input type="time">). */
 export function formatMinutes(minutes: number): string {

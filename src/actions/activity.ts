@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, type ActivityScheduleKind } from "@prisma/client";
 import { gymPath } from "@/lib/gym";
 import { SESSION_HORIZON_WEEKS, ensureSessionsForSlot } from "@/lib/activity-schedule";
 import { sendPushToUser } from "@/lib/push";
+import { toInputDate } from "@/lib/dates";
 
 /**
  * Server actions de Actividad (Activity) y horarios recurrentes (ActivitySlot),
@@ -44,6 +45,8 @@ export type ActivityRow = {
   description: string | null;
   teacherId: string | null;
   teacherName: string | null;
+  /** WEEKLY = horarios recurrentes; ONE_OFF = fecha única. Fijo desde el alta. */
+  scheduleKind: ActivityScheduleKind;
   allowsRecurring: boolean;
   cancelWindowHours: number;
   /** Cupo por defecto de la actividad; lo usa un ActivitySlot cuando el suyo propio es null. */
@@ -64,6 +67,7 @@ const ACTIVITY_SELECT = {
   name: true,
   description: true,
   teacherId: true,
+  scheduleKind: true,
   allowsRecurring: true,
   cancelWindowHours: true,
   capacity: true,
@@ -76,6 +80,7 @@ function toActivityRow(a: {
   name: string;
   description: string | null;
   teacherId: string | null;
+  scheduleKind: ActivityScheduleKind;
   allowsRecurring: boolean;
   cancelWindowHours: number;
   capacity: number | null;
@@ -88,6 +93,7 @@ function toActivityRow(a: {
     description: a.description,
     teacherId: a.teacherId,
     teacherName: a.teacher?.name ?? null,
+    scheduleKind: a.scheduleKind,
     allowsRecurring: a.allowsRecurring,
     cancelWindowHours: a.cancelWindowHours,
     capacity: a.capacity,
@@ -121,7 +127,7 @@ async function assertActivityManager(activityId: string) {
 
   const activity = await prisma.activity.findFirst({
     where: { id: activityId },
-    select: { id: true, gymId: true, teacherId: true },
+    select: { id: true, gymId: true, teacherId: true, scheduleKind: true },
   });
   if (!activity || activity.gymId !== check.gymId) {
     return { ok: false as const, error: "Actividad no encontrada." };
@@ -139,7 +145,11 @@ async function assertSlotManager(slotId: string) {
 
   const slot = await prisma.activitySlot.findFirst({
     where: { id: slotId },
-    select: { id: true, activityId: true, activity: { select: { gymId: true, teacherId: true } } },
+    select: {
+      id: true,
+      activityId: true,
+      activity: { select: { gymId: true, teacherId: true, scheduleKind: true } },
+    },
   });
   if (!slot || slot.activity.gymId !== check.gymId) {
     return { ok: false as const, error: "Horario no encontrado." };
@@ -171,6 +181,12 @@ export type ActivityInput = {
   description?: string | null;
   /** undefined = no tocar (solo relevante en edición para TEACHER); ADMIN siempre debe mandar un valor explícito. */
   teacherId?: string | null;
+  /**
+   * Fijo desde el alta: updateActivity lo ignora. Cambiarlo después dejaría
+   * los ActivitySlot existentes incoherentes con el nuevo modo (ver design.md,
+   * "el modo vive en la Actividad para no poder mezclar semanal y suelto").
+   */
+  scheduleKind: ActivityScheduleKind;
   allowsRecurring: boolean;
   cancelWindowHours: number;
   /** Cupo por defecto de la actividad (null = sin límite); cada ActivitySlot puede pisarlo con el suyo propio. */
@@ -191,10 +207,14 @@ export async function createActivity(
   const check = await assertCanManageActivities();
   if (!check.ok) return { success: false, error: check.error };
 
+  if (input.scheduleKind !== "WEEKLY" && input.scheduleKind !== "ONE_OFF") {
+    return { success: false, error: "Modo de agenda inválido." };
+  }
+
   const validationError = validateActivityInput(input);
   if (validationError) return { success: false, error: validationError };
 
-  const slotsError = validateSlots(slots);
+  const slotsError = validateSlots(slots, input.scheduleKind);
   if (slotsError) return { success: false, error: slotsError };
 
   let teacherId: string | null = null;
@@ -218,6 +238,7 @@ export async function createActivity(
         name: input.name.trim(),
         description: input.description?.trim() || null,
         teacherId,
+        scheduleKind: input.scheduleKind,
         allowsRecurring: input.allowsRecurring,
         cancelWindowHours: Math.round(input.cancelWindowHours),
         capacity: input.capacity,
@@ -231,6 +252,7 @@ export async function createActivity(
         data: {
           activityId: created.id,
           dayOfWeek: s.dayOfWeek,
+          date: s.date ? parseYMD(s.date) : null,
           startMinute: s.startMinute,
           endMinute: s.endMinute,
           capacity: s.capacity,
@@ -297,7 +319,10 @@ export async function updateActivity(activityId: string, input: ActivityInput): 
 
 export type SlotRow = {
   id: string;
-  dayOfWeek: number;
+  /** Obligatorio en WEEKLY, null en ONE_OFF. */
+  dayOfWeek: number | null;
+  /** YYYY-MM-DD. Obligatorio en ONE_OFF, null en WEEKLY. */
+  date: string | null;
   startMinute: number;
   endMinute: number;
   capacity: number | null;
@@ -309,15 +334,41 @@ export type SlotActionResult =
   | { success: false; error: string };
 
 export type SlotInput = {
-  dayOfWeek: number;
+  dayOfWeek: number | null;
+  /** YYYY-MM-DD */
+  date: string | null;
   startMinute: number;
   endMinute: number;
   capacity: number | null;
 };
 
-function validateSlotInput(input: SlotInput): string | null {
-  if (!Number.isInteger(input.dayOfWeek) || input.dayOfWeek < 0 || input.dayOfWeek > 6) {
-    return "El día de la semana no es válido.";
+/** "YYYY-MM-DD" (estricto) → Date en medianoche UTC, o null si el formato o la fecha calendario no es válida. */
+function parseYMD(input: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    return null;
+  }
+  return date;
+}
+
+/**
+ * Coherencia con Activity.scheduleKind (ver design.md): WEEKLY exige
+ * dayOfWeek y prohíbe date; ONE_OFF exige date y prohíbe dayOfWeek.
+ */
+function validateSlotInput(input: SlotInput, scheduleKind: ActivityScheduleKind): string | null {
+  if (scheduleKind === "WEEKLY") {
+    if (input.dayOfWeek === null || !Number.isInteger(input.dayOfWeek) || input.dayOfWeek < 0 || input.dayOfWeek > 6) {
+      return "El día de la semana no es válido.";
+    }
+    if (input.date !== null) return "Un horario semanal no debe tener fecha.";
+  } else {
+    if (input.dayOfWeek !== null) return "Un horario de fecha única no debe tener día de la semana.";
+    if (input.date === null || parseYMD(input.date) === null) return "La fecha no es válida.";
   }
   if (!Number.isInteger(input.startMinute) || input.startMinute < 0 || input.startMinute >= 1440) {
     return "La hora de inicio no es válida.";
@@ -332,14 +383,16 @@ function validateSlotInput(input: SlotInput): string | null {
 }
 
 function slotsOverlap(a: SlotInput, b: SlotInput): boolean {
-  return a.dayOfWeek === b.dayOfWeek && a.startMinute < b.endMinute && b.startMinute < a.endMinute;
+  const sameBucket = (a.dayOfWeek !== null && a.dayOfWeek === b.dayOfWeek) || (a.date !== null && a.date === b.date);
+  if (!sameBucket) return false;
+  return a.startMinute < b.endMinute && b.startMinute < a.endMinute;
 }
 
-/** Valida la lista de horarios del alta en un paso: al menos uno, cada uno válido, sin solapamientos el mismo día. */
-function validateSlots(slots: SlotInput[]): string | null {
+/** Valida la lista de horarios del alta en un paso: al menos uno, cada uno válido, sin solapamientos el mismo día/fecha. */
+function validateSlots(slots: SlotInput[], scheduleKind: ActivityScheduleKind): string | null {
   if (slots.length === 0) return "Agregá al menos un horario.";
   for (const s of slots) {
-    const err = validateSlotInput(s);
+    const err = validateSlotInput(s, scheduleKind);
     if (err) return err;
   }
   for (let i = 0; i < slots.length; i++) {
@@ -350,17 +403,38 @@ function validateSlots(slots: SlotInput[]): string | null {
   return null;
 }
 
+function toSlotRow(slot: {
+  id: string;
+  dayOfWeek: number | null;
+  date: Date | null;
+  startMinute: number;
+  endMinute: number;
+  capacity: number | null;
+  active: boolean;
+}): SlotRow {
+  return {
+    id: slot.id,
+    dayOfWeek: slot.dayOfWeek,
+    date: slot.date ? toInputDate(slot.date) : null,
+    startMinute: slot.startMinute,
+    endMinute: slot.endMinute,
+    capacity: slot.capacity,
+    active: slot.active,
+  };
+}
+
 export async function createActivitySlot(activityId: string, input: SlotInput): Promise<SlotActionResult> {
   const check = await assertActivityManager(activityId);
   if (!check.ok) return { success: false, error: check.error };
 
-  const validationError = validateSlotInput(input);
+  const validationError = validateSlotInput(input, check.activity.scheduleKind);
   if (validationError) return { success: false, error: validationError };
 
   const slot = await prisma.activitySlot.create({
     data: {
       activityId,
       dayOfWeek: input.dayOfWeek,
+      date: input.date ? parseYMD(input.date) : null,
       startMinute: input.startMinute,
       endMinute: input.endMinute,
       capacity: input.capacity,
@@ -377,30 +451,21 @@ export async function createActivitySlot(activityId: string, input: SlotInput): 
   }
 
   revalidateActivityViews(check.gymSlug, activityId);
-  return {
-    success: true,
-    slot: {
-      id: slot.id,
-      dayOfWeek: slot.dayOfWeek,
-      startMinute: slot.startMinute,
-      endMinute: slot.endMinute,
-      capacity: slot.capacity,
-      active: slot.active,
-    },
-  };
+  return { success: true, slot: toSlotRow(slot) };
 }
 
 export async function updateActivitySlot(slotId: string, input: SlotInput): Promise<SlotActionResult> {
   const check = await assertSlotManager(slotId);
   if (!check.ok) return { success: false, error: check.error };
 
-  const validationError = validateSlotInput(input);
+  const validationError = validateSlotInput(input, check.slot.activity.scheduleKind);
   if (validationError) return { success: false, error: validationError };
 
   const slot = await prisma.activitySlot.update({
     where: { id: slotId },
     data: {
       dayOfWeek: input.dayOfWeek,
+      date: input.date ? parseYMD(input.date) : null,
       startMinute: input.startMinute,
       endMinute: input.endMinute,
       capacity: input.capacity,
@@ -408,17 +473,7 @@ export async function updateActivitySlot(slotId: string, input: SlotInput): Prom
   });
 
   revalidateActivityViews(check.gymSlug, check.slot.activityId);
-  return {
-    success: true,
-    slot: {
-      id: slot.id,
-      dayOfWeek: slot.dayOfWeek,
-      startMinute: slot.startMinute,
-      endMinute: slot.endMinute,
-      capacity: slot.capacity,
-      active: slot.active,
-    },
-  };
+  return { success: true, slot: toSlotRow(slot) };
 }
 
 export async function deactivateActivitySlot(slotId: string): Promise<SimpleActionResult> {

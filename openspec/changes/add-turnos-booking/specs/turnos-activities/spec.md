@@ -2,7 +2,7 @@
 
 ### Requirement: Alta de Actividad
 
-El sistema SHALL permitir a un `ADMIN` crear una `Activity` dentro de su gym con `name`, `description` (opcional), `teacherId` a cargo (opcional), `allowsRecurring` (booleano), `cancelWindowHours` (numérico, horas) y `capacity` (opcional, cupo por defecto de la actividad). Un `TEACHER` SHALL poder crear una `Activity` únicamente asignándose a sí mismo como `teacherId` a cargo. La `Activity` creada SHALL quedar asociada al `gymId` del creador.
+El sistema SHALL permitir a un `ADMIN` crear una `Activity` dentro de su gym con `name`, `description` (opcional), `teacherId` a cargo (opcional), `scheduleKind` (`WEEKLY` o `ONE_OFF`), `allowsRecurring` (booleano), `cancelWindowHours` (numérico, horas) y `capacity` (opcional, cupo por defecto de la actividad). Un `TEACHER` SHALL poder crear una `Activity` únicamente asignándose a sí mismo como `teacherId` a cargo. La `Activity` creada SHALL quedar asociada al `gymId` del creador. `scheduleKind` NO SHALL poder modificarse después del alta: editar una `Activity` (ver "Edición de Actividad y cupo por defecto") no permite cambiar su `scheduleKind`.
 
 #### Scenario: Un ADMIN crea una actividad sin profe asignado
 
@@ -18,6 +18,40 @@ El sistema SHALL permitir a un `ADMIN` crear una `Activity` dentro de su gym con
 
 - **WHEN** un `TEACHER` intenta crear una `Activity` con `teacherId` de otro usuario
 - **THEN** el sistema rechaza la operación
+
+#### Scenario: El modo de agenda no se puede cambiar después del alta
+
+- **GIVEN** una `Activity` creada con `scheduleKind = WEEKLY`
+- **WHEN** un `ADMIN` edita esa actividad
+- **THEN** el sistema conserva `scheduleKind = WEEKLY` sin importar lo que se envíe en la edición
+
+### Requirement: Modo de agenda y coherencia del horario
+
+Cada `Activity` SHALL tener un `scheduleKind`: `WEEKLY` (horarios recurrentes semanales) u `ONE_OFF` (fechas únicas). Un `ActivitySlot` SHALL ser coherente con el `scheduleKind` de su `Activity`: si es `WEEKLY`, el slot SHALL tener `dayOfWeek` (0-6) y NO SHALL tener `date`; si es `ONE_OFF`, el slot SHALL tener `date` y NO SHALL tener `dayOfWeek`. El sistema SHALL rechazar cualquier alta o edición de `ActivitySlot` que no respete esta coherencia. Una `Activity` `ONE_OFF` SHALL poder tener varios `ActivitySlot`, cada uno con su propia fecha (por ejemplo, un seminario de dos días). En toda vista donde se muestre un horario de una `Activity` `ONE_OFF` (gestión, calendario del alumno, Mis turnos), el sistema SHALL mostrar la fecha concreta del horario, y NO SHALL mostrar un nombre de día de la semana suelto.
+
+#### Scenario: La gestión de horarios muestra la fecha concreta de un slot ONE_OFF
+
+- **GIVEN** un `ActivitySlot` de una `Activity` `ONE_OFF` con `date = 2026-08-20`
+- **WHEN** un `ADMIN` o `TEACHER` ve el horario en la vista de gestión de la actividad
+- **THEN** el sistema muestra "20/08/2026", no un nombre de día de la semana
+
+#### Scenario: Un horario semanal no puede tener fecha
+
+- **GIVEN** una `Activity` con `scheduleKind = WEEKLY`
+- **WHEN** un `ADMIN` intenta crear un `ActivitySlot` para esa actividad con `date` cargada
+- **THEN** el sistema rechaza la operación
+
+#### Scenario: Un horario de fecha única no puede tener día de la semana
+
+- **GIVEN** una `Activity` con `scheduleKind = ONE_OFF`
+- **WHEN** un `ADMIN` intenta crear un `ActivitySlot` para esa actividad con `dayOfWeek` cargado
+- **THEN** el sistema rechaza la operación
+
+#### Scenario: Una actividad de fecha única admite varios slots con fechas distintas
+
+- **GIVEN** una `Activity` con `scheduleKind = ONE_OFF`
+- **WHEN** un `ADMIN` agrega un `ActivitySlot` para el 20 de agosto y otro para el 21 de agosto
+- **THEN** el sistema guarda ambos horarios asociados a esa actividad
 
 ### Requirement: Edición de Actividad y cupo por defecto
 
@@ -43,7 +77,7 @@ El sistema SHALL permitir editar los campos de una `Activity` (`name`, `descript
 
 ### Requirement: Horarios recurrentes semanales
 
-El sistema SHALL permitir definir uno o más `ActivitySlot` por `Activity`, cada uno con día de la semana, hora de inicio, hora de fin y `capacity` opcional. `capacity = null` SHALL significar sin límite propio (ver "Edición de Actividad y cupo por defecto" para la resolución contra el cupo de la actividad). El sistema SHALL permitir editar y eliminar un `ActivitySlot` existente.
+El sistema SHALL permitir definir uno o más `ActivitySlot` por `Activity` con `scheduleKind = WEEKLY`, cada uno con día de la semana, hora de inicio, hora de fin y `capacity` opcional. `capacity = null` SHALL significar sin límite propio (ver "Edición de Actividad y cupo por defecto" para la resolución contra el cupo de la actividad). El sistema SHALL permitir editar y eliminar un `ActivitySlot` existente.
 
 #### Scenario: Un slot sin cupo propio ni cupo de actividad admite reservas ilimitadas
 
@@ -58,7 +92,7 @@ El sistema SHALL permitir definir uno o más `ActivitySlot` por `Activity`, cada
 
 ### Requirement: Alta de Actividad con horarios en un solo paso
 
-El sistema SHALL permitir crear una `Activity` junto con uno o más `ActivitySlot` en una única operación transaccional, sin requerir un paso separado posterior. Cada horario cargado en el alta SHALL repetirse todas las semanas (misma semántica que "Horarios recurrentes semanales"; el alta en un paso no introduce otra frecuencia). El sistema SHALL rechazar el alta si no se especifica al menos un horario, si algún horario tiene hora de fin anterior o igual a la de inicio, o si dos horarios de la misma actividad se solapan en el mismo día de la semana. La edición de horarios después del alta SHALL seguir haciéndose desde la vista de detalle de la actividad (`ActivitySlotManager`), que no se ve afectada por este requerimiento.
+El sistema SHALL permitir crear una `Activity` junto con uno o más `ActivitySlot` en una única operación transaccional, sin requerir un paso separado posterior. Si `scheduleKind = WEEKLY`, cada horario cargado en el alta SHALL repetirse todas las semanas (misma semántica que "Horarios recurrentes semanales"; el alta en un paso no introduce otra frecuencia). Si `scheduleKind = ONE_OFF`, cada horario cargado en el alta SHALL tener su propia fecha (misma semántica que "Modo de agenda y coherencia del horario"). El sistema SHALL rechazar el alta si no se especifica al menos un horario, si algún horario tiene hora de fin anterior o igual a la de inicio, o si dos horarios de la misma actividad se solapan en el mismo día de la semana (`WEEKLY`) o en la misma fecha (`ONE_OFF`). La edición de horarios después del alta SHALL seguir haciéndose desde la vista de detalle de la actividad (`ActivitySlotManager`), que no se ve afectada por este requerimiento.
 
 #### Scenario: Alta con horarios crea la actividad y sus slots juntos
 
@@ -73,6 +107,16 @@ El sistema SHALL permitir crear una `Activity` junto con uno o más `ActivitySlo
 #### Scenario: El alta rechaza horarios superpuestos el mismo día
 
 - **WHEN** un `ADMIN` intenta crear una `Activity` con dos horarios los lunes que se superponen en el tiempo
+- **THEN** el sistema rechaza la operación
+
+#### Scenario: Alta de una actividad de fecha única con dos días de seminario
+
+- **WHEN** un `ADMIN` crea una `Activity` con `scheduleKind = ONE_OFF` y dos horarios, uno el 20 de agosto y otro el 21 de agosto
+- **THEN** el sistema crea la `Activity` y ambos `ActivitySlot`, cada uno con su propia fecha
+
+#### Scenario: El alta rechaza horarios superpuestos en la misma fecha
+
+- **WHEN** un `ADMIN` intenta crear una `Activity` con `scheduleKind = ONE_OFF` y dos horarios en la misma fecha que se superponen en el tiempo
 - **THEN** el sistema rechaza la operación
 
 ### Requirement: Eliminación de Actividad
@@ -110,7 +154,7 @@ El sistema SHALL permitir a un `ADMIN`, o a un `TEACHER` a cargo de la actividad
 
 ### Requirement: Materialización de sesiones por cron
 
-El sistema SHALL ejecutar un proceso programado que, para cada `ActivitySlot` activo, genere las `ActivitySession` correspondientes a las próximas 4 semanas que aún no existan. El proceso SHALL ser idempotente: ejecutarlo repetidamente sobre el mismo horizonte NO SHALL crear sesiones duplicadas. Cada `ActivitySession` materializada SHALL tomar un snapshot del `capacity` vigente del slot al momento de crearse.
+El sistema SHALL ejecutar un proceso programado que, para cada `ActivitySlot` activo con `scheduleKind = WEEKLY`, genere las `ActivitySession` correspondientes a las próximas 4 semanas que aún no existan. El proceso SHALL ser idempotente: ejecutarlo repetidamente sobre el mismo horizonte NO SHALL crear sesiones duplicadas. Cada `ActivitySession` materializada SHALL tomar un snapshot del `capacity` vigente del slot al momento de crearse.
 
 #### Scenario: Corridas repetidas no duplican sesiones
 
@@ -123,6 +167,22 @@ El sistema SHALL ejecutar un proceso programado que, para cada `ActivitySlot` ac
 - **GIVEN** una `ActivitySession` ya materializada con `capacity` snapshot en 10
 - **WHEN** un `ADMIN` cambia el `capacity` del `ActivitySlot` a 5
 - **THEN** la `ActivitySession` ya materializada conserva `capacity = 10`
+
+### Requirement: Materialización de sesiones de fecha única
+
+Para cada `ActivitySlot` activo con `scheduleKind = ONE_OFF`, el sistema SHALL generar exactamente una `ActivitySession` en `slot.date`, sin importar el horizonte de 4 semanas usado para `WEEKLY`: una fecha única a meses vista SHALL poder materializarse igual. El proceso SHALL ser idempotente (una vez materializada, no SHALL regenerarse ni duplicarse). La sesión SHALL tomar un snapshot del `capacity` vigente del slot al momento de crearse, con la misma resolución `slot.capacity ?? activity.capacity ?? null`.
+
+#### Scenario: Una fecha única a meses vista se materializa igual
+
+- **GIVEN** un `ActivitySlot` con `scheduleKind = ONE_OFF` y `date` a 3 meses de hoy
+- **WHEN** el cron de materialización corre
+- **THEN** se crea la `ActivitySession` de esa fecha, aunque esté fuera del horizonte de 4 semanas usado para horarios semanales
+
+#### Scenario: Materializar dos veces la misma fecha única no duplica la sesión
+
+- **GIVEN** un `ActivitySlot` `ONE_OFF` cuya `ActivitySession` ya fue materializada
+- **WHEN** el cron de materialización vuelve a correr
+- **THEN** no se crea una segunda `ActivitySession` para ese slot
 
 ### Requirement: Cancelación de una sesión puntual
 

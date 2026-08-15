@@ -74,3 +74,16 @@
 
 - [x] 8.1 Eliminar el campo `Activity.color` (sin uso real en producción): schema, server actions, selects de las 3 páginas de `turnos/`, `ActivityDialog`, `ActivityList`, `TurnosCalendar` y `MyTurnos`
 - [x] 8.2 Crear `src/components/ui/TimePicker.tsx` (consistente con `DatePicker`/`ColorPicker`) y reemplazar los 4 `<input type="time">` nativos en `ActivityDialog` y `ActivitySlotManager`
+
+## 9. Actividades de fecha única (ONE_OFF)
+
+- [x] 9.1 Schema: `enum ActivityScheduleKind { WEEKLY ONE_OFF }`, `Activity.scheduleKind` (`@default(WEEKLY)`), `ActivitySlot.dayOfWeek` nullable, `ActivitySlot.date DateTime? @db.Date` (`prisma format` + `validate` + `generate`; migración la aplica el usuario tras auditar el SQL)
+- [x] 9.2 `src/actions/activity.ts`: `ActivityInput.scheduleKind` (fijo desde el alta, `updateActivity` lo ignora), `SlotInput`/`SlotRow` con `dayOfWeek: number | null` y `date: string | null`, validación de coherencia (`WEEKLY` exige `dayOfWeek` y prohíbe `date`; `ONE_OFF` exige `date` y prohíbe `dayOfWeek`) en `createActivity`, `createActivitySlot` y `updateActivitySlot`
+- [x] 9.3 `src/lib/activity-schedule.ts`: `ensureSessionsForSlot` genera exactamente una `ActivitySession` para un slot `ONE_OFF` en `slot.date`, ignorando el horizonte de 4 semanas; sigue siendo idempotente vía `@@unique([slotId, date])`. `WEEKLY` sin cambios
+- [x] 9.4 `src/actions/booking.ts`: `enrollInSlot` rechaza actividades `scheduleKind = ONE_OFF` en el server, independientemente de `allowsRecurring` y de lo que muestre la UI
+- [x] 9.5 UI de alta (`ActivityDialog.tsx`): selector de modo de agenda (solo en creación, no editable después); si es `WEEKLY` pide día de la semana (como antes); si es `ONE_OFF` pide fecha con `DatePicker`; oculta el checkbox de inscripción recurrente cuando el modo es `ONE_OFF`
+- [x] 9.6 UI de edición de horarios (`ActivitySlotManager.tsx`): recibe `scheduleKind` de la actividad y alterna entre selector de día y `DatePicker` según corresponda
+- [x] 9.7 Formato compartido (`format.ts`): `formatSlotSchedule()` muestra la fecha concreta (dd/mm/yyyy) para slots `ONE_OFF` y el nombre del día para `WEEKLY`, usado en `ActivitySlotManager`; el calendario del alumno y "Mis turnos" ya mostraban la fecha concreta de la sesión (no el día suelto) y no requirieron cambios en ese punto
+- [x] 9.8 `turnos/page.tsx`: la pregunta "¿a todas o solo a esta?" no se ofrece para actividades `ONE_OFF` (se computa `allowsRecurring = activity.allowsRecurring && scheduleKind !== "ONE_OFF"` al construir las filas del calendario)
+- [x] 9.9 Actualizar specs `turnos-activities/spec.md` y `turnos-booking/spec.md` con los requerimientos de modo de agenda, coherencia del slot, materialización `ONE_OFF` y rechazo de inscripción recurrente
+- [x] 9.10 Correr `npm run lint` y `npm run build` (mismos 2 errores preexistentes de `react-hooks/purity` en `layout.tsx:151,197`, sin hallazgos nuevos; build OK)

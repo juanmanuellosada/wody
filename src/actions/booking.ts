@@ -158,7 +158,7 @@ export async function enrollInSlot(slotId: string): Promise<EnrollActionResult> 
     select: {
       id: true,
       active: true,
-      activity: { select: { gymId: true, active: true, allowsRecurring: true } },
+      activity: { select: { gymId: true, active: true, allowsRecurring: true, scheduleKind: true } },
     },
   });
   if (!slot || slot.activity.gymId !== gymId) {
@@ -166,6 +166,12 @@ export async function enrollInSlot(slotId: string): Promise<EnrollActionResult> 
   }
   if (!slot.active || !slot.activity.active) {
     return { success: false, error: "Este horario ya no está disponible." };
+  }
+  // Una actividad de fecha única (ONE_OFF) no tiene "todas las semanas" a las
+  // que inscribirse: allowsRecurring es un flag distinto y queda irrelevante
+  // en este modo (ver openspec/changes/add-turnos-booking specs/turnos-booking).
+  if (slot.activity.scheduleKind === "ONE_OFF") {
+    return { success: false, error: "Esta actividad no admite inscripción recurrente." };
   }
   if (!slot.activity.allowsRecurring) {
     return { success: false, error: "Esta actividad no admite inscripción recurrente." };

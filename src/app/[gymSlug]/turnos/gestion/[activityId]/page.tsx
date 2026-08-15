@@ -6,6 +6,7 @@ import { isBookingModuleEnabled } from "@/lib/gym-module-guards";
 import { ActivitySlotManager } from "@/components/activity/ActivitySlotManager";
 import { ActivitySessionList } from "@/components/activity/ActivitySessionList";
 import { SESSION_HORIZON_WEEKS, ensureSessionsForSlot } from "@/lib/activity-schedule";
+import { toInputDate } from "@/lib/dates";
 
 interface Props {
   params: Promise<{ gymSlug: string; activityId: string }>;
@@ -43,8 +44,9 @@ export default async function ActivityDetailPage({ params }: Props) {
       active: true,
       teacherId: true,
       teacher: { select: { name: true } },
+      scheduleKind: true,
       cancelWindowHours: true,
-      slots: { orderBy: [{ dayOfWeek: "asc" }, { startMinute: "asc" }] },
+      slots: { orderBy: [{ dayOfWeek: "asc" }, { date: "asc" }, { startMinute: "asc" }] },
     },
   });
   if (!activity) notFound();
@@ -89,9 +91,11 @@ export default async function ActivityDetailPage({ params }: Props) {
         <h2 className="text-lg font-heading font-bold uppercase tracking-[0.15em] text-gray-400 mb-4">Horarios</h2>
         <ActivitySlotManager
           activityId={activity.id}
+          scheduleKind={activity.scheduleKind}
           slots={activity.slots.map((s) => ({
             id: s.id,
             dayOfWeek: s.dayOfWeek,
+            date: s.date ? toInputDate(s.date) : null,
             startMinute: s.startMinute,
             endMinute: s.endMinute,
             capacity: s.capacity,
