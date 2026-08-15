@@ -85,6 +85,8 @@ Si al editar la vigencia de una `Activity` `WEEKLY` alguna `ActivitySession` fut
 
 En toda vista donde se liste o muestre el detalle de una `Activity` `WEEKLY` (gestión y calendario), el sistema SHALL mostrar la vigencia de forma legible junto a los horarios: con `endsOn = null`, una indicación de que se repite desde `startsOn` sin fecha de fin; con `endsOn` seteada, el rango completo entre `startsOn` y `endsOn`.
 
+`startsOn` NO SHALL ser un límite inferior arbitrario: representa la primera clase de la actividad. En una `Activity` `WEEKLY`, el día de la semana de `startsOn` SHALL coincidir con el `dayOfWeek` de al menos un `ActivitySlot` activo de esa actividad. El sistema SHALL rechazar cualquier alta o edición de `Activity` que deje `startsOn` sin ningún `ActivitySlot` activo en ese día de la semana, con un mensaje que indique en qué días sí puede empezar. El sistema SHALL rechazar también el alta, la edición o la desactivación de un `ActivitySlot` que dejaría a la `Activity` en ese mismo estado inconsistente (el `startsOn` vigente sin ningún `ActivitySlot` activo que caiga en su día de la semana): la operación se rechaza explicando que primero hay que ajustar `startsOn`, nunca se corrige en silencio. Si la `Activity` no tiene ningún `ActivitySlot` activo, esta regla no aplica (no hay nada con qué `startsOn` deba ser consistente).
+
 #### Scenario: Una actividad WEEKLY nueva exige fecha de inicio
 
 - **WHEN** un `ADMIN` crea una `Activity` con `scheduleKind = WEEKLY` sin cargar `startsOn`
@@ -132,6 +134,26 @@ En toda vista donde se liste o muestre el detalle de una `Activity` `WEEKLY` (ge
 - **AND** sus `ActivityBooking` `CONFIRMED` quedan `CANCELLED`
 - **AND** el sistema intenta notificar por push a cada alumno afectado
 - **AND** un fallo de envío a un alumno no impide notificar al resto ni revierte la edición
+
+#### Scenario: startsOn coincide con un día con horario
+
+- **GIVEN** una `Activity` `WEEKLY` con `ActivitySlot` activos los lunes y miércoles
+- **WHEN** un `ADMIN` la crea o la edita con `startsOn` en un lunes
+- **THEN** el sistema acepta la operación
+
+#### Scenario: startsOn no coincide con ningún día con horario
+
+- **GIVEN** una `Activity` `WEEKLY` con `ActivitySlot` activos los lunes y miércoles
+- **WHEN** un `ADMIN` intenta crear o editar la actividad con `startsOn` en un martes
+- **THEN** el sistema rechaza la operación
+- **AND** el mensaje de error indica que `startsOn` debe caer en lunes o miércoles
+
+#### Scenario: Editar los horarios deja startsOn sin ningún día que coincida
+
+- **GIVEN** una `Activity` `WEEKLY` con `startsOn` en lunes y un único `ActivitySlot` activo los lunes
+- **WHEN** un `ADMIN` cambia ese `ActivitySlot` a los martes, o lo desactiva
+- **THEN** el sistema rechaza la operación
+- **AND** el mensaje de error indica que primero hay que ajustar `startsOn`
 
 ### Requirement: Horarios recurrentes semanales
 

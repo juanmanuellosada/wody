@@ -22,7 +22,7 @@ interface Props {
 
 export function ActivityList({ gymSlug, activities: initial, teachers, canAssignTeacher }: Props) {
   const [activities, setActivities] = useState(initial);
-  const [editing, setEditing] = useState<ActivityRow | "new" | null>(null);
+  const [editing, setEditing] = useState<ActivityListRow | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ActivityRow | null>(null);
@@ -151,6 +151,9 @@ export function ActivityList({ gymSlug, activities: initial, teachers, canAssign
       {editing && (
         <ActivityDialog
           activity={editing === "new" ? undefined : editing}
+          activitySlotDays={
+            editing !== "new" ? editing.slots.map((s) => s.dayOfWeek).filter((d): d is number => d !== null) : undefined
+          }
           teachers={teachers}
           canAssignTeacher={canAssignTeacher}
           onClose={() => setEditing(null)}

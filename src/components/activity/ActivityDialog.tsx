@@ -19,6 +19,13 @@ export interface TeacherOption {
 interface Props {
   /** Presente = modo edición. */
   activity?: ActivityRow;
+  /**
+   * Días de la semana (dayOfWeek) de los ActivitySlot activos actuales de la
+   * actividad. Solo se usa en modo edición (WEEKLY): esta pantalla no toca
+   * horarios, así que el default y la validación de "Se repite a partir de"
+   * se apoyan en los días ya cargados. En alta se derivan de `slotDrafts`.
+   */
+  activitySlotDays?: number[];
   teachers: TeacherOption[];
   /** false para TEACHER: siempre queda a cargo de sí mismo, no elige. */
   canAssignTeacher: boolean;
@@ -50,7 +57,43 @@ function slotDraftsOverlap(a: SlotDraft, b: SlotDraft, scheduleKind: ActivitySch
   return aStart < bEnd && bStart < aEnd;
 }
 
-export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, onSaved }: Props) {
+function uniqueSortedDays(days: number[]): number[] {
+  return [...new Set(days)].sort((a, b) => a - b);
+}
+
+function formatDayNames(days: number[]): string {
+  const names = days.map((d) => DAY_NAMES[d]);
+  return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} o ${names[names.length - 1]}`;
+}
+
+/** "YYYY-MM-DD" en componentes locales (no UTC): evita el corrimiento de día
+ * que da `toInputDate` si se le pasa un `new Date()` con hora local. */
+function formatLocalYMD(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/** Próxima fecha (YYYY-MM-DD) a partir de hoy (inclusive) cuyo día de la semana esté en `days`. null si `days` está vacío. */
+function nextDateOnDays(days: number[]): string | null {
+  if (days.length === 0) return null;
+  const daySet = new Set(days);
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  for (let i = 0; i < 7; i++) {
+    if (daySet.has(d.getDay())) return formatLocalYMD(d);
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
+
+/** Día de la semana (Date.getDay(), 0-6) de una fecha "YYYY-MM-DD" tratada como fecha calendario, no instante. */
+function weekdayOfYMD(ymd: string): number {
+  return new Date(`${ymd}T00:00:00.000Z`).getUTCDay();
+}
+
+export function ActivityDialog({ activity, activitySlotDays = [], teachers, canAssignTeacher, onClose, onSaved }: Props) {
   const isEdit = !!activity;
   const [name, setName] = useState(activity?.name ?? "");
   const [description, setDescription] = useState(activity?.description ?? "");
@@ -59,19 +102,52 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
   const [allowsRecurring, setAllowsRecurring] = useState(activity?.allowsRecurring ?? true);
   const [cancelWindowHours, setCancelWindowHours] = useState(String(activity?.cancelWindowHours ?? 2));
   const [capacity, setCapacity] = useState(activity?.capacity != null ? String(activity.capacity) : "");
-  const [startsOn, setStartsOn] = useState(activity?.startsOn ?? toInputDate(new Date()));
+  const [slotDrafts, setSlotDrafts] = useState<SlotDraft[]>(isEdit ? [] : [newSlotDraft()]);
+  // El default ya no es "hoy": es la próxima fecha que cae en alguno de los
+  // días elegidos (ver spec "Vigencia de una actividad recurrente"). En
+  // edición se apoya en los horarios ya cargados (`activitySlotDays`); en
+  // alta, en los `slotDrafts` recién armados.
+  const [startsOn, setStartsOn] = useState(
+    activity?.startsOn ?? nextDateOnDays(isEdit ? activitySlotDays : slotDrafts.map((s) => s.dayOfWeek)) ?? ""
+  );
+  // Si el usuario edita la fecha a mano, dejamos de recalcular el default
+  // automáticamente. En edición nunca se autocompleta (ya viene guardada).
+  const [startsOnTouched, setStartsOnTouched] = useState(isEdit);
   const [hasEndDate, setHasEndDate] = useState(activity?.endsOn != null);
   const [endsOn, setEndsOn] = useState(activity?.endsOn ?? activity?.startsOn ?? toInputDate(new Date()));
-  const [slotDrafts, setSlotDrafts] = useState<SlotDraft[]>(isEdit ? [] : [newSlotDraft()]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  const selectedDays =
+    scheduleKind === "WEEKLY" ? uniqueSortedDays(isEdit ? activitySlotDays : slotDrafts.map((s) => s.dayOfWeek)) : [];
+  const startsOnMismatch =
+    scheduleKind === "WEEKLY" &&
+    startsOn !== "" &&
+    selectedDays.length > 0 &&
+    !selectedDays.includes(weekdayOfYMD(startsOn));
+
+  /** Recalcula el default de "Se repite a partir de" si el usuario no lo tocó a mano. */
+  function syncStartsOnDefault(kind: ActivityScheduleKind, days: number[]) {
+    if (kind !== "WEEKLY" || startsOnTouched) return;
+    setStartsOn(nextDateOnDays(days) ?? "");
+  }
+
   function updateSlotDraft(index: number, patch: Partial<SlotDraft>) {
-    setSlotDrafts((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+    const next = slotDrafts.map((s, i) => (i === index ? { ...s, ...patch } : s));
+    setSlotDrafts(next);
+    syncStartsOnDefault(scheduleKind, uniqueSortedDays(next.map((s) => s.dayOfWeek)));
   }
 
   function removeSlotDraft(index: number) {
-    setSlotDrafts((prev) => prev.filter((_, i) => i !== index));
+    const next = slotDrafts.filter((_, i) => i !== index);
+    setSlotDrafts(next);
+    syncStartsOnDefault(scheduleKind, uniqueSortedDays(next.map((s) => s.dayOfWeek)));
+  }
+
+  function addSlotDraft() {
+    const next = [...slotDrafts, newSlotDraft()];
+    setSlotDrafts(next);
+    syncStartsOnDefault(scheduleKind, uniqueSortedDays(next.map((s) => s.dayOfWeek)));
   }
 
   function handleConfirm() {
@@ -101,6 +177,12 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
       }
       if (hasEndDate && endsOn < startsOn) {
         setError("La fecha de fin de vigencia debe ser posterior o igual a la de inicio.");
+        return;
+      }
+      // Espeja la validación del servidor (no la reemplaza): startsOn es la
+      // primera clase, así que debe caer en uno de los días con horario.
+      if (selectedDays.length > 0 && !selectedDays.includes(weekdayOfYMD(startsOn))) {
+        setError(`La fecha de inicio debe caer en uno de los días con horario: ${formatDayNames(selectedDays)}.`);
         return;
       }
     }
@@ -273,7 +355,11 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
               </label>
               <select
                 value={scheduleKind}
-                onChange={(e) => setScheduleKind(e.target.value as ActivityScheduleKind)}
+                onChange={(e) => {
+                  const kind = e.target.value as ActivityScheduleKind;
+                  setScheduleKind(kind);
+                  syncStartsOnDefault(kind, uniqueSortedDays(slotDrafts.map((s) => s.dayOfWeek)));
+                }}
                 disabled={isPending}
                 className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
               >
@@ -290,7 +376,30 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
             <>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="flex-1">
-                  <DatePicker label="Se repite a partir de" value={startsOn} onChange={setStartsOn} disabled={isPending} />
+                  <DatePicker
+                    label="Se repite a partir de"
+                    value={startsOn}
+                    onChange={(v) => {
+                      setStartsOn(v);
+                      setStartsOnTouched(true);
+                    }}
+                    disabled={isPending || selectedDays.length === 0}
+                  />
+                  {selectedDays.length === 0 ? (
+                    <p className="text-xs text-gray-500 font-body mt-1">
+                      Agregá al menos un horario para poder elegir la fecha de inicio.
+                    </p>
+                  ) : (
+                    <p
+                      className={`text-xs font-body mt-1 ${
+                        startsOnMismatch ? "text-brand-red font-bold uppercase tracking-wide" : "text-gray-500"
+                      }`}
+                    >
+                      {startsOnMismatch
+                        ? `No coincide con ningún horario cargado. Válido: ${formatDayNames(selectedDays)}.`
+                        : `Válido: ${formatDayNames(selectedDays)}.`}
+                    </p>
+                  )}
                 </div>
                 <div className="flex-1 flex flex-col gap-1.5">
                   <label className="flex items-center gap-2 text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 cursor-pointer">
@@ -410,7 +519,7 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => setSlotDrafts((prev) => [...prev, newSlotDraft()])}
+              onClick={addSlotDraft}
               disabled={isPending}
               className="self-start"
             >

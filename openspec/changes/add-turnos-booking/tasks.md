@@ -99,3 +99,13 @@
 - [x] 10.7 Mostrar la vigencia en `ActivityList.tsx` (listado de gestión) y en el detalle de la actividad (`turnos/gestion/[activityId]/page.tsx`)
 - [x] 10.8 Actualizar `specs/turnos-activities/spec.md` con el requerimiento "Vigencia de una actividad recurrente"
 - [x] 10.9 Correr `npm run lint` y `npm run build` (mismos 2 errores preexistentes de `react-hooks/purity` en `layout.tsx:151,197`, sin hallazgos nuevos; build OK)
+
+## 11. startsOn debe coincidir con un día con horario (WEEKLY)
+
+- [x] 11.1 `src/actions/activity.ts`: `startsOnDayMismatch` (helper) valida que el día de la semana de `startsOn` coincida con el `dayOfWeek` de al menos un `ActivitySlot` activo; sin efecto si no hay ningún slot activo con el que comparar. Aplicada en `createActivity` (contra los slots enviados en el alta) y `updateActivity` (contra los slots activos existentes), con mensaje de error que indica los días válidos
+- [x] 11.2 `createActivitySlot`, `updateActivitySlot` y `deactivateActivitySlot`: revalidar tras la operación que `startsOn` siga coincidiendo con al menos un slot activo resultante; rechazar (no corregir en silencio) con mensaje indicando que hay que ajustar primero la fecha de inicio
+- [x] 11.3 `src/lib/activity-schedule.ts`: verificado (sin cambios de código) que `ensureSessionsForSlot` no tiene off-by-one — la primera sesión cae exactamente en `startsOn` cuando su día de la semana coincide con `slot.dayOfWeek`, reproducido con un script de arithmetic de fechas standalone (4 casos: inicio futuro coincidente, inicio futuro en otro día de la semana, inicio pasado, `endsOn` como último día válido)
+- [x] 11.4 UI (`ActivityDialog.tsx`): el default de "Se repite a partir de" es la próxima fecha (desde hoy) que cae en alguno de los días elegidos (`slotDrafts` en alta, `activitySlotDays` — prop nueva con los días de los slots activos actuales — en edición); deshabilitado si todavía no hay ningún día elegido; se recalcula al cambiar los días si el usuario no tocó el campo a mano (`startsOnTouched`); hint bajo el campo con los días válidos y aviso si el valor actual ya no coincide; validación en cliente que espeja (no reemplaza) la del servidor
+- [x] 11.5 `src/components/activity/ActivityList.tsx`: pasa `activitySlotDays` (derivado de `editing.slots`) a `ActivityDialog` en modo edición; tipo de `editing` ampliado a `ActivityListRow | "new" | null` para tener los slots disponibles
+- [x] 11.6 Actualizar `specs/turnos-activities/spec.md`, requirement "Vigencia de una actividad recurrente": regla de coincidencia de día + 3 escenarios (coincide, no coincide, editar horarios deja `startsOn` inválido)
+- [x] 11.7 Correr `npm run lint` y `npm run build`

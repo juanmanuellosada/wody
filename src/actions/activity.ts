@@ -8,6 +8,7 @@ import { gymPath } from "@/lib/gym";
 import { SESSION_HORIZON_WEEKS, ensureSessionsForSlot } from "@/lib/activity-schedule";
 import { sendPushToUser } from "@/lib/push";
 import { toInputDate } from "@/lib/dates";
+import { DAY_NAMES } from "@/components/activity/format";
 
 /**
  * Server actions de Actividad (Activity) y horarios recurrentes (ActivitySlot),
@@ -142,6 +143,7 @@ async function assertActivityManager(activityId: string) {
       gymId: true,
       teacherId: true,
       scheduleKind: true,
+      startsOn: true,
       gym: { select: { timezone: true } },
     },
   });
@@ -164,7 +166,8 @@ async function assertSlotManager(slotId: string) {
     select: {
       id: true,
       activityId: true,
-      activity: { select: { gymId: true, teacherId: true, scheduleKind: true } },
+      active: true,
+      activity: { select: { gymId: true, teacherId: true, scheduleKind: true, startsOn: true } },
     },
   });
   if (!slot || slot.activity.gymId !== check.gymId) {
@@ -220,6 +223,32 @@ function validateVigencia(
   return null;
 }
 
+/**
+ * startsOn no es un límite inferior cualquiera: es la primera clase, así que
+ * su día de la semana debe coincidir con el dayOfWeek de al menos un
+ * ActivitySlot activo (spec: "Vigencia de una actividad recurrente"). Solo
+ * aplica a WEEKLY con startsOn cargado. Si `activeDaysOfWeek` está vacío (no
+ * hay ningún slot activo con el que comparar) no hay nada que romper, así
+ * que no se rechaza. Devuelve la lista de días válidos (para el mensaje de
+ * error) si hay un slot activo y el día no coincide con ninguno; null si es
+ * consistente o si la regla no aplica.
+ */
+function startsOnDayMismatch(
+  scheduleKind: ActivityScheduleKind,
+  startsOn: Date | null,
+  activeDaysOfWeek: number[]
+): number[] | null {
+  if (scheduleKind !== "WEEKLY" || startsOn === null || activeDaysOfWeek.length === 0) return null;
+  const uniqueDays = [...new Set(activeDaysOfWeek)].sort((a, b) => a - b);
+  if (uniqueDays.includes(startsOn.getUTCDay())) return null;
+  return uniqueDays;
+}
+
+function formatDayList(days: number[]): string {
+  const names = days.map((d) => DAY_NAMES[d]);
+  return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} o ${names[names.length - 1]}`;
+}
+
 export type ActivityInput = {
   name: string;
   description?: string | null;
@@ -270,6 +299,17 @@ export async function createActivity(
 
   const vigenciaError = validateVigencia(input.scheduleKind, input.startsOn, input.endsOn);
   if (vigenciaError) return { success: false, error: vigenciaError };
+
+  if (input.scheduleKind === "WEEKLY") {
+    const activeDays = slots.map((s) => s.dayOfWeek).filter((d): d is number => d !== null);
+    const mismatchDays = startsOnDayMismatch(input.scheduleKind, parseYMD(input.startsOn!), activeDays);
+    if (mismatchDays) {
+      return {
+        success: false,
+        error: `La fecha de inicio debe caer en uno de los días con horario cargado: ${formatDayList(mismatchDays)}.`,
+      };
+    }
+  }
 
   let teacherId: string | null = null;
   if (check.role === "TEACHER") {
@@ -342,6 +382,21 @@ export async function updateActivity(activityId: string, input: ActivityInput): 
 
   const vigenciaError = validateVigencia(check.activity.scheduleKind, input.startsOn, input.endsOn);
   if (vigenciaError) return { success: false, error: vigenciaError };
+
+  if (check.activity.scheduleKind === "WEEKLY" && input.startsOn) {
+    const activeSlots = await prisma.activitySlot.findMany({
+      where: { activityId, active: true },
+      select: { dayOfWeek: true },
+    });
+    const activeDays = activeSlots.map((s) => s.dayOfWeek).filter((d): d is number => d !== null);
+    const mismatchDays = startsOnDayMismatch(check.activity.scheduleKind, parseYMD(input.startsOn), activeDays);
+    if (mismatchDays) {
+      return {
+        success: false,
+        error: `La fecha de inicio debe caer en uno de los días con horario cargado: ${formatDayList(mismatchDays)}.`,
+      };
+    }
+  }
 
   let teacherId = check.activity.teacherId;
   if (check.role === "TEACHER") {
@@ -519,6 +574,22 @@ export async function createActivitySlot(activityId: string, input: SlotInput): 
   const validationError = validateSlotInput(input, check.activity.scheduleKind);
   if (validationError) return { success: false, error: validationError };
 
+  if (check.activity.scheduleKind === "WEEKLY" && check.activity.startsOn) {
+    const existingActiveSlots = await prisma.activitySlot.findMany({
+      where: { activityId, active: true },
+      select: { dayOfWeek: true },
+    });
+    const activeDays = existingActiveSlots.map((s) => s.dayOfWeek).filter((d): d is number => d !== null);
+    if (input.dayOfWeek !== null) activeDays.push(input.dayOfWeek);
+    const mismatchDays = startsOnDayMismatch(check.activity.scheduleKind, check.activity.startsOn, activeDays);
+    if (mismatchDays) {
+      return {
+        success: false,
+        error: `Con este horario, ningún horario activo caería el día de inicio de la actividad (${DAY_NAMES[check.activity.startsOn.getUTCDay()]}). Elegí ese día para este horario, o ajustá primero la fecha de inicio a uno de los días ya cargados: ${formatDayList(mismatchDays)}.`,
+      };
+    }
+  }
+
   const slot = await prisma.activitySlot.create({
     data: {
       activityId,
@@ -550,6 +621,25 @@ export async function updateActivitySlot(slotId: string, input: SlotInput): Prom
   const validationError = validateSlotInput(input, check.slot.activity.scheduleKind);
   if (validationError) return { success: false, error: validationError };
 
+  // Cambiar el día de un slot activo puede dejar la fecha de inicio de la
+  // actividad sin ningún horario que caiga ese día (spec: "Vigencia de una
+  // actividad recurrente"). Se rechaza en vez de corregir en silencio.
+  if (check.slot.activity.scheduleKind === "WEEKLY" && check.slot.activity.startsOn && check.slot.active) {
+    const otherActiveSlots = await prisma.activitySlot.findMany({
+      where: { activityId: check.slot.activityId, active: true, id: { not: slotId } },
+      select: { dayOfWeek: true },
+    });
+    const activeDays = otherActiveSlots.map((s) => s.dayOfWeek).filter((d): d is number => d !== null);
+    if (input.dayOfWeek !== null) activeDays.push(input.dayOfWeek);
+    const mismatchDays = startsOnDayMismatch(check.slot.activity.scheduleKind, check.slot.activity.startsOn, activeDays);
+    if (mismatchDays) {
+      return {
+        success: false,
+        error: `Este cambio dejaría la fecha de inicio de la actividad (${DAY_NAMES[check.slot.activity.startsOn.getUTCDay()]}) sin ningún horario ese día. Ajustá primero la fecha de inicio a uno de los días ya cargados: ${formatDayList(mismatchDays)}.`,
+      };
+    }
+  }
+
   const slot = await prisma.activitySlot.update({
     where: { id: slotId },
     data: {
@@ -568,6 +658,24 @@ export async function updateActivitySlot(slotId: string, input: SlotInput): Prom
 export async function deactivateActivitySlot(slotId: string): Promise<SimpleActionResult> {
   const check = await assertSlotManager(slotId);
   if (!check.ok) return { success: false, error: check.error };
+
+  // Desactivar el último slot que cae en el día de inicio dejaría la
+  // actividad sin ningún horario ese día (spec: "Vigencia de una actividad
+  // recurrente"). Se rechaza en vez de corregir en silencio.
+  if (check.slot.activity.scheduleKind === "WEEKLY" && check.slot.activity.startsOn) {
+    const remainingActiveSlots = await prisma.activitySlot.findMany({
+      where: { activityId: check.slot.activityId, active: true, id: { not: slotId } },
+      select: { dayOfWeek: true },
+    });
+    const activeDays = remainingActiveSlots.map((s) => s.dayOfWeek).filter((d): d is number => d !== null);
+    const mismatchDays = startsOnDayMismatch(check.slot.activity.scheduleKind, check.slot.activity.startsOn, activeDays);
+    if (mismatchDays) {
+      return {
+        success: false,
+        error: `No se puede desactivar: dejaría la fecha de inicio de la actividad (${DAY_NAMES[check.slot.activity.startsOn.getUTCDay()]}) sin ningún horario ese día. Ajustá primero la fecha de inicio a uno de los días que quedarían activos: ${formatDayList(mismatchDays)}.`,
+      };
+    }
+  }
 
   await prisma.activitySlot.update({ where: { id: slotId }, data: { active: false } });
   revalidateActivityViews(check.gymSlug, check.slot.activityId);
