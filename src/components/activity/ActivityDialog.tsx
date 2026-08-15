@@ -23,7 +23,8 @@ interface Props {
   /** false para TEACHER: siempre queda a cargo de sí mismo, no elige. */
   canAssignTeacher: boolean;
   onClose: () => void;
-  onSaved: (activity: ActivityRow) => void;
+  /** `slots` solo viene poblado en el alta (la edición no toca horarios). */
+  onSaved: (activity: ActivityRow, slots?: SlotInput[]) => void;
 }
 
 interface SlotDraft {
@@ -58,6 +59,9 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
   const [allowsRecurring, setAllowsRecurring] = useState(activity?.allowsRecurring ?? true);
   const [cancelWindowHours, setCancelWindowHours] = useState(String(activity?.cancelWindowHours ?? 2));
   const [capacity, setCapacity] = useState(activity?.capacity != null ? String(activity.capacity) : "");
+  const [startsOn, setStartsOn] = useState(activity?.startsOn ?? toInputDate(new Date()));
+  const [hasEndDate, setHasEndDate] = useState(activity?.endsOn != null);
+  const [endsOn, setEndsOn] = useState(activity?.endsOn ?? activity?.startsOn ?? toInputDate(new Date()));
   const [slotDrafts, setSlotDrafts] = useState<SlotDraft[]>(isEdit ? [] : [newSlotDraft()]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -88,6 +92,17 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
         return;
       }
       parsedCapacity = n;
+    }
+
+    if (scheduleKind === "WEEKLY") {
+      if (!startsOn) {
+        setError("La fecha de inicio de vigencia es obligatoria.");
+        return;
+      }
+      if (hasEndDate && endsOn < startsOn) {
+        setError("La fecha de fin de vigencia debe ser posterior o igual a la de inicio.");
+        return;
+      }
     }
 
     let slots: SlotInput[] = [];
@@ -145,13 +160,15 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
         allowsRecurring,
         cancelWindowHours: parsedWindow,
         capacity: parsedCapacity,
+        startsOn: scheduleKind === "WEEKLY" ? startsOn : null,
+        endsOn: scheduleKind === "WEEKLY" && hasEndDate ? endsOn : null,
       };
       const result = isEdit ? await updateActivity(activity!.id, input) : await createActivity(input, slots);
       if (!result.success) {
         setError(result.error);
         return;
       }
-      onSaved(result.activity);
+      onSaved(result.activity, isEdit ? undefined : slots);
     });
   }
 
@@ -270,15 +287,37 @@ export function ActivityDialog({ activity, teachers, canAssignTeacher, onClose, 
           )}
 
           {scheduleKind === "WEEKLY" && (
-            <label className="flex items-center gap-2 text-sm font-body text-gray-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={allowsRecurring}
-                onChange={(e) => setAllowsRecurring(e.target.checked)}
-                disabled={isPending}
-              />
-              Admite inscripción recurrente (&quot;todos los lunes&quot;)
-            </label>
+            <>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1">
+                  <DatePicker label="Se repite a partir de" value={startsOn} onChange={setStartsOn} disabled={isPending} />
+                </div>
+                <div className="flex-1 flex flex-col gap-1.5">
+                  <label className="flex items-center gap-2 text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!hasEndDate}
+                      onChange={(e) => setHasEndDate(!e.target.checked)}
+                      disabled={isPending}
+                    />
+                    Sin fecha de fin
+                  </label>
+                  {hasEndDate && (
+                    <DatePicker label="Hasta" value={endsOn} onChange={setEndsOn} disabled={isPending} />
+                  )}
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm font-body text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allowsRecurring}
+                  onChange={(e) => setAllowsRecurring(e.target.checked)}
+                  disabled={isPending}
+                />
+                Admite inscripción recurrente (&quot;todos los lunes&quot;)
+              </label>
+            </>
           )}
         </div>
 

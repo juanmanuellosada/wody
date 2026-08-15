@@ -87,3 +87,15 @@
 - [x] 9.8 `turnos/page.tsx`: la pregunta "¿a todas o solo a esta?" no se ofrece para actividades `ONE_OFF` (se computa `allowsRecurring = activity.allowsRecurring && scheduleKind !== "ONE_OFF"` al construir las filas del calendario)
 - [x] 9.9 Actualizar specs `turnos-activities/spec.md` y `turnos-booking/spec.md` con los requerimientos de modo de agenda, coherencia del slot, materialización `ONE_OFF` y rechazo de inscripción recurrente
 - [x] 9.10 Correr `npm run lint` y `npm run build` (mismos 2 errores preexistentes de `react-hooks/purity` en `layout.tsx:151,197`, sin hallazgos nuevos; build OK)
+
+## 10. Vigencia de una actividad WEEKLY (startsOn / endsOn)
+
+- [x] 10.1 Schema: `Activity.startsOn DateTime? @db.Date` y `Activity.endsOn DateTime? @db.Date`, ambas aditivas y nullable (`prisma format` + `validate` + `generate`; migración la aplica el usuario tras auditar el SQL)
+- [x] 10.2 `src/lib/activity-schedule.ts`: `ensureSessionsForSlot` acota la rama `WEEKLY` a `[max(hoy, startsOn), min(through, endsOn)]`, ramificando explícitamente cada bound en vez de un `where` genérico con `not` sobre las columnas nullable; `ONE_OFF` sin cambios
+- [x] 10.3 `src/actions/activity.ts`: `ActivityInput.startsOn`/`endsOn`, `validateVigencia` (WEEKLY exige `startsOn` y `endsOn >= startsOn` si viene; ONE_OFF prohíbe ambos), aplicada en `createActivity` y `updateActivity`
+- [x] 10.4 `updateActivity`: si la actividad es `WEEKLY` y la nueva vigencia deja `ActivitySession` futuras y no canceladas fuera de rango, cancelarlas y notificar por push a los alumnos con reserva confirmada, reusando `cancelSessionsAndNotify` (extraído de `cancelActivitySession` para compartir la lógica); un fallo de envío individual no aborta el resto
+- [x] 10.5 UI (`ActivityDialog.tsx`): campos "Se repite a partir de" (obligatorio, default hoy) y "Hasta" (opcional, con toggle "Sin fecha de fin") usando `DatePicker`, visibles solo en `scheduleKind = WEEKLY`; editable también en modo edición
+- [x] 10.6 `format.ts`: `formatVigencia`, `formatWeeklyDaysAndTime` y `formatActivitySchedule` para mostrar la vigencia de forma legible ("Lunes y miércoles de 14:00 a 15:00, desde el dd/mm/aaaa" o "..., del dd/mm/aaaa al dd/mm/aaaa")
+- [x] 10.7 Mostrar la vigencia en `ActivityList.tsx` (listado de gestión) y en el detalle de la actividad (`turnos/gestion/[activityId]/page.tsx`)
+- [x] 10.8 Actualizar `specs/turnos-activities/spec.md` con el requerimiento "Vigencia de una actividad recurrente"
+- [x] 10.9 Correr `npm run lint` y `npm run build` (mismos 2 errores preexistentes de `react-hooks/purity` en `layout.tsx:151,197`, sin hallazgos nuevos; build OK)

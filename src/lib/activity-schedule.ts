@@ -79,7 +79,8 @@ export function localMinutesToInstant(date: Date, minutes: number, timezone: str
  * Materializa las sesiones faltantes de un slot hasta `through` (inclusive). Idempotente.
  *
  * `WEEKLY`: genera una sesión por cada fecha entre hoy y `through` que caiga en
- * `slot.dayOfWeek` (comportamiento original, sin cambios).
+ * `slot.dayOfWeek`, acotada además por `Activity.startsOn`/`endsOn` (vigencia
+ * de la actividad; ambas nullable, ver design.md).
  *
  * `ONE_OFF`: genera exactamente una sesión en `slot.date`, sin importar `through`
  * — una fecha única a meses vista también debe poder materializarse (ver
@@ -104,6 +105,8 @@ export async function ensureSessionsForSlot(slotId: string, through: Date): Prom
           active: true,
           capacity: true,
           scheduleKind: true,
+          startsOn: true,
+          endsOn: true,
           gym: { select: { timezone: true, bookingEnabled: true } },
         },
       },
@@ -141,10 +144,23 @@ export async function ensureSessionsForSlot(slotId: string, through: Date): Prom
   if (slot.dayOfWeek === null) return 0;
 
   const today = getTodayInTimezone(timezone);
-  if (through < today) return 0;
+
+  // startsOn/endsOn acotan la vigencia de una Activity WEEKLY (ver
+  // openspec/changes/add-turnos-booking/design.md, sección de vigencia).
+  // Ambas son nullable y se ramifican explícitamente acá en vez de armar un
+  // filtro Prisma con `not`, que descartaría en silencio las filas NULL.
+  const { startsOn, endsOn } = slot.activity;
+
+  let lowerBound = today;
+  if (startsOn !== null && startsOn > lowerBound) lowerBound = startsOn;
+
+  let upperBound = through;
+  if (endsOn !== null && endsOn < upperBound) upperBound = endsOn;
+
+  if (upperBound < lowerBound) return 0;
 
   const dates: Date[] = [];
-  for (let d = today; d <= through; d = addDays(d, 1)) {
+  for (let d = lowerBound; d <= upperBound; d = addDays(d, 1)) {
     if (d.getUTCDay() === slot.dayOfWeek) dates.push(d);
   }
   if (dates.length === 0) return 0;

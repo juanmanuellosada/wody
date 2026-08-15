@@ -7,6 +7,7 @@ import { ActivitySlotManager } from "@/components/activity/ActivitySlotManager";
 import { ActivitySessionList } from "@/components/activity/ActivitySessionList";
 import { SESSION_HORIZON_WEEKS, ensureSessionsForSlot } from "@/lib/activity-schedule";
 import { toInputDate } from "@/lib/dates";
+import { formatVigencia } from "@/components/activity/format";
 
 interface Props {
   params: Promise<{ gymSlug: string; activityId: string }>;
@@ -46,6 +47,8 @@ export default async function ActivityDetailPage({ params }: Props) {
       teacher: { select: { name: true } },
       scheduleKind: true,
       cancelWindowHours: true,
+      startsOn: true,
+      endsOn: true,
       slots: { orderBy: [{ dayOfWeek: "asc" }, { date: "asc" }, { startMinute: "asc" }] },
     },
   });
@@ -83,6 +86,13 @@ export default async function ActivityDetailPage({ params }: Props) {
         {activity.description && <p className="text-sm text-gray-400 font-body mt-2">{activity.description}</p>}
         <p className="text-xs text-gray-500 font-body mt-2">
           Profe: {activity.teacher?.name ?? "Sin asignar"} · Ventana de cancelación: {activity.cancelWindowHours}hs
+          {activity.scheduleKind === "WEEKLY" && activity.startsOn && (
+            <>
+              {" "}
+              · Vigencia:{" "}
+              {formatVigencia(toInputDate(activity.startsOn), activity.endsOn ? toInputDate(activity.endsOn) : null)}
+            </>
+          )}
           {!activity.active && <span className="ml-2 text-brand-red">· Desactivada</span>}
         </p>
       </div>

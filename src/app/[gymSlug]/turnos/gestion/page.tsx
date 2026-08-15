@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { gymPath } from "@/lib/gym";
 import { isBookingModuleEnabled } from "@/lib/gym-module-guards";
 import { ActivityList } from "@/components/activity/ActivityList";
+import { toInputDate } from "@/lib/dates";
 
 interface Props {
   params: Promise<{ gymSlug: string }>;
@@ -45,8 +46,14 @@ export default async function TurnosGestionPage({ params }: Props) {
         allowsRecurring: true,
         cancelWindowHours: true,
         capacity: true,
+        startsOn: true,
+        endsOn: true,
         active: true,
         teacher: { select: { name: true } },
+        slots: {
+          where: { active: true },
+          select: { dayOfWeek: true, date: true, startMinute: true, endMinute: true },
+        },
       },
     }),
     isAdmin
@@ -68,7 +75,15 @@ export default async function TurnosGestionPage({ params }: Props) {
     allowsRecurring: a.allowsRecurring,
     cancelWindowHours: a.cancelWindowHours,
     capacity: a.capacity,
+    startsOn: a.startsOn ? toInputDate(a.startsOn) : null,
+    endsOn: a.endsOn ? toInputDate(a.endsOn) : null,
     active: a.active,
+    slots: a.slots.map((s) => ({
+      dayOfWeek: s.dayOfWeek,
+      date: s.date ? toInputDate(s.date) : null,
+      startMinute: s.startMinute,
+      endMinute: s.endMinute,
+    })),
   }));
 
   return (

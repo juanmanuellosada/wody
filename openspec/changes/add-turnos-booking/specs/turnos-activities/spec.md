@@ -75,6 +75,64 @@ El sistema SHALL permitir editar los campos de una `Activity` (`name`, `descript
 - **WHEN** un `STUDENT` intenta reservar una sesión de esa actividad
 - **THEN** el sistema rechaza la operación
 
+### Requirement: Vigencia de una actividad recurrente
+
+Toda `Activity` con `scheduleKind = WEEKLY` SHALL tener `startsOn` (fecha, obligatoria) y `endsOn` (fecha, opcional). El sistema NO SHALL materializar ninguna `ActivitySession` con `date < startsOn`. Si `endsOn` está seteada, el sistema NO SHALL materializar ninguna `ActivitySession` con `date > endsOn`. `endsOn = null` SHALL significar sin fecha de fin: la actividad se repite indefinidamente. Una `Activity` con `scheduleKind = ONE_OFF` NO SHALL tener `startsOn` ni `endsOn`: ambos SHALL quedar en `null`, y el sistema SHALL rechazar cualquier alta o edición que intente cargarlos.
+
+El sistema SHALL permitir editar `startsOn` y `endsOn` de una `Activity` `WEEKLY` ya creada, a diferencia de `scheduleKind`, que es inmutable. Si `endsOn` está seteada, SHALL ser mayor o igual a `startsOn`; el sistema SHALL rechazar la edición en caso contrario.
+
+Si al editar la vigencia de una `Activity` `WEEKLY` alguna `ActivitySession` futura y no cancelada queda con `date` fuera de la nueva ventana (`date < startsOn` o, si aplica, `date > endsOn`), el sistema SHALL cancelar esa sesión con el mismo mecanismo que la cancelación de una sesión puntual: sus `ActivityBooking` confirmadas quedan `CANCELLED` y se notifica por push a los alumnos afectados. El fallo de un envío individual NO SHALL abortar la operación ni las cancelaciones ya confirmadas.
+
+En toda vista donde se liste o muestre el detalle de una `Activity` `WEEKLY` (gestión y calendario), el sistema SHALL mostrar la vigencia de forma legible junto a los horarios: con `endsOn = null`, una indicación de que se repite desde `startsOn` sin fecha de fin; con `endsOn` seteada, el rango completo entre `startsOn` y `endsOn`.
+
+#### Scenario: Una actividad WEEKLY nueva exige fecha de inicio
+
+- **WHEN** un `ADMIN` crea una `Activity` con `scheduleKind = WEEKLY` sin cargar `startsOn`
+- **THEN** el sistema rechaza la operación
+
+#### Scenario: Una actividad ONE_OFF no admite vigencia
+
+- **WHEN** un `ADMIN` intenta crear o editar una `Activity` con `scheduleKind = ONE_OFF` cargando `startsOn` o `endsOn`
+- **THEN** el sistema rechaza la operación
+
+#### Scenario: No se materializan sesiones antes del inicio de vigencia
+
+- **GIVEN** un `ActivitySlot` de una `Activity` `WEEKLY` con `startsOn` en dos semanas
+- **WHEN** el cron de materialización corre hoy
+- **THEN** no se crea ninguna `ActivitySession` con fecha anterior a `startsOn`
+
+#### Scenario: No se materializan sesiones después del fin de vigencia
+
+- **GIVEN** un `ActivitySlot` de una `Activity` `WEEKLY` con `endsOn` seteada
+- **WHEN** el cron de materialización corre
+- **THEN** no se crea ninguna `ActivitySession` con fecha posterior a `endsOn`
+
+#### Scenario: endsOn nulo repite la actividad indefinidamente
+
+- **GIVEN** una `Activity` `WEEKLY` con `startsOn` en el pasado y `endsOn = null`
+- **WHEN** el cron de materialización corre
+- **THEN** sigue generando `ActivitySession` hasta el horizonte de 4 semanas, sin límite superior propio
+
+#### Scenario: Editar la vigencia de una actividad ya creada es posible
+
+- **GIVEN** una `Activity` `WEEKLY` con `endsOn = null`
+- **WHEN** un `ADMIN` la edita y carga `endsOn` con una fecha futura
+- **THEN** el sistema guarda la nueva `endsOn`
+
+#### Scenario: endsOn anterior a startsOn se rechaza
+
+- **WHEN** un `ADMIN` edita una `Activity` `WEEKLY` cargando `endsOn` anterior a `startsOn`
+- **THEN** el sistema rechaza la operación
+
+#### Scenario: Achicar la vigencia cancela y notifica las sesiones que quedan afuera
+
+- **GIVEN** una `Activity` `WEEKLY` con `ActivitySession` futuras materializadas y alumnos con `ActivityBooking` `CONFIRMED` en algunas de ellas
+- **WHEN** un `ADMIN` edita `endsOn` a una fecha anterior a alguna de esas sesiones
+- **THEN** esas `ActivitySession` quedan `cancelled`
+- **AND** sus `ActivityBooking` `CONFIRMED` quedan `CANCELLED`
+- **AND** el sistema intenta notificar por push a cada alumno afectado
+- **AND** un fallo de envío a un alumno no impide notificar al resto ni revierte la edición
+
 ### Requirement: Horarios recurrentes semanales
 
 El sistema SHALL permitir definir uno o más `ActivitySlot` por `Activity` con `scheduleKind = WEEKLY`, cada uno con día de la semana, hora de inicio, hora de fin y `capacity` opcional. `capacity = null` SHALL significar sin límite propio (ver "Edición de Actividad y cupo por defecto" para la resolución contra el cupo de la actividad). El sistema SHALL permitir editar y eliminar un `ActivitySlot` existente.

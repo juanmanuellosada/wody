@@ -608,6 +608,14 @@ model Activity {
   allowsRecurring   Boolean              @default(true)
   cancelWindowHours Int                  @default(2)
   capacity          Int?
+  /**
+   * Primera fecha desde la que se generan ocurrencias. Solo aplica a WEEKLY; null = sin límite inferior.
+   */
+  startsOn          DateTime?            @db.Date
+  /**
+   * Última fecha hasta la que se generan ocurrencias. Solo aplica a WEEKLY; null = sin fin.
+   */
+  endsOn            DateTime?            @db.Date
   active            Boolean              @default(true)
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt

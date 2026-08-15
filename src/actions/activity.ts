@@ -51,6 +51,10 @@ export type ActivityRow = {
   cancelWindowHours: number;
   /** Cupo por defecto de la actividad; lo usa un ActivitySlot cuando el suyo propio es null. */
   capacity: number | null;
+  /** YYYY-MM-DD. Solo aplica a WEEKLY; null en ONE_OFF o en actividades WEEKLY creadas antes de este campo. */
+  startsOn: string | null;
+  /** YYYY-MM-DD. Solo aplica a WEEKLY; null = sin fecha de fin. */
+  endsOn: string | null;
   active: boolean;
 };
 
@@ -71,6 +75,8 @@ const ACTIVITY_SELECT = {
   allowsRecurring: true,
   cancelWindowHours: true,
   capacity: true,
+  startsOn: true,
+  endsOn: true,
   active: true,
   teacher: { select: { name: true } },
 } satisfies Prisma.ActivitySelect;
@@ -84,6 +90,8 @@ function toActivityRow(a: {
   allowsRecurring: boolean;
   cancelWindowHours: number;
   capacity: number | null;
+  startsOn: Date | null;
+  endsOn: Date | null;
   active: boolean;
   teacher: { name: string } | null;
 }): ActivityRow {
@@ -97,6 +105,8 @@ function toActivityRow(a: {
     allowsRecurring: a.allowsRecurring,
     cancelWindowHours: a.cancelWindowHours,
     capacity: a.capacity,
+    startsOn: a.startsOn ? toInputDate(a.startsOn) : null,
+    endsOn: a.endsOn ? toInputDate(a.endsOn) : null,
     active: a.active,
   };
 }
@@ -127,7 +137,13 @@ async function assertActivityManager(activityId: string) {
 
   const activity = await prisma.activity.findFirst({
     where: { id: activityId },
-    select: { id: true, gymId: true, teacherId: true, scheduleKind: true },
+    select: {
+      id: true,
+      gymId: true,
+      teacherId: true,
+      scheduleKind: true,
+      gym: { select: { timezone: true } },
+    },
   });
   if (!activity || activity.gymId !== check.gymId) {
     return { ok: false as const, error: "Actividad no encontrada." };
@@ -176,6 +192,34 @@ function validateActivityInput(input: {
   return null;
 }
 
+/**
+ * Vigencia (startsOn/endsOn) solo tiene sentido en WEEKLY (spec: "Vigencia de
+ * una actividad recurrente"). WEEKLY exige startsOn; ONE_OFF prohíbe ambos.
+ */
+function validateVigencia(
+  scheduleKind: ActivityScheduleKind,
+  startsOn: string | null,
+  endsOn: string | null
+): string | null {
+  if (scheduleKind === "ONE_OFF") {
+    if (startsOn !== null || endsOn !== null) {
+      return "La vigencia no aplica a actividades de fecha única.";
+    }
+    return null;
+  }
+  if (startsOn === null || parseYMD(startsOn) === null) {
+    return "La fecha de inicio de vigencia no es válida.";
+  }
+  if (endsOn !== null) {
+    const parsedEndsOn = parseYMD(endsOn);
+    if (parsedEndsOn === null) return "La fecha de fin de vigencia no es válida.";
+    if (parsedEndsOn < parseYMD(startsOn)!) {
+      return "La fecha de fin debe ser posterior o igual a la de inicio.";
+    }
+  }
+  return null;
+}
+
 export type ActivityInput = {
   name: string;
   description?: string | null;
@@ -191,6 +235,13 @@ export type ActivityInput = {
   cancelWindowHours: number;
   /** Cupo por defecto de la actividad (null = sin límite); cada ActivitySlot puede pisarlo con el suyo propio. */
   capacity: number | null;
+  /**
+   * YYYY-MM-DD. Vigencia de la actividad: solo aplica a WEEKLY (validateVigencia
+   * la exige ahí y la prohíbe en ONE_OFF). startsOn = primera fecha con
+   * ocurrencias; endsOn = última (null = sin fin).
+   */
+  startsOn: string | null;
+  endsOn: string | null;
 };
 
 /**
@@ -217,6 +268,9 @@ export async function createActivity(
   const slotsError = validateSlots(slots, input.scheduleKind);
   if (slotsError) return { success: false, error: slotsError };
 
+  const vigenciaError = validateVigencia(input.scheduleKind, input.startsOn, input.endsOn);
+  if (vigenciaError) return { success: false, error: vigenciaError };
+
   let teacherId: string | null = null;
   if (check.role === "TEACHER") {
     // Un TEACHER siempre queda a cargo de lo que crea, sin importar lo que
@@ -242,6 +296,8 @@ export async function createActivity(
         allowsRecurring: input.allowsRecurring,
         cancelWindowHours: Math.round(input.cancelWindowHours),
         capacity: input.capacity,
+        startsOn: input.startsOn ? parseYMD(input.startsOn) : null,
+        endsOn: input.endsOn ? parseYMD(input.endsOn) : null,
       },
       select: ACTIVITY_SELECT,
     });
@@ -284,6 +340,9 @@ export async function updateActivity(activityId: string, input: ActivityInput): 
   const validationError = validateActivityInput(input);
   if (validationError) return { success: false, error: validationError };
 
+  const vigenciaError = validateVigencia(check.activity.scheduleKind, input.startsOn, input.endsOn);
+  if (vigenciaError) return { success: false, error: vigenciaError };
+
   let teacherId = check.activity.teacherId;
   if (check.role === "TEACHER") {
     teacherId = check.userId;
@@ -309,9 +368,39 @@ export async function updateActivity(activityId: string, input: ActivityInput): 
       allowsRecurring: input.allowsRecurring,
       cancelWindowHours: Math.round(input.cancelWindowHours),
       capacity: input.capacity,
+      startsOn: input.startsOn ? parseYMD(input.startsOn) : null,
+      endsOn: input.endsOn ? parseYMD(input.endsOn) : null,
     },
     select: ACTIVITY_SELECT,
   });
+
+  // Si se achicó la vigencia, las sesiones futuras que quedaron afuera de la
+  // nueva ventana se cancelan y se notifica a los alumnos anotados (spec:
+  // "Vigencia de una actividad recurrente"), reusando cancelSessionsAndNotify.
+  if (check.activity.scheduleKind === "WEEKLY") {
+    const outOfRangeConditions: Prisma.ActivitySessionWhereInput[] = [];
+    if (activity.startsOn) outOfRangeConditions.push({ date: { lt: activity.startsOn } });
+    if (activity.endsOn) outOfRangeConditions.push({ date: { gt: activity.endsOn } });
+
+    if (outOfRangeConditions.length > 0) {
+      const outOfRangeSessions = await prisma.activitySession.findMany({
+        where: {
+          slot: { activityId },
+          cancelled: false,
+          startsAt: { gt: new Date() },
+          OR: outOfRangeConditions,
+        },
+        select: { id: true },
+      });
+      if (outOfRangeSessions.length > 0) {
+        await cancelSessionsAndNotify(
+          outOfRangeSessions.map((s) => s.id),
+          activity.name,
+          check.activity.gym.timezone
+        );
+      }
+    }
+  }
 
   revalidateActivityViews(check.gymSlug, activityId);
   return { success: true, activity: toActivityRow(activity) };
@@ -503,12 +592,62 @@ function buildSessionCancellationMessage(
 }
 
 /**
+ * Cancela una lista de ActivitySession: cada una queda `cancelled`, sus
+ * ActivityBooking confirmadas pasan a `CANCELLED` y se avisa por push a cada
+ * alumno afectado. Compartido por cancelActivitySession (una sesión puntual)
+ * y por updateActivity cuando achicar la vigencia deja sesiones futuras
+ * afuera de la nueva ventana (spec: "Vigencia de una actividad recurrente").
+ * Un fallo de envío individual no aborta el resto ni las cancelaciones ya
+ * confirmadas en su propia transacción.
+ */
+async function cancelSessionsAndNotify(
+  sessionIds: string[],
+  activityName: string,
+  timezone: string
+): Promise<void> {
+  for (const sessionId of sessionIds) {
+    const activitySession = await prisma.activitySession.findUnique({
+      where: { id: sessionId },
+      select: { startsAt: true, cancelled: true },
+    });
+    if (!activitySession || activitySession.cancelled) continue;
+
+    const confirmedBookings = await prisma.activityBooking.findMany({
+      where: { sessionId, status: "CONFIRMED" },
+      select: { userId: true },
+    });
+
+    await prisma.$transaction([
+      prisma.activitySession.update({ where: { id: sessionId }, data: { cancelled: true } }),
+      prisma.activityBooking.updateMany({
+        where: { sessionId, status: "CONFIRMED" },
+        data: { status: "CANCELLED", cancelledAt: new Date() },
+      }),
+    ]);
+
+    const { title, body } = buildSessionCancellationMessage(activityName, activitySession.startsAt, timezone);
+    await Promise.all(
+      confirmedBookings.map(async ({ userId }) => {
+        try {
+          await sendPushToUser(userId, title, body);
+        } catch (err) {
+          console.warn("[activity] Failed to send session cancellation push", {
+            sessionId,
+            userId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      })
+    );
+  }
+}
+
+/**
  * Cancela una ActivitySession puntual sin tocar el ActivitySlot que la
  * originó (no afecta las demás fechas del horario recurrente). Deja sin
  * efecto las ActivityBooking confirmadas de esa sesión y avisa por push a
  * los alumnos que tenían reserva confirmada (spec: "Cancelación de sesión
- * notifica a los inscriptos"). Un fallo de envío individual no aborta la
- * cancelación, que ya quedó confirmada en la transacción.
+ * notifica a los inscriptos").
  */
 export async function cancelActivitySession(sessionId: string): Promise<SimpleActionResult> {
   const check = await assertCanManageActivities();
@@ -520,7 +659,6 @@ export async function cancelActivitySession(sessionId: string): Promise<SimpleAc
       id: true,
       gymId: true,
       cancelled: true,
-      startsAt: true,
       gym: { select: { timezone: true } },
       slot: { select: { activityId: true, activity: { select: { name: true, teacherId: true } } } },
     },
@@ -535,37 +673,7 @@ export async function cancelActivitySession(sessionId: string): Promise<SimpleAc
     return { success: false, error: "La sesión ya está cancelada." };
   }
 
-  const confirmedBookings = await prisma.activityBooking.findMany({
-    where: { sessionId, status: "CONFIRMED" },
-    select: { userId: true },
-  });
-
-  await prisma.$transaction([
-    prisma.activitySession.update({ where: { id: sessionId }, data: { cancelled: true } }),
-    prisma.activityBooking.updateMany({
-      where: { sessionId, status: "CONFIRMED" },
-      data: { status: "CANCELLED", cancelledAt: new Date() },
-    }),
-  ]);
-
-  const { title, body } = buildSessionCancellationMessage(
-    activitySession.slot.activity.name,
-    activitySession.startsAt,
-    activitySession.gym.timezone
-  );
-  await Promise.all(
-    confirmedBookings.map(async ({ userId }) => {
-      try {
-        await sendPushToUser(userId, title, body);
-      } catch (err) {
-        console.warn("[activity] Failed to send session cancellation push", {
-          sessionId,
-          userId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    })
-  );
+  await cancelSessionsAndNotify([sessionId], activitySession.slot.activity.name, activitySession.gym.timezone);
 
   const activityId = activitySession.slot.activityId;
   revalidateActivityViews(check.gymSlug, activityId);

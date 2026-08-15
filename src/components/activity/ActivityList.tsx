@@ -7,10 +7,15 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { previewActivityDeletion, deleteActivity } from "@/actions/activity";
 import { gymPath } from "@/lib/gym";
 import { ActivityDialog, type ActivityRow, type TeacherOption } from "@/components/activity/ActivityDialog";
+import { formatActivitySchedule } from "@/components/activity/format";
+
+type SlotSummary = { dayOfWeek: number | null; date: string | null; startMinute: number; endMinute: number };
+
+export type ActivityListRow = ActivityRow & { slots: SlotSummary[] };
 
 interface Props {
   gymSlug: string;
-  activities: ActivityRow[];
+  activities: ActivityListRow[];
   teachers: TeacherOption[];
   canAssignTeacher: boolean;
 }
@@ -103,6 +108,11 @@ export function ActivityList({ gymSlug, activities: initial, teachers, canAssign
                     {a.name}
                   </Link>
                   <p className="text-gray-500 text-xs font-body">{a.teacherName ?? "Sin profe asignado"}</p>
+                  {formatActivitySchedule(a.scheduleKind, a.slots, a.startsOn, a.endsOn) && (
+                    <p className="text-gray-500 text-xs font-body">
+                      {formatActivitySchedule(a.scheduleKind, a.slots, a.startsOn, a.endsOn)}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex gap-2">
@@ -144,9 +154,12 @@ export function ActivityList({ gymSlug, activities: initial, teachers, canAssign
           teachers={teachers}
           canAssignTeacher={canAssignTeacher}
           onClose={() => setEditing(null)}
-          onSaved={(saved) => {
+          onSaved={(saved, slots) => {
             setActivities((prev) =>
-              editing === "new" ? [...prev, saved] : prev.map((a) => (a.id === saved.id ? saved : a))
+              editing === "new"
+                ? [...prev, { ...saved, slots: slots ?? [] }]
+                // La edición no toca horarios: se conservan los slots ya conocidos.
+                : prev.map((a) => (a.id === saved.id ? { ...a, ...saved } : a))
             );
             setEditing(null);
           }}
