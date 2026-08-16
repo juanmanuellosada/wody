@@ -10,6 +10,9 @@ import {
   BarChart3,
   Share2,
   CalendarDays,
+  CalendarCheck,
+  QrCode,
+  Wallet,
   Building2,
 } from "lucide-react";
 
@@ -184,6 +187,21 @@ export default async function LandingPage() {
               icon={<Trophy size={20} />}
               title="Records personales"
               description="Registro de mejores marcas con fecha. Editables y compartibles en redes con imagen generada."
+            />
+            <FeatureCard
+              icon={<CalendarCheck size={20} />}
+              title="Turnos de actividades"
+              description="Actividades con horarios semanales o de fecha única, cupo por clase y ventana de cancelación. El alumno se anota desde el celular."
+            />
+            <FeatureCard
+              icon={<QrCode size={20} />}
+              title="Control de ingresos"
+              description="Check-in en la puerta escaneando el QR de recepción. El operador ve el estado de cuota del socio al instante y queda todo en el historial."
+            />
+            <FeatureCard
+              icon={<Wallet size={20} />}
+              title="Cuotas y caja"
+              description="Estado de cuota de cada alumno, registro de pagos y venta de productos. La recaudación y los gastos quedan detrás de un permiso aparte."
             />
             <FeatureCard
               icon={<Building2 size={20} />}
