@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -9,9 +10,49 @@ import { gymTerms } from "@/lib/gym-terms";
 import wodyTexto from "@/logos/wody-texto.png";
 import { GYM_LOGOS_SQUARE } from "@/lib/gym-logos";
 import { GYM_LOCATIONS } from "@/lib/gym-locations";
+import { SITE_URL, SITE_NAME } from "@/lib/site";
 
 interface GymLandingProps {
   params: Promise<{ gymSlug: string }>;
+}
+
+/**
+ * Cada landing de gym es una página pública indexable, y para búsquedas locales
+ * ("crossfit en Los Polvorines") es la que puede rankear. Sin esto heredaban el
+ * title genérico del layout y Google veía siete páginas llamadas igual.
+ */
+export async function generateMetadata({
+  params,
+}: GymLandingProps): Promise<Metadata> {
+  const { gymSlug } = await params;
+  const gym = await prisma.gym.findUnique({
+    where: { slug: gymSlug },
+    select: { name: true, kind: true },
+  });
+
+  if (!gym) return {};
+
+  const location = GYM_LOCATIONS[gymSlug];
+  const kindWord = gym.kind === "BOX" ? "Box de CrossFit" : "Gimnasio";
+  const terms = gymTerms(gym.kind);
+
+  const title = location
+    ? `${gym.name} — ${kindWord} en ${location}`
+    : `${gym.name} — ${kindWord}`;
+
+  const description = `${gym.name}${location ? ` (${location})` : ""} gestiona sus ${terms.wods.toLowerCase()}, ${terms.rms} y turnos con Wody. Ingresá para ver tu rutina del día y registrar tu progreso.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/${gymSlug}` },
+    openGraph: {
+      type: "website",
+      url: `${SITE_URL}/${gymSlug}`,
+      title,
+      description,
+    },
+  };
 }
 
 export default async function GymLandingPage({ params }: GymLandingProps) {
@@ -32,8 +73,28 @@ export default async function GymLandingPage({ params }: GymLandingProps) {
   const staticLogo = GYM_LOGOS_SQUARE[gymSlug];
   const terms = gymTerms(gym.kind);
 
+  const location = GYM_LOCATIONS[gymSlug];
+  const localBusiness = {
+    "@context": "https://schema.org",
+    "@type": gym.kind === "BOX" ? "ExerciseGym" : "HealthAndBeautyBusiness",
+    name: gym.name,
+    url: `${SITE_URL}/${gymSlug}`,
+    ...(location ? { address: { "@type": "PostalAddress", addressLocality: location, addressCountry: "AR" } } : {}),
+    ...(gym.logo ? { logo: gym.logo, image: gym.logo } : {}),
+    isAccessibleForFree: false,
+    additionalProperty: {
+      "@type": "PropertyValue",
+      name: "Software de gestión",
+      value: SITE_NAME,
+    },
+  };
+
   return (
     <main className="min-h-screen flex flex-col bg-black">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusiness) }}
+      />
       {/* Hero */}
       <section className="flex-1 flex flex-col items-center justify-center px-6 py-16 sm:py-24 text-center overflow-hidden stripe-pattern relative">
         <div

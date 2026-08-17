@@ -24,11 +24,54 @@ import { RotatingTypewriter } from "@/components/marketing/RotatingTypewriter";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { PersonalPricingSection } from "@/components/landing/PersonalPricingSection";
 import { prisma } from "@/lib/prisma";
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "WODY — Gestión de rutinas para centros de entrenamiento",
+  // Nadie busca "wody": el title tiene que empezar por lo que el dueño de gym
+  // efectivamente escribe en Google.
+  title: "Software para gimnasios y boxes de CrossFit | Wody",
   description:
-    "Plataforma para gestionar rutinas, records y seguimiento de alumnos. CrossFit, gimnasios, funcional, GAP y más.",
+    "Gestioná rutinas, RMs, turnos, control de acceso con QR y cuotas con Mercado Pago desde una sola app. Para gimnasios y boxes de Argentina. 7 días gratis.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    title: "Software para gimnasios y boxes de CrossFit | Wody",
+    description:
+      "Rutinas, RMs, turnos, acceso con QR y cuotas con Mercado Pago en una sola app. 7 días gratis, sin tarjeta.",
+  },
+};
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      description: SITE_DESCRIPTION,
+      areaServed: { "@type": "Country", name: "Argentina" },
+      sameAs: ["https://www.instagram.com/wody.app/"],
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: SITE_NAME,
+      url: SITE_URL,
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web, iOS, Android",
+      description: SITE_DESCRIPTION,
+      inLanguage: "es-AR",
+      publisher: { "@id": `${SITE_URL}/#organization` },
+      offers: {
+        "@type": "Offer",
+        price: "40000",
+        priceCurrency: "ARS",
+        url: SITE_URL,
+        availability: "https://schema.org/InStock",
+      },
+    },
+  ],
 };
 
 export default async function LandingPage() {
@@ -59,6 +102,10 @@ export default async function LandingPage() {
 
   return (
     <main className="min-h-screen flex flex-col bg-[#0A0A0F] text-white overflow-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       {/* Hero */}
       <section className="flex-1 flex flex-col items-center justify-center px-6 pt-20 pb-28 sm:pt-28 sm:pb-36 text-center relative">
         {/* Animated background */}
@@ -364,7 +411,39 @@ export default async function LandingPage() {
       </a>
 
       {/* Footer */}
-      <footer className="py-6 pb-24 sm:pb-6 text-center border-t border-white/5">
+      <footer className="py-10 pb-24 sm:pb-10 text-center border-t border-white/5">
+        {/* Enlace interno a las páginas de contenido. Sin esto quedan
+            huérfanas: el sitemap alcanza para que Google las descubra, pero no
+            para transmitirles autoridad ni para indicar que importan. */}
+        <nav
+          aria-label="Más sobre Wody"
+          className="flex items-center justify-center gap-x-5 gap-y-2 flex-wrap text-xs font-body mb-6 px-6"
+        >
+          <Link
+            href="/software-gestion-gimnasios"
+            className="text-gray-500 hover:text-white transition-colors duration-200"
+          >
+            Software de gestión para gimnasios
+          </Link>
+          <Link
+            href="/control-de-acceso-gimnasio-qr"
+            className="text-gray-500 hover:text-white transition-colors duration-200"
+          >
+            Control de acceso con QR
+          </Link>
+          <Link
+            href="/comparativa"
+            className="text-gray-500 hover:text-white transition-colors duration-200"
+          >
+            Comparativas
+          </Link>
+          <Link
+            href="/demo"
+            className="text-gray-500 hover:text-white transition-colors duration-200"
+          >
+            Demo
+          </Link>
+        </nav>
         <div className="flex items-center justify-center gap-2 flex-wrap text-xs text-gray-500 font-body tracking-wide">
           <span>&copy; {new Date().getFullYear()} WODY</span>
           <span className="text-gray-800">—</span>

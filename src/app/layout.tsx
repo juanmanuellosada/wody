@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Barlow } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "@/lib/site";
 
 const barlowCondensed = Barlow_Condensed({
   subsets: ["latin"],
@@ -19,8 +21,35 @@ const barlow = Barlow({
 });
 
 export const metadata: Metadata = {
-  title: "WODY",
-  description: "Plataforma de gestión de WODs para boxes de CrossFit.",
+  // Sin metadataBase, las URLs relativas de Open Graph no resuelven y el link
+  // llega sin preview a WhatsApp, que es por donde se manda la mayor parte.
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "es_AR",
+    url: SITE_URL,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -55,6 +84,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-black text-white antialiased font-body">
         {children}
+        <Analytics />
         <Toaster theme="dark" position="top-center" richColors closeButton />
         <Script
           id="sw-register"

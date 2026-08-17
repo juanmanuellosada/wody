@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { gymPath } from "@/lib/gym";
+import { SEGMENTOS_RESERVADOS } from "@/lib/rutas-publicas";
 
 /**
  * Module-scope cache of valid gym slugs.
@@ -55,15 +56,7 @@ export async function proxy(request: NextRequest) {
   // (validar, registro-personal). El panel /admin tiene su propio guard de
   // role SUPERADMIN en src/app/admin/layout.tsx — el proxy no debe tratar
   // "admin" como gymSlug ni devolver 404 antes que el layout corra.
-  if (
-    segments.length === 0 ||
-    segments[0] === "api" ||
-    segments[0] === "demo" ||
-    segments[0] === "admin" ||
-    segments[0] === "validar" ||
-    segments[0] === "registro-personal" ||
-    segments[0] === "onboarding"
-  ) {
+  if (segments.length === 0 || SEGMENTOS_RESERVADOS.has(segments[0])) {
     return passThrough();
   }
 
@@ -187,7 +180,10 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization)
      * - favicon.ico, icon.png, and other static assets
+     * - robots.txt, sitemap.xml, opengraph-image: rutas de metadata que Next
+     *   genera en la raíz. Sin excluirlas, el proxy las toma como gymSlug y
+     *   devuelve 404, dejando al sitio sin robots ni sitemap.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.png|sounds/|.*\\.svg$|.*\\.png$|.*\\.js$|.*\\.webmanifest$|.*\\.wav$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.png|robots\\.txt|sitemap\\.xml|opengraph-image|sounds/|.*\\.svg$|.*\\.png$|.*\\.js$|.*\\.webmanifest$|.*\\.wav$).*)",
   ],
 };
