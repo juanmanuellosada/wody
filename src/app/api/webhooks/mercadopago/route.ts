@@ -1,24 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { verifyMpWebhookSignature } from "@/lib/mercadopago";
 import {
-  verifyMpWebhookSignature,
-  preApproval,
-  parseMpSubscriptionStatus,
-} from "@/lib/mercadopago";
-import { sendPaymentFailedEmail, sendPersonalPaymentFailedEmail } from "@/lib/billing-emails";
+  applyPreapprovalSnapshot,
+  fetchPreapprovalSnapshot,
+  notifyIfPaymentFailed,
+  resolvePreapprovalId,
+} from "@/lib/mp-sync";
 
 export async function POST(req: NextRequest) {
   const xSignature = req.headers.get("x-signature");
   const xRequestId = req.headers.get("x-request-id");
-  const dataId = req.nextUrl.searchParams.get("data.id");
 
   if (!xSignature) {
     return NextResponse.json({ error: "Missing x-signature" }, { status: 401 });
-  }
-
-  const isValid = verifyMpWebhookSignature(xSignature, xRequestId, dataId);
-  if (!isValid) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   let body: { type?: string; action?: string; data?: { id?: string } };
@@ -28,8 +22,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  // MP sends `data.id` as a query param in some notification formats and only
+  // in the body in others. The signature manifest needs whichever one arrived:
+  // reading just the query param made valid notifications fail with a 401,
+  // which MP retries a few times and then abandons silently.
+  const dataId = req.nextUrl.searchParams.get("data.id") ?? body.data?.id ?? null;
+
+  const isValid = verifyMpWebhookSignature(xSignature, xRequestId, dataId);
+  if (!isValid) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
   const eventType = body.type;
-  const preapprovalId = body.data?.id;
 
   // Only handle subscription-related events
   if (
@@ -40,112 +44,51 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  if (!preapprovalId) {
-    console.warn("[mp-webhook] Missing preapproval id in event", { eventType });
+  if (!dataId) {
+    console.warn("[mp-webhook] Missing data id in event", { eventType });
     return NextResponse.json({ ok: true });
   }
 
   try {
-    const sub = await preApproval.get({ id: preapprovalId });
-    const externalReference = sub.external_reference;
-    const rawStatus = sub.status ?? "";
+    const preapprovalId = await resolvePreapprovalId(eventType, dataId);
 
-    if (!externalReference) {
+    if (!preapprovalId) {
+      console.warn("[mp-webhook] Could not resolve a preapproval for event", { eventType, dataId });
+      return NextResponse.json({ ok: true });
+    }
+
+    const snapshot = await fetchPreapprovalSnapshot(preapprovalId);
+
+    if (!snapshot) {
       console.warn("[mp-webhook] No external_reference on preapproval", { preapprovalId });
       return NextResponse.json({ ok: true });
     }
 
-    const newStatus = parseMpSubscriptionStatus(rawStatus);
+    console.log("[mp-webhook] Processing event", {
+      eventType,
+      preapprovalId,
+      externalReference: snapshot.externalReference,
+      status: snapshot.status,
+      nextPaymentDate: snapshot.nextPaymentDate,
+    });
 
-    if (externalReference.startsWith("user_")) {
-      const userId = externalReference.slice("user_".length);
+    const outcome = await applyPreapprovalSnapshot(snapshot);
 
-      console.log("[mp-webhook] Processing Personal event", { userId, preapprovalId, status: newStatus, eventType });
-
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { mpSubscriptionStatus: true, paymentExempt: true, email: true, name: true, gymId: true },
+    if (!outcome.ok) {
+      console.warn("[mp-webhook] No record found for external_reference", {
+        externalReference: snapshot.externalReference,
+        preapprovalId,
       });
-
-      if (!user) {
-        console.warn("[mp-webhook] Personal user not found for external_reference", { userId, externalReference });
-        return NextResponse.json({ ok: true });
-      }
-
-      const previousStatus = user.mpSubscriptionStatus;
-      const statusChanged = newStatus !== previousStatus;
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          mpPreapprovalId: preapprovalId,
-          mpSubscriptionStatus: newStatus,
-          ...(statusChanged ? { mpSubscriptionStatusChangedAt: new Date() } : {}),
-        },
-      });
-
-      const isFailedStatus = newStatus === "paused" || newStatus === "cancelled";
-      const wasPreviouslyFailed = previousStatus === "paused" || previousStatus === "cancelled";
-
-      if (isFailedStatus && !wasPreviouslyFailed && !user.paymentExempt) {
-        try {
-          await sendPersonalPaymentFailedEmail({ id: userId, name: user.name, email: user.email, gymId: user.gymId });
-        } catch (err) {
-          console.warn("[mp-webhook] Failed to send personal payment-failed email", {
-            userId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
-      }
-
       return NextResponse.json({ ok: true });
     }
 
-    const gymId = externalReference;
-
-    console.log("[mp-webhook] Processing Gym event", { gymId, preapprovalId, status: newStatus, eventType });
-
-    const gym = await prisma.gym.findUnique({
-      where: { id: gymId },
-      select: { mpSubscriptionStatus: true, paymentExempt: true, name: true, slug: true },
-    });
-
-    if (!gym) {
-      console.warn("[mp-webhook] Gym not found for external_reference", { gymId, preapprovalId });
-      return NextResponse.json({ ok: true });
-    }
-
-    const previousStatus = gym.mpSubscriptionStatus;
-    const statusChanged = newStatus !== previousStatus;
-
-    await prisma.gym.update({
-      where: { id: gymId },
-      data: {
-        mpPreapprovalId: preapprovalId,
-        mpSubscriptionStatus: newStatus,
-        ...(statusChanged ? { mpSubscriptionStatusChangedAt: new Date() } : {}),
-      },
-    });
-
-    const isFailedStatus = newStatus === "paused" || newStatus === "cancelled";
-    const wasPreviouslyFailed = previousStatus === "paused" || previousStatus === "cancelled";
-
-    if (isFailedStatus && !wasPreviouslyFailed && !gym.paymentExempt) {
-      try {
-        await sendPaymentFailedEmail({ id: gymId, name: gym.name, slug: gym.slug });
-      } catch (err) {
-        console.warn("[mp-webhook] Failed to send payment-failed email", {
-          gymId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
+    await notifyIfPaymentFailed(outcome);
 
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[mp-webhook] Internal error processing event", {
       eventType,
-      preapprovalId,
+      dataId,
       error: err instanceof Error ? err.message : String(err),
     });
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

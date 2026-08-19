@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { uploadPublicImage, deleteBlobByUrl } from "@/lib/blob";
 import { isReservedSlug } from "@/lib/reserved-slugs";
 import { cancelMpPreapproval } from "@/lib/mercadopago";
+import { applyPreapprovalSnapshot, fetchPreapprovalSnapshot } from "@/lib/mp-sync";
 import bcrypt from "bcryptjs";
 import type { GymKind } from "@prisma/client";
 
@@ -318,4 +319,51 @@ export async function cancelGymSubscription(gymId: string): Promise<ActionResult
   });
 
   return { success: true };
+}
+
+/**
+ * Re-reads the gym's subscription from Mercado Pago and persists what it
+ * reports. Safety net for when a webhook never arrives: without it, a gym that
+ * pays correctly can stay marked `pending` forever and be shown as delinquent.
+ */
+export async function syncGymSubscription(gymId: string): Promise<ActionResult> {
+  await assertSuperAdmin();
+
+  const gym = await prisma.gym.findUnique({
+    where: { id: gymId },
+    select: { mpPreapprovalId: true },
+  });
+  if (!gym) return { success: false, error: "Gym no encontrado." };
+
+  if (!gym.mpPreapprovalId) {
+    return { success: false, error: "Este gym no tiene una suscripción en Mercado Pago." };
+  }
+
+  try {
+    const snapshot = await fetchPreapprovalSnapshot(gym.mpPreapprovalId);
+
+    if (!snapshot) {
+      return {
+        success: false,
+        error: "Mercado Pago no devolvió la referencia externa de la suscripción.",
+      };
+    }
+
+    const outcome = await applyPreapprovalSnapshot(snapshot);
+
+    if (!outcome.ok) {
+      return {
+        success: false,
+        error: "La suscripción de Mercado Pago no corresponde a ningún gym de Wody.",
+      };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("[super-admin] syncGymSubscription error", {
+      gymId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { success: false, error: "Error al consultar la suscripción en Mercado Pago." };
+  }
 }

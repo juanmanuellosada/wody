@@ -6,7 +6,11 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { setGymPaymentExempt, cancelGymSubscription } from "@/actions/super-admin/gym";
+import {
+  setGymPaymentExempt,
+  cancelGymSubscription,
+  syncGymSubscription,
+} from "@/actions/super-admin/gym";
 
 interface Props {
   gymId: string;
@@ -58,6 +62,7 @@ export function SubscriptionSection({
   const router = useRouter();
   const [isExemptPending, startExemptTransition] = useTransition();
   const [isCancelPending, startCancelTransition] = useTransition();
+  const [isSyncPending, startSyncTransition] = useTransition();
 
   const [exempt, setExempt] = useState(initialExempt);
   const [reason, setReason] = useState(initialReason ?? "");
@@ -68,6 +73,18 @@ export function SubscriptionSection({
       const result = await setGymPaymentExempt(gymId, exempt, reason);
       if (result.success) {
         toast.success(exempt ? "Gym marcado como exento." : "Exención removida.");
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function handleSyncSubscription() {
+    startSyncTransition(async () => {
+      const result = await syncGymSubscription(gymId);
+      if (result.success) {
+        toast.success("Estado sincronizado con Mercado Pago.");
         router.refresh();
       } else {
         toast.error(result.error);
@@ -141,6 +158,24 @@ export function SubscriptionSection({
             )}
           </div>
         </div>
+
+        {/* Sync with MP */}
+        {mpPreapprovalId && (
+          <div>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              loading={isSyncPending}
+              onClick={handleSyncSubscription}
+            >
+              Sincronizar con Mercado Pago
+            </Button>
+            <p className="text-xs text-gray-600 font-body mt-2">
+              Vuelve a leer el estado y la fecha de próximo cobro desde Mercado Pago.
+            </p>
+          </div>
+        )}
 
         {/* Exemption toggle */}
         <div className="flex flex-col gap-3">

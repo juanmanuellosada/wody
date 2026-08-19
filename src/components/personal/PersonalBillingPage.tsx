@@ -16,6 +16,7 @@ interface Props {
   paymentExempt: boolean;
   paymentExemptReason: string | null;
   mpSubscriptionStatus: string | null;
+  subscriptionNextPaymentDate: Date | null;
   mpPreapprovalId: string | null;
   daysLeftInTrial: number | null;
   userEmail: string;
@@ -34,6 +35,7 @@ export function PersonalBillingPage({
   paymentExempt,
   paymentExemptReason,
   mpSubscriptionStatus,
+  subscriptionNextPaymentDate,
   mpPreapprovalId,
   daysLeftInTrial,
   userEmail,
@@ -147,6 +149,20 @@ export function PersonalBillingPage({
               Activa
             </span>
           </div>
+
+          {subscriptionNextPaymentDate && (
+            <p className="text-xs text-gray-500 font-body">
+              Próximo cobro:{" "}
+              <span className="text-gray-300">
+                {subscriptionNextPaymentDate.toLocaleDateString("es-AR", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  timeZone: "America/Argentina/Buenos_Aires",
+                })}
+              </span>
+            </p>
+          )}
 
           <div className="pt-2 border-t border-line">
             <Button

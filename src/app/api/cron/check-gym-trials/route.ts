@@ -81,17 +81,19 @@ export async function GET(req: NextRequest) {
   }
 
   // --- Phase 1.5: block gyms with failed payment past grace period ---
-  // Excludes selfManagedBilling gyms and gyms with a due-date loaded (governed by Phase 2.7).
+  // Governs every gym billed through MP. The webhook now keeps their
+  // subscriptionNextPaymentDate current, so that field no longer marks "not
+  // billed by MP" — having a preapproval does. Excludes selfManagedBilling.
   const FAILURE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
   const failureCutoff = new Date(now.getTime() - FAILURE_GRACE_MS);
   const paymentFailureGyms = await prisma.gym.findMany({
     where: {
+      mpPreapprovalId: { not: null },
       mpSubscriptionStatus: { in: ["paused", "cancelled"] },
       mpSubscriptionStatusChangedAt: { lt: failureCutoff },
       blockedAt: null,
       paymentExempt: false,
       selfManagedBilling: false,
-      subscriptionNextPaymentDate: null,
       kind: { not: "PERSONAL" },
     },
     select: { id: true, slug: true },
@@ -286,6 +288,11 @@ export async function GET(req: NextRequest) {
       subscriptionNextPaymentDate: { not: null },
       paymentExempt: false,
       blockedAt: null,
+      // Gyms billed through MP are excluded: their charge is automatic, so a
+      // "your subscription is due" reminder asks them to act on nothing. A gym
+      // moved to manual billing still gets them, even if it kept a stale
+      // preapproval from when MP used to charge it.
+      OR: [{ mpPreapprovalId: null }, { selfManagedBilling: true }],
       kind: { not: "PERSONAL" },
     },
     select: {
@@ -358,8 +365,10 @@ export async function GET(req: NextRequest) {
 
   // --- Phase 2.7: block gyms with a due-date past their grace period ---
   // Governed by subscriptionNextPaymentDate (independent of selfManagedBilling).
-  // Gyms with an authorized MP subscription are excluded (MP governs their billing).
-  // Gyms with no MP subscription at all (manual billing, mpSubscriptionStatus null) are included.
+  // Gyms actively billed by MP are excluded whatever the subscription state:
+  // MP governs their billing and Phase 1.5 governs their blocking. A gym on
+  // manual billing is governed by its due date here even if it kept a stale
+  // preapproval — otherwise it would fall through both phases and never block.
   const selfBillingBlockedGymIds: string[] = [];
 
   const overdueGraceGyms = await prisma.gym.findMany({
@@ -367,10 +376,7 @@ export async function GET(req: NextRequest) {
       subscriptionNextPaymentDate: { not: null },
       paymentExempt: false,
       blockedAt: null,
-      OR: [
-        { mpSubscriptionStatus: null },
-        { mpSubscriptionStatus: { not: "authorized" } },
-      ],
+      OR: [{ mpPreapprovalId: null }, { selfManagedBilling: true }],
       kind: { not: "PERSONAL" },
     },
     select: { id: true, slug: true, subscriptionNextPaymentDate: true, autoBlockAfterDays: true },

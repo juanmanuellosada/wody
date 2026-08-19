@@ -1,4 +1,4 @@
-import MercadoPagoConfig, { PreApproval } from "mercadopago";
+import MercadoPagoConfig, { Invoice, PreApproval } from "mercadopago";
 import {
   WebhookSignatureValidator,
   InvalidWebhookSignatureError,
@@ -11,6 +11,26 @@ const mpConfig = new MercadoPagoConfig({
 });
 
 export const preApproval = new PreApproval(mpConfig);
+
+/**
+ * Subscription invoices (authorized payments). Needed because the
+ * `subscription_authorized_payment` webhook event carries the invoice id,
+ * not the preapproval id — the preapproval has to be resolved through it.
+ */
+export const invoice = new Invoice(mpConfig);
+
+const CANONICAL_APP_URL = "https://www.wody.com.ar";
+
+/**
+ * URL that MP notifies on subscription events. Returned as `null` when the
+ * resolved host is not HTTPS (local development), because MP rejects a
+ * preapproval whose `notification_url` is not a public HTTPS endpoint.
+ */
+export function resolveWebhookUrl(): string | null {
+  const base = process.env.APP_URL ?? CANONICAL_APP_URL;
+  if (!base.startsWith("https://")) return null;
+  return `${base.replace(/\/$/, "")}/api/webhooks/mercadopago`;
+}
 
 // ---------------------------------------------------------------------------
 // Type: subscription status union
@@ -176,6 +196,8 @@ export async function createGymSubscription(params: {
       : {}),
   };
 
+  const webhookUrl = resolveWebhookUrl();
+
   try {
     const response = await preApproval.create({
       body: {
@@ -183,7 +205,10 @@ export async function createGymSubscription(params: {
         external_reference: gymId,
         payer_email: payerEmail,
         reason: "Suscripción mensual Wody",
-        back_url: `${process.env.APP_URL ?? "https://wody.com.ar"}`,
+        back_url: `${process.env.APP_URL ?? CANONICAL_APP_URL}`,
+        // Declared per-preapproval so the flow does not depend on the
+        // notification URL being configured by hand in the MP dashboard.
+        ...(webhookUrl !== null ? { notification_url: webhookUrl } : {}),
         // Cast needed: SDK types PreApprovalRequest.auto_recurring as
         // AutoRecurringRequest (no free_trial), but the API accepts
         // AutoRecurringWithFreeTrial at runtime.
@@ -252,6 +277,8 @@ export async function createPersonalSubscription(params: {
       : {}),
   };
 
+  const webhookUrl = resolveWebhookUrl();
+
   try {
     const response = await preApproval.create({
       body: {
@@ -259,7 +286,8 @@ export async function createPersonalSubscription(params: {
         external_reference: `user_${userId}`,
         payer_email: payerEmail,
         reason: "Suscripción mensual Wody Personal",
-        back_url: `${process.env.APP_URL ?? "https://wody.com.ar"}`,
+        back_url: `${process.env.APP_URL ?? CANONICAL_APP_URL}`,
+        ...(webhookUrl !== null ? { notification_url: webhookUrl } : {}),
         // Cast needed: same as createGymSubscription.
         auto_recurring: autoRecurring as never,
       },

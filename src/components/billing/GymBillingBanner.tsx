@@ -5,9 +5,14 @@ import { formatDateArg, getTodayArgentina } from "@/lib/dates";
 
 interface GymBillingBannerProps {
   subscriptionNextPaymentDate: Date | null;
+  /** Gym billed automatically through Mercado Pago. */
+  autoDebit?: boolean;
 }
 
-export function GymBillingBanner({ subscriptionNextPaymentDate }: GymBillingBannerProps) {
+export function GymBillingBanner({
+  subscriptionNextPaymentDate,
+  autoDebit = false,
+}: GymBillingBannerProps) {
   if (!subscriptionNextPaymentDate) {
     // No due date configured: neutral state, no block/reminder
     return null;
@@ -19,6 +24,25 @@ export function GymBillingBanner({ subscriptionNextPaymentDate }: GymBillingBann
     (subscriptionNextPaymentDate.getTime() - today.getTime()) / msPerDay
   );
   const formatted = formatDateArg(subscriptionNextPaymentDate);
+
+  // Automatic debit: the owner has nothing to do, so the banner reports the
+  // next charge instead of warning about a due date. It also stays calm past
+  // the date, while MP has charged but not yet notified us.
+  if (autoDebit) {
+    return (
+      <div className="w-full px-4 py-2.5 flex items-center justify-between gap-3 bg-green-500/5 border-b border-green-500/20">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <CheckCircle2 size={15} className="text-green-400 flex-shrink-0" aria-hidden="true" />
+          <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-green-400 truncate">
+            Suscripción al día
+          </p>
+        </div>
+        <p className="text-xs text-gray-500 font-body flex-shrink-0">
+          Débito automático · <span className="text-gray-300">{formatted}</span>
+        </p>
+      </div>
+    );
+  }
 
   if (daysLeft > 7) {
     // Al día

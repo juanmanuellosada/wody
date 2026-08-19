@@ -165,9 +165,17 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
     !gym.paymentExempt &&
     gym.subscriptionNextPaymentDate !== null
   ) {
+    // A gym billed through MP has nothing to act on: the charge is automatic
+    // and the date comes from MP itself. Warning it that the date passed would
+    // flag as overdue someone whose payment MP has not reported back yet.
+    const autoDebit = gym.mpSubscriptionStatus === "authorized";
+
     if (trialBanner === null) {
       trialBanner = (
-        <GymBillingBanner subscriptionNextPaymentDate={gym.subscriptionNextPaymentDate} />
+        <GymBillingBanner
+          subscriptionNextPaymentDate={gym.subscriptionNextPaymentDate}
+          autoDebit={autoDebit}
+        />
       );
     }
 
@@ -175,7 +183,7 @@ export default async function GymLayout({ children, params }: GymLayoutProps) {
       (gym.subscriptionNextPaymentDate.getTime() - getTodayArgentina().getTime()) /
         (24 * 60 * 60 * 1000)
     );
-    if (daysLeft < 0) {
+    if (daysLeft < 0 && !autoDebit) {
       overdueModal = (
         <GymBillingOverdueModal gymId={gym.id} gymSlug={gymSlug} daysOverdue={-daysLeft} />
       );

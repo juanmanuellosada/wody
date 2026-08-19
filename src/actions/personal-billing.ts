@@ -42,6 +42,7 @@ export async function getMyPersonalSubscriptionStatus() {
       paymentExempt: true,
       mpSubscriptionStatus: true,
       mpPreapprovalId: true,
+      subscriptionNextPaymentDate: true,
     },
   });
 
@@ -57,6 +58,7 @@ export async function getMyPersonalSubscriptionStatus() {
     paymentExempt: user.paymentExempt,
     mpSubscriptionStatus: user.mpSubscriptionStatus,
     mpPreapprovalId: user.mpPreapprovalId,
+    subscriptionNextPaymentDate: user.subscriptionNextPaymentDate,
     daysLeftInTrial,
   };
 }

@@ -49,6 +49,7 @@ export default async function PersonalSuscripcionPage({ params }: Props) {
         paymentExemptReason={dbUser?.paymentExemptReason ?? null}
         mpSubscriptionStatus={status.mpSubscriptionStatus}
         mpPreapprovalId={status.mpPreapprovalId}
+        subscriptionNextPaymentDate={status.subscriptionNextPaymentDate}
         daysLeftInTrial={status.daysLeftInTrial}
         userEmail={session.user.email ?? ""}
       />

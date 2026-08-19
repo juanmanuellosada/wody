@@ -200,6 +200,7 @@ model User {
   mpSubscriptionStatus          String?
   mpSubscriptionStatusChangedAt DateTime?
   trialEndsAt                   DateTime?
+  subscriptionNextPaymentDate   DateTime?
 
   gym Gym? @relation(fields: [gymId], references: [id], onDelete: Restrict)
 
