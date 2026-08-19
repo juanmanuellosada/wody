@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { GymRow } from "@/actions/super-admin/gym";
+import { formatDateArg } from "@/lib/dates";
 
 interface Props {
   gyms: GymRow[];
@@ -54,7 +55,7 @@ export function GymsTable({ gyms }: Props) {
                 </td>
                 <td className="px-4 py-3.5 text-gray-300 font-body text-xs">
                   {gym.subscriptionNextPaymentDate
-                    ? gym.subscriptionNextPaymentDate.toLocaleDateString("es-AR")
+                    ? formatDateArg(gym.subscriptionNextPaymentDate)
                     : <span className="text-gray-600">—</span>}
                 </td>
                 <td className="px-4 py-3.5 text-gray-300 font-body text-xs tabular-nums">

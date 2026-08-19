@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { formatDateArg } from "@/lib/dates";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   registerPersonalPayment,
@@ -535,7 +536,7 @@ export function PersonalUsersTable({ users }: TableProps) {
                     <span className="text-gray-600">—</span>
                   ) : (
                     <span className={overdue ? "text-brand-red font-bold" : "text-gray-300"}>
-                      {u.nextPaymentDate.toLocaleDateString("es-AR")}
+                      {formatDateArg(u.nextPaymentDate)}
                     </span>
                   )}
                 </td>

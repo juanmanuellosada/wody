@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { deleteCoupon } from "@/actions/super-admin/coupon";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { formatDateArg } from "@/lib/dates";
 import { Button } from "@/components/ui/Button";
 import type { CouponRow } from "@/actions/super-admin/coupon";
 
@@ -70,7 +71,7 @@ export function CouponsTable({ coupons }: Props) {
                   </span>
                 </td>
                 <td className="px-4 py-3.5 text-gray-400 font-body text-xs">
-                  {c.expiresAt ? c.expiresAt.toLocaleDateString("es-AR") : "—"}
+                  {c.expiresAt ? formatDateArg(c.expiresAt) : "—"}
                 </td>
                 <td className="px-4 py-3.5 text-gray-400 font-body text-xs tabular-nums">
                   {c.sortOrder}

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { formatDateArg } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -134,7 +135,7 @@ export default async function AdminDashboardPage() {
                     <td className="px-4 py-3.5 font-body text-xs">
                       {gym.subscriptionNextPaymentDate ? (
                         <span className={overdue ? "text-brand-red font-bold" : "text-gray-300"}>
-                          {gym.subscriptionNextPaymentDate.toLocaleDateString("es-AR")}
+                          {formatDateArg(gym.subscriptionNextPaymentDate)}
                         </span>
                       ) : (
                         <span className="text-gray-600">—</span>
