@@ -438,6 +438,12 @@ export default async function LandingPage() {
             Comparativas
           </Link>
           <Link
+            href="/blog"
+            className="text-gray-500 hover:text-white transition-colors duration-200"
+          >
+            Blog
+          </Link>
+          <Link
             href="/demo"
             className="text-gray-500 hover:text-white transition-colors duration-200"
           >

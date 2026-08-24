@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
+import createMDX from "@next/mdx";
 
 const nextConfig: NextConfig = {
+  // Los artículos del blog son .mdx; el resto de las extensiones son las de siempre.
+  pageExtensions: ["js", "jsx", "ts", "tsx", "md", "mdx"],
   async headers() {
     return [
       {
@@ -40,4 +43,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// remark-gfm habilita las tablas de markdown, que MDX no trae de fábrica.
+// Con Turbopack el plugin va por nombre: no se pueden pasar funciones de JS
+// al bundler, que corre en Rust.
+const withMDX = createMDX({
+  options: { remarkPlugins: ["remark-gfm"] },
+});
+
+export default withMDX(nextConfig);

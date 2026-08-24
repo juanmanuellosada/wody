@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { SITE_URL } from "@/lib/site";
 import { COMPARATIVAS } from "@/lib/comparativas";
+import { ARTICULOS } from "@/lib/blog";
 import { PAGINAS_PUBLICAS } from "@/lib/rutas-publicas";
 
 // El listado de gyms sale de la DB, así que cada gym nuevo entra solo al
@@ -33,6 +34,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.8,
+    })),
+    ...ARTICULOS.map((a) => ({
+      url: `${SITE_URL}/blog/${a.slug}`,
+      lastModified: new Date(a.fecha),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
     })),
     // La landing pública de cada gym es la entrada de SEO local
     // ("gimnasio en Los Polvorines") y hasta ahora no estaba enlazada.

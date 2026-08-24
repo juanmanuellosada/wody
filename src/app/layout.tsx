@@ -40,6 +40,10 @@ export const metadata: Metadata = {
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
   },
+  // Verificación de la propiedad https://wody.vercel.app en Search Console.
+  // No se saca: se necesita para pedir la baja de esa URL del índice, que hoy
+  // compite con el dominio real. La propiedad de wody.com.ar va por DNS.
+  verification: { google: "hxvo2J7NJxl2oWqUhDc2ptWgEm55sKv4914cq8Uo1l8" },
   robots: {
     index: true,
     follow: true,

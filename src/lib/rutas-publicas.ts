@@ -20,6 +20,7 @@ export const PAGINAS_PUBLICAS: Array<{
   { path: "/software-gestion-gimnasios", priority: 0.9, changeFrequency: "monthly" },
   { path: "/control-de-acceso-gimnasio-qr", priority: 0.9, changeFrequency: "monthly" },
   { path: "/comparativa", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/blog", priority: 0.8, changeFrequency: "weekly" },
   { path: "/demo", priority: 0.9, changeFrequency: "monthly" },
   { path: "/demo/teacher", priority: 0.6, changeFrequency: "monthly" },
   { path: "/demo/admin", priority: 0.6, changeFrequency: "monthly" },
