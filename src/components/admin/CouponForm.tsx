@@ -161,9 +161,13 @@ export function CouponForm({ coupon, nextSortOrder }: Props) {
         {coupon?.logoKey && (
           <p className="text-xs text-gray-500 font-body">
             Logo actual:{" "}
-            <a href={coupon.logoKey} target="_blank" rel="noopener noreferrer" className="text-brand-red hover:underline">
-              ver
-            </a>
+            {/^(https?:\/\/|\/)/.test(coupon.logoKey) ? (
+              <a href={coupon.logoKey} target="_blank" rel="noopener noreferrer" className="text-brand-red hover:underline">
+                ver
+              </a>
+            ) : (
+              coupon.logoKey
+            )}
           </p>
         )}
         <input

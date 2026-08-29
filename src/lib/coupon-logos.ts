@@ -40,7 +40,10 @@ export const COUPON_LOGOS: Record<string, StaticImageData> = {
   tica,
 };
 
-export function getCouponLogo(logoKey: string | null): StaticImageData | null {
+export function getCouponLogo(
+  logoKey: string | null
+): StaticImageData | string | null {
   if (!logoKey) return null;
+  if (/^(https?:\/\/|\/)/.test(logoKey)) return logoKey;
   return COUPON_LOGOS[logoKey] ?? null;
 }
