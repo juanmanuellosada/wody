@@ -1,44 +1,23 @@
-import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 import { gymPath } from "@/lib/gym";
-import {
-  Trophy,
-  Smartphone,
-  BarChart3,
-  Share2,
-  CalendarDays,
-  CalendarCheck,
-  QrCode,
-  Wallet,
-  Building2,
-} from "lucide-react";
-
-import wodyTexto from "@/logos/wody-texto.png";
-import { GYM_LOCATIONS } from "@/lib/gym-locations";
-import { BenefitsSection } from "@/components/benefits/BenefitsSection";
-import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
-import { RotatingTypewriter } from "@/components/marketing/RotatingTypewriter";
-import { PricingSection } from "@/components/landing/PricingSection";
-import { PersonalPricingSection } from "@/components/landing/PersonalPricingSection";
 import { prisma } from "@/lib/prisma";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
+import { ProductionLanding } from "@/components/landing/ProductionLanding";
+import { BenefitsSection } from "@/components/benefits/BenefitsSection";
 
 export const metadata: Metadata = {
-  // Nadie busca "wody": el title tiene que empezar por lo que el dueño de gym
-  // efectivamente escribe en Google.
   title: "Software para gimnasios y boxes de CrossFit | Wody",
   description:
-    "Gestioná rutinas, RMs, turnos, control de acceso con QR y cuotas con Mercado Pago desde una sola app. Para gimnasios y boxes de Argentina. 7 días gratis.",
+    "Gestioná rutinas, marcas personales, turnos, accesos con QR y cuotas desde una sola app. Para gimnasios y boxes de Argentina.",
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     url: SITE_URL,
     title: "Software para gimnasios y boxes de CrossFit | Wody",
     description:
-      "Rutinas, RMs, turnos, acceso con QR y cuotas con Mercado Pago en una sola app. 7 días gratis, sin tarjeta.",
+      "Rutinas, marcas personales, turnos, acceso con QR y cuotas en una sola app para tu centro.",
   },
 };
 
@@ -75,14 +54,8 @@ const structuredData = {
 };
 
 export default async function LandingPage() {
-  // Si el usuario ya tiene sesión, lo mandamos directo a su dashboard.
-  // Importa sobre todo para PWA: iOS/Android siempre abren `start_url=/`
-  // al relanzar la app, así que sin este redirect el usuario ve la landing
-  // genérica aunque esté logueado.
   const session = await auth();
-  if (session?.user?.role === "SUPERADMIN") {
-    redirect("/admin");
-  }
+  if (session?.user?.role === "SUPERADMIN") redirect("/admin");
   if (session?.user?.gymSlug) {
     const { gymSlug, role } = session.user;
     if (role === "ADMIN") redirect(gymPath(gymSlug, "/admin"));
@@ -91,477 +64,26 @@ export default async function LandingPage() {
     redirect(gymPath(gymSlug, "/dashboard/athlete"));
   }
 
-  // Gyms activos desde la DB (DB-driven landing, ordenados por createdAt asc).
-  // Excluimos PERSONAL: el tenant compartido de Wody Personal no es un centro
-  // que un visitante pueda elegir en la landing — se accede por /registro-personal.
+  // This remains an account lookup, not customer endorsement or social proof.
   const gyms = await prisma.gym.findMany({
     where: { blockedAt: null, kind: { not: "PERSONAL" } },
     orderBy: { createdAt: "asc" },
-    select: { slug: true, name: true, logo: true, primaryColor: true, kind: true },
+    select: { slug: true, name: true, kind: true },
   });
 
+  const accounts = gyms.map((gym) => ({
+    slug: gym.slug,
+    name: gym.name,
+    kind: gym.kind === "BOX" ? ("BOX" as const) : ("GYM" as const),
+  }));
+
   return (
-    <main className="min-h-screen flex flex-col bg-[#0A0A0F] text-white overflow-hidden">
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      {/* Hero */}
-      <section className="flex-1 flex flex-col items-center justify-center px-6 pt-20 pb-28 sm:pt-28 sm:pb-36 text-center relative">
-        {/* Animated background */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-          <div
-            className="absolute top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full opacity-25 blur-[150px] wody-orb-float"
-            style={{
-              background: "radial-gradient(circle, rgba(227,20,20,0.6) 0%, rgba(227,20,20,0.2) 35%, transparent 65%)",
-            }}
-          />
-          <div
-            className="absolute bottom-[10%] left-[10%] w-[400px] h-[400px] rounded-full opacity-20 blur-[120px] wody-orb-float-slow"
-            style={{
-              background: "radial-gradient(circle, rgba(227,20,20,0.4) 0%, rgba(150,20,20,0.1) 50%, transparent 70%)",
-            }}
-          />
-          <div
-            className="absolute top-[15%] right-[5%] w-[300px] h-[300px] rounded-full opacity-[0.07] blur-[100px] wody-orb-float-slow"
-            style={{
-              background: "radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%)",
-            }}
-          />
-          <div
-            className="absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage: "linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)",
-              backgroundSize: "50px 50px",
-            }}
-          />
-          <div
-            className="absolute inset-0 opacity-[0.015]"
-            style={{
-              backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E\")",
-            }}
-          />
-          <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#0A0A0F] to-transparent" />
-        </div>
-
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="mb-6">
-            <Image
-              src={wodyTexto}
-              alt="WODY"
-              width={360}
-              height={100}
-              className="w-56 sm:w-80 lg:w-96 h-auto mx-auto"
-              priority
-              unoptimized
-            />
-          </div>
-
-          <p className="text-lg sm:text-xl lg:text-2xl text-gray-300 max-w-xl mb-3 leading-relaxed font-body">
-            La plataforma para gestionar
-            <span className="text-white font-semibold"> rutinas</span>,
-            <span className="text-white font-semibold"> records </span>
-            y el seguimiento de tus alumnos.
-          </p>
-
-          <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 mb-10 font-body">
-            Para <RotatingTypewriter words={["crossfit", "gimnasio", "funcional", "GAP", "musculación", "calistenia"]} />
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <Link
-              href="/demo"
-              className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-white text-sm bg-brand-red hover:bg-brand-red-dark transition-colors duration-200 cursor-pointer"
-            >
-              Ver Demo
-            </Link>
-            <a
-              href="https://www.instagram.com/wody.app/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-gray-300 text-sm border border-gray-700 hover:border-brand-red hover:text-white transition-all duration-200 cursor-pointer"
-            >
-              Contactanos
-            </a>
-          </div>
-
-          <Link
-            href="/registro-personal"
-            className="mt-4 inline-block px-10 py-4 font-heading font-bold uppercase tracking-[0.15em] text-gray-300 text-sm border border-gray-700 hover:border-brand-red hover:text-white transition-all duration-200 cursor-pointer"
-          >
-            Usalo por tu cuenta
-          </Link>
-        </div>
-      </section>
-
-      {/* Para quién */}
-      <section className="px-6 pb-20 relative">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-brand-red text-center mb-3">
-            Para todo tipo de centro
-          </p>
-          <h2 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.05em] text-white text-center mb-12">
-            ¿Para quién es WODY?
-          </h2>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {["CrossFit", "Gimnasio", "Funcional", "GAP", "Pilates", "Personalizados"].map((tipo) => (
-              <div key={tipo} className="bg-white/[0.03] border border-white/[0.06] py-5 px-4 text-center hover:border-brand-red/30 transition-all duration-300">
-                <p className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white">{tipo}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="px-6 pb-24 relative">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-brand-red text-center mb-3">
-            Todo lo que necesitás
-          </p>
-          <h2 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.05em] text-white text-center mb-12">
-            Funcionalidades
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <FeatureCard
-              icon={<CalendarDays size={20} />}
-              title="Rutinas diarias"
-              description="Cada alumno recibe su rutina personalizada para el día. El profe carga, edita y copia con un click."
-            />
-            <FeatureCard
-              icon={<Trophy size={20} />}
-              title="Records personales"
-              description="Registro de mejores marcas con fecha. Editables y compartibles en redes con imagen generada."
-            />
-            <FeatureCard
-              icon={<CalendarCheck size={20} />}
-              title="Turnos de actividades"
-              description="Actividades con horarios semanales o de fecha única, cupo por clase y ventana de cancelación. El alumno se anota desde el celular."
-            />
-            <FeatureCard
-              icon={<QrCode size={20} />}
-              title="Control de ingresos"
-              description="Check-in en la puerta escaneando el QR de recepción. El operador ve el estado de cuota del socio al instante y queda todo en el historial."
-            />
-            <FeatureCard
-              icon={<Wallet size={20} />}
-              title="Cuotas y caja"
-              description="Estado de cuota de cada alumno, registro de pagos y venta de productos. La recaudación y los gastos quedan detrás de un permiso aparte."
-            />
-            <FeatureCard
-              icon={<Building2 size={20} />}
-              title="Multi-centro"
-              description="Cada centro tiene su espacio aislado con datos, usuarios y branding independientes."
-            />
-            <FeatureCard
-              icon={<Smartphone size={20} />}
-              title="Mobile-first"
-              description="Pensado para usar desde el celular en el gimnasio. Responsive y rápido."
-            />
-            <FeatureCard
-              icon={<BarChart3 size={20} />}
-              title="Historial completo"
-              description="Todo el historial de rutinas y records del alumno, accesible en cualquier momento."
-            />
-            <FeatureCard
-              icon={<Share2 size={20} />}
-              title="Compartir logros"
-              description="Genera imágenes para Instagram y WhatsApp cuando tu alumno rompe un record."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Cómo funciona */}
-      <section className="border-t border-white/5 bg-[#08080D] px-6 py-20">
-        <div className="max-w-4xl mx-auto">
-          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-brand-red text-center mb-3">
-            Simple y directo
-          </p>
-          <h2 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.05em] text-white text-center mb-12">
-            ¿Cómo funciona?
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <StepCard
-              number="01"
-              title="Creamos tu espacio"
-              description="Te armamos tu centro en WODY con tu branding. Vos creás profes y alumnos."
-            />
-            <StepCard
-              number="02"
-              title="El profe carga rutinas"
-              description="Cada profe ve sus alumnos y les carga la rutina del día con el editor."
-            />
-            <StepCard
-              number="03"
-              title="El alumno entrena"
-              description="Abre la app, ve su rutina de hoy, registra sus records y comparte logros."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Roles */}
-      <section className="border-t border-white/5 px-6 py-20">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.05em] text-white text-center mb-12">
-            Para cada rol
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <RoleCard
-              role="Alumno"
-              features={["Ver rutina de hoy", "Historial completo", "Cargar y editar records", "Compartir logros"]}
-            />
-            <RoleCard
-              role="Profe"
-              highlight
-              features={["Cargar rutinas por alumno", "Copiar entre fechas y alumnos", "Editor con formato", "Gestión de alumnos"]}
-            />
-            <RoleCard
-              role="Admin"
-              features={["Crear profes y alumnos", "Asignar alumnos a profes", "Panel de control", "Gestión completa"]}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Clientes / Ingreso */}
-      <section className="border-t border-white/5 bg-[#08080D] px-6 py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-xs font-heading font-bold uppercase tracking-[0.3em] text-brand-red mb-3">
-            Ya usan WODY
-          </p>
-          <h2 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.05em] text-white mb-12">
-            Ingreso
-          </h2>
-
-          <div className="flex flex-wrap justify-center gap-6">
-            {gyms.map((gym) => {
-              const location = GYM_LOCATIONS[gym.slug];
-              const kindLabel = gym.kind === "GYM" ? "Gym & Fitness" : "CrossFit";
-              return (
-                <Link
-                  key={gym.slug}
-                  href={`/${gym.slug}`}
-                  className="flex flex-col items-center gap-4 p-8 bg-white/[0.03] border border-white/[0.06] hover:border-brand-red/40 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer w-64 group"
-                >
-                  {gym.logo ? (
-                    <Image
-                      src={gym.logo}
-                      alt={gym.name}
-                      width={80}
-                      height={80}
-                      unoptimized
-                      className="w-20 h-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 bg-white/5 border border-white/10 flex items-center justify-center">
-                      <span className="text-2xl font-heading font-black text-gray-600">
-                        {gym.name.charAt(0)}
-                      </span>
-                    </div>
-                  )}
-                  <span className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400 group-hover:text-white transition-colors duration-300">
-                    {gym.name}
-                  </span>
-                  <span className="text-xs text-gray-600 font-body">
-                    {kindLabel}{location ? ` — ${location}` : ""}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-
-          <p className="mt-8 text-xs text-gray-500 font-body">
-            ¿Querés WODY para tu centro?{" "}
-            <a
-              href="https://www.instagram.com/wody.app/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-brand-red hover:text-white transition-colors duration-200"
-            >
-              Contactanos
-            </a>
-          </p>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <PricingSection />
-      <PersonalPricingSection />
-
-      {/* Beneficios */}
-      <BenefitsSection />
-
-      {/* WhatsApp FAB */}
-      <a
-        href={`https://wa.me/5491136178552?text=${encodeURIComponent("Hola, vengo de la página web de wody, quiero más información.")}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-[#25D366] hover:bg-[#1ebe57] text-white pl-4 pr-5 py-3 rounded-full shadow-lg shadow-[#25D366]/20 transition-all duration-200 hover:scale-105"
-        aria-label="Contactar por WhatsApp"
-      >
-        <WhatsAppIcon size={22} />
-        <span className="text-sm font-bold uppercase tracking-[0.05em] hidden sm:inline">
-          Más información
-        </span>
-      </a>
-
-      {/* Footer */}
-      <footer className="py-10 pb-24 sm:pb-10 text-center border-t border-white/5">
-        {/* Enlace interno a las páginas de contenido. Sin esto quedan
-            huérfanas: el sitemap alcanza para que Google las descubra, pero no
-            para transmitirles autoridad ni para indicar que importan. */}
-        <nav
-          aria-label="Más sobre Wody"
-          className="flex items-center justify-center gap-x-5 gap-y-2 flex-wrap text-xs font-body mb-6 px-6"
-        >
-          <Link
-            href="/software-gestion-gimnasios"
-            className="text-gray-500 hover:text-white transition-colors duration-200"
-          >
-            Software de gestión para gimnasios
-          </Link>
-          <Link
-            href="/control-de-acceso-gimnasio-qr"
-            className="text-gray-500 hover:text-white transition-colors duration-200"
-          >
-            Control de acceso con QR
-          </Link>
-          <Link
-            href="/comparativa"
-            className="text-gray-500 hover:text-white transition-colors duration-200"
-          >
-            Comparativas
-          </Link>
-          <Link
-            href="/blog"
-            className="text-gray-500 hover:text-white transition-colors duration-200"
-          >
-            Blog
-          </Link>
-          <Link
-            href="/demo"
-            className="text-gray-500 hover:text-white transition-colors duration-200"
-          >
-            Demo
-          </Link>
-        </nav>
-        <div className="flex items-center justify-center gap-2 flex-wrap text-xs text-gray-500 font-body tracking-wide">
-          <span>&copy; {new Date().getFullYear()} WODY</span>
-          <span className="text-gray-800">—</span>
-          <a
-            href="https://www.instagram.com/wody.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-gray-600 hover:text-white transition-colors duration-200"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-            </svg>
-            @wody.app
-          </a>
-          <span className="text-gray-800">—</span>
-          <span>
-            Diseño x{" "}
-            <a
-              href="https://www.instagram.com/marlocomunica/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-gray-600 hover:text-white transition-colors duration-200"
-            >
-              @marlocomunica
-            </a>
-          </span>
-        </div>
-      </footer>
-    </main>
-  );
-}
-
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="bg-white/[0.03] border border-white/[0.06] p-6 hover:bg-white/[0.05] hover:border-white/[0.1] transition-all duration-300 group">
-      <div className="text-brand-red mb-4 group-hover:scale-110 transition-transform duration-300 inline-block">
-        {icon}
-      </div>
-      <h3 className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white mb-2">
-        {title}
-      </h3>
-      <p className="text-xs text-gray-500 font-body leading-relaxed">
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function StepCard({
-  number,
-  title,
-  description,
-}: {
-  number: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="text-center">
-      <p className="text-4xl font-heading font-black text-brand-red/20 mb-3">{number}</p>
-      <h3 className="text-sm font-heading font-bold uppercase tracking-[0.1em] text-white mb-2">
-        {title}
-      </h3>
-      <p className="text-xs text-gray-500 font-body leading-relaxed">
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function RoleCard({
-  role,
-  features,
-  highlight = false,
-}: {
-  role: string;
-  features: string[];
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={[
-        "p-6 border transition-all duration-300",
-        highlight
-          ? "bg-brand-red/5 border-brand-red/20"
-          : "bg-white/[0.02] border-white/[0.06]",
-      ].join(" ")}
-    >
-      <h3
-        className={[
-          "text-lg font-heading font-black uppercase tracking-[0.1em] mb-4",
-          highlight ? "text-brand-red" : "text-white",
-        ].join(" ")}
-      >
-        {role}
-      </h3>
-      <ul className="flex flex-col gap-2">
-        {features.map((f) => (
-          <li key={f} className="flex items-start gap-2 text-xs text-gray-400 font-body">
-            <span className="text-brand-red mt-0.5 flex-shrink-0">&#8226;</span>
-            {f}
-          </li>
-        ))}
-      </ul>
-    </div>
+      <ProductionLanding accounts={accounts} supplementaryContent={<BenefitsSection />} />
+    </>
   );
 }

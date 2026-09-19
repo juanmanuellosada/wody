@@ -1,20 +1,60 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import styles from "./ContactForm.module.css";
 
-interface Props {
+export type SignupRequestPayload =
+  | {
+      type: "PERSONAL";
+      contactName: string;
+      email: string;
+      phone?: string;
+      message?: string;
+    }
+  | {
+      type: "GYM";
+      contactName: string;
+      email: string;
+      gymName: string;
+      gymKindSuggested: "GYM" | "BOX";
+      phone?: string;
+      expectedStudents?: number;
+      message?: string;
+    };
+
+type SubmitRequest = (payload: SignupRequestPayload) => Promise<{ ok: boolean; error?: string }>;
+
+type Props = {
   onClose: () => void;
   formType?: "GYM" | "PERSONAL";
-}
+} & (
+  | { mode: "preview"; submitRequest?: never }
+  | { mode?: "production"; submitRequest: SubmitRequest }
+);
 
 type SubmitState =
   | { type: "idle" }
   | { type: "success" }
   | { type: "error"; message: string };
 
-export function ContactForm({ onClose, formType = "GYM" }: Props) {
+const focusableSelector = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'textarea:not([disabled])',
+  'select:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+export function ContactForm(props: Props) {
+  const { onClose, formType = "GYM", mode = "production" } = props;
   const isPersonal = formType === "PERSONAL";
+  const isPreview = mode === "preview";
   const [isPending, startTransition] = useTransition();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const successHeadingRef = useRef<HTMLHeadingElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
@@ -25,80 +65,97 @@ export function ContactForm({ onClose, formType = "GYM" }: Props) {
   const [message, setMessage] = useState("");
   const [state, setState] = useState<SubmitState>({ type: "idle" });
 
-  // Close modal on Escape
   useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !isPending) onClose();
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    nameInputRef.current?.focus();
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      previouslyFocusedRef.current?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (state.type === "success") successHeadingRef.current?.focus();
+  }, [state]);
+
+  useEffect(() => {
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isPending) {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector),
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!dialogRef.current.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
+
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [isPending, onClose]);
 
-  // Auto-close after success
-  useEffect(() => {
-    if (state.type !== "success") return;
-    const t = setTimeout(onClose, 3000);
-    return () => clearTimeout(t);
-  }, [state, onClose]);
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setState({ type: "idle" });
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+    const payload: SignupRequestPayload = isPersonal
+      ? {
+          type: "PERSONAL",
+          contactName,
+          email,
+          phone: phone || undefined,
+          message: message || undefined,
+        }
+      : {
+          type: "GYM",
+          contactName,
+          email,
+          gymName,
+          gymKindSuggested,
+          phone: phone || undefined,
+          expectedStudents: expectedStudents ? Number(expectedStudents) : undefined,
+          message: message || undefined,
+        };
+
+    if (props.mode === "preview") {
+      setState({ type: "success" });
+      return;
+    }
+
     startTransition(async () => {
       try {
-        const body = isPersonal
-          ? {
-              type: "PERSONAL",
-              contactName,
-              email,
-              phone: phone || undefined,
-              message: message || undefined,
-            }
-          : {
-              type: "GYM",
-              contactName,
-              email,
-              gymName,
-              gymKindSuggested,
-              phone: phone || undefined,
-              expectedStudents: expectedStudents ? Number(expectedStudents) : undefined,
-              message: message || undefined,
-            };
-
-        const res = await fetch("/api/signup-request", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-
-        if (res.ok) {
+        const result = await props.submitRequest(payload);
+        if (result.ok) {
           setState({ type: "success" });
           return;
         }
-
-        if (res.status === 429) {
-          setState({
-            type: "error",
-            message:
-              "Demasiadas solicitudes desde tu IP — esperá un rato e intentá de nuevo.",
-          });
-          return;
-        }
-
-        let detail = "";
-        try {
-          const data = await res.json();
-          detail = data.error ?? "";
-        } catch {
-          // ignore JSON parse errors
-        }
         setState({
           type: "error",
-          message: detail || "Algo salió mal — probá de nuevo más tarde.",
+          message: result.error || "No pudimos enviar la solicitud. Probá de nuevo más tarde.",
         });
       } catch {
         setState({
           type: "error",
-          message: "Algo salió mal — probá de nuevo más tarde.",
+          message: "No pudimos enviar la solicitud. Probá de nuevo más tarde.",
         });
       }
     });
@@ -106,155 +163,104 @@ export function ContactForm({ onClose, formType = "GYM" }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-sm px-0 sm:px-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isPending) onClose();
+      className={styles.backdrop}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isPending) onClose();
       }}
     >
       <div
-        className="w-full sm:max-w-lg bg-[#0F0F14] border border-white/[0.08] flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden"
+        ref={dialogRef}
+        className={styles.dialog}
         role="dialog"
         aria-modal="true"
-        aria-label="Formulario de contacto"
+        aria-labelledby="contact-dialog-title"
+        aria-describedby="contact-dialog-description"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
+        <header className={styles.header}>
           <div>
-            <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-0.5">
-              {isPersonal ? "Wody Personal" : "WODY para tu centro"}
+            <p className={styles.context}>{isPersonal ? "Wody Personal" : "WODY para tu centro"}</p>
+            <h2 id="contact-dialog-title">Solicitá tu acceso</h2>
+            <p id="contact-dialog-description" className={styles.description}>
+              {isPreview
+                ? "Esta es una demostración visual: el formulario no envía solicitudes."
+                : "Revisamos cada solicitud de forma manual antes de habilitar la prueba."}
             </p>
-            <h2 className="text-lg font-heading font-black uppercase tracking-[0.05em] text-white">
-              Contactanos
-            </h2>
           </div>
-          <button
-            onClick={onClose}
-            disabled={isPending}
-            className="text-gray-500 hover:text-white transition-colors duration-200 cursor-pointer text-lg leading-none min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-50"
-            aria-label="Cerrar"
-          >
-            &#215;
+          <button type="button" onClick={onClose} disabled={isPending} className={styles.closeButton}>
+            <span aria-hidden="true">×</span>
+            <span className={styles.visuallyHidden}>Cerrar formulario</span>
           </button>
-        </div>
+        </header>
 
-        {/* Body */}
-        <div className="overflow-y-auto flex-1 px-6 py-5">
+        <div className={styles.body}>
           {state.type === "success" ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
-              <div
-                className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xl"
-                aria-hidden="true"
-              >
-                ✓
-              </div>
-              <div>
-                <p className="text-white font-heading font-bold uppercase tracking-[0.1em] text-sm mb-2">
-                  ¡Recibimos tu consulta!
-                </p>
-                <p className="text-gray-400 text-xs font-body leading-relaxed">
-                  Te vamos a contactar pronto. Esta ventana se cierra automáticamente.
-                </p>
-              </div>
+            <div className={styles.success} role="status" aria-live="polite">
+              <div className={styles.successMark} aria-hidden="true">✓</div>
+              <h3 ref={successHeadingRef} tabIndex={-1}>{isPreview ? "Formulario simulado" : "Recibimos tu solicitud"}</h3>
+              <p>
+                {isPreview
+                  ? "No se envió ninguna solicitud ni se creó una cuenta."
+                  : "La vamos a revisar manualmente y te vamos a escribir al email que dejaste."}
+              </p>
+              <button type="button" onClick={onClose} className={styles.secondaryButton}>
+                Cerrar
+              </button>
             </div>
           ) : (
-            <form
-              onSubmit={handleSubmit}
-              className="flex flex-col gap-4"
-              id="contact-form"
-              noValidate
-            >
+            <form onSubmit={handleSubmit} className={styles.form} id="contact-form">
               {state.type === "error" && (
-                <div
-                  className="bg-brand-red/10 border border-brand-red/30 px-4 py-3 text-xs text-brand-red font-body"
-                  role="alert"
-                >
-                  {state.message}
-                </div>
+                <p className={styles.error} role="alert">{state.message}</p>
               )}
 
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="cf-name"
-                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-                >
-                  Tu nombre <span className="text-brand-red">*</span>
-                </label>
+              <Field label="Tu nombre" htmlFor="cf-name" required>
                 <input
+                  ref={nameInputRef}
                   id="cf-name"
+                  name="contactName"
                   type="text"
+                  autoComplete="name"
                   value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
+                  onChange={(event) => setContactName(event.target.value)}
                   required
                   disabled={isPending}
                   placeholder="Juan García"
-                  className="bg-white/[0.04] text-white font-body w-full border border-white/[0.08] px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 disabled:opacity-50 transition-all duration-200"
                 />
-              </div>
+              </Field>
 
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="cf-email"
-                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-                >
-                  Email <span className="text-brand-red">*</span>
-                </label>
+              <Field label="Email" htmlFor="cf-email" required>
                 <input
                   id="cf-email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
                   required
                   disabled={isPending}
                   placeholder="tu@email.com"
-                  className="bg-white/[0.04] text-white font-body w-full border border-white/[0.08] px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 disabled:opacity-50 transition-all duration-200"
                 />
-              </div>
+              </Field>
 
               {!isPersonal && (
                 <>
-                  <div className="flex flex-col gap-1.5">
-                    <label
-                      htmlFor="cf-gymname"
-                      className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-                    >
-                      Nombre del gym <span className="text-brand-red">*</span>
-                    </label>
+                  <Field label="Nombre del gimnasio o box" htmlFor="cf-gymname" required>
                     <input
                       id="cf-gymname"
+                      name="gymName"
                       type="text"
                       value={gymName}
-                      onChange={(e) => setGymName(e.target.value)}
+                      onChange={(event) => setGymName(event.target.value)}
                       required
                       disabled={isPending}
-                      placeholder="Atlas CrossFit"
-                      className="bg-white/[0.04] text-white font-body w-full border border-white/[0.08] px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 disabled:opacity-50 transition-all duration-200"
+                      placeholder="Box Horizonte"
                     />
-                  </div>
+                  </Field>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label
-                      htmlFor="cf-kind"
-                      className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-                    >
-                      Tipo de centro <span className="text-brand-red">*</span>
-                    </label>
-                    <div
-                      id="cf-kind"
-                      className="flex gap-3"
-                      role="radiogroup"
-                      aria-label="Tipo de centro"
-                    >
+                  <fieldset className={styles.fieldset}>
+                    <legend>Tipo de centro <span aria-hidden="true">*</span></legend>
+                    <div className={styles.radioGroup}>
                       {(["BOX", "GYM"] as const).map((kind) => (
-                        <label
-                          key={kind}
-                          className={[
-                            "flex-1 flex items-center justify-center gap-2 px-4 py-3 border text-xs font-heading font-bold uppercase tracking-[0.1em] cursor-pointer transition-all duration-200",
-                            gymKindSuggested === kind
-                              ? "bg-brand-red/10 border-brand-red text-white"
-                              : "bg-white/[0.03] border-white/[0.08] text-gray-400 hover:border-white/20",
-                            isPending ? "cursor-not-allowed opacity-50" : "",
-                          ].join(" ")}
-                        >
+                        <label key={kind} className={styles.radioOption}>
                           <input
                             type="radio"
                             name="gymKindSuggested"
@@ -262,110 +268,97 @@ export function ContactForm({ onClose, formType = "GYM" }: Props) {
                             checked={gymKindSuggested === kind}
                             onChange={() => setGymKindSuggested(kind)}
                             disabled={isPending}
-                            className="sr-only"
                           />
-                          {kind === "BOX" ? "Box / CrossFit" : "Gimnasio tradicional"}
+                          <span>{kind === "BOX" ? "Box / CrossFit" : "Gimnasio tradicional"}</span>
                         </label>
                       ))}
                     </div>
-                  </div>
+                  </fieldset>
                 </>
               )}
 
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="cf-phone"
-                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-                >
-                  Teléfono <span className="text-gray-600 normal-case font-body tracking-normal">— opcional</span>
-                </label>
+              <Field label="Teléfono" htmlFor="cf-phone" optional>
                 <input
                   id="cf-phone"
+                  name="phone"
                   type="tel"
+                  autoComplete="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(event) => setPhone(event.target.value)}
                   disabled={isPending}
                   placeholder="+54 11 1234-5678"
-                  className="bg-white/[0.04] text-white font-body w-full border border-white/[0.08] px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 disabled:opacity-50 transition-all duration-200"
                 />
-              </div>
+              </Field>
 
               {!isPersonal && (
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="cf-students"
-                    className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-                  >
-                    Alumnos estimados <span className="text-gray-600 normal-case font-body tracking-normal">— opcional</span>
-                  </label>
+                <Field label="Alumnos estimados" htmlFor="cf-students" optional>
                   <input
                     id="cf-students"
+                    name="expectedStudents"
                     type="number"
                     min="1"
                     value={expectedStudents}
-                    onChange={(e) => setExpectedStudents(e.target.value)}
+                    onChange={(event) => setExpectedStudents(event.target.value)}
                     disabled={isPending}
                     placeholder="50"
-                    className="bg-white/[0.04] text-white font-body w-full border border-white/[0.08] px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 disabled:opacity-50 transition-all duration-200"
                   />
-                </div>
+                </Field>
               )}
 
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="cf-message"
-                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-400"
-                >
-                  ¿Algo que querés contarnos? <span className="text-gray-600 normal-case font-body tracking-normal">— opcional</span>
-                </label>
+              <Field label="¿Qué necesitás resolver?" htmlFor="cf-message" optional>
                 <textarea
                   id="cf-message"
+                  name="message"
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(event) => setMessage(event.target.value)}
                   rows={3}
                   disabled={isPending}
-                  placeholder="Contexto adicional, preguntas, etc."
-                  className="bg-white/[0.04] text-white font-body w-full border border-white/[0.08] px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 disabled:opacity-50 transition-all duration-200 resize-none"
+                  placeholder="Contanos un poco sobre tu operación."
                 />
-              </div>
+              </Field>
             </form>
           )}
         </div>
 
-        {/* Footer */}
         {state.type !== "success" && (
-          <div className="px-6 py-5 border-t border-white/[0.06] flex-shrink-0">
+          <footer className={styles.footer}>
             <button
               type="submit"
               form="contact-form"
               disabled={isPending}
               aria-busy={isPending}
-              className={[
-                "w-full px-6 py-4 font-heading font-bold uppercase tracking-[0.15em] text-sm transition-all duration-200",
-                "bg-brand-red text-white hover:bg-brand-red-dark",
-                "disabled:opacity-50 disabled:cursor-not-allowed",
-                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-red",
-                "flex items-center justify-center gap-2",
-              ].join(" ")}
+              className={styles.submitButton}
             >
-              {isPending ? (
-                <>
-                  <span
-                    className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"
-                    aria-hidden="true"
-                  />
-                  Enviando...
-                </>
-              ) : (
-                "Enviar consulta"
-              )}
+              {isPending ? "Enviando…" : isPreview ? "Simular solicitud" : "Enviar solicitud"}
             </button>
-            <p className="text-xs text-gray-600 font-body text-center mt-3">
-              Te contactamos en menos de 48 horas hábiles.
-            </p>
-          </div>
+            <p>{isPreview ? "No se envía información desde esta vista." : "No te pedimos tarjeta para solicitarla."}</p>
+          </footer>
         )}
       </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  htmlFor,
+  required = false,
+  optional = false,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  required?: boolean;
+  optional?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={styles.field}>
+      <label htmlFor={htmlFor}>
+        {label} {required && <span aria-hidden="true">*</span>}
+        {optional && <small>Opcional</small>}
+      </label>
+      {children}
     </div>
   );
 }

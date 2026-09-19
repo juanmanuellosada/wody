@@ -71,9 +71,24 @@ export function RotatingTypewriter({
 
   return (
     <>
-      <span className={className}>{text}</span>
+      <span className={className} aria-hidden="true">{text}</span>
       <span aria-hidden="true" className="wody-caret-blink" style={{ marginLeft: 2 }}>
         |
+      </span>
+      <span
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          whiteSpace: "nowrap",
+          border: 0,
+        }}
+      >
+        {words.join(", ")}
       </span>
     </>
   );
