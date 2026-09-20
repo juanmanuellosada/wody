@@ -1,4 +1,54 @@
-:root { color-scheme: dark; }
+@import "tailwindcss/theme";
+@import "tailwindcss/utilities" source(none);
+
+@source "../../../src/components/demo/turnos";
+@source "../../../src/components/activity/views";
+@source "../../../src/components/activity/RecurringChoiceDialog.tsx";
+@source "../../../src/components/ui/Button.tsx";
+
+:root {
+  color-scheme: dark;
+  --color-black: #000000;
+  --color-red: #E31414;
+  --color-white: #FFFFFF;
+  --color-grey: #1A1A1A;
+  --color-grey-mid: #2A2A2A;
+  --color-grey-light: #444444;
+  --color-red-dark: #B00F0F;
+  --color-red-hover: #FF1A1A;
+  --color-red-active: #8B0B0B;
+  --color-panel: #0A0A0A;
+  --color-elev: #1A1A1A;
+  --color-hover: #0D0D0D;
+  --color-line: #1A1A1A;
+  --color-edge: #2A2A2A;
+}
+
+@theme inline {
+  --color-brand-black: var(--color-black);
+  --color-brand-red: var(--color-red);
+  --color-brand-white: var(--color-white);
+  --color-brand-grey: var(--color-grey);
+  --color-brand-grey-mid: var(--color-grey-mid);
+  --color-brand-grey-light: var(--color-grey-light);
+  --color-brand-red-dark: var(--color-red-dark);
+  --color-brand-red-hover: var(--color-red-hover);
+  --color-brand-red-active: var(--color-red-active);
+  --color-panel: var(--color-panel);
+  --color-elev: var(--color-elev);
+  --color-hover: var(--color-hover);
+  --color-line: var(--color-line);
+  --color-edge: var(--color-edge);
+}
+
+@utility font-heading {
+  font-family: var(--font-heading);
+}
+
+@utility font-body {
+  font-family: var(--font-body);
+}
+
 * { box-sizing: border-box; }
 html { background: #0a0a0f; scroll-behavior: smooth; }
 body { min-width: 320px; margin: 0; background: #0a0a0f; color: #fff; font-family: var(--font-body, sans-serif); }

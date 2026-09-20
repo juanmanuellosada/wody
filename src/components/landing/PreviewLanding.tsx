@@ -20,5 +20,5 @@ function PreviewContactForm({ onClose, formType }: { onClose: () => void; formTy
 }
 
 export function PreviewLanding() {
-  return <LandingExperience mode="preview" accounts={accounts} supplementaryContent={<PreviewBenefits />} ContactFormComponent={PreviewContactForm} />;
+  return <LandingExperience mode="preview" demoHref="/demo/" accounts={accounts} supplementaryContent={<PreviewBenefits />} ContactFormComponent={PreviewContactForm} />;
 }

@@ -22,6 +22,8 @@ type LandingExperienceProps = {
   mode?: "production" | "preview";
   accounts?: AccountOption[];
   supplementaryContent?: React.ReactNode;
+  /** Optional local demo route for static previews; production keeps appHref("/demo"). */
+  demoHref?: string;
   ContactFormComponent: React.ComponentType<{
     onClose: () => void;
     formType: "GYM" | "PERSONAL";
@@ -60,11 +62,12 @@ export function LandingExperience({
   mode = "production",
   accounts = [],
   supplementaryContent,
+  demoHref,
   ContactFormComponent,
 }: LandingExperienceProps) {
   const [formType, setFormType] = useState<"GYM" | "PERSONAL" | null>(null);
   const isPreview = mode === "preview";
-  const appHref = (path: string) => (isPreview ? `${WODY_ORIGIN}${path}` : path);
+  const appHref = (path: string) => (path === "/demo" && demoHref ? demoHref : isPreview ? `${WODY_ORIGIN}${path}` : path);
 
   return (
     <main className={styles.page}>
