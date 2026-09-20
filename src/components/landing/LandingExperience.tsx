@@ -4,8 +4,9 @@ import Image from "next/image";
 import { useState, type CSSProperties } from "react";
 import { CalendarCheck, CalendarDays, Building2, QrCode, Share2, Smartphone, Trophy, Wallet, type LucideIcon } from "lucide-react";
 import { WhatsAppIcon } from "../icons/WhatsAppIcon";
-import { RotatingTypewriter } from "../marketing/RotatingTypewriter";
 import wodyTexto from "../../logos/wody-texto.png";
+import demoPagosDesktop from "./assets/wody-demo-pagos-desktop.webp";
+import demoPagosMobile from "./assets/wody-demo-pagos-mobile.webp";
 import styles from "./LandingExperience.module.css";
 
 export type AccountOption = {
@@ -80,18 +81,29 @@ export function LandingExperience({
         <div className={styles.heroGlow} aria-hidden="true" />
         <div className={styles.heroCopy}>
           <Image className={styles.heroLogo} src={wodyTexto} alt="WODY" width={360} height={100} priority unoptimized={isPreview} />
-          <p className={styles.lead}>
-            La plataforma para gestionar <strong>rutinas</strong>, <strong>records</strong> y el seguimiento de tus alumnos.
-          </p>
-          <p className={styles.rotatingLine}>
-            Para <RotatingTypewriter words={["crossfit", "gimnasio", "funcional", "GAP", "musculación", "calistenia"]} />
-          </p>
+          <h1 className={styles.heroHeading}>Tu gimnasio organizado: cuotas, turnos y rutinas en un solo lugar.</h1>
+          <p className={styles.lead}>Centralizá pagos, clases y entrenamientos para que tu equipo y tus alumnos tengan la información de cada día a mano.</p>
           <div className={styles.heroActions}>
-            <a className={styles.primaryButton} href={appHref("/demo")}>Ver demo</a>
-            <a className={styles.secondaryButton} href="https://www.instagram.com/wody.app/" target="_blank" rel="noopener noreferrer">Contactanos</a>
+            <button type="button" className={styles.primaryButton} onClick={() => setFormType("GYM")}>Solicitar una prueba de 7 días</button>
+            <a className={styles.secondaryButton} href={appHref("/demo")}>Ver demo</a>
           </div>
+          <p className={styles.trialNote}>7 días · sin tarjeta · activación manual</p>
           <a className={styles.personalLink} href={appHref("/registro-personal")}>Usalo por tu cuenta</a>
-          <p className={styles.trialNote}>7 días gratis · sin tarjeta · sin compromiso</p>
+          <figure className={styles.demoFigure}>
+            <picture className={styles.demoPicture}>
+              <source media="(min-width: 700px)" srcSet={demoPagosDesktop.src} width={1440} height={608} />
+              <Image
+                className={styles.demoImage}
+                src={demoPagosMobile}
+                alt="Control de pagos de Wody con estados de pago ficticios."
+                width={390}
+                height={1004}
+                sizes="(min-width: 700px) min(100vw - 3rem, 62rem), calc(100vw - 2rem)"
+                unoptimized
+              />
+            </picture>
+            <figcaption>Vista de demostración con datos ficticios. No corresponde a un centro real. <a href={appHref("/demo/admin/pagos")}>Abrir la demostración pública de control de pagos</a></figcaption>
+          </figure>
         </div>
       </section>
 
