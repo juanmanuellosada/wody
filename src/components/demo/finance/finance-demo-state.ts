@@ -1,5 +1,9 @@
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
+import { getCatalogSalesFixtures } from "./catalog-sales-fixtures.ts";
+// @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { demoFeeIdentities, getDemoFeeFixtures } from "./fees-fixtures.ts";
+// @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
+import { FINANCE_DEMO_DEFAULT_ANCHOR, FINANCE_DEMO_NAMESPACE, FINANCE_DEMO_VERSION } from "./finance-demo-types.ts";
 import type {
   FinanceActor,
   FinanceDemoState,
@@ -10,10 +14,6 @@ import type {
   FinanceStudent,
   FinanceTransition,
 } from "./finance-demo-types";
-
-const FINANCE_DEMO_NAMESPACE = "wody-box-finance-demo";
-const FINANCE_DEMO_VERSION = 1;
-const FINANCE_DEMO_DEFAULT_ANCHOR = "2030-06-03";
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const PAYMENT_METHODS: readonly FinancePaymentMethod[] = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADO_PAGO"];
 const MAX_CENTS = 999_999_999_999;
@@ -133,12 +133,17 @@ export function createFinanceDemoFixture(
     id: payment.id ?? `fictional-finance-payment-${index + 1}`,
     commandId: payment.commandId ?? `fictional-finance-command-${index + 1}`,
   }));
+  const catalog = getCatalogSalesFixtures();
   return {
     version: FINANCE_DEMO_VERSION,
     namespace: FINANCE_DEMO_NAMESPACE,
     anchor: safeAnchor,
     students: getDemoFeeFixtures(safeAnchor).map((student) => ({ ...student, assignedTeachers: student.assignedTeachers.map((teacher) => ({ ...teacher })) })),
     payments,
+    categories: catalog.categories,
+    products: catalog.products,
+    sales: [],
+    nextProductCode: catalog.nextProductCode,
   };
 }
 

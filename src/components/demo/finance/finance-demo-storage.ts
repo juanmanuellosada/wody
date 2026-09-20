@@ -1,19 +1,32 @@
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { demoFeeIdentities, getDemoFeeFixtures } from "./fees-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
+import { financeCatalogSaleActors } from "./catalog-sales-contract.ts";
+// @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { createFinanceDemoFixture, isFinanceDate } from "./finance-demo-state.ts";
-import type { FinanceDemoState, FinancePaymentMethod } from "./finance-demo-types";
+// @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
+import { FINANCE_DEMO_LEGACY_STORAGE_KEY, FINANCE_DEMO_NAMESPACE, FINANCE_DEMO_STORAGE_KEY, FINANCE_DEMO_VERSION } from "./finance-demo-types.ts";
+import type { FinanceDemoLegacyState, FinanceDemoState, FinancePaymentMethod } from "./finance-demo-types";
 
-const FINANCE_DEMO_NAMESPACE = "wody-box-finance-demo";
-const FINANCE_DEMO_VERSION = 1;
-const FINANCE_DEMO_STORAGE_KEY = "wody-box-finance-demo-v1";
+const LEGACY_VERSION = 1;
 const PAYMENT_METHODS: readonly FinancePaymentMethod[] = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADO_PAGO"];
+const MAX_PAYMENT_CENTS = 999_999_999_999;
+const MAX_CATALOG_CENTS = 999_999_999_999;
+const POSTGRES_INT_MIN = -2_147_483_648;
+const POSTGRES_INT_MAX = 2_147_483_647;
 
 export type FinanceDemoStorage = Pick<Storage, "getItem" | "setItem">;
 export type FinanceStorageLoad = { state: FinanceDemoState; warning: string | null };
 
+type ParsedState = { state: FinanceDemoState; migrated: boolean } | null;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Persisted JSON is closed: invented capability or accounting fields invalidate the whole graph. */
+function hasOnlyKeys(value: Record<string, unknown>, allowedKeys: readonly string[]): boolean {
+  return Object.keys(value).every((key) => allowedKeys.includes(key));
 }
 
 function isId(value: unknown): value is string {
@@ -24,7 +37,7 @@ function isPaymentMethod(value: unknown): value is FinancePaymentMethod {
   return typeof value === "string" && PAYMENT_METHODS.includes(value as FinancePaymentMethod);
 }
 
-/** Array.prototype.every skips holes, so validate density before relation traversal or Map construction. */
+/** Array.prototype.every skips holes, so verify density before every traversal. */
 function isDenseArray(value: unknown): value is unknown[] {
   if (!Array.isArray(value)) return false;
   for (let index = 0; index < value.length; index += 1) {
@@ -40,14 +53,33 @@ function sameArray(left: unknown, right: unknown): boolean {
     && left.every((value, index) => value === right[index]);
 }
 
+function isPostgresInt(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= POSTGRES_INT_MIN && value <= POSTGRES_INT_MAX;
+}
+
+function isPositivePostgresInt(value: unknown): value is number {
+  return isPostgresInt(value) && value >= 1;
+}
+
+function isCents(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= MAX_CATALOG_CENTS;
+}
+
 /** State keeps fixture metadata closed: only an active student's next due date is mutable. */
 function hasFixtureStudentMetadata(state: Record<string, unknown>): boolean {
   if (!isFinanceDate(state.anchor) || !isDenseArray(state.students)) return false;
+  const studentKeys = ["id", "name", "email", "nextPaymentDate", "studentType", "accountKind", "canCreateOwnRoutines", "paymentExempt", "paymentExemptReason", "assignedTeachers", "blocked", "deletedAt"];
+  const teacherKeys = ["id", "name"];
   const fixtures = getDemoFeeFixtures(state.anchor);
   if (state.students.length !== fixtures.length) return false;
   const seenIds = new Set<string>();
   return state.students.every((student) => {
-    if (!isRecord(student) || !isId(student.id) || !isFinanceDate(student.nextPaymentDate) || !isDenseArray(student.assignedTeachers)) return false;
+    if (!isRecord(student)
+      || !hasOnlyKeys(student, studentKeys)
+      || !isId(student.id)
+      || !isFinanceDate(student.nextPaymentDate)
+      || !isDenseArray(student.assignedTeachers)
+      || !student.assignedTeachers.every((teacher) => isRecord(teacher) && hasOnlyKeys(teacher, teacherKeys) && isId(teacher.id) && typeof teacher.name === "string")) return false;
     if (seenIds.has(student.id)) return false;
     seenIds.add(student.id);
     const fixture = fixtures.find((candidate) => candidate.id === student.id);
@@ -68,14 +100,13 @@ function hasFixtureStudentMetadata(state: Record<string, unknown>): boolean {
   });
 }
 
-function knownRecorder(id: string): boolean {
+function knownPaymentRecorder(id: string): boolean {
   return Object.values(demoFeeIdentities).some((identity) => identity.id === id);
 }
 
-/** Reject any malformed relation rather than attempting a partial merge of persisted history. */
-export function isValidFinanceDemoState(value: unknown): value is FinanceDemoState {
+function validBaseFinanceGraph(value: unknown, version: number): value is Record<string, unknown> {
   if (!isRecord(value)
-    || value.version !== FINANCE_DEMO_VERSION
+    || value.version !== version
     || value.namespace !== FINANCE_DEMO_NAMESPACE
     || !hasFixtureStudentMetadata(value)
     || !isDenseArray(value.payments)
@@ -84,16 +115,17 @@ export function isValidFinanceDemoState(value: unknown): value is FinanceDemoSta
   const studentById = new Map(students.map((student) => [student.id as string, student]));
   const paymentIds = new Set<string>();
   const commandIds = new Set<string>();
-
+  const paymentKeys = ["id", "studentId", "amountCents", "paidAt", "nextPaymentDate", "paymentMethod", "recordedById", "commandId"];
   return value.payments.every((payment) => {
     if (!isRecord(payment)
+      || !hasOnlyKeys(payment, paymentKeys)
       || !isId(payment.id)
       || !isId(payment.commandId)
       || !isId(payment.studentId)
       || typeof payment.amountCents !== "number"
       || !Number.isSafeInteger(payment.amountCents)
       || payment.amountCents < 1
-      || payment.amountCents > 999_999_999_999
+      || payment.amountCents > MAX_PAYMENT_CENTS
       || !isFinanceDate(payment.paidAt)
       || !isFinanceDate(payment.nextPaymentDate)
       || !isPaymentMethod(payment.paymentMethod)
@@ -103,10 +135,119 @@ export function isValidFinanceDemoState(value: unknown): value is FinanceDemoSta
     commandIds.add(payment.commandId);
     const student = studentById.get(payment.studentId);
     if (!student || student.deletedAt) return false;
-    if (!knownRecorder(payment.recordedById)) return false;
+    if (!knownPaymentRecorder(payment.recordedById)) return false;
     const recorder = Object.values(demoFeeIdentities).find((identity) => identity.id === payment.recordedById);
     return recorder?.role === "ADMIN" || (isDenseArray(student.assignedTeachers) && student.assignedTeachers.some((teacher) => isRecord(teacher) && teacher.id === recorder?.id));
   });
+}
+
+/** Version 1 is deliberately validated independently before migration. */
+export function isValidFinanceDemoLegacyState(value: unknown): value is FinanceDemoLegacyState {
+  return validBaseFinanceGraph(value, LEGACY_VERSION)
+    && hasOnlyKeys(value, ["version", "namespace", "anchor", "students", "payments"])
+    && !("categories" in value)
+    && !("products" in value)
+    && !("sales" in value)
+    && !("nextProductCode" in value);
+}
+
+function isKnownSaleRecorder(id: unknown): boolean {
+  return typeof id === "string" && Object.values(financeCatalogSaleActors).some((actor) => actor.id === id);
+}
+
+/** Reject a malformed catalog/sale relation rather than partially salvaging it. */
+export function isValidFinanceDemoState(value: unknown): value is FinanceDemoState {
+  if (!validBaseFinanceGraph(value, FINANCE_DEMO_VERSION)
+    || !hasOnlyKeys(value, ["version", "namespace", "anchor", "students", "payments", "categories", "products", "sales", "nextProductCode"])
+    || !isDenseArray(value.categories)
+    || !isDenseArray(value.products)
+    || !isDenseArray(value.sales)
+    || !isPositivePostgresInt(value.nextProductCode)) return false;
+  const categoryIds = new Set<string>();
+  const categoryNames = new Set<string>();
+  for (const category of value.categories) {
+    if (!isRecord(category) || !hasOnlyKeys(category, ["id", "name"]) || !isId(category.id) || typeof category.name !== "string" || !category.name.trim()) return false;
+    if (categoryIds.has(category.id) || categoryNames.has(category.name)) return false;
+    categoryIds.add(category.id);
+    categoryNames.add(category.name);
+  }
+  const productIds = new Set<string>();
+  const activeCodes = new Set<number>();
+  for (const product of value.products) {
+    if (!isRecord(product)
+      || !hasOnlyKeys(product, ["id", "code", "description", "categoryId", "priceCents", "stock", "deletedAt"])
+      || !isId(product.id)
+      || !isPositivePostgresInt(product.code)
+      || typeof product.description !== "string"
+      || !product.description.trim()
+      || !isId(product.categoryId)
+      || !categoryIds.has(product.categoryId)
+      || !isCents(product.priceCents)
+      || !isPostgresInt(product.stock)
+      || (product.deletedAt !== null && !isFinanceDate(product.deletedAt))) return false;
+    if (productIds.has(product.id)) return false;
+    productIds.add(product.id);
+    if (product.deletedAt === null) {
+      if (activeCodes.has(product.code)) return false;
+      activeCodes.add(product.code);
+    }
+  }
+  const saleIds = new Set<string>();
+  const commandIds = new Set<string>();
+  for (const sale of value.sales) {
+    if (!isRecord(sale)
+      || !hasOnlyKeys(sale, ["id", "commandId", "productId", "quantity", "unitAmountCents", "totalAmountCents", "paymentMethod", "soldAt", "recordedById"])
+      || !isId(sale.id)
+      || !isId(sale.commandId)
+      || !isId(sale.productId)
+      || !productIds.has(sale.productId)
+      || !isPositivePostgresInt(sale.quantity)
+      || !isCents(sale.unitAmountCents)
+      || !isCents(sale.totalAmountCents)
+      || sale.totalAmountCents !== sale.quantity * sale.unitAmountCents
+      || !isPaymentMethod(sale.paymentMethod)
+      || !isFinanceDate(sale.soldAt)
+      || !isKnownSaleRecorder(sale.recordedById)) return false;
+    if (saleIds.has(sale.id) || commandIds.has(sale.commandId)) return false;
+    saleIds.add(sale.id);
+    commandIds.add(sale.commandId);
+  }
+  return true;
+}
+
+/** Converts only a complete, valid v1 graph; payments and students retain their exact order and values. */
+export function migrateFinanceDemoStateV1(legacy: FinanceDemoLegacyState): FinanceDemoState {
+  if (!isValidFinanceDemoLegacyState(legacy)) throw new Error("Cannot migrate an invalid finance demo v1 state.");
+  const fixture = createFinanceDemoFixture(legacy.anchor);
+  return {
+    version: FINANCE_DEMO_VERSION,
+    namespace: FINANCE_DEMO_NAMESPACE,
+    anchor: legacy.anchor,
+    students: legacy.students.map((student) => ({ ...student, assignedTeachers: student.assignedTeachers.map((teacher) => ({ ...teacher })) })),
+    payments: legacy.payments.map((payment) => ({ ...payment })),
+    categories: fixture.categories.map((category) => ({ ...category })),
+    products: fixture.products.map((product) => ({ ...product })),
+    sales: [],
+    nextProductCode: fixture.nextProductCode,
+  };
+}
+
+function parseState(raw: string | null | undefined): ParsedState {
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (isValidFinanceDemoState(parsed)) return { state: parsed, migrated: false };
+    if (isValidFinanceDemoLegacyState(parsed)) return { state: migrateFinanceDemoStateV1(parsed), migrated: true };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function validatedFallback(fallback?: unknown): FinanceDemoState {
+  if (isValidFinanceDemoState(fallback)) return fallback;
+  if (isValidFinanceDemoLegacyState(fallback)) return migrateFinanceDemoStateV1(fallback);
+  return createFinanceDemoFixture();
 }
 
 export function serializeFinanceDemoState(state: FinanceDemoState): string {
@@ -114,34 +255,61 @@ export function serializeFinanceDemoState(state: FinanceDemoState): string {
   return JSON.stringify(state);
 }
 
-/** Valid storage wins; only then may an injected, fully validated state be used as the fallback. */
-export function resolveFinanceDemoInitialState(
-  raw: string | null | undefined,
-  fallback?: unknown,
-): FinanceStorageLoad {
-  const safeFallback = isValidFinanceDemoState(fallback) ? fallback : createFinanceDemoFixture();
+/** Raw input may be either valid schema version; persistence always serializes v2. */
+export function resolveFinanceDemoInitialState(raw: string | null | undefined, fallback?: unknown): FinanceStorageLoad {
+  const safeFallback = validatedFallback(fallback);
   if (!raw) return { state: safeFallback, warning: null };
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return isValidFinanceDemoState(parsed)
-      ? { state: parsed, warning: null }
-      : { state: safeFallback, warning: "El estado financiero guardado no es válido; se usó el estado de respaldo." };
-  } catch {
-    return { state: safeFallback, warning: "El estado financiero guardado no es válido; se usó el estado de respaldo." };
-  }
+  const parsed = parseState(raw);
+  if (!parsed) return { state: safeFallback, warning: "El estado financiero guardado no es válido; se usó el estado de respaldo." };
+  return {
+    state: parsed.state,
+    warning: parsed.migrated ? "El estado financiero anterior se migró localmente." : null,
+  };
 }
 
-export function loadFinanceDemoState(
-  storage: FinanceDemoStorage | null | undefined,
-  fallback?: unknown,
-): FinanceStorageLoad {
-  const safeFallback = isValidFinanceDemoState(fallback) ? fallback : createFinanceDemoFixture();
+/**
+ * v2 is authoritative when valid. If it is absent or corrupt, a complete v1
+ * graph can recover the session. Legacy data is never deleted from storage.
+ */
+export function loadFinanceDemoState(storage: FinanceDemoStorage | null | undefined, fallback?: unknown): FinanceStorageLoad {
+  const safeFallback = validatedFallback(fallback);
   if (!storage) return { state: safeFallback, warning: "El almacenamiento de esta pestaña no está disponible; los cambios no se conservarán." };
+
+  let rawV2: string | null = null;
+  let v2ReadFailed = false;
   try {
-    return resolveFinanceDemoInitialState(storage.getItem(FINANCE_DEMO_STORAGE_KEY), safeFallback);
+    rawV2 = storage.getItem(FINANCE_DEMO_STORAGE_KEY);
+    const v2 = parseState(rawV2);
+    if (v2?.migrated === false) return { state: v2.state, warning: null };
   } catch {
+    v2ReadFailed = true;
+  }
+
+  let rawV1: string | null = null;
+  let v1ReadFailed = false;
+  try {
+    rawV1 = storage.getItem(FINANCE_DEMO_LEGACY_STORAGE_KEY);
+    const v1 = parseState(rawV1);
+    if (v1?.migrated) {
+      return {
+        state: v1.state,
+        warning: v2ReadFailed
+          ? "No se pudo leer el estado financiero v2; se recuperó el estado anterior."
+          : rawV2 === null
+            ? "El estado financiero anterior se migró localmente."
+            : "El estado financiero v2 no es válido; se recuperó el estado anterior.",
+      };
+    }
+  } catch {
+    v1ReadFailed = true;
+  }
+
+  if (v2ReadFailed || v1ReadFailed) {
     return { state: safeFallback, warning: "No se pudo leer el almacenamiento de esta pestaña; se usó el estado de respaldo." };
   }
+  return rawV2 === null && rawV1 === null
+    ? { state: safeFallback, warning: null }
+    : { state: safeFallback, warning: "El estado financiero guardado no es válido; se usó el estado de respaldo." };
 }
 
 export function persistFinanceDemoState(storage: FinanceDemoStorage | null | undefined, state: FinanceDemoState): string | null {

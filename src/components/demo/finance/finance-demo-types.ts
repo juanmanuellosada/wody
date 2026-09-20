@@ -1,8 +1,9 @@
 import type { FeeIdentity, FeeStudent } from "./fees-contract";
 
 export const FINANCE_DEMO_NAMESPACE = "wody-box-finance-demo";
-export const FINANCE_DEMO_VERSION = 1;
-export const FINANCE_DEMO_STORAGE_KEY = "wody-box-finance-demo-v1";
+export const FINANCE_DEMO_VERSION = 2;
+export const FINANCE_DEMO_STORAGE_KEY = "wody-box-finance-demo-v2";
+export const FINANCE_DEMO_LEGACY_STORAGE_KEY = "wody-box-finance-demo-v1";
 export const FINANCE_DEMO_DEFAULT_ANCHOR = "2030-06-03";
 
 export type FinancePaymentMethod = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA" | "MERCADO_PAGO";
@@ -22,13 +23,50 @@ export type FinancePayment = {
   commandId: string;
 };
 
-/** No actor is persisted: every command must prove its supplied identity against the fixture roster. */
+export type FinanceCategory = {
+  id: string;
+  name: string;
+};
+
+export type FinanceProduct = {
+  id: string;
+  code: number;
+  description: string;
+  categoryId: string;
+  priceCents: number;
+  stock: number;
+  deletedAt: string | null;
+};
+
+/** Sale amounts are snapshots; product changes never rewrite them. */
+export type FinanceSale = {
+  id: string;
+  commandId: string;
+  productId: string;
+  quantity: number;
+  unitAmountCents: number;
+  totalAmountCents: number;
+  paymentMethod: FinancePaymentMethod;
+  soldAt: string;
+  recordedById: string;
+};
+
+/** No actor is persisted: every command proves its supplied identity against the fixture roster. */
 export type FinanceDemoState = {
   version: typeof FINANCE_DEMO_VERSION;
   namespace: typeof FINANCE_DEMO_NAMESPACE;
   anchor: string;
   students: FinanceStudent[];
   payments: FinancePayment[];
+  categories: FinanceCategory[];
+  products: FinanceProduct[];
+  sales: FinanceSale[];
+  nextProductCode: number;
+};
+
+/** The version-1 graph is read only so migration remains explicit and testable. */
+export type FinanceDemoLegacyState = Omit<FinanceDemoState, "version" | "categories" | "products" | "sales" | "nextProductCode"> & {
+  version: 1;
 };
 
 export type FinancePaymentCommand = {
@@ -50,7 +88,7 @@ export type FinancePaymentResult =
 
 export type FinanceTransition = { state: FinanceDemoState; result: FinancePaymentResult };
 
-/** Optional history is explicitly fictional and never mutates the fixture students' base due dates. */
+/** Optional history is expressly fictional and never mutates the fixture students' base due dates. */
 export type FictionalFinanceSeedPayment = Omit<FinancePayment, "id" | "commandId"> & {
   id?: string;
   commandId?: string;

@@ -6,9 +6,10 @@ const root = new URL("../../../../", import.meta.url);
 const source = (path) => readFile(new URL(path, root), "utf8");
 
 test("finance provider hydrates before exposing callbacks and preserves its storage boundary", async () => {
-  const [provider, storage, rootLayout, previewLayout] = await Promise.all([
+  const [provider, storage, types, rootLayout, previewLayout] = await Promise.all([
     source("src/components/demo/finance/DemoFinanceProvider.tsx"),
     source("src/components/demo/finance/finance-demo-storage.ts"),
+    source("src/components/demo/finance/finance-demo-types.ts"),
     source("src/app/demo/layout.tsx"),
     source("preview/landing/app/demo/layout.tsx"),
   ]);
@@ -17,7 +18,8 @@ test("finance provider hydrates before exposing callbacks and preserves its stor
   assert.match(provider, /callbacks: ready \? callbacks : null/);
   assert.doesNotMatch(provider, /localStorage|setItem\(".*actor|actor.*sessionStorage/);
   assert.match(provider, /persistFinanceDemoState\(storageRef\.current, next\)/);
-  assert.match(storage, /FINANCE_DEMO_STORAGE_KEY = "wody-box-finance-demo-v1"/);
+  assert.match(storage, /FINANCE_DEMO_STORAGE_KEY/);
+  assert.match(types, /FINANCE_DEMO_STORAGE_KEY = "wody-box-finance-demo-v2"/);
   assert.doesNotMatch(storage, /wody-box-training|turnos/);
   assert.equal((rootLayout.match(/<DemoFinanceProvider>/g) ?? []).length, 1);
   assert.equal((previewLayout.match(/<DemoFinanceProvider>/g) ?? []).length, 1);
