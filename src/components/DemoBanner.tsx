@@ -11,7 +11,7 @@ export function DemoBanner() {
   return (
     <div className="bg-brand-red text-white text-center py-1.5 px-4 relative z-50">
       <p className="text-[10px] font-heading font-bold uppercase tracking-[0.15em]">
-        Modo Demo — Los cambios no se guardan —{" "}
+        Modo demo — Sin cambios en datos reales —{" "}
         <Link href="/" className="underline hover:no-underline">
           Volver al inicio
         </Link>

@@ -18,7 +18,7 @@ const supportedRoutes = [
 export default function PreviewDemoLayout({ children }: { children: React.ReactNode }) {
   return (
     <DemoTrainingProvider>
-      <div className="min-h-screen flex flex-col bg-black">
+      <div data-demo-root className="min-h-screen flex flex-col bg-black">
         <DemoBanner />
         <DemoNavbar supportedRoutes={supportedRoutes} />
         {children}

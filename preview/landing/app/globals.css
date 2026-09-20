@@ -1,3 +1,5 @@
+@layer base, utilities;
+
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities" source(none);
 @plugin "@tailwindcss/typography";
@@ -71,6 +73,13 @@
 
 @utility font-body {
   font-family: var(--font-body);
+}
+
+@layer base {
+  [data-demo-root] button {
+    background-color: transparent;
+    border: 0 solid;
+  }
 }
 
 * { box-sizing: border-box; }
