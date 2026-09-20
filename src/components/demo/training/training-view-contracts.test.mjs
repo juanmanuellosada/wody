@@ -290,11 +290,15 @@ test("production adapters retain action arguments, locked target, fixed routines
   assert.equal(groupBindings.get("legacyDemoNoOp"), "demo");
 });
 
-test("the complete local runtime graph excludes operational modules, including dynamic editor dependencies", async () => {
+test("the complete local training runtime graph excludes operational modules, including dynamic editor dependencies", async () => {
   const { edges, visited } = await runtimeLocalGraph([
     "src/components/wod/WodManagerView.tsx",
     "src/components/wod/CopyWodDialogView.tsx",
     "src/components/group/GroupManagerView.tsx",
+    "src/components/demo/training/training-demo-state.ts",
+    "src/components/demo/training/training-demo-storage.ts",
+    "src/components/demo/training/training-demo-adapters.ts",
+    "src/components/demo/training/DemoTrainingProvider.tsx",
   ]);
 
   assert.ok(
@@ -312,4 +316,24 @@ test("the complete local runtime graph excludes operational modules, including d
     [],
     `runtime graph contains an operational import: ${JSON.stringify(edges)}`
   );
+});
+
+test("the client provider exposes hydration-safe local state, projections, and the callback factory", async () => {
+  const providerPath = "src/components/demo/training/DemoTrainingProvider.tsx";
+  const provider = await source(providerPath);
+  const parsed = parse(providerPath, provider);
+  const exported = new Set();
+  visit(parsed, (node) => {
+    if (ts.isFunctionDeclaration(node) && node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
+      exported.add(node.name?.text);
+    }
+  });
+  assert.deepEqual(exported, new Set(["DemoTrainingProvider", "useDemoTraining"]));
+  assert.match(provider, /^"use client";/);
+  assert.match(provider, /typeof window !== "undefined"/);
+  assert.match(provider, /resolveTrainingDemoInitialState\(null, initialState\)\.state/);
+  assert.match(provider, /loadTrainingDemoState\(storageRef\.current, initialFallbackState\)/);
+  assert.match(provider, /createTrainingCallbackFactory/);
+  assert.match(provider, /projectTrainingViews/);
+  assert.doesNotMatch(provider, /setState\(\(previous/);
 });
