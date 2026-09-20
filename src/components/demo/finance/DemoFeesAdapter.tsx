@@ -1,34 +1,21 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState } from "react";
 import { PaymentControlView } from "@/components/payments/PaymentControlView";
 import { StudentTypeSelectView } from "@/components/StudentTypeSelectView";
 import { Button } from "@/components/ui/Button";
-import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import {
   getFeeBlockStatus,
   projectFeeStudents,
   selectFeeStudents,
   type FeeRole,
   type FeeStatusFilter,
-  type FeeStudent,
   type FeeStudentType,
 } from "./fees-contract";
-import { demoFeeIdentities, getDemoFeeFixtures } from "./fees-fixtures";
+import { demoFeeIdentities } from "./fees-fixtures";
+import { useDemoFinance } from "./DemoFinanceProvider";
 
 const statusKeys: FeeStatusFilter[] = ["all", "overdue", "due-soon", "ok", "exempt"];
-
-function subscribeToDemoDate() {
-  return () => {};
-}
-
-function readDemoToday(): string {
-  return toInputDate(getTodayArgentina());
-}
-
-function readStaticDemoToday(): null {
-  return null;
-}
 
 function DemoFeeActions({ role }: { role: FeeRole }) {
   return (
@@ -45,23 +32,22 @@ function DemoFeeActions({ role }: { role: FeeRole }) {
   );
 }
 
-/** Client-only demo adapter: it owns fictional state and never writes a profile or financial record. */
+/** Client-only demo adapter: it reads shared fictional finance state and never writes profiles. */
 export function DemoFeesAdapter({ role }: { role: FeeRole }) {
-  // Static exports must not bake relative fee dates into HTML or hydrate different dates.
-  const today = useSyncExternalStore(subscribeToDemoDate, readDemoToday, readStaticDemoToday);
+  const finance = useDemoFinance();
+  const today = finance.today;
   const [activeFilter, setActiveFilter] = useState<FeeStatusFilter>("all");
   const [activeType, setActiveType] = useState<FeeStudentType | "">("");
 
-  const activeStudents = useMemo(() => {
-    if (!today) return [] as FeeStudent[];
-    return selectFeeStudents(getDemoFeeFixtures(today), demoFeeIdentities[role === "ADMIN" ? "admin" : "teacher"]);
-  }, [role, today]);
+  const activeStudents = useMemo(() => (
+    selectFeeStudents(finance.state.students, demoFeeIdentities[role === "ADMIN" ? "admin" : "teacher"])
+  ), [finance.state.students, role]);
   const projection = useMemo(
-    () => today ? projectFeeStudents(activeStudents, today, activeFilter, activeType) : null,
-    [activeFilter, activeStudents, activeType, today],
+    () => finance.ready ? projectFeeStudents(activeStudents, today, activeFilter, activeType) : null,
+    [activeFilter, activeStudents, activeType, finance.ready, today],
   );
 
-  if (!today || !projection) {
+  if (!finance.ready || !projection) {
     return (
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-10">
         <p className="text-sm text-gray-500 font-body italic">Preparando datos ficticios de cuotas…</p>

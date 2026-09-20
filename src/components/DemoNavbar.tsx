@@ -11,6 +11,7 @@ const roleLinks = {
   admin: [
     { href: "/demo/admin", label: "Panel Admin" },
     { href: "/demo/admin/pagos", label: "Cuotas" },
+    { href: "/demo/admin/caja", label: "Caja" },
     { href: "/demo/admin/ingresos", label: "Ingresos" },
     { href: "/demo/admin/turnos", label: "Turnos" },
     { href: "/demo/admin/rms", label: "Mis RMs" },
@@ -20,6 +21,7 @@ const roleLinks = {
   teacher: [
     { href: "/demo/teacher", label: "Mis WODs" },
     { href: "/demo/teacher/pagos", label: "Cuotas" },
+    { href: "/demo/teacher/caja", label: "Caja" },
     { href: "/demo/teacher/rms", label: "Mis RMs" },
     { href: "/demo/teacher/turnos", label: "Turnos" },
   ],

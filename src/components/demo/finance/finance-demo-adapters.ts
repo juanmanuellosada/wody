@@ -10,6 +10,7 @@ import { demoFeeIdentities } from "./fees-fixtures.ts";
 import { registerFinancePayment, suggestNextFinancePaymentDate } from "./finance-demo-state.ts";
 import type {
   FinanceDemoState,
+  FinancePayment,
   FinancePaymentCommand,
   FinancePaymentMethod,
   FinancePaymentResult,
@@ -81,14 +82,26 @@ function toViewResult(result: FinancePaymentResult): PaymentRegistrationResult {
     : { success: false, error: result.error };
 }
 
+/**
+ * Ledger insertion order is authoritative for payments made on the same date:
+ * later entries replace earlier ones, while a later paidAt always wins first.
+ * The loop intentionally never sorts or mutates the persisted payment array.
+ */
+function newestLedgerPayment(payments: readonly FinancePayment[], studentId: string): FinancePayment | null {
+  let newest: FinancePayment | null = null;
+  for (const payment of payments) {
+    if (payment.studentId !== studentId) continue;
+    if (!newest || payment.paidAt > newest.paidAt || payment.paidAt === newest.paidAt) newest = payment;
+  }
+  return newest;
+}
+
 /** Builds dialog students from the latest local snapshot; amount conversion remains at the display boundary. */
 export function projectFinancePaymentStudents(state: FinanceDemoState): PaymentStudent[] {
   return state.students
     .filter((student) => !student.deletedAt)
     .map((student) => {
-      const lastPayment = [...state.payments]
-        .filter((payment) => payment.studentId === student.id)
-        .sort((left, right) => right.paidAt.localeCompare(left.paidAt))[0];
+      const lastPayment = newestLedgerPayment(state.payments, student.id);
       return {
         id: student.id,
         name: student.name,

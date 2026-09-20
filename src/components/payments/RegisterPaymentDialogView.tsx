@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
 
@@ -28,6 +28,11 @@ export type PaymentRegistrationResult =
   | { success: false; error: string }
   | { success: false; requiresConfirmation: true; duplicateInfo: { studentName: string; paidAt: string } };
 
+/** Optional calendar source for local adapters; omitted values retain UTC production behavior. */
+export type PaymentDatePolicy = {
+  today: () => string;
+};
+
 /** The view owns form state; adapters own conversion, persistence, and side effects. */
 export type PaymentRegistrationCallback = (
   studentId: string,
@@ -45,6 +50,9 @@ export interface RegisterPaymentDialogViewProps {
   onClose: () => void;
   /** Preserves the existing legacy demo no-op behavior. */
   demo?: boolean;
+  datePolicy?: PaymentDatePolicy;
+  /** Cancels a local duplicate-confirmation binding when the form is dismissed. */
+  onCancelPendingDuplicate?: () => void;
   onRegisterPayment: PaymentRegistrationCallback;
 }
 
@@ -67,7 +75,11 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   "MERCADO_PAGO",
 ];
 
-function initialState(students: PaymentStudent[], preSelectedStudentId: string | undefined) {
+function initialState(
+  students: PaymentStudent[],
+  preSelectedStudentId: string | undefined,
+  today: () => string,
+) {
   const id = preSelectedStudentId ?? "";
   const student = students.find((candidate) => candidate.id === id);
   const hasStudent = !!student;
@@ -76,7 +88,7 @@ function initialState(students: PaymentStudent[], preSelectedStudentId: string |
     amount: student?.lastAmount != null ? String(student.lastAmount) : "",
     nextDate: student?.suggestedNextDate ?? "",
     /** Pre-fill date/method only when a student is already selected at open time */
-    paidAt: hasStudent ? todayUTC() : "",
+    paidAt: hasStudent ? today() : "",
     paymentMethod: hasStudent ? ("EFECTIVO" as PaymentMethod) : ("" as PaymentMethod | ""),
   };
 }
@@ -167,6 +179,8 @@ function DialogForm({
   students,
   onClose,
   demo,
+  datePolicy,
+  onCancelPendingDuplicate,
   onRegisterPayment,
   defaultStudentId,
   defaultAmount,
@@ -180,6 +194,7 @@ function DialogForm({
   defaultPaidAt: string;
   defaultPaymentMethod: PaymentMethod | "";
 }) {
+  const today = datePolicy?.today ?? todayUTC;
   const [studentId, setStudentId] = useState(defaultStudentId);
   const [amount, setAmount] = useState(defaultAmount);
   const [nextDate, setNextDate] = useState(defaultNextDate);
@@ -188,8 +203,36 @@ function DialogForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [duplicatePending, setDuplicatePending] = useState<DuplicateInfo | null>(null);
+  const onCloseRef = useRef(onClose);
+  const onCancelPendingDuplicateRef = useRef(onCancelPendingDuplicate);
+  const confirmingRef = useRef(false);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    onCancelPendingDuplicateRef.current = onCancelPendingDuplicate;
+  }, [onCancelPendingDuplicate, onClose]);
+
+  const cancelPendingDuplicate = useCallback(() => {
+    if (!confirmingRef.current) onCancelPendingDuplicateRef.current?.();
+  }, []);
+  const closeForCancellation = useCallback(() => {
+    cancelPendingDuplicate();
+    onCloseRef.current();
+  }, [cancelPendingDuplicate]);
+
+  // The callback lives in refs so an ordinary re-render cannot invalidate a prompt.
+  useEffect(() => () => cancelPendingDuplicate(), [cancelPendingDuplicate]);
+
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isPending) closeForCancellation();
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [closeForCancellation, isPending]);
 
   function handleStudentChange(id: string) {
+    cancelPendingDuplicate();
     setStudentId(id);
     setError(null);
     setDuplicatePending(null);
@@ -197,7 +240,7 @@ function DialogForm({
     if (student) {
       setAmount(student.lastAmount != null ? String(student.lastAmount) : "");
       setNextDate(student.suggestedNextDate);
-      setPaidAt((previous) => previous || todayUTC());
+      setPaidAt((previous) => previous || today());
       setPaymentMethod((previous) => previous || "EFECTIVO");
     } else {
       setAmount("");
@@ -236,11 +279,12 @@ function DialogForm({
     const validation = validate();
     if (!validation.ok) return;
     if (demo) {
-      onClose();
+      onCloseRef.current();
       return;
     }
     setError(null);
     setDuplicatePending(null);
+    if (confirmedDuplicate) confirmingRef.current = true;
     startTransition(async () => {
       const result = await onRegisterPayment(studentId, amount, nextDate, {
         paidAtStr: paidAt,
@@ -248,18 +292,26 @@ function DialogForm({
         confirmedDuplicate,
       });
       if (!result.success && "requiresConfirmation" in result) {
+        confirmingRef.current = false;
         setDuplicatePending(result.duplicateInfo);
       } else if (!result.success && "error" in result) {
+        confirmingRef.current = false;
         setError(result.error);
       } else if (result.success) {
-        onClose();
+        confirmingRef.current = false;
+        onCloseRef.current();
       }
     });
   }
 
+  function dismissDuplicatePrompt() {
+    cancelPendingDuplicate();
+    setDuplicatePending(null);
+  }
+
   if (duplicatePending) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={(event) => event.target === event.currentTarget && onClose()}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={(event) => event.target === event.currentTarget && !isPending && closeForCancellation()}>
         <div className="bg-panel border border-edge p-6 w-full max-w-md mx-4 flex flex-col gap-4">
           <h3 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">Pago duplicado</h3>
           <p className="text-sm font-body text-gray-300">
@@ -268,7 +320,7 @@ function DialogForm({
           </p>
           {error && <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">{error}</p>}
           <div className="flex gap-3 justify-end">
-            <Button variant="secondary" size="sm" onClick={() => setDuplicatePending(null)} disabled={isPending}>Cancelar</Button>
+            <Button variant="secondary" size="sm" onClick={dismissDuplicatePrompt} disabled={isPending}>Cancelar</Button>
             <Button variant="primary" size="sm" onClick={() => submit(true)} loading={isPending}>Registrar igual</Button>
           </div>
         </div>
@@ -278,7 +330,7 @@ function DialogForm({
 
   const selectedStudent = students.find((student) => student.id === studentId);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={(event) => event.target === event.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={(event) => event.target === event.currentTarget && !isPending && closeForCancellation()}>
       <div className="bg-panel border border-edge p-6 w-full max-w-md mx-4 flex flex-col gap-4">
         <h3 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">Registrar Cuota</h3>
         <div className="flex flex-col gap-3">
@@ -317,13 +369,13 @@ function DialogForm({
             <DatePicker
               value={paidAt}
               onChange={(date) => {
-                const today = todayUTC();
-                if (date > today) return;
+                const maxDate = today();
+                if (date > maxDate) return;
                 setPaidAt(date);
               }}
               disabled={isPending}
               label="Fecha del pago"
-              max={todayUTC()}
+              max={today()}
             />
           ) : (
             <div>
@@ -350,7 +402,7 @@ function DialogForm({
         </div>
         {error && <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">{error}</p>}
         <div className="flex gap-3 justify-end">
-          <Button variant="secondary" size="sm" onClick={onClose} disabled={isPending}>Cancelar</Button>
+          <Button variant="secondary" size="sm" onClick={closeForCancellation} disabled={isPending}>Cancelar</Button>
           <Button variant="primary" size="sm" onClick={() => submit(false)} loading={isPending}>Registrar</Button>
         </div>
       </div>
@@ -359,14 +411,29 @@ function DialogForm({
 }
 
 /** Controlled extracted presentation. Returning null remounts fresh defaults on every later open. */
-export function RegisterPaymentDialogView({ students, preSelectedStudentId, open, onClose, demo, onRegisterPayment }: RegisterPaymentDialogViewProps) {
+export function RegisterPaymentDialogView({
+  students,
+  preSelectedStudentId,
+  open,
+  onClose,
+  demo,
+  datePolicy,
+  onCancelPendingDuplicate,
+  onRegisterPayment,
+}: RegisterPaymentDialogViewProps) {
   if (!open) return null;
-  const { studentId, amount, nextDate, paidAt, paymentMethod } = initialState(students, preSelectedStudentId);
+  const { studentId, amount, nextDate, paidAt, paymentMethod } = initialState(
+    students,
+    preSelectedStudentId,
+    datePolicy?.today ?? todayUTC,
+  );
   return (
     <DialogForm
       students={students}
       onClose={onClose}
       demo={demo}
+      datePolicy={datePolicy}
+      onCancelPendingDuplicate={onCancelPendingDuplicate}
       onRegisterPayment={onRegisterPayment}
       defaultStudentId={studentId}
       defaultAmount={amount}

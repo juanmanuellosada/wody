@@ -4,6 +4,8 @@ import test from "node:test";
 import { createFinancePaymentCallbackFactory, projectFinancePaymentStudents } from "./finance-demo-adapters.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { createFinanceDemoFixture } from "./finance-demo-state.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { resolveFinanceDemoInitialState, serializeFinanceDemoState } from "./finance-demo-storage.ts";
 
 const anchor = "2030-06-03";
 const registration = {
@@ -162,6 +164,53 @@ test("default factory reserves cancelled and replaced IDs for its lifetime while
     "a new factory may reuse cancelled-only local-2 but never a persisted local-1/3/5 id",
   );
   assert.equal(state.payments[3].commandId, "finance-command-local-2");
+});
+
+test("same-day ledger entries use insertion order for the latest suggestion without changing payment array order", async () => {
+  let state = createFinanceDemoFixture(anchor);
+  const callback = createFinancePaymentCallbackFactory({
+    getState: () => state,
+    commit: (next) => { state = next; },
+    actor: { id: "finance-admin", role: "ADMIN" },
+    today: () => anchor,
+  });
+  const first = await callback("fee-student-juan", "100", "2030-07-03", registration);
+  assert.equal(first.success, true);
+  const duplicate = await callback("fee-student-juan", "101", "2030-08-03", registration);
+  assert.equal("requiresConfirmation" in duplicate, true);
+  callback.cancelPendingDuplicate();
+  const replacement = await callback("fee-student-juan", "101", "2030-08-03", registration);
+  assert.equal("requiresConfirmation" in replacement, true);
+  assert.equal((await callback("fee-student-juan", "101", "2030-08-03", { ...registration, confirmedDuplicate: true })).success, true);
+
+  const beforeProjection = state.payments.map((payment) => ({ ...payment }));
+  const juan = projectFinancePaymentStudents(state).find((student) => student.id === "fee-student-juan");
+  assert.equal(juan?.lastAmount, 101);
+  assert.deepEqual(state.payments, beforeProjection, "projection never sorts or mutates the ledger");
+
+  const restored = resolveFinanceDemoInitialState(serializeFinanceDemoState(state), createFinanceDemoFixture("2031-01-01")).state;
+  assert.equal(projectFinancePaymentStudents(restored).find((student) => student.id === "fee-student-juan")?.lastAmount, 101);
+
+  await callback("fee-student-juan", "99", "2030-09-03", { ...registration, paidAtStr: "2030-06-02" });
+  assert.equal(
+    projectFinancePaymentStudents(state).find((student) => student.id === "fee-student-juan")?.lastAmount,
+    101,
+    "a later insertion with an older paidAt cannot outrank the latest payment day",
+  );
+
+  const idOrderingState = {
+    ...state,
+    payments: state.payments.map((payment, index) => index === 0
+      ? { ...payment, id: "finance-payment-local-9", commandId: "finance-command-local-9", amountCents: 10_000, paidAt: anchor }
+      : index === 1
+        ? { ...payment, id: "finance-payment-local-10", commandId: "finance-command-local-10", amountCents: 10_100, paidAt: anchor }
+        : payment),
+  };
+  assert.equal(
+    projectFinancePaymentStudents(idOrderingState).find((student) => student.id === "fee-student-juan")?.lastAmount,
+    101,
+    "same-day ordering never depends on lexicographic local IDs",
+  );
 });
 
 test("view projection preserves the real dialog's last-amount and next-date suggestions at the presentation edge", async () => {

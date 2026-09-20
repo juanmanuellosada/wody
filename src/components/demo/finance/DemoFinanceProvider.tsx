@@ -1,0 +1,117 @@
+"use client";
+
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { getTodayArgentina, toInputDate } from "@/lib/dates";
+import {
+  createFinancePaymentCallbackFactory,
+  financeDemoActors,
+  type FinancePaymentCallback,
+} from "./finance-demo-adapters";
+import { createFinanceDemoFixture } from "./finance-demo-state";
+import {
+  loadFinanceDemoState,
+  persistFinanceDemoState,
+  type FinanceDemoStorage,
+} from "./finance-demo-storage";
+import type { FeeRole } from "./fees-contract";
+import type { FinanceDemoState } from "./finance-demo-types";
+
+type FinanceRoleCallbacks = Record<FeeRole, FinancePaymentCallback>;
+
+export type DemoFinanceContextValue = {
+  ready: boolean;
+  warning: string | null;
+  state: FinanceDemoState;
+  today: string;
+  reset: () => void;
+  callbacks: FinanceRoleCallbacks | null;
+};
+
+const DemoFinanceContext = createContext<DemoFinanceContextValue | null>(null);
+
+function argentinaToday(): string {
+  return toInputDate(getTodayArgentina());
+}
+
+/**
+ * Owns only fictional, same-tab financial state. Storage is read after mount so
+ * static exports never access browser APIs or overwrite a valid saved session.
+ */
+export function DemoFinanceProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<FinanceDemoState>(() => createFinanceDemoFixture());
+  const [today, setToday] = useState(state.anchor);
+  const [ready, setReady] = useState(false);
+  const [warning, setWarning] = useState<string | null>(null);
+  const [callbacks, setCallbacks] = useState<FinanceRoleCallbacks | null>(null);
+  const stateRef = useRef(state);
+  const todayRef = useRef(state.anchor);
+  const storageRef = useRef<FinanceDemoStorage | null>(null);
+
+  const commit = useCallback((next: FinanceDemoState) => {
+    stateRef.current = next;
+    setState(next);
+    const persistenceWarning = persistFinanceDemoState(storageRef.current, next);
+    if (persistenceWarning) setWarning(persistenceWarning);
+  }, []);
+
+  useEffect(() => {
+    const nextToday = argentinaToday();
+    todayRef.current = nextToday;
+    let storage: FinanceDemoStorage | null = null;
+    try {
+      storage = window.sessionStorage;
+    } catch {
+      storage = null;
+    }
+    const loaded = loadFinanceDemoState(storage, createFinanceDemoFixture(nextToday));
+    const timer = window.setTimeout(() => {
+      storageRef.current = storage;
+      stateRef.current = loaded.state;
+      setState(loaded.state);
+      setToday(nextToday);
+      setWarning(loaded.warning);
+      setCallbacks({
+        ADMIN: createFinancePaymentCallbackFactory({
+          getState: () => stateRef.current,
+          commit,
+          actor: financeDemoActors.admin,
+          today: () => todayRef.current,
+        }),
+        TEACHER: createFinancePaymentCallbackFactory({
+          getState: () => stateRef.current,
+          commit,
+          actor: financeDemoActors.teacher,
+          today: () => todayRef.current,
+        }),
+      });
+      setReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [commit]);
+
+  const reset = useCallback(() => {
+    callbacks?.ADMIN.cancelPendingDuplicate();
+    callbacks?.TEACHER.cancelPendingDuplicate();
+    const nextToday = argentinaToday();
+    todayRef.current = nextToday;
+    setToday(nextToday);
+    commit(createFinanceDemoFixture(nextToday));
+  }, [callbacks, commit]);
+
+  const value = useMemo<DemoFinanceContextValue>(() => ({
+    ready,
+    warning,
+    state,
+    today,
+    reset,
+    callbacks: ready ? callbacks : null,
+  }), [callbacks, ready, reset, state, today, warning]);
+
+  return <DemoFinanceContext.Provider value={value}>{children}</DemoFinanceContext.Provider>;
+}
+
+export function useDemoFinance(): DemoFinanceContextValue {
+  const context = useContext(DemoFinanceContext);
+  if (!context) throw new Error("useDemoFinance must be used within DemoFinanceProvider.");
+  return context;
+}

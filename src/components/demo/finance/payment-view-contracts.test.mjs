@@ -79,9 +79,9 @@ test("extracted dialog keeps raw callback input while the production adapter pre
   assert.doesNotMatch(view, /commandId/);
   assert.doesNotMatch(view, /@\/actions|@prisma|registerPayment\(/);
   assert.match(view, /setError\(null\);\s*setDuplicatePending\(null\);\s*const student/);
-  assert.match(view, /if \(demo\) \{\s*onClose\(\);\s*return;/);
-  assert.match(view, /setDuplicatePending\(null\).*Cancelar/s);
-  assert.match(view, /else if \(result\.success\) \{\s*onClose\(\);/);
+  assert.match(view, /if \(demo\) \{\s*onCloseRef\.current\(\);\s*return;/);
+  assert.match(view, /function dismissDuplicatePrompt\(\) \{\s*cancelPendingDuplicate\(\);\s*setDuplicatePending\(null\);/s);
+  assert.match(view, /else if \(result\.success\) \{\s*confirmingRef\.current = false;\s*onCloseRef\.current\(\);/);
   assert.match(action, /export async function registerPayment\(\s*studentId: string,\s*amount: number,\s*nextPaymentDateStr: string,/s);
   assert.match(action, /confirmedDuplicate\?: boolean/);
   assert.match(action, /revalidatePaymentViews\(check\.gymSlug\)/);
@@ -96,8 +96,32 @@ test("section presentation is reusable without importing a live wrapper into the
   assert.match(section, /registerLivePayment/);
   assert.match(sectionView, /variant: "primary" \| "secondary"/);
   assert.match(sectionView, /label: string/);
+  assert.match(sectionView, /datePolicy\?: PaymentDatePolicy/);
+  assert.match(sectionView, /onCancelPendingDuplicate\?: \(\) => void/);
   assert.match(sectionView, /<RegisterPaymentDialogView/);
   assert.doesNotMatch(sectionView, /@\/actions|@prisma|RegisterPaymentDialog"/);
+});
+
+test("date policy and cancellation plumbing preserve UTC production defaults while guarding local duplicate bindings", async () => {
+  const [dialog, section, cash, liveDialog, liveSection] = await Promise.all([
+    source("src/components/payments/RegisterPaymentDialogView.tsx"),
+    source("src/components/payments/RegisterPaymentSectionView.tsx"),
+    source("src/components/demo/finance/DemoCashAdapter.tsx"),
+    source("src/components/RegisterPaymentDialog.tsx"),
+    source("src/components/RegisterPaymentSection.tsx"),
+  ]);
+  assert.match(dialog, /export type PaymentDatePolicy = \{\s*today: \(\) => string;/s);
+  assert.match(dialog, /datePolicy\?\.today \?\? todayUTC/);
+  assert.match(dialog, /setPaidAt\(\(previous\) => previous \|\| today\(\)\)/);
+  assert.match(dialog, /max=\{today\(\)\}/);
+  assert.match(dialog, /if \(!confirmingRef\.current\) onCancelPendingDuplicateRef\.current\?\.\(\);/);
+  assert.match(dialog, /useEffect\(\(\) => \(\) => cancelPendingDuplicate\(\), \[cancelPendingDuplicate\]\)/);
+  assert.match(dialog, /event\.key === "Escape" && !isPending/);
+  assert.match(dialog, /function handleStudentChange\(id: string\) \{\s*cancelPendingDuplicate\(\);/s);
+  assert.match(cash, /onCancelPendingDuplicate=\{callback\.cancelPendingDuplicate\}/);
+  assert.match(section, /onCancelPendingDuplicate=\{onCancelPendingDuplicate\}/);
+  assert.doesNotMatch(liveDialog, /datePolicy|onCancelPendingDuplicate/);
+  assert.doesNotMatch(liveSection, /datePolicy|onCancelPendingDuplicate/);
 });
 
 test("new views and local finance modules recursively exclude operational imports", async () => {
@@ -107,6 +131,9 @@ test("new views and local finance modules recursively exclude operational import
     "src/components/demo/finance/finance-demo-state.ts",
     "src/components/demo/finance/finance-demo-storage.ts",
     "src/components/demo/finance/finance-demo-adapters.ts",
+    "src/components/demo/finance/DemoFinanceProvider.tsx",
+    "src/components/demo/finance/DemoCashAdapter.tsx",
+    "src/components/caja/CajaShell.tsx",
   ]);
   for (const expected of [
     "src/components/payments/RegisterPaymentDialogView.tsx",
@@ -114,6 +141,9 @@ test("new views and local finance modules recursively exclude operational import
     "src/components/demo/finance/finance-demo-state.ts",
     "src/components/demo/finance/finance-demo-storage.ts",
     "src/components/demo/finance/finance-demo-adapters.ts",
+    "src/components/demo/finance/DemoFinanceProvider.tsx",
+    "src/components/demo/finance/DemoCashAdapter.tsx",
+    "src/components/caja/CajaShell.tsx",
   ]) assert.ok([...visited].some((file) => file.endsWith(expected)));
   const forbidden = /(^|\/)(actions|auth|prisma|cache|server)(\/|$)|@prisma/;
   assert.deepEqual(edges.filter(({ specifier }) => forbidden.test(specifier)), []);

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import {
   RegisterPaymentDialogView,
+  type PaymentDatePolicy,
   type PaymentRegistrationCallback,
   type PaymentStudent,
 } from "./RegisterPaymentDialogView";
@@ -15,6 +16,10 @@ export interface RegisterPaymentSectionViewProps {
   size?: "sm" | "md" | "lg";
   variant: "primary" | "secondary";
   label: string;
+  /** Optional calendar source for local adapters; production keeps UTC defaults. */
+  datePolicy?: PaymentDatePolicy;
+  /** Invalidates a local duplicate confirmation when the dialog is dismissed. */
+  onCancelPendingDuplicate?: () => void;
   onRegisterPayment: PaymentRegistrationCallback;
 }
 
@@ -26,6 +31,8 @@ export function RegisterPaymentSectionView({
   size = "sm",
   variant,
   label,
+  datePolicy,
+  onCancelPendingDuplicate,
   onRegisterPayment,
 }: RegisterPaymentSectionViewProps) {
   const [open, setOpen] = useState(false);
@@ -40,6 +47,8 @@ export function RegisterPaymentSectionView({
         open={open}
         onClose={() => setOpen(false)}
         demo={demo}
+        datePolicy={datePolicy}
+        onCancelPendingDuplicate={onCancelPendingDuplicate}
         onRegisterPayment={onRegisterPayment}
       />
     </>

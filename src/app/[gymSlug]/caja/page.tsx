@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gymPath, isPersonalGym } from "@/lib/gym";
 import { addOneMonth, getTodayArgentina, toInputDate } from "@/lib/dates";
+import { CajaShell } from "@/components/caja/CajaShell";
 import { RegisterPaymentButton } from "@/components/RegisterPaymentSection";
 import { NewSaleButton } from "@/components/NewSaleButton";
 import { RegisterExpenseButton } from "@/components/RegisterExpenseButton";
@@ -198,27 +199,11 @@ export default async function CajaPage({ params, searchParams }: Props) {
   };
 
   return (
-    <div className="flex flex-col gap-10">
-      <div className="border border-line bg-panel p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-1">
-              Recaudación y pagos
-            </p>
-            <h1 className="text-2xl sm:text-3xl font-heading font-black uppercase tracking-[0.1em] text-white">
-              Caja
-            </h1>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <NewSaleButton products={productCatalog} size="lg" />
-            {showRevenue && <RegisterExpenseButton size="lg" />}
-            {paymentStudents.length > 0 && (
-              <RegisterPaymentButton students={paymentStudents} size="lg" />
-            )}
-          </div>
-        </div>
-      </div>
-
+    <CajaShell
+      saleAction={<NewSaleButton products={productCatalog} size="lg" />}
+      expenseAction={showRevenue ? <RegisterExpenseButton size="lg" /> : null}
+      quotaAction={paymentStudents.length > 0 ? <RegisterPaymentButton students={paymentStudents} size="lg" /> : null}
+    >
       {showRevenue && (
         <RevenuePanel
           view={parsedRevenueView}
@@ -236,6 +221,6 @@ export default async function CajaPage({ params, searchParams }: Props) {
           }}
         />
       )}
-    </div>
+    </CajaShell>
   );
 }

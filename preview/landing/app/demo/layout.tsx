@@ -1,5 +1,6 @@
 import { DemoBanner } from "../../../../src/components/DemoBanner";
 import { DemoNavbar } from "../../../../src/components/DemoNavbar";
+import { DemoFinanceProvider } from "../../../../src/components/demo/finance/DemoFinanceProvider";
 import { DemoTrainingProvider } from "../../../../src/components/demo/training/DemoTrainingProvider";
 
 const supportedRoutes = [
@@ -7,10 +8,12 @@ const supportedRoutes = [
   "/demo/admin/rms",
   "/demo/admin/turnos",
   "/demo/admin/pagos",
+  "/demo/admin/caja",
   "/demo/teacher",
   "/demo/teacher/rms",
   "/demo/teacher/turnos",
   "/demo/teacher/pagos",
+  "/demo/teacher/caja",
   "/demo/student",
   "/demo/student/rms",
   "/demo/student/turnos",
@@ -20,11 +23,13 @@ const supportedRoutes = [
 export default function PreviewDemoLayout({ children }: { children: React.ReactNode }) {
   return (
     <DemoTrainingProvider>
-      <div data-demo-root className="min-h-screen flex flex-col bg-black">
-        <DemoBanner />
-        <DemoNavbar supportedRoutes={supportedRoutes} />
-        {children}
-      </div>
+      <DemoFinanceProvider>
+        <div data-demo-root className="min-h-screen flex flex-col bg-black">
+          <DemoBanner />
+          <DemoNavbar supportedRoutes={supportedRoutes} />
+          {children}
+        </div>
+      </DemoFinanceProvider>
     </DemoTrainingProvider>
   );
 }

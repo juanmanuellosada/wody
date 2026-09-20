@@ -10,6 +10,7 @@ const modules = [
   { href: "/demo/student/turnos", label: "Turnos", description: "Probá el módulo de reservas local ya disponible." },
   { href: "/demo/student/beneficios", label: "Beneficios", description: "Revisá beneficios de demostración no canjeables." },
   { href: "/demo/admin/pagos", label: "Cuotas", description: "Consultá cuotas ficticias como administración o profesorado." },
+  { href: "/demo/admin/caja", label: "Caja", description: "Registrá cuotas ficticias en la caja de demostración." },
 ];
 
 /** Shared entry hub used by both demo applications. */
