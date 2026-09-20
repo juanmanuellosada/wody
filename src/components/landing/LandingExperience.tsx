@@ -1,14 +1,20 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import Image from "next/image";
+import { useState, type CSSProperties } from "react";
+import { CalendarCheck, CalendarDays, Building2, QrCode, Share2, Smartphone, Trophy, Wallet, type LucideIcon } from "lucide-react";
+import { WhatsAppIcon } from "../icons/WhatsAppIcon";
 import { RotatingTypewriter } from "../marketing/RotatingTypewriter";
+import wodyTexto from "../../logos/wody-texto.png";
 import styles from "./LandingExperience.module.css";
 
 export type AccountOption = {
   slug: string;
   name: string;
   kind: "GYM" | "BOX" | "PERSONAL";
+  logo?: string | null;
+  primaryColor?: string | null;
+  location?: string;
 };
 
 type LandingExperienceProps = {
@@ -21,19 +27,33 @@ type LandingExperienceProps = {
   }>;
 };
 
-const capabilities = [
-  ["Operación diaria", "Cuotas, pagos, caja, accesos con QR y el historial de cada ingreso."],
-  ["Entrenamiento", "Rutinas, marcas personales y seguimiento por alumno o grupo."],
-  ["Equipo", "Roles para administrar, dar clases y operar el acceso sin mezclar permisos."],
-  ["Tu espacio", "Cada centro trabaja con sus propios usuarios, datos y configuración."],
+const roles = [
+  { role: "Alumno", features: ["Ver rutina de hoy", "Historial completo", "Cargar y editar records", "Compartir logros"] },
+  { role: "Profe", highlight: true, features: ["Cargar rutinas por alumno", "Copiar entre fechas y alumnos", "Editor con formato", "Gestión de alumnos"] },
+  { role: "Admin", features: ["Crear profes y alumnos", "Asignar alumnos a profes", "Panel de control", "Gestión completa"] },
 ];
 
-const faqs = [
-  ["¿Cómo solicito una prueba?", "Completás una solicitud. El equipo de Wody la revisa manualmente y, si se aprueba, te llega el siguiente paso por email."],
-  ["¿La prueba empieza apenas envío el formulario?", "No. Primero revisamos la solicitud. La prueba de 7 días se habilita después de esa aprobación."],
-  ["¿Tengo que dejar una tarjeta para solicitarla?", "No. El formulario de solicitud no pide datos de tarjeta."],
-  ["¿Qué es Wody Personal?", "Es el camino para entrenar por tu cuenta: podés solicitar acceso, esperar la aprobación y luego continuar el registro desde el link que recibís por email."],
+const features: Array<[LucideIcon, string, string]> = [
+  [CalendarDays, "Rutinas diarias", "Cada alumno recibe su rutina personalizada para el día. El profe carga, edita y copia con un click."],
+  [Trophy, "Records personales", "Registro de mejores marcas con fecha. Editables y compartibles en redes con imagen generada."],
+  [CalendarCheck, "Turnos de actividades", "Actividades con horarios semanales o de fecha única, cupo por clase y ventana de cancelación. El alumno se anota desde el celular."],
+  [QrCode, "Control de ingresos", "Check-in en la puerta escaneando el QR de recepción. El operador ve el estado de cuota del socio al instante y queda todo en el historial."],
+  [Wallet, "Cuotas y caja", "Estado de cuota de cada alumno, registro de pagos y venta de productos. La recaudación y los gastos quedan detrás de un permiso aparte."],
+  [Building2, "Multi-centro", "Cada centro tiene su espacio aislado con datos, usuarios y branding independientes."],
+  [Smartphone, "Mobile-first", "Pensado para usar desde el celular en el gimnasio. Responsive y rápido."],
+  [Share2, "Compartir logros", "Genera imágenes para Instagram y WhatsApp cuando tu alumno rompe un record."],
 ];
+
+const footerRoutes = [
+  ["/software-gestion-gimnasios", "Software de gestión para gimnasios"],
+  ["/control-de-acceso-gimnasio-qr", "Control de acceso con QR"],
+  ["/comparativa", "Comparativas"],
+  ["/blog", "Blog"],
+  ["/demo", "Demo"],
+] as const;
+
+const WODY_ORIGIN = "https://www.wody.com.ar";
+const whatsappHref = `https://wa.me/5491136178552?text=${encodeURIComponent("Hola, vengo de la página web de wody, quiero más información.")}`;
 
 export function LandingExperience({
   mode = "production",
@@ -43,52 +63,51 @@ export function LandingExperience({
 }: LandingExperienceProps) {
   const [formType, setFormType] = useState<"GYM" | "PERSONAL" | null>(null);
   const isPreview = mode === "preview";
-  const openForm = (type: "GYM" | "PERSONAL") => setFormType(type);
+  const appHref = (path: string) => (isPreview ? `${WODY_ORIGIN}${path}` : path);
 
   return (
     <main className={styles.page}>
       <header className={styles.topbar}>
-        <a className={styles.logo} href="#inicio" aria-label="Wody, ir al inicio">WODY</a>
-        <nav aria-label="Navegación principal" className={styles.navigation}>
-          <a href="#producto">Producto</a>
-          <a href="#planes">Planes</a>
-          <a href="#preguntas">Preguntas frecuentes</a>
-        </nav>
-        <button type="button" className={styles.topbarCta} onClick={() => openForm("GYM")}>
-          Solicitar acceso
-        </button>
+        <a className={styles.headerLogo} href="#inicio" aria-label="Wody, ir al inicio">
+          <Image src={wodyTexto} alt="WODY" width={360} height={100} priority unoptimized={isPreview} />
+        </a>
+        <a className={styles.headerContact} href="https://www.instagram.com/wody.app/" target="_blank" rel="noopener noreferrer">
+          Contactanos
+        </a>
       </header>
 
       <section id="inicio" className={styles.hero}>
+        <div className={styles.heroGlow} aria-hidden="true" />
         <div className={styles.heroCopy}>
-          <p className={styles.intro}>Wody para centros de entrenamiento</p>
-          <h1>La operación de tu gimnasio, en un solo lugar.</h1>
+          <Image className={styles.heroLogo} src={wodyTexto} alt="WODY" width={360} height={100} priority unoptimized={isPreview} />
           <p className={styles.lead}>
-            Organizá cobros, accesos, rutinas y seguimiento de alumnos sin perder el foco en tu equipo.
+            La plataforma para gestionar <strong>rutinas</strong>, <strong>records</strong> y el seguimiento de tus alumnos.
           </p>
           <p className={styles.rotatingLine}>
-            Para <RotatingTypewriter words={["gimnasios", "boxes", "equipos funcionales", "estudios de entrenamiento"]} />
+            Para <RotatingTypewriter words={["crossfit", "gimnasio", "funcional", "GAP", "musculación", "calistenia"]} />
           </p>
           <div className={styles.heroActions}>
-            <button type="button" className={styles.primaryButton} onClick={() => openForm("GYM")}>
-              Solicitar una prueba de 7 días
-            </button>
-            <a className={styles.textButton} href="#personal">Entreno por mi cuenta</a>
+            <a className={styles.primaryButton} href={appHref("/demo")}>Ver demo</a>
+            <a className={styles.secondaryButton} href="https://www.instagram.com/wody.app/" target="_blank" rel="noopener noreferrer">Contactanos</a>
           </div>
-          <p className={styles.approvalNote}>Revisamos cada solicitud antes de habilitar la prueba.</p>
+          <a className={styles.personalLink} href={appHref("/registro-personal")}>Usalo por tu cuenta</a>
+          <p className={styles.trialNote}>7 días gratis · sin tarjeta · sin compromiso</p>
         </div>
-
-        <ProductIllustration />
       </section>
 
-      <section id="producto" className={styles.section}>
-        <div className={styles.sectionHeading}>
-          <h2>Menos herramientas sueltas. Más claridad para el equipo.</h2>
-          <p>Wody reúne las tareas que sostienen el día a día de un centro de entrenamiento.</p>
+      <section className={styles.section}>
+        <h2>¿Para quién es WODY?</h2>
+        <div className={styles.audienceGrid}>
+          {["CrossFit", "Gimnasio", "Funcional", "GAP", "Pilates", "Personalizados"].map((kind) => <p key={kind}>{kind}</p>)}
         </div>
-        <div className={styles.capabilities}>
-          {capabilities.map(([title, description]) => (
-            <article key={title} className={styles.capability}>
+      </section>
+
+      <section className={styles.section}>
+        <h2>Funcionalidades</h2>
+        <div className={styles.featureGrid}>
+          {features.map(([Icon, title, description]) => (
+            <article key={title} className={styles.feature}>
+              <Icon size={21} aria-hidden="true" />
               <h3>{title}</h3>
               <p>{description}</p>
             </article>
@@ -96,140 +115,85 @@ export function LandingExperience({
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.processSection}`}>
-        <div className={styles.sectionHeading}>
-          <h2>Un camino claro antes de empezar.</h2>
-          <p>El acceso no se activa de forma automática: primero conocemos tu caso.</p>
-        </div>
-        <ol className={styles.processList}>
-          <li><strong>Solicitás acceso.</strong><span>Nos dejás los datos básicos de tu centro o de tu entrenamiento personal.</span></li>
-          <li><strong>Revisamos la solicitud.</strong><span>La aprobación es manual para ordenar el alta antes de habilitarla.</span></li>
-          <li><strong>Empezás la prueba.</strong><span>Una vez aprobada, te enviamos por email el siguiente paso para la prueba de 7 días.</span></li>
+      <section className={`${styles.section} ${styles.stepsSection}`}>
+        <h2>¿Cómo funciona?</h2>
+        <ol className={styles.steps}>
+          <li><strong>Creamos tu espacio</strong><span>Te armamos tu centro en WODY con tu branding. Vos creás profes y alumnos.</span></li>
+          <li><strong>El profe carga rutinas</strong><span>Cada profe ve sus alumnos y les carga la rutina del día con el editor.</span></li>
+          <li><strong>El alumno entrena</strong><span>Abre la app, ve su rutina de hoy, registra sus records y comparte logros.</span></li>
         </ol>
       </section>
 
-      <section id="planes" className={`${styles.section} ${styles.plansSection}`}>
-        <div className={styles.sectionHeading}>
-          <h2>Elegí el camino que te corresponde.</h2>
-          <p>Un plan para gestionar un centro y otro para llevar tu propio entrenamiento.</p>
-        </div>
-        <div className={styles.planGrid}>
-          <article className={styles.plan}>
-            <p className={styles.planLabel}>Para gimnasios y boxes</p>
-            <h3>Wody para tu centro</h3>
-            <p className={styles.price}><span>ARS 40.000</span> por mes</p>
-            <ul>
-              <li>Gestión de alumnos, profes y accesos</li>
-              <li>Rutinas, marcas personales y turnos</li>
-              <li>Cuotas, pagos y caja</li>
-            </ul>
-            <button type="button" className={styles.primaryButton} onClick={() => openForm("GYM")}>
-              Solicitar prueba para mi centro
-            </button>
-          </article>
-
-          <article id="personal" className={`${styles.plan} ${styles.personalPlan}`}>
-            <p className={styles.planLabel}>Para entrenar por tu cuenta</p>
-            <h3>Wody Personal</h3>
-            <p className={styles.price}><span>ARS 7.000</span> por mes</p>
-            <ul>
-              <li>Armá y organizá tus propias rutinas</li>
-              <li>Registrá tus PRs con historial</li>
-              <li>Usá cronómetros durante el entrenamiento</li>
-            </ul>
-            <button type="button" className={styles.secondaryButton} onClick={() => openForm("PERSONAL")}>
-              Solicitar acceso personal
-            </button>
-          </article>
-        </div>
-        <p className={styles.planNote}>La prueba de 7 días se habilita después de la aprobación manual de tu solicitud.</p>
-      </section>
-
-      {accounts.length > 0 && (
-        <section className={`${styles.section} ${styles.accessSection}`} aria-labelledby="account-access-title">
-          <div className={styles.sectionHeading}>
-            <h2 id="account-access-title">¿Ya tenés una cuenta?</h2>
-            <p>Elegí tu centro para ingresar. Esta lista es solo un acceso a cuentas existentes.</p>
-          </div>
-          <div className={styles.accountList}>
-            {accounts.map((account) => (
-              <a key={account.slug} href={`/${account.slug}`} className={styles.accountLink}>
-                <span>{account.name}</span>
-                <small>{account.kind === "BOX" ? "Box" : "Gimnasio"}</small>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {supplementaryContent}
-
-      <section id="preguntas" className={`${styles.section} ${styles.faqSection}`}>
-        <div className={styles.sectionHeading}>
-          <h2>Preguntas frecuentes</h2>
-        </div>
-        <div className={styles.faqList}>
-          {faqs.map(([question, answer]) => (
-            <details key={question}>
-              <summary>{question}</summary>
-              <p>{answer}</p>
-            </details>
+      <section className={styles.section}>
+        <h2>Para cada rol</h2>
+        <div className={styles.roleGrid}>
+          {roles.map(({ role, features: roleFeatures, highlight }) => (
+            <article key={role} className={`${styles.roleCard} ${highlight ? styles.roleHighlight : ""}`}>
+              <h3>{role}</h3>
+              <ul>{roleFeatures.map((feature) => <li key={feature}>{feature}</li>)}</ul>
+            </article>
           ))}
         </div>
       </section>
 
-      <footer className={styles.footer}>
-        <p>WODY</p>
-        {isPreview ? (
-          <span className={styles.previewUnavailable}>@wody.app — enlace no disponible en la demo</span>
-        ) : (
-          <div className={styles.footerLinks}>
-            <Link href="/software-gestion-gimnasios">Software de gestión para gimnasios</Link>
-            <Link href="/control-de-acceso-gimnasio-qr">Control de acceso con QR</Link>
-            <Link href="/comparativa">Comparativas</Link>
-            <Link href="/blog">Blog</Link>
-            <Link href="/demo">Demo</Link>
-            <a href="https://www.instagram.com/wody.app/" target="_blank" rel="noopener noreferrer">@wody.app</a>
-          </div>
+      <section className={`${styles.section} ${styles.accountsSection}`} aria-labelledby="account-access-title">
+        <h2 id="account-access-title">Ingreso</h2>
+        <div className={styles.accountGrid}>
+          {accounts.map((account) => (
+            <a
+              key={account.slug}
+              href={appHref(`/${account.slug}`)}
+              className={styles.accountCard}
+              style={{ "--account-color": account.primaryColor || "#e31414" } as CSSProperties}
+            >
+              {account.logo ? (
+                <Image className={styles.accountLogo} src={account.logo} alt={account.name} width={80} height={80} unoptimized />
+              ) : (
+                <span className={styles.accountFallback} aria-hidden="true">{account.name.charAt(0)}</span>
+              )}
+              <span className={styles.accountName}>{account.name}</span>
+              <span className={styles.accountMeta}>{account.kind === "BOX" ? "CrossFit" : "Gym & Fitness"}{account.location ? ` — ${account.location}` : ""}</span>
+            </a>
+          ))}
+        </div>
+        <p className={styles.accountPrompt}>¿Querés WODY para tu centro? <a href="https://www.instagram.com/wody.app/" target="_blank" rel="noopener noreferrer">Contactanos</a></p>
+        {!formType && (
+          <a className={styles.whatsapp} href={whatsappHref} target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp">
+            <WhatsAppIcon size={22} />
+            <span>Más información</span>
+          </a>
         )}
+      </section>
+
+      <section className={`${styles.section} ${styles.planSection}`}>
+        <div className={styles.planGrid}>
+          <article className={styles.plan}>
+            <h2>Todo lo que tu gym necesita, en un solo lugar</h2>
+            <p>Cobros, rutinas, accesos, comunicación: lo que tu gym hace todos los días, organizado y sin planillas.</p>
+            <p className={styles.price}>$40.000 <span>ARS / mes</span></p>
+            <p className={styles.trialNote}>7 días gratis · sin tarjeta · sin compromiso</p>
+            <button type="button" className={styles.primaryButton} onClick={() => setFormType("GYM")}>Solicitar prueba</button>
+          </article>
+          <article className={`${styles.plan} ${styles.personalPlan}`}>
+            <h2>Tu entrenamiento, en un solo lugar</h2>
+            <p>Armá tus rutinas, registrá tus PRs y mirá tu progreso desde tu celular.</p>
+            <p className={styles.price}>$7.000 <span>ARS / mes</span></p>
+            <p className={styles.trialNote}>7 días gratis · sin tarjeta · sin compromiso</p>
+            <button type="button" className={styles.secondaryButton} onClick={() => setFormType("PERSONAL")}>Solicitar acceso</button>
+          </article>
+        </div>
+      </section>
+
+      {supplementaryContent}
+
+      <footer className={styles.footer}>
+        <nav aria-label="Más sobre Wody" className={styles.footerLinks}>
+          {footerRoutes.map(([path, label]) => <a key={path} href={appHref(path)}>{label}</a>)}
+        </nav>
+        <p>© WODY — <a href="https://www.instagram.com/wody.app/" target="_blank" rel="noopener noreferrer">@wody.app</a> — Diseño x <a href="https://www.instagram.com/marlocomunica/" target="_blank" rel="noopener noreferrer">@marlocomunica</a></p>
       </footer>
 
-      {!formType && !isPreview && (
-        <a
-          className={styles.whatsapp}
-          href="https://wa.me/5491136178552?text=Hola%2C%20vengo%20de%20la%20p%C3%A1gina%20web%20de%20Wody."
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Consultar por WhatsApp
-        </a>
-      )}
-
-      {formType && (
-        <ContactFormComponent onClose={() => setFormType(null)} formType={formType} />
-      )}
+      {formType && <ContactFormComponent onClose={() => setFormType(null)} formType={formType} />}
     </main>
-  );
-}
-
-function ProductIllustration() {
-  return (
-    <figure className={styles.illustration} aria-labelledby="illustration-caption">
-      <figcaption id="illustration-caption">Vista ilustrativa con datos ficticios. No es una captura de pantalla.</figcaption>
-      <div className={styles.productWindow} aria-hidden="true">
-        <div className={styles.windowBar}><span /><span /><span /></div>
-        <div className={styles.productContent}>
-          <aside>
-            <b>BOX HORIZONTE</b>
-            <span>Inicio</span><span className={styles.activeNav}>Alumnos</span><span>Accesos</span><span>Cuotas</span>
-          </aside>
-          <div className={styles.productMain}>
-            <div className={styles.productTitle}><div><small>MIÉRCOLES</small><strong>Operación del día</strong></div><em>+ Nueva rutina</em></div>
-            <div className={styles.productStats}><div><small>Ingresos hoy</small><b>28</b></div><div><small>Turno funcional</small><b>18:30</b></div></div>
-            <div className={styles.productRows}><p><span>Sofía Martínez</span><em>Rutina asignada</em></p><p><span>Tomás Vera</span><em>Cuota al día</em></p><p><span>Lucía Ríos</span><em>Acceso registrado</em></p></div>
-          </div>
-        </div>
-      </div>
-    </figure>
   );
 }

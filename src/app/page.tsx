@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 import { ProductionLanding } from "@/components/landing/ProductionLanding";
 import { BenefitsSection } from "@/components/benefits/BenefitsSection";
+import { GYM_LOCATIONS } from "@/lib/gym-locations";
 
 export const metadata: Metadata = {
   title: "Software para gimnasios y boxes de CrossFit | Wody",
@@ -68,12 +69,15 @@ export default async function LandingPage() {
   const gyms = await prisma.gym.findMany({
     where: { blockedAt: null, kind: { not: "PERSONAL" } },
     orderBy: { createdAt: "asc" },
-    select: { slug: true, name: true, kind: true },
+    select: { slug: true, name: true, logo: true, primaryColor: true, kind: true },
   });
 
   const accounts = gyms.map((gym) => ({
     slug: gym.slug,
     name: gym.name,
+    logo: gym.logo,
+    primaryColor: gym.primaryColor,
+    location: GYM_LOCATIONS[gym.slug],
     kind: gym.kind === "BOX" ? ("BOX" as const) : ("GYM" as const),
   }));
 

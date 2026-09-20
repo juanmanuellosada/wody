@@ -1,7 +1,7 @@
-:root { color-scheme: dark; --font-heading: "Arial Narrow", "Roboto Condensed", sans-serif; --font-body: system-ui, sans-serif; }
+:root { color-scheme: dark; }
 * { box-sizing: border-box; }
 html { background: #0a0a0f; scroll-behavior: smooth; }
-body { min-width: 320px; margin: 0; background: #0a0a0f; color: #fff; }
+body { min-width: 320px; margin: 0; background: #0a0a0f; color: #fff; font-family: var(--font-body, sans-serif); }
 button, input, textarea { font: inherit; }
 :focus-visible { outline: 3px solid #ff6969; outline-offset: 3px; }
 ::selection { background: #e31414; color: #fff; }

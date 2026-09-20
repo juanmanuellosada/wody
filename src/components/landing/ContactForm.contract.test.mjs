@@ -35,9 +35,16 @@ test("the preview is the only simulated submission path", async () => {
   assert.match(productionForm, /mode="production"/);
 });
 
-test("preview does not render a floating unavailable contact control", async () => {
-  const landingExperience = await source("LandingExperience.tsx");
+test("preview keeps the real WhatsApp contact action in normal flow while its request form remains simulated", async () => {
+  const [landingExperience, landingStyles] = await Promise.all([
+    source("LandingExperience.tsx"),
+    source("LandingExperience.module.css"),
+  ]);
 
-  assert.match(landingExperience, /!formType && !isPreview/);
+  assert.match(landingExperience, /!formType && \(/);
+  assert.match(landingExperience, /https:\/\/wa\.me\/5491136178552/);
+  assert.match(landingExperience, /<WhatsAppIcon size=\{22\} \/>/);
+  assert.match(landingExperience, /Más información/);
+  assert.doesNotMatch(landingStyles, /\.whatsapp \{ position: fixed/);
   assert.doesNotMatch(landingExperience, /Contacto no disponible en la demo/);
 });
