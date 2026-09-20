@@ -5,6 +5,9 @@
 @source "../../../src/components/activity/views";
 @source "../../../src/components/activity/RecurringChoiceDialog.tsx";
 @source "../../../src/components/ui/Button.tsx";
+@source "../../../src/components/ui/ConfirmDialog.tsx";
+@source "../../../src/components/ui/TimePicker.tsx";
+@source "../../../src/components/ui/DatePicker.tsx";
 
 :root {
   color-scheme: dark;

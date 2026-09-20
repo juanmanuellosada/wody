@@ -1,268 +1,35 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import type { ActivityScheduleKind } from "@prisma/client";
-import { Button } from "@/components/ui/Button";
-import { TimePicker } from "@/components/ui/TimePicker";
-import { DatePicker } from "@/components/ui/DatePicker";
-import { createActivitySlot, updateActivitySlot, deactivateActivitySlot } from "@/actions/activity";
-import { DAY_NAMES, formatMinutes, formatSlotSchedule, parseTimeToMinutes } from "@/components/activity/format";
-import { toInputDate } from "@/lib/dates";
+import {
+  createActivitySlot,
+  deactivateActivitySlot,
+  updateActivitySlot,
+  type SlotRow,
+} from "@/actions/activity";
+import { ActivitySlotManagerView } from "@/components/activity/views/ActivitySlotManagerView";
+import type { ActivityScheduleKind } from "@/components/activity/views/view-models";
 
-export interface SlotRow {
-  id: string;
-  dayOfWeek: number | null;
-  date: string | null;
-  startMinute: number;
-  endMinute: number;
-  capacity: number | null;
-  active: boolean;
-}
+export type { SlotRow } from "@/actions/activity";
 
 interface Props {
   activityId: string;
-  /** Fijo por Activity: determina si el formulario pide día de la semana o fecha concreta. */
   scheduleKind: ActivityScheduleKind;
   slots: SlotRow[];
 }
 
-function emptyForm() {
-  return { dayOfWeek: 1, date: toInputDate(new Date()), startTime: "09:00", endTime: "10:00", capacity: "" };
-}
-
-export function ActivitySlotManager({ activityId, scheduleKind, slots: initial }: Props) {
-  const [slots, setSlots] = useState(initial);
-  const [editingId, setEditingId] = useState<string | "new" | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function startCreate() {
-    setEditingId("new");
-    setForm(emptyForm());
-    setError(null);
-  }
-
-  function startEdit(slot: SlotRow) {
-    setEditingId(slot.id);
-    setForm({
-      dayOfWeek: slot.dayOfWeek ?? 1,
-      date: slot.date ?? toInputDate(new Date()),
-      startTime: formatMinutes(slot.startMinute),
-      endTime: formatMinutes(slot.endMinute),
-      capacity: slot.capacity !== null ? String(slot.capacity) : "",
-    });
-    setError(null);
-  }
-
-  function handleSave() {
-    const startMinute = parseTimeToMinutes(form.startTime);
-    const endMinute = parseTimeToMinutes(form.endTime);
-    if (startMinute === null || endMinute === null) {
-      setError("Los horarios no son válidos.");
-      return;
-    }
-    if (endMinute <= startMinute) {
-      setError("La hora de fin debe ser posterior a la de inicio.");
-      return;
-    }
-    let parsedCapacity: number | null = null;
-    if (form.capacity.trim() !== "") {
-      const n = parseInt(form.capacity, 10);
-      if (isNaN(n) || n <= 0) {
-        setError("El cupo debe ser un número entero positivo, o vacío para sin límite.");
-        return;
-      }
-      parsedCapacity = n;
-    }
-
-    setError(null);
-    const input = {
-      dayOfWeek: scheduleKind === "WEEKLY" ? form.dayOfWeek : null,
-      date: scheduleKind === "ONE_OFF" ? form.date : null,
-      startMinute,
-      endMinute,
-      capacity: parsedCapacity,
-    };
-    const currentEditingId = editingId;
-
-    startTransition(async () => {
-      const result =
-        currentEditingId === "new"
-          ? await createActivitySlot(activityId, input)
-          : await updateActivitySlot(currentEditingId as string, input);
-      if (!result.success) {
-        setError(result.error);
-        return;
-      }
-      setSlots((prev) =>
-        currentEditingId === "new"
-          ? [...prev, result.slot]
-          : prev.map((s) => (s.id === result.slot.id ? result.slot : s))
-      );
-      setEditingId(null);
-    });
-  }
-
-  function handleDeactivate(id: string) {
-    setError(null);
-    setBusyId(id);
-    startTransition(async () => {
-      const result = await deactivateActivitySlot(id);
-      if (!result.success) {
-        setError(result.error);
-      } else {
-        setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, active: false } : s)));
-      }
-      setBusyId(null);
-    });
-  }
-
+/** Production adapter: only this wrapper imports slot Server Actions. */
+export function ActivitySlotManager({
+  activityId,
+  scheduleKind,
+  slots,
+}: Props) {
   return (
-    <div className="border border-line">
-      <div className="px-4 py-3 border-b border-line flex items-center justify-between">
-        <p className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500">
-          Horarios
-          <span className="ml-2 text-gray-600">({slots.length})</span>
-        </p>
-        <Button variant="primary" size="sm" onClick={startCreate}>
-          Agregar horario
-        </Button>
-      </div>
-
-      {slots.length === 0 ? (
-        <p className="px-4 py-6 text-sm text-gray-500 font-body italic">Todavía no hay horarios cargados.</p>
-      ) : (
-        <ul className="divide-y divide-line">
-          {slots.map((s) => (
-            <li key={s.id} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <p className="text-white font-heading font-bold text-sm">
-                  {formatSlotSchedule(s)} {formatMinutes(s.startMinute)}–{formatMinutes(s.endMinute)}
-                </p>
-                <p className="text-gray-500 text-xs font-body">
-                  {s.capacity === null ? "Sin límite de cupo" : `Cupo: ${s.capacity}`}
-                  {!s.active && <span className="ml-2 text-brand-red">· Desactivado</span>}
-                </p>
-              </div>
-              {s.active && (
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => startEdit(s)}>
-                    Editar
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    loading={isPending && busyId === s.id}
-                    onClick={() => handleDeactivate(s.id)}
-                  >
-                    Desactivar
-                  </Button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {error && !editingId && (
-        <p className="px-4 py-2 border-t border-line text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
-          {error}
-        </p>
-      )}
-
-      {editingId && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-          onClick={(e) => e.target === e.currentTarget && !isPending && setEditingId(null)}
-        >
-          <div className="bg-panel border border-edge p-6 w-full max-w-sm mx-4 flex flex-col gap-4">
-            <h3 className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-white">
-              {editingId === "new" ? "Nuevo horario" : "Editar horario"}
-            </h3>
-
-            <div className="flex flex-col gap-3">
-              {scheduleKind === "WEEKLY" ? (
-                <div>
-                  <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-                    Día
-                  </label>
-                  <select
-                    value={form.dayOfWeek}
-                    onChange={(e) => setForm((f) => ({ ...f, dayOfWeek: Number(e.target.value) }))}
-                    disabled={isPending}
-                    className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200"
-                  >
-                    {DAY_NAMES.map((name, i) => (
-                      <option key={i} value={i}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <DatePicker
-                  label="Fecha"
-                  value={form.date}
-                  onChange={(v) => setForm((f) => ({ ...f, date: v }))}
-                  disabled={isPending}
-                />
-              )}
-
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <TimePicker
-                    label="Inicio"
-                    value={form.startTime}
-                    onChange={(v) => setForm((f) => ({ ...f, startTime: v }))}
-                    disabled={isPending}
-                  />
-                </div>
-                <div className="flex-1">
-                  <TimePicker
-                    label="Fin"
-                    value={form.endTime}
-                    onChange={(v) => setForm((f) => ({ ...f, endTime: v }))}
-                    disabled={isPending}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 mb-1 block">
-                  Cupo (vacío = sin límite)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={form.capacity}
-                  onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))}
-                  disabled={isPending}
-                  placeholder="Sin límite"
-                  className="w-full bg-elev border border-edge text-white text-sm font-body px-3 py-2 focus:outline-none focus:border-brand-red transition-colors duration-200 placeholder:text-gray-600"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <p className="text-xs font-heading font-bold text-brand-red uppercase tracking-wide" role="alert">
-                {error}
-              </p>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
-                Cancelar
-              </Button>
-              <Button variant="primary" size="sm" onClick={handleSave} loading={isPending}>
-                Guardar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <ActivitySlotManagerView
+      scheduleKind={scheduleKind}
+      slots={slots}
+      onCreate={(input) => createActivitySlot(activityId, input)}
+      onUpdate={updateActivitySlot}
+      onDeactivate={deactivateActivitySlot}
+    />
   );
 }
