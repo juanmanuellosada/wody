@@ -2,9 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getTodayArgentina, toInputDate, formatDateArg } from "@/lib/dates";
-import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { ShareWodButton } from "@/components/wod/ShareWodButton";
-import { StudentWodBadge } from "@/components/wod/StudentWodBadge";
+import { StudentWodDetailView } from "@/components/wod/StudentWodDetailView";
 import { gymPath, isPersonalGym } from "@/lib/gym";
 import { gymTerms } from "@/lib/gym-terms";
 import Link from "next/link";
@@ -142,67 +141,24 @@ export default async function WodFullPage({ params, searchParams }: Props) {
   }
 
   const dateLabel = formatDateArg(wod.date);
-  const isToday = toInputDate(wod.date) === toInputDate(getTodayArgentina());
 
   return (
-    <div className="min-h-[80vh] flex flex-col">
-      {/* Top bar */}
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <Link
-          href={athletePath}
-          className="text-xs text-gray-600 hover:text-brand-red uppercase tracking-[0.15em] font-heading font-bold transition-colors duration-200 flex items-center gap-2 cursor-pointer"
-        >
-          <span aria-hidden="true">&#8592;</span> Volver
-        </Link>
+    <StudentWodDetailView
+      wod={{
+        ...wod,
+        targetType: wod.targetType as "ALL" | "PERSONALIZED" | "GROUP" | "STUDENT",
+        targetGroupName: wod.targetGroup?.name ?? null,
+      }}
+      studentId={studentId}
+      backHref={athletePath}
+      shareAction={(
         <ShareWodButton
           title={wod.title}
           content={wod.content}
           dateLabel={dateLabel}
           gymName={gym?.name}
         />
-      </div>
-
-      {/* Full WOD */}
-      <div className="flex-1 flex flex-col items-center">
-        <div className="w-full max-w-2xl">
-          {/* Date header */}
-          <div className="flex items-center gap-3 mb-6">
-            {isToday && (
-              <span className="inline-block w-2.5 h-2.5 bg-brand-red flex-shrink-0 animate-pulse" aria-hidden="true" />
-            )}
-            <h1 className="text-2xl sm:text-4xl font-heading font-black uppercase tracking-[0.1em] text-white">
-              {isToday ? wod.title : dateLabel}
-            </h1>
-          </div>
-
-          {isToday ? (
-            <p className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-brand-red mb-2">
-              {dateLabel}
-            </p>
-          ) : (
-            <p className="text-sm font-heading font-bold uppercase tracking-[0.15em] text-gray-400 mb-2">
-              {wod.title}
-            </p>
-          )}
-
-          {/* Separator */}
-          <div className="w-12 h-1 bg-brand-red mb-6" aria-hidden="true" />
-
-          <div className="mb-8">
-            <StudentWodBadge
-              targetType={wod.targetType as "ALL" | "PERSONALIZED" | "GROUP" | "STUDENT"}
-              targetGroupName={wod.targetGroup?.name ?? null}
-              isOwn={wod.teacherId === studentId}
-            />
-          </div>
-
-          {/* Content — large readable text */}
-          <MarkdownRenderer
-            content={wod.content}
-            className="text-base sm:text-lg [&_h1]:text-2xl [&_h1]:sm:text-3xl [&_h2]:text-xl [&_h2]:sm:text-2xl [&_li]:text-base [&_li]:sm:text-lg [&_p]:text-base [&_p]:sm:text-lg"
-          />
-        </div>
-      </div>
-    </div>
+      )}
+    />
   );
 }

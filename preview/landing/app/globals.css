@@ -1,7 +1,27 @@
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities" source(none);
+@plugin "@tailwindcss/typography";
 
 @source "../../../src/components/demo/turnos";
+@source "../../../src/components/demo/training";
+@source "../../../src/components/DemoNavbar.tsx";
+@source "../../../src/components/DemoBanner.tsx";
+@source "../../../src/components/wod/WodManagerView.tsx";
+@source "../../../src/components/wod/WodCard.tsx";
+@source "../../../src/components/wod/WodHistory.tsx";
+@source "../../../src/components/wod/StudentWodDetailView.tsx";
+@source "../../../src/components/wod/StudentWodBadge.tsx";
+@source "../../../src/components/wod/ShareWodButton.tsx";
+@source "../../../src/components/wod/CopyWodDialogView.tsx";
+@source "../../../src/components/wod/TargetSelector.tsx";
+@source "../../../src/components/group/GroupManagerView.tsx";
+@source "../../../src/components/RmsView.tsx";
+@source "../../../src/components/RmFormView.tsx";
+@source "../../../src/components/DeleteRmButtonView.tsx";
+@source "../../../src/components/ShareRmButton.tsx";
+@source "../../../src/components/ui/Card.tsx";
+@source "../../../src/components/ui/MarkdownRenderer.tsx";
+@source "../../../src/components/ui/MarkdownEditor.tsx";
 @source "../../../src/components/demo/DemoBeneficiosView.tsx";
 @source "../../../src/components/activity/views";
 @source "../../../src/components/activity/RecurringChoiceDialog.tsx";
@@ -60,3 +80,18 @@ button, input, textarea { font: inherit; }
 :focus-visible { outline: 3px solid #ff6969; outline-offset: 3px; }
 ::selection { background: #e31414; color: #fff; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* Scoped editor styles shared with the local training views; landing markup is unaffected. */
+.wody-tiptap .tiptap { color: #E0E0E0; font-size: 14px; line-height: 1.7; caret-color: var(--color-red); }
+.wody-tiptap .tiptap p { margin-bottom: 0.25rem; }
+.wody-tiptap .tiptap h1, .wody-tiptap .tiptap h2 { font-family: var(--font-heading), sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #FFFFFF; margin-top: 0.75rem; margin-bottom: 0.25rem; }
+.wody-tiptap .tiptap h1 { font-size: 1.25rem; }
+.wody-tiptap .tiptap h2 { font-size: 1.1rem; }
+.wody-tiptap .tiptap strong { color: #FFFFFF; font-weight: 700; }
+.wody-tiptap .tiptap em { color: #D0D0D0; }
+.wody-tiptap .tiptap ul { list-style-type: disc; padding-left: 1.25rem; margin: 0.25rem 0; }
+.wody-tiptap .tiptap ol { list-style-type: decimal; padding-left: 1.25rem; margin: 0.25rem 0; }
+.wody-tiptap .tiptap li { margin: 0.1rem 0; }
+.wody-tiptap .tiptap li::marker { color: var(--color-red); }
+.wody-tiptap .tiptap:focus-visible, .wody-tiptap .tiptap:focus, .wody-tiptap .ProseMirror:focus-visible, .wody-tiptap .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
+.wody-tiptap .tiptap p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #444; pointer-events: none; float: left; height: 0; }

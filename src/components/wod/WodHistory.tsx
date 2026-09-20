@@ -20,9 +20,11 @@ interface WodHistoryProps {
   wods: WodWithAssignment[];
   wodPath: string;
   terms: GymTerms;
+  /** Local demos can select the already-projected WOD without a URL query. */
+  onSelectWod?: (wodId: string) => void;
 }
 
-export function WodHistory({ wods, wodPath, terms }: WodHistoryProps) {
+export function WodHistory({ wods, wodPath, terms, onSelectWod }: WodHistoryProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -77,14 +79,22 @@ export function WodHistory({ wods, wodPath, terms }: WodHistoryProps) {
               key={wod.id}
               wod={wod}
               assignment={wod.assignment}
-              actions={
+              actions={onSelectWod ? (
+                <button
+                  type="button"
+                  onClick={() => onSelectWod(wod.id)}
+                  className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-brand-red transition-colors duration-200 cursor-pointer"
+                >
+                  Ver
+                </button>
+              ) : (
                 <Link
                   href={`${wodPath}?id=${wod.id}`}
                   className="text-xs font-heading font-bold uppercase tracking-[0.15em] text-gray-500 hover:text-brand-red transition-colors duration-200 cursor-pointer"
                 >
                   Ver
                 </Link>
-              }
+              )}
             />
           ))}
         </div>

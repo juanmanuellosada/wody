@@ -13,6 +13,7 @@ const roleLinks = {
     { href: "/demo/admin/pagos", label: "Pagos" },
     { href: "/demo/admin/ingresos", label: "Ingresos" },
     { href: "/demo/admin/turnos", label: "Turnos" },
+    { href: "/demo/admin/rms", label: "Mis RMs" },
     { href: "/demo/teacher", label: "Dashboard Profe" },
     { href: "/demo/teacher/rms", label: "Mis RMs" },
   ],
@@ -42,12 +43,16 @@ function detectRole(pathname: string): string {
   return "student";
 }
 
-export function DemoNavbar() {
+export function DemoNavbar({ supportedRoutes }: { supportedRoutes?: string[] }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  if (pathname === "/demo") return null;
+
   const currentRole = detectRole(pathname);
-  const links = roleLinks[currentRole as keyof typeof roleLinks];
+  const links = roleLinks[currentRole as keyof typeof roleLinks].filter(
+    (link) => !supportedRoutes || supportedRoutes.includes(link.href),
+  );
   const roleLabel = roleLabels[currentRole];
 
   function isActive(href: string) {

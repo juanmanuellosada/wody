@@ -1,5 +1,5 @@
-import { BoxBookingDemo } from "../../../../src/components/demo/turnos/BoxBookingDemo";
+import { DemoTrainingOverview } from "../../../../src/components/demo/training/DemoTrainingOverview";
 
-export default function BoxBookingDemoPage() {
-  return <BoxBookingDemo />;
+export default function PreviewDemoPage() {
+  return <DemoTrainingOverview />;
 }
