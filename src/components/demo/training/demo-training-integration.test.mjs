@@ -163,8 +163,8 @@ test("supported standalone links and root legacy links resolve to exported demo 
   assert.match(navbar, /supportedRoutes\?: string\[\]/);
   assert.match(navbar, /href: "\/demo\/admin\/rms", label: "Mis RMs"/);
   const routes = [
-    "/demo/admin", "/demo/admin/rms", "/demo/admin/turnos",
-    "/demo/teacher", "/demo/teacher/rms", "/demo/teacher/turnos",
+    "/demo/admin", "/demo/admin/rms", "/demo/admin/turnos", "/demo/admin/pagos",
+    "/demo/teacher", "/demo/teacher/rms", "/demo/teacher/turnos", "/demo/teacher/pagos",
     "/demo/student", "/demo/student/rms", "/demo/student/turnos", "/demo/student/beneficios",
   ];
   for (const route of routes) assert.match(layout, new RegExp(`"${route}"`));

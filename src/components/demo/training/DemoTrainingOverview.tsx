@@ -9,6 +9,7 @@ const modules = [
   { href: "/demo/student/rms", label: "RMs", description: "Registrá y compartí récords ficticios por identidad." },
   { href: "/demo/student/turnos", label: "Turnos", description: "Probá el módulo de reservas local ya disponible." },
   { href: "/demo/student/beneficios", label: "Beneficios", description: "Revisá beneficios de demostración no canjeables." },
+  { href: "/demo/admin/pagos", label: "Cuotas", description: "Consultá cuotas ficticias como administración o profesorado." },
 ];
 
 /** Shared entry hub used by both demo applications. */
