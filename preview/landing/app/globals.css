@@ -2,6 +2,7 @@
 @import "tailwindcss/utilities" source(none);
 
 @source "../../../src/components/demo/turnos";
+@source "../../../src/components/demo/DemoBeneficiosView.tsx";
 @source "../../../src/components/activity/views";
 @source "../../../src/components/activity/RecurringChoiceDialog.tsx";
 @source "../../../src/components/ui/Button.tsx";

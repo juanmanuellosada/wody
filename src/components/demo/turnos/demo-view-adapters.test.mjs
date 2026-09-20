@@ -7,6 +7,7 @@ import {
   demoStudents,
   demoTeachers,
   rowsRevision,
+  selectInitialDemoActor,
   toManagementActivityInput,
   visibleManagementActivityIds,
 } from "./demo-view-adapters.ts";
@@ -42,6 +43,22 @@ test("view adapters select fixture identities and preserve the dialog's omitted 
   assert.equal(MANAGEMENT_DEMO_STORAGE_KEY.endsWith("-v2"), true);
 });
 
+test("optional route roles select the first matching actor without replacing bookings", () => {
+  const restored = createManagementDemoState(anchor);
+  const originalBookings = restored.bookings;
+
+  const student = selectInitialDemoActor(restored, "STUDENT");
+  assert.equal(activeDemoActor(student).id, "student-full");
+  assert.strictEqual(student.bookings, originalBookings);
+
+  const teacher = selectInitialDemoActor(restored, "TEACHER");
+  assert.equal(activeDemoActor(teacher).id, "teacher-demo");
+  assert.strictEqual(teacher.bookings, originalBookings);
+
+  assert.strictEqual(selectInitialDemoActor(restored), restored, "the no-prop preview keeps its saved identity");
+  assert.strictEqual(selectInitialDemoActor(restored, "UNKNOWN"), restored, "a missing role safely keeps the current actor");
+});
+
 test("management visibility is role-scoped before UI rendering", () => {
   const state = createManagementDemoState(anchor);
   assert.equal(visibleManagementActivityIds(state).size, state.activities.length);
@@ -65,6 +82,9 @@ test("demo shell and local navigation graph contain no operational boundary impo
   }
   assert.match(shell, /restoreManagementDemoState/);
   assert.match(shell, /serializeManagementDemoState/);
+  assert.match(shell, /initialRole\?: DemoRole/);
+  assert.match(shell, /selectInitialDemoActor\(restored, initialRoleRef\.current\)/);
+  assert.match(shell, /selectInitialDemoActor\(\n      createManagementDemoState/);
   assert.match(shell, /stateRef\.current/);
   assert.match(shell, /type: "student-enroll"/);
   assert.match(management, /type: "manual-book"/);

@@ -10,19 +10,19 @@ const roles = [
   {
     href: "/demo/admin",
     label: "Admin",
-    description: "Gestión de usuarios, asignaciones y grupos de todos los profes.",
+    description: "Gestión de usuarios, asignaciones, grupos y turnos de todos los profes.",
     color: "border-brand-red hover:bg-brand-red/10",
   },
   {
     href: "/demo/teacher",
     label: "Profe",
-    description: "Creación de WODs, grupos de alumnos y gestión de rutinas.",
+    description: "Creación de WODs, grupos de alumnos, rutinas y turnos.",
     color: "border-white/20 hover:bg-white/5",
   },
   {
     href: "/demo/student",
     label: "Alumno",
-    description: "Vista del WOD de hoy, historial y búsqueda de rutinas.",
+    description: "Vista del WOD de hoy, historial, rutinas y turnos.",
     color: "border-gray-600 hover:bg-gray-800/30",
   },
 ];

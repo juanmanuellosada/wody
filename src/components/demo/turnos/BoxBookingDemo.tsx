@@ -19,6 +19,7 @@ import {
   demoStudents,
   isStaff,
   rowsRevision,
+  selectInitialDemoActor,
 } from "./demo-view-adapters";
 import { buenosAiresDateKey } from "./management-demo-fixtures";
 import {
@@ -33,6 +34,7 @@ import {
   serializeManagementDemoState,
 } from "./management-demo-storage";
 import type {
+  DemoRole,
   ManagementDemoCommand,
   ManagementDemoState,
 } from "./management-demo-types";
@@ -51,9 +53,10 @@ function currentAnchor(now: Date): string {
 }
 
 /** A client-only, fictional shared turnos simulation. It never calls production actions. */
-export function BoxBookingDemo() {
+export function BoxBookingDemo({ initialRole }: { initialRole?: DemoRole }) {
   const [state, setState] = useState<ManagementDemoState | null>(null);
   const stateRef = useRef<ManagementDemoState | null>(null);
+  const initialRoleRef = useRef(initialRole);
   const [screen, setScreen] = useState<DemoScreen>("management");
   const [storageNotice, setStorageNotice] = useState<string | null>(null);
 
@@ -67,9 +70,10 @@ export function BoxBookingDemo() {
         setStorageNotice("No se pudo acceder al almacenamiento del navegador. La demo seguirá funcionando mientras esta pestaña permanezca abierta.");
       }
       const restored = restoreManagementDemoState(raw, currentAnchor(now), now);
-      stateRef.current = restored;
-      setState(restored);
-      setScreen(activeDemoActor(restored).role === "STUDENT" ? "calendar" : "management");
+      const initialized = selectInitialDemoActor(restored, initialRoleRef.current);
+      stateRef.current = initialized;
+      setState(initialized);
+      setScreen(activeDemoActor(initialized).role === "STUDENT" ? "calendar" : "management");
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -99,10 +103,13 @@ export function BoxBookingDemo() {
 
   function reset() {
     const now = new Date();
-    const next = createManagementDemoState(currentAnchor(now), now);
+    const next = selectInitialDemoActor(
+      createManagementDemoState(currentAnchor(now), now),
+      initialRoleRef.current,
+    );
     stateRef.current = next;
     setState(next);
-    setScreen("management");
+    setScreen(activeDemoActor(next).role === "STUDENT" ? "calendar" : "management");
     setStorageNotice(null);
     try {
       window.sessionStorage.removeItem(MANAGEMENT_DEMO_STORAGE_KEY);

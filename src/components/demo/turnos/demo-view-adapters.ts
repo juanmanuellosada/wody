@@ -4,8 +4,11 @@ import type {
   SlotInput,
   TeacherOption,
 } from "../../activity/views/view-models";
+// @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
+import { selectManagementDemoActor } from "./management-demo-state.ts";
 import type {
   DemoActor,
+  DemoRole,
   ManagementActivityInput,
   ManagementDemoState,
   ManagementDeletionResult,
@@ -23,6 +26,17 @@ export function activeDemoActor(state: ManagementDemoState): DemoActor {
   const actor = state.actors.find((candidate) => candidate.id === state.activeActorId);
   if (!actor) throw new Error("The validated demo state must have an active actor.");
   return actor;
+}
+
+/** Applies a route's optional initial identity without changing any simulated records. */
+export function selectInitialDemoActor(
+  state: ManagementDemoState,
+  initialRole?: DemoRole,
+): ManagementDemoState {
+  if (!initialRole) return state;
+  const actor = state.actors.find((candidate) => candidate.role === initialRole);
+  if (!actor || actor.id === state.activeActorId) return state;
+  return selectManagementDemoActor(state, actor.id).state;
 }
 
 export function demoStudents(state: ManagementDemoState): DemoActor[] {
