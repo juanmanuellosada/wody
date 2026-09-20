@@ -40,6 +40,11 @@ function unavailableTrainingCallbacks(): TrainingViewCallbacks {
     onRenameGroup: async () => unavailable,
     onAssignStudentToGroup: async () => unavailable,
     onRemoveStudentFromGroup: async () => unavailable,
+    rm: {
+      createRm: async () => unavailable,
+      updateRm: async () => unavailable,
+      deleteRm: async () => unavailable,
+    },
   };
 }
 

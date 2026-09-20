@@ -37,7 +37,7 @@ function uniquePair(values: readonly Record<string, unknown>[], left: string, ri
 /** Validates the whole normalized graph before any local history can be reused. */
 export function isValidTrainingDemoState(value: unknown): value is TrainingDemoState {
   if (!isRecord(value) || value.version !== TRAINING_DEMO_VERSION || value.namespace !== TRAINING_DEMO_NAMESPACE || !isId(value.selectedActorId)) return false;
-  if (!Array.isArray(value.actors) || !Array.isArray(value.teacherStudentLinks) || !Array.isArray(value.groups) || !Array.isArray(value.memberships) || !Array.isArray(value.wods)) return false;
+  if (!Array.isArray(value.actors) || !Array.isArray(value.teacherStudentLinks) || !Array.isArray(value.groups) || !Array.isArray(value.memberships) || !Array.isArray(value.wods) || !Array.isArray(value.rms)) return false;
 
   const actors = value.actors;
   if (!actors.every((actor) =>
@@ -106,6 +106,18 @@ export function isValidTrainingDemoState(value: unknown): value is TrainingDemoS
     );
   })) return false;
   if (new Set(wods.map((wod) => wod.id)).size !== wods.length) return false;
+
+  const rms = value.rms;
+  if (!rms.every((rm) =>
+    isRecord(rm) &&
+    isId(rm.id) &&
+    isId(rm.exercise) &&
+    typeof rm.weight === "number" && Number.isFinite(rm.weight) && rm.weight > 0 &&
+    isDateKey(rm.date) &&
+    isInstant(rm.createdAt) &&
+    isId(rm.ownerId) && actorById.has(rm.ownerId),
+  )) return false;
+  if (new Set(rms.map((rm) => rm.id)).size !== rms.length) return false;
 
   return true;
 }

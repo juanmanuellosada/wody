@@ -6,6 +6,8 @@ import type {
   TrainingDemoState,
   TrainingGroup,
   TrainingGroupResult,
+  TrainingRm,
+  TrainingRmResult,
   TrainingResult,
   TrainingTransition,
   TrainingViewProjections,
@@ -146,6 +148,23 @@ function canWriteExisting(state: TrainingDemoState, actor: TrainingActor, wod: T
 function uniqueId(existing: readonly { id: string }[], requestedId: unknown): string | null {
   if (!isId(requestedId) || existing.some((value) => value.id === requestedId)) return null;
   return requestedId;
+}
+
+type RmFieldsResolution =
+  | { success: true; exercise: string; weight: number; date: string }
+  | { success: false; error: string };
+
+/** Validate raw runtime inputs before trimming or consuming their values. */
+function resolveRmFields(exercise: unknown, weight: unknown, date: unknown): RmFieldsResolution {
+  if (typeof exercise !== "string") return { success: false, error: "El ejercicio no puede estar vacío." };
+  if (typeof weight !== "number" || !Number.isFinite(weight) || weight <= 0) {
+    return { success: false, error: "El peso debe ser mayor a 0." };
+  }
+  if (typeof date !== "string" || !date) return { success: false, error: "La fecha es obligatoria." };
+  if (!isDateKey(date)) return { success: false, error: "La fecha no es válida." };
+  const trimmedExercise = exercise.trim();
+  if (!trimmedExercise) return { success: false, error: "El ejercicio no puede estar vacío." };
+  return { success: true, exercise: trimmedExercise, weight, date };
 }
 
 function activeGroupNameTaken(state: TrainingDemoState, teacherId: string, name: string, exceptId?: string): boolean {
@@ -372,6 +391,66 @@ export function removeTrainingStudentFromGroup(
   );
 }
 
+/** RMs use the same current-user ownership rule as the production actions. */
+export function createTrainingRm(
+  state: TrainingDemoState,
+  id: unknown,
+  exercise: unknown,
+  weight: unknown,
+  date: unknown,
+  createdAt: unknown,
+): TrainingTransition<TrainingRmResult> {
+  const actor = currentActor(state);
+  if (!actor) return failure(state, "No autorizado.");
+  const fields = resolveRmFields(exercise, weight, date);
+  if (!fields.success) return failure(state, fields.error);
+  if (typeof createdAt !== "string" || !isInstant(createdAt)) return failure(state, "La fecha de creación no es válida.");
+  const rmId = uniqueId(state.rms, id);
+  if (!rmId) return failure(state, "Identificador de RM inválido.");
+  const rm: TrainingRm = {
+    id: rmId,
+    exercise: fields.exercise,
+    weight: fields.weight,
+    date: fields.date,
+    createdAt,
+    ownerId: actor.id,
+  };
+  return transition({ ...state, rms: [...state.rms, rm] }, { success: true });
+}
+
+export function updateTrainingRm(
+  state: TrainingDemoState,
+  rmId: unknown,
+  exercise: unknown,
+  weight: unknown,
+  date: unknown,
+): TrainingTransition<TrainingRmResult> {
+  const actor = currentActor(state);
+  const rm = typeof rmId === "string" ? state.rms.find((candidate) => candidate.id === rmId) : undefined;
+  if (!actor || !rm || rm.ownerId !== actor.id) return failure(state, "RM no encontrado.");
+  const fields = resolveRmFields(exercise, weight, date);
+  if (!fields.success) return failure(state, fields.error);
+  return transition(
+    {
+      ...state,
+      rms: state.rms.map((candidate) => candidate.id === rmId
+        ? { ...candidate, exercise: fields.exercise, weight: fields.weight, date: fields.date }
+        : candidate),
+    },
+    { success: true },
+  );
+}
+
+export function deleteTrainingRm(
+  state: TrainingDemoState,
+  rmId: unknown,
+): TrainingTransition<TrainingRmResult> {
+  const actor = currentActor(state);
+  const rm = typeof rmId === "string" ? state.rms.find((candidate) => candidate.id === rmId) : undefined;
+  if (!actor || !rm || rm.ownerId !== actor.id) return failure(state, "RM no encontrado.");
+  return transition({ ...state, rms: state.rms.filter((candidate) => candidate.id !== rmId) }, { success: true });
+}
+
 /** A validated fixture is always the reset target and retains its selected admin actor. */
 export function resetTrainingDemoState(): TrainingDemoState {
   return createTrainingDemoFixture();
@@ -430,13 +509,24 @@ export function projectTrainingViews(state: TrainingDemoState): TrainingViewProj
         isOwn: wod.teacherId === actor.id,
       })),
     },
+    // Production orders by RM date descending and scopes the query to the session user.
+    rms: state.rms
+      .filter((rm) => rm.ownerId === actor.id)
+      .sort((left, right) => right.date.localeCompare(left.date))
+      .map((rm) => ({
+        id: rm.id,
+        exercise: rm.exercise,
+        weight: rm.weight,
+        date: toViewDate(rm.date),
+        createdAt: new Date(rm.createdAt),
+      })),
   };
 }
 
 export function reduceTrainingDemo(
   state: TrainingDemoState,
   command: TrainingDemoCommand,
-): TrainingTransition<TrainingResult | TrainingWodResult | TrainingGroupResult> {
+): TrainingTransition<TrainingResult | TrainingWodResult | TrainingGroupResult | TrainingRmResult> {
   switch (command.type) {
     case "select-actor": return selectTrainingDemoActor(state, command.actorId);
     case "reset": return transition(resetTrainingDemoState(), { success: true });
@@ -449,5 +539,8 @@ export function reduceTrainingDemo(
     case "delete-group": return deleteTrainingGroup(state, command.groupId, command.deletedAt);
     case "assign-student": return assignTrainingStudentToGroup(state, command.studentId, command.groupId);
     case "remove-student": return removeTrainingStudentFromGroup(state, command.studentId, command.groupId);
+    case "create-rm": return createTrainingRm(state, command.id, command.exercise, command.weight, command.date, command.createdAt);
+    case "update-rm": return updateTrainingRm(state, command.rmId, command.exercise, command.weight, command.date);
+    case "delete-rm": return deleteTrainingRm(state, command.rmId);
   }
 }

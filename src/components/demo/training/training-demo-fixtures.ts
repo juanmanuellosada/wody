@@ -101,5 +101,23 @@ export function createTrainingDemoFixture(): TrainingDemoState {
         targetStudentId: null,
       },
     ],
+    rms: [
+      {
+        id: "rm-s1-1",
+        exercise: "Back Squat",
+        weight: 120,
+        date: "2025-04-10",
+        createdAt: "2025-04-10T10:00:00.000Z",
+        ownerId: "s1",
+      },
+      {
+        id: "rm-t1-1",
+        exercise: "Deadlift",
+        weight: 150,
+        date: "2025-04-08",
+        createdAt: "2025-04-08T10:00:00.000Z",
+        ownerId: "t1",
+      },
+    ],
   };
 }

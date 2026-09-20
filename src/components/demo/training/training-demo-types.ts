@@ -1,6 +1,7 @@
-export const TRAINING_DEMO_VERSION = 1;
+// RM records were added in v2. Older v1 payloads are rejected and reset to fixtures.
+export const TRAINING_DEMO_VERSION = 2;
 export const TRAINING_DEMO_NAMESPACE = "demo-box-training";
-export const TRAINING_DEMO_STORAGE_KEY = "wody-box-training-demo-v1";
+export const TRAINING_DEMO_STORAGE_KEY = "wody-box-training-demo-v2";
 
 export type TrainingRole = "ADMIN" | "TEACHER" | "STUDENT";
 export type TrainingStudentType = "GENERAL" | "PERSONALIZED";
@@ -43,6 +44,16 @@ export type TrainingWod = {
   targetStudentId: string | null;
 };
 
+/** RM ownership mirrors production's userId check; an owner may hold any training role. */
+export type TrainingRm = {
+  id: string;
+  exercise: string;
+  weight: number;
+  date: string;
+  createdAt: string;
+  ownerId: string;
+};
+
 export type TrainingDemoState = {
   version: typeof TRAINING_DEMO_VERSION;
   namespace: typeof TRAINING_DEMO_NAMESPACE;
@@ -52,6 +63,7 @@ export type TrainingDemoState = {
   groups: TrainingGroup[];
   memberships: TrainingGroupMembership[];
   wods: TrainingWod[];
+  rms: TrainingRm[];
 };
 
 export type TrainingWodTarget =
@@ -68,6 +80,9 @@ export type TrainingWodResult =
   | { success: false; error: string };
 export type TrainingGroupResult =
   | { success: true; groupId?: string }
+  | { success: false; error: string };
+export type TrainingRmResult =
+  | { success: true }
   | { success: false; error: string };
 export type TrainingFixedRoutineResult =
   | { success: true; id?: string }
@@ -92,7 +107,10 @@ export type TrainingDemoCommand =
   | { type: "rename-group"; groupId: string; name: string }
   | { type: "delete-group"; groupId: string; deletedAt: string }
   | { type: "assign-student"; studentId: string; groupId: string }
-  | { type: "remove-student"; studentId: string; groupId: string };
+  | { type: "remove-student"; studentId: string; groupId: string }
+  | { type: "create-rm"; id: string; exercise: string; weight: number; date: string; createdAt: string }
+  | { type: "update-rm"; rmId: string; exercise: string; weight: number; date: string }
+  | { type: "delete-rm"; rmId: string };
 
 export type TrainingWodViewRow = Omit<TrainingWod, "date"> & {
   date: Date;
@@ -118,6 +136,11 @@ export type TrainingStudentWodRow = {
   isOwn: boolean;
 };
 
+export type TrainingRmViewRow = Omit<TrainingRm, "date" | "createdAt" | "ownerId"> & {
+  date: Date;
+  createdAt: Date;
+};
+
 export type TrainingViewProjections = {
   selectedActor: TrainingActor;
   staff: {
@@ -128,6 +151,14 @@ export type TrainingViewProjections = {
   student: {
     wods: TrainingStudentWodRow[];
   };
+  /** Every actor sees and can mutate only their own RM history. */
+  rms: TrainingRmViewRow[];
+};
+
+export type TrainingRmCallbacks = {
+  createRm: (formData: FormData) => Promise<TrainingRmResult>;
+  updateRm: (rmId: string, formData: FormData) => Promise<TrainingRmResult>;
+  deleteRm: (rmId: string) => Promise<TrainingRmResult>;
 };
 
 export type TrainingViewCallbacks = {
@@ -142,4 +173,5 @@ export type TrainingViewCallbacks = {
   onRenameGroup: (groupId: string, name: string) => Promise<TrainingGroupResult>;
   onAssignStudentToGroup: (studentId: string, groupId: string) => Promise<TrainingGroupResult>;
   onRemoveStudentFromGroup: (studentId: string, groupId: string) => Promise<TrainingGroupResult>;
+  rm: TrainingRmCallbacks;
 };

@@ -290,11 +290,49 @@ test("production adapters retain action arguments, locked target, fixed routines
   assert.equal(groupBindings.get("legacyDemoNoOp"), "demo");
 });
 
-test("the complete local training runtime graph excludes operational modules, including dynamic editor dependencies", async () => {
+test("RM production adapters preserve their public props, action callbacks, and extracted view contracts", async () => {
+  const paths = [
+    "src/components/RmsClient.tsx",
+    "src/components/RmForm.tsx",
+    "src/components/DeleteRmButton.tsx",
+    "src/components/RmsView.tsx",
+    "src/components/RmFormView.tsx",
+    "src/components/DeleteRmButtonView.tsx",
+  ];
+  const [client, form, deleteButton, view, formView, deleteView] = await Promise.all(paths.map(source));
+  const clientBindings = jsxAttributeExpressionTexts(paths[0], client, "RmsView");
+  const formBindings = jsxAttributeExpressionTexts(paths[1], form, "RmFormView");
+  const deleteBindings = jsxAttributeExpressionTexts(paths[2], deleteButton, "DeleteRmButtonView");
+
+  assert.deepEqual(interfacePropertyNames(paths[0], client, "RmsClientProps"), new Set(["rms", "athleteName", "gymName", "gymSlug", "terms"]));
+  assert.deepEqual(interfacePropertyNames(paths[1], form, "RmFormProps"), new Set(["editId", "defaultExercise", "defaultWeight", "defaultDate", "onCancel", "onSuccess", "terms"]));
+  assert.deepEqual(interfacePropertyNames(paths[2], deleteButton, "DeleteRmButtonProps"), new Set(["rmId"]));
+  assert.deepEqual(interfacePropertyNames(paths[4], formView, "RmFormViewProps"), new Set(["editId", "defaultExercise", "defaultWeight", "defaultDate", "onCancel", "onSuccess", "terms", "onCreateRm", "onUpdateRm"]));
+  assert.deepEqual(interfacePropertyNames(paths[5], deleteView, "DeleteRmButtonViewProps"), new Set(["rmId", "onDeleteRm"]));
+  assert.deepEqual(interfacePropertyNames(paths[3], view, "RmsViewProps"), new Set(["rms", "athleteName", "gymName", "gymSlug", "terms", "onCreateRm", "onUpdateRm", "onDeleteRm"]));
+  assert.equal(clientBindings.get("onCreateRm"), "createRm");
+  assert.equal(clientBindings.get("onUpdateRm"), "updateRm");
+  assert.equal(clientBindings.get("onDeleteRm"), "deleteRm");
+  assert.equal(formBindings.get("onCreateRm"), "createRm");
+  assert.equal(formBindings.get("onUpdateRm"), "updateRm");
+  assert.equal(deleteBindings.get("onDeleteRm"), "deleteRm");
+  assertExactCall(paths[4], formView, "onCreateRm", ["formData"]);
+  assertExactCall(paths[4], formView, "onUpdateRm", ["editId", "formData"]);
+  assertExactCall(paths[5], deleteView, "onDeleteRm", ["rmId"]);
+  assert.doesNotMatch(view, /@\/actions\//);
+  assert.doesNotMatch(formView, /@\/actions\//);
+  assert.doesNotMatch(deleteView, /@\/actions\//);
+});
+
+test("the complete local training runtime graph excludes operational modules, including RM views and dynamic editor dependencies", async () => {
   const { edges, visited } = await runtimeLocalGraph([
     "src/components/wod/WodManagerView.tsx",
     "src/components/wod/CopyWodDialogView.tsx",
     "src/components/group/GroupManagerView.tsx",
+    "src/components/RmsView.tsx",
+    "src/components/RmFormView.tsx",
+    "src/components/DeleteRmButtonView.tsx",
+    "src/components/ShareRmButton.tsx",
     "src/components/demo/training/training-demo-state.ts",
     "src/components/demo/training/training-demo-storage.ts",
     "src/components/demo/training/training-demo-adapters.ts",
@@ -308,6 +346,10 @@ test("the complete local training runtime graph excludes operational modules, in
   assert.ok(
     [...visited].some((filePath) => filePath.endsWith("src/components/wod/CopyWodDialogView.tsx")),
     "the graph must traverse the copy dialog view"
+  );
+  assert.ok(
+    [...visited].some((filePath) => filePath.endsWith("src/components/ShareRmButton.tsx")),
+    "the graph must traverse the click-only RM share control"
   );
 
   const forbidden = /(^|\/)(actions|auth|prisma|cache|server)(\/|$)/;
@@ -335,5 +377,6 @@ test("the client provider exposes hydration-safe local state, projections, and t
   assert.match(provider, /loadTrainingDemoState\(storageRef\.current, initialFallbackState\)/);
   assert.match(provider, /createTrainingCallbackFactory/);
   assert.match(provider, /projectTrainingViews/);
+  assert.match(provider, /rm: \{/);
   assert.doesNotMatch(provider, /setState\(\(previous/);
 });
