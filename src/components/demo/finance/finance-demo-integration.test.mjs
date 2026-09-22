@@ -68,7 +68,8 @@ test("Caja routes use the actual local callback and scope teacher picker before 
   assert.match(adapter, /datePolicy=\{\{ today: \(\) => finance\.today \}\}/);
   assert.match(adapter, /Datos ficticios guardados solo en esta pestaña/);
   assert.match(adapter, /no genera recibos, cobros ni checkout reales/);
-  assert.doesNotMatch(adapter, /demo=\{true\}|RevenuePanel|NewSaleButton|RegisterExpenseButton/);
+  assert.doesNotMatch(adapter, /demo=\{true\}|RevenuePanel|RegisterExpenseButton/);
+  assert.match(adapter, /NewSaleButtonView/);
   for (const [page, role] of [[rootAdmin, "ADMIN"], [rootTeacher, "TEACHER"], [previewAdmin, "ADMIN"], [previewTeacher, "TEACHER"]]) {
     assert.match(page, /DemoCashAdapter/);
     assert.match(page, new RegExp(`role="${role}"`));

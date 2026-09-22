@@ -12,7 +12,12 @@ import {
   type CatalogDemoCallbacks,
 } from "./catalog-demo-adapters";
 import { financeCatalogSaleActors } from "./catalog-sales-contract";
+import {
+  createSaleDemoCallbackFactory,
+  type SaleDemoCallback,
+} from "./sale-demo-adapters";
 import { createFinanceDemoFixture } from "./finance-demo-state";
+import type { SaleDatePolicy } from "@/components/sales/sale-view-contracts";
 import {
   loadFinanceDemoState,
   persistFinanceDemoState,
@@ -22,6 +27,7 @@ import type { FeeRole } from "./fees-contract";
 import type { FinanceDemoState } from "./finance-demo-types";
 
 type FinanceRoleCallbacks = Record<FeeRole, FinancePaymentCallback>;
+type SaleRoleCallbacks = Record<FeeRole, SaleDemoCallback>;
 
 export type DemoFinanceContextValue = {
   ready: boolean;
@@ -32,6 +38,8 @@ export type DemoFinanceContextValue = {
   resetEpoch: number;
   callbacks: FinanceRoleCallbacks | null;
   catalogCallbacks: CatalogDemoCallbacks | null;
+  saleCallbacks: SaleRoleCallbacks | null;
+  saleDatePolicy: SaleDatePolicy;
 };
 
 const DemoFinanceContext = createContext<DemoFinanceContextValue | null>(null);
@@ -51,11 +59,13 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
   const [warning, setWarning] = useState<string | null>(null);
   const [callbacks, setCallbacks] = useState<FinanceRoleCallbacks | null>(null);
   const [catalogCallbacks, setCatalogCallbacks] = useState<CatalogDemoCallbacks | null>(null);
+  const [saleCallbacks, setSaleCallbacks] = useState<SaleRoleCallbacks | null>(null);
   const [resetEpoch, setResetEpoch] = useState(0);
   const stateRef = useRef(state);
   const todayRef = useRef(state.anchor);
   const storageRef = useRef<FinanceDemoStorage | null>(null);
   const resetEpochRef = useRef(0);
+  const saleDatePolicy = useMemo<SaleDatePolicy>(() => ({ today: argentinaToday }), []);
 
   const commit = useCallback((next: FinanceDemoState) => {
     stateRef.current = next;
@@ -99,21 +109,37 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
         commit,
         actor: financeCatalogSaleActors.admin,
       }));
+      setSaleCallbacks({
+        ADMIN: createSaleDemoCallbackFactory({
+          getState: () => stateRef.current,
+          commit,
+          fixedActor: financeCatalogSaleActors.admin,
+          datePolicy: saleDatePolicy,
+        }),
+        TEACHER: createSaleDemoCallbackFactory({
+          getState: () => stateRef.current,
+          commit,
+          fixedActor: financeCatalogSaleActors.teacher,
+          datePolicy: saleDatePolicy,
+        }),
+      });
       setReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [commit]);
+  }, [commit, saleDatePolicy]);
 
   const reset = useCallback(() => {
     callbacks?.ADMIN.cancelPendingDuplicate();
     callbacks?.TEACHER.cancelPendingDuplicate();
+    saleCallbacks?.ADMIN.cancelPendingSale();
+    saleCallbacks?.TEACHER.cancelPendingSale();
     const nextToday = argentinaToday();
     todayRef.current = nextToday;
     setToday(nextToday);
     commit(createFinanceDemoFixture(nextToday));
     resetEpochRef.current += 1;
     setResetEpoch(resetEpochRef.current);
-  }, [callbacks, commit]);
+  }, [callbacks, commit, saleCallbacks]);
 
   const value = useMemo<DemoFinanceContextValue>(() => ({
     ready,
@@ -124,7 +150,9 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
     resetEpoch,
     callbacks: ready ? callbacks : null,
     catalogCallbacks: ready ? catalogCallbacks : null,
-  }), [callbacks, catalogCallbacks, ready, reset, resetEpoch, state, today, warning]);
+    saleCallbacks: ready ? saleCallbacks : null,
+    saleDatePolicy,
+  }), [callbacks, catalogCallbacks, ready, reset, resetEpoch, saleCallbacks, saleDatePolicy, state, today, warning]);
 
   return <DemoFinanceContext.Provider value={value}>{children}</DemoFinanceContext.Provider>;
 }
