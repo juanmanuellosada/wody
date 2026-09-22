@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/Button";
-import { NewSaleDialog } from "@/components/NewSaleDialog";
-import type { ProductCatalogItem } from "@/actions/product";
+import { registerLiveSale } from "@/components/NewSaleDialog";
+import { NewSaleButtonView } from "@/components/sales/NewSaleButtonView";
+import type { ProductCatalogItem } from "@/components/sales/sale-view-contracts";
+
+export type { ProductCatalogItem } from "@/components/sales/sale-view-contracts";
 
 interface Props {
   products: ProductCatalogItem[];
@@ -15,14 +16,5 @@ interface Props {
  * independientemente de canViewRevenue.
  */
 export function NewSaleButton({ products, size = "sm" }: Props) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <>
-      <Button variant="secondary" size={size} onClick={() => setOpen(true)}>
-        Nueva venta
-      </Button>
-      <NewSaleDialog products={products} open={open} onClose={() => setOpen(false)} />
-    </>
-  );
+  return <NewSaleButtonView products={products} size={size} onRegisterSale={registerLiveSale} />;
 }
