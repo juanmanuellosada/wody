@@ -9,6 +9,7 @@ const supportedRoutes = [
   "/demo/admin/turnos",
   "/demo/admin/pagos",
   "/demo/admin/caja",
+  "/demo/admin/productos",
   "/demo/teacher",
   "/demo/teacher/rms",
   "/demo/teacher/turnos",

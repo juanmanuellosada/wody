@@ -12,6 +12,7 @@ const roleLinks = {
     { href: "/demo/admin", label: "Panel Admin" },
     { href: "/demo/admin/pagos", label: "Cuotas" },
     { href: "/demo/admin/caja", label: "Caja" },
+    { href: "/demo/admin/productos", label: "Productos" },
     { href: "/demo/admin/ingresos", label: "Ingresos" },
     { href: "/demo/admin/turnos", label: "Turnos" },
     { href: "/demo/admin/rms", label: "Mis RMs" },

@@ -7,6 +7,11 @@ import {
   financeDemoActors,
   type FinancePaymentCallback,
 } from "./finance-demo-adapters";
+import {
+  createCatalogDemoCallbackFactory,
+  type CatalogDemoCallbacks,
+} from "./catalog-demo-adapters";
+import { financeCatalogSaleActors } from "./catalog-sales-contract";
 import { createFinanceDemoFixture } from "./finance-demo-state";
 import {
   loadFinanceDemoState,
@@ -24,7 +29,9 @@ export type DemoFinanceContextValue = {
   state: FinanceDemoState;
   today: string;
   reset: () => void;
+  resetEpoch: number;
   callbacks: FinanceRoleCallbacks | null;
+  catalogCallbacks: CatalogDemoCallbacks | null;
 };
 
 const DemoFinanceContext = createContext<DemoFinanceContextValue | null>(null);
@@ -43,9 +50,12 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
   const [ready, setReady] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const [callbacks, setCallbacks] = useState<FinanceRoleCallbacks | null>(null);
+  const [catalogCallbacks, setCatalogCallbacks] = useState<CatalogDemoCallbacks | null>(null);
+  const [resetEpoch, setResetEpoch] = useState(0);
   const stateRef = useRef(state);
   const todayRef = useRef(state.anchor);
   const storageRef = useRef<FinanceDemoStorage | null>(null);
+  const resetEpochRef = useRef(0);
 
   const commit = useCallback((next: FinanceDemoState) => {
     stateRef.current = next;
@@ -84,6 +94,11 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
           today: () => todayRef.current,
         }),
       });
+      setCatalogCallbacks(createCatalogDemoCallbackFactory({
+        getState: () => stateRef.current,
+        commit,
+        actor: financeCatalogSaleActors.admin,
+      }));
       setReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -96,6 +111,8 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
     todayRef.current = nextToday;
     setToday(nextToday);
     commit(createFinanceDemoFixture(nextToday));
+    resetEpochRef.current += 1;
+    setResetEpoch(resetEpochRef.current);
   }, [callbacks, commit]);
 
   const value = useMemo<DemoFinanceContextValue>(() => ({
@@ -104,8 +121,10 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
     state,
     today,
     reset,
+    resetEpoch,
     callbacks: ready ? callbacks : null,
-  }), [callbacks, ready, reset, state, today, warning]);
+    catalogCallbacks: ready ? catalogCallbacks : null,
+  }), [callbacks, catalogCallbacks, ready, reset, resetEpoch, state, today, warning]);
 
   return <DemoFinanceContext.Provider value={value}>{children}</DemoFinanceContext.Provider>;
 }

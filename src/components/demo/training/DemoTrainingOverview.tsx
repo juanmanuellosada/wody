@@ -11,6 +11,7 @@ const modules = [
   { href: "/demo/student/beneficios", label: "Beneficios", description: "Revisá beneficios de demostración no canjeables." },
   { href: "/demo/admin/pagos", label: "Cuotas", description: "Consultá cuotas ficticias como administración o profesorado." },
   { href: "/demo/admin/caja", label: "Caja", description: "Registrá cuotas ficticias en la caja de demostración." },
+  { href: "/demo/admin/productos", label: "Productos", description: "Administrá el catálogo ficticio de productos y categorías." },
 ];
 
 /** Shared entry hub used by both demo applications. */

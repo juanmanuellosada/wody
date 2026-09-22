@@ -11,6 +11,9 @@
 @source "../../../src/components/payments/RegisterPaymentSectionView.tsx";
 @source "../../../src/components/payments/RegisterPaymentDialogView.tsx";
 @source "../../../src/components/payments/PaymentControlView.tsx";
+@source "../../../src/components/products/ProductListView.tsx";
+@source "../../../src/components/products/ProductDialogView.tsx";
+@source "../../../src/components/products/CategoryManagerView.tsx";
 @source "../../../src/components/StudentTypeSelectView.tsx";
 @source "../../../src/components/DemoNavbar.tsx";
 @source "../../../src/components/DemoBanner.tsx";

@@ -113,6 +113,6 @@ test("Caja shell keeps production action slots and both static exports retain ev
     assert.match(previewLayout, new RegExp(`"${route}"`));
   }
   assert.match(overview, /href: "\/demo\/admin\/caja", label: "Caja"/);
-  assert.equal(rootPages, 17);
-  assert.equal(previewPages, 16, "the standalone preview retains its prior 14 safe pages plus both Caja routes");
+  assert.equal(rootPages, 18);
+  assert.equal(previewPages, 17, "the standalone preview retains its prior safe pages plus Caja and Productos routes");
 });
