@@ -1,22 +1,34 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { financeCatalogSaleActors } from "./catalog-sales-contract.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { createCatalogProduct, registerCatalogSale } from "./catalog-sales-state.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { registerFinanceExpense } from "./expense-demo-state.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { createFinanceDemoFixture, registerFinancePayment } from "./finance-demo-state.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import {
   isValidFinanceDemoLegacyState,
   isValidFinanceDemoState,
+  isValidFinanceDemoV2State,
   loadFinanceDemoState,
   migrateFinanceDemoStateV1,
+  migrateFinanceDemoStateV2,
   persistFinanceDemoState,
   resolveFinanceDemoInitialState,
   serializeFinanceDemoState,
 } from "./finance-demo-storage.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
-import { FINANCE_DEMO_LEGACY_STORAGE_KEY, FINANCE_DEMO_STORAGE_KEY } from "./finance-demo-types.ts";
+import {
+  FINANCE_DEMO_LEGACY_STORAGE_KEY,
+  FINANCE_DEMO_STORAGE_KEY,
+  FINANCE_DEMO_V2_STORAGE_KEY,
+} from "./finance-demo-types.ts";
 
 const anchor = "2030-06-03";
-const command = {
+const paymentCommand = {
   id: "payment-1",
   commandId: "command-1",
   actor: { id: "finance-admin", role: "ADMIN" },
@@ -28,230 +40,164 @@ const command = {
   confirmedDuplicate: false,
 };
 
-function memoryStorage(value = null) {
-  let current = value;
+function asV2(state) {
+  const v2 = { ...state, version: 2 };
+  Reflect.deleteProperty(v2, "expenses");
+  return v2;
+}
+
+function asV1(state) {
   return {
-    getItem: () => current,
-    setItem: (_key, next) => { current = next; },
-    read: () => current,
+    version: 1,
+    namespace: state.namespace,
+    anchor: state.anchor,
+    students: state.students,
+    payments: state.payments,
   };
 }
 
-test("the full persisted graph accepts valid finance history and rejects metadata, relation, and ID corruption", () => {
-  const initial = createFinanceDemoFixture(anchor);
-  const state = registerFinancePayment(initial, command, anchor).state;
-  assert.equal(isValidFinanceDemoState(state), true);
-  assert.equal(JSON.parse(serializeFinanceDemoState(state)).payments[0].amountCents, 1_500_050);
+function memoryStorage(entries = {}) {
+  const values = new Map(Object.entries(entries));
+  const reads = [];
+  const writes = [];
+  return {
+    getItem(key) { reads.push(key); return values.get(key) ?? null; },
+    setItem(key, value) { writes.push([key, value]); values.set(key, value); },
+    snapshot: () => new Map(values),
+    reads,
+    writes,
+  };
+}
 
+test("v3 validation is closed for every nested graph, including designated-admin expenses", () => {
+  const state = registerFinanceExpense(createFinanceDemoFixture(anchor), {
+    id: "expense-1", actor: financeCatalogSaleActors.admin, amountCents: 100, description: "Limpieza", spentAt: anchor,
+  }, anchor).state;
+  assert.equal(isValidFinanceDemoState(state), true);
+  assert.equal(JSON.parse(serializeFinanceDemoState(state)).expenses[0].amountCents, 100);
   for (const corrupt of [
-    { ...state, version: 3 },
-    { ...state, namespace: "other" },
-    { ...state, students: state.students.map((student) => student.id === "fee-student-juan" ? { ...student, name: "forged" } : student) },
-    { ...state, students: state.students.map((student) => student.id === "fee-student-juan" ? { ...student, assignedTeachers: [{ id: "forged", name: "Forged" }] } : student) },
-    { ...state, payments: [{ ...state.payments[0], amountCents: 1.5 }] },
-    { ...state, payments: [{ ...state.payments[0], paymentMethod: "CHEQUE" }] },
-    { ...state, payments: [{ ...state.payments[0], recordedById: "forged" }] },
-    { ...state, payments: [{ ...state.payments[0], studentId: "fee-student-archived" }] },
-    { ...state, payments: [state.payments[0], { ...state.payments[0], id: "payment-2" }] },
-    { ...state, payments: [state.payments[0], { ...state.payments[0], id: "payment-2", commandId: "command-2", paidAt: "2030-02-30" }] },
-    { ...state, categories: [{ ...state.categories[0] }, { ...state.categories[0], id: "category-duplicate" }] },
-    { ...state, products: [{ ...state.products[0], categoryId: "missing-category" }] },
-    { ...state, products: [{ ...state.products[0] }, { ...state.products[1], code: state.products[0].code }] },
-    { ...state, sales: [{ id: "sale-1", commandId: "sale-command-1", productId: state.products[0].id, quantity: 1, unitAmountCents: 100, totalAmountCents: 101, paymentMethod: "EFECTIVO", soldAt: anchor, recordedById: "finance-admin" }] },
-    { ...state, sales: [{ id: "sale-1", commandId: "sale-command-1", productId: state.products[0].id, quantity: 1, unitAmountCents: 100, totalAmountCents: 100, paymentMethod: "EFECTIVO", soldAt: anchor, recordedById: "forged" }] },
-    { ...state, nextProductCode: 0 },
+    { ...state, version: 2 },
+    { ...state, expenses: [{ ...state.expenses[0], recordedById: "finance-teacher-carlos" }] },
+    { ...state, expenses: [{ ...state.expenses[0], description: " Limpieza" }] },
+    { ...state, expenses: [{ ...state.expenses[0], amountCents: 0 }] },
+    { ...state, expenses: [{ ...state.expenses[0], receipt: "invented" }] },
+    { ...state, expenses: [state.expenses[0], { ...state.expenses[0] }] },
+    { ...state, categories: [{ ...state.categories[0], extra: true }] },
+    { ...state, products: [{ ...state.products[0], costCents: 1 }] },
+    { ...state, sales: [{ id: "sale", commandId: "command", productId: state.products[0].id, quantity: 1, unitAmountCents: 1, totalAmountCents: 1, paymentMethod: "EFECTIVO", soldAt: anchor, recordedById: "finance-admin", buyer: "invented" }] },
+    { ...state, actorCapabilities: { canManageExpenses: true } },
   ]) {
     assert.equal(isValidFinanceDemoState(corrupt), false);
-  }
-});
-
-test("sparse arrays and explicit non-record entries are rejected before every traversal or Map construction", () => {
-  const state = registerFinancePayment(createFinanceDemoFixture(anchor), command, anchor).state;
-  const sparseStudents = [...state.students];
-  delete sparseStudents[0];
-  const sparsePayments = new Array(1);
-  const sparseTeachers = state.students.map((student) => student.id === "fee-student-juan"
-    ? { ...student, assignedTeachers: new Array(1) }
-    : student);
-  const undefinedTeachers = state.students.map((student) => student.id === "fee-student-juan"
-    ? { ...student, assignedTeachers: [undefined] }
-    : student);
-  const nullTeachers = state.students.map((student) => student.id === "fee-student-juan"
-    ? { ...student, assignedTeachers: [null] }
-    : student);
-  const malformed = [
-    { ...state, students: sparseStudents },
-    { ...state, students: [undefined, ...state.students.slice(1)] },
-    { ...state, students: [null, ...state.students.slice(1)] },
-    { ...state, students: sparseTeachers },
-    { ...state, students: undefinedTeachers },
-    { ...state, students: nullTeachers },
-    { ...state, payments: sparsePayments },
-    { ...state, categories: new Array(1) },
-    { ...state, products: new Array(1) },
-    { ...state, sales: new Array(1) },
-    { ...state, payments: [undefined] },
-    { ...state, payments: [null] },
-  ];
-  for (const corrupt of malformed) {
-    assert.equal(isValidFinanceDemoState(corrupt), false);
     assert.throws(() => serializeFinanceDemoState(corrupt));
   }
-
-  const validFallback = createFinanceDemoFixture("2031-01-01");
-  for (const corrupt of malformed) {
-    const resolved = resolveFinanceDemoInitialState(JSON.stringify(corrupt), validFallback);
-    assert.equal(resolved.state, validFallback, "invalid persisted arrays cannot partially merge");
-    const invalidFallback = resolveFinanceDemoInitialState(null, corrupt);
-    assert.equal(isValidFinanceDemoState(invalidFallback.state), true, "invalid injected fallback resets to a full deterministic fixture");
-    const loaded = loadFinanceDemoState(memoryStorage(JSON.stringify(corrupt)), corrupt);
-    assert.equal(isValidFinanceDemoState(loaded.state), true, "load never throws or accepts a sparse fallback graph");
-  }
+  const sparse = new Array(1);
+  assert.equal(isValidFinanceDemoState({ ...state, expenses: sparse }), false);
 });
 
-test("valid storage takes precedence over valid injected fallback; invalid raw data never partially merges", () => {
-  const fallback = createFinanceDemoFixture("2031-01-01");
-  const stored = registerFinancePayment(createFinanceDemoFixture(anchor), command, anchor).state;
-  const raw = serializeFinanceDemoState(stored);
-  assert.equal(resolveFinanceDemoInitialState(raw, fallback).state.anchor, anchor);
-  const malformed = resolveFinanceDemoInitialState("{broken", fallback);
-  assert.equal(malformed.state, fallback);
-  assert.match(malformed.warning ?? "", /no es válido/);
-  const deepInvalid = resolveFinanceDemoInitialState(JSON.stringify({ ...stored, payments: [{ ...stored.payments[0], commandId: "" }] }), fallback);
-  assert.equal(deepInvalid.state, fallback);
-  assert.match(deepInvalid.warning ?? "", /no es válido/);
-});
-
-test("storage read and write failures degrade to a deterministic in-memory fixture", () => {
-  const fallback = createFinanceDemoFixture(anchor);
-  const throwingRead = { getItem() { throw new Error("denied"); }, setItem() {} };
-  const loaded = loadFinanceDemoState(throwingRead, fallback);
-  assert.equal(loaded.state, fallback);
-  assert.match(loaded.warning ?? "", /No se pudo leer/);
-
-  const throwingWrite = { getItem() { return null; }, setItem() { throw new Error("denied"); } };
-  assert.match(persistFinanceDemoState(throwingWrite, fallback) ?? "", /No se pudieron guardar/);
-  assert.match(persistFinanceDemoState(null, fallback) ?? "", /pestaña no está disponible/);
-});
-
-test("the generic storage interface writes only the finance session key", () => {
-  const storage = memoryStorage();
-  const state = createFinanceDemoFixture(anchor);
-  assert.equal(persistFinanceDemoState(storage, state), null);
-  assert.equal(typeof storage.read(), "string");
-  const loaded = loadFinanceDemoState(storage, createFinanceDemoFixture("2031-01-01"));
-  assert.equal(loaded.state.anchor, anchor);
-  assert.equal(FINANCE_DEMO_STORAGE_KEY, "wody-box-finance-demo-v2");
-});
-
-test("closed persisted graphs reject invented capabilities and accounting fields at every level", () => {
-  const state = registerFinancePayment(createFinanceDemoFixture(anchor), command, anchor).state;
-  const fallback = createFinanceDemoFixture("2032-01-01");
-  const corruptions = [
-    { ...state, actorCapabilities: { canManageCatalog: true } },
-    { ...state, students: state.students.map((student) => student.id === "fee-student-juan" ? { ...student, actorCapabilities: ["ADMIN"] } : student) },
-    { ...state, students: state.students.map((student) => student.id === "fee-student-juan" ? { ...student, assignedTeachers: [{ ...student.assignedTeachers[0], canViewRevenue: true }] } : student) },
-    { ...state, payments: [{ ...state.payments[0], actorCapabilities: { role: "ADMIN" } }] },
-    { ...state, categories: [{ ...state.categories[0], actorCapabilities: true }] },
-    { ...state, products: [{ ...state.products[0], costCents: 100 }] },
-    { ...state, sales: [{ id: "sale-extra", commandId: "sale-extra-command", productId: state.products[0].id, quantity: 1, unitAmountCents: 100, totalAmountCents: 100, paymentMethod: "EFECTIVO", soldAt: anchor, recordedById: "finance-admin", actorCapabilities: true }] },
-  ];
-  for (const corrupt of corruptions) {
-    assert.equal(isValidFinanceDemoState(corrupt), false);
-    assert.throws(() => serializeFinanceDemoState(corrupt));
-    assert.equal(resolveFinanceDemoInitialState(JSON.stringify(corrupt), fallback).state, fallback);
-  }
-
-  const legacy = { version: 1, namespace: state.namespace, anchor: state.anchor, students: state.students, payments: state.payments, actorCapabilities: true };
-  assert.equal(isValidFinanceDemoLegacyState(legacy), false);
-  assert.equal(resolveFinanceDemoInitialState(JSON.stringify(legacy), fallback).state, fallback);
-});
-
-test("strict v1 migration preserves the full payment and student graph while v2 storage has priority", () => {
-  const paid = registerFinancePayment(createFinanceDemoFixture(anchor), command, anchor).state;
-  const legacy = {
-    version: 1,
-    namespace: paid.namespace,
-    anchor: paid.anchor,
-    students: paid.students,
-    payments: paid.payments,
-  };
-  assert.equal(isValidFinanceDemoLegacyState(legacy), true);
-  const migrated = migrateFinanceDemoStateV1(legacy);
-  assert.equal(migrated.version, 2);
-  assert.deepEqual(migrated.students, legacy.students);
-  assert.deepEqual(migrated.payments, legacy.payments);
-  assert.equal(migrated.sales.length, 0);
-
-  const keys = new Map([
-    [FINANCE_DEMO_STORAGE_KEY, serializeFinanceDemoState(createFinanceDemoFixture("2031-01-01"))],
-    [FINANCE_DEMO_LEGACY_STORAGE_KEY, JSON.stringify(legacy)],
-  ]);
-  const reads = [];
+test("valid v3 wins without legacy access and direct resolution accepts only strict v1, v2, and v3", () => {
+  const v3 = createFinanceDemoFixture(anchor);
   const storage = {
-    getItem(key) { reads.push(key); return keys.get(key) ?? null; },
-    setItem(key, value) { keys.set(key, value); },
+    getItem(key) {
+      assert.equal(key, FINANCE_DEMO_STORAGE_KEY, "valid v3 must not inspect older namespaces");
+      return serializeFinanceDemoState(v3);
+    },
+    setItem() { throw new Error("load must not write"); },
   };
-  const preferred = loadFinanceDemoState(storage, createFinanceDemoFixture());
-  assert.equal(preferred.state.anchor, "2031-01-01");
-  assert.equal(keys.has(FINANCE_DEMO_LEGACY_STORAGE_KEY), true, "migration never silently deletes v1");
-  assert.equal(reads.every((key) => key === FINANCE_DEMO_STORAGE_KEY || key === FINANCE_DEMO_LEGACY_STORAGE_KEY), true);
+  assert.equal(loadFinanceDemoState(storage, createFinanceDemoFixture("2031-01-01")).state.anchor, anchor);
 
-  keys.set(FINANCE_DEMO_STORAGE_KEY, "{corrupt");
-  const recovered = loadFinanceDemoState(storage, createFinanceDemoFixture("2032-01-01"));
-  assert.deepEqual(recovered.state.payments, legacy.payments);
-  assert.match(recovered.warning ?? "", /v2 no es válido/);
-
-  keys.set(FINANCE_DEMO_LEGACY_STORAGE_KEY, JSON.stringify({ ...legacy, payments: [{ ...legacy.payments[0], recordedById: "forged" }] }));
-  const fallback = createFinanceDemoFixture("2032-01-01");
-  const invalidBoth = loadFinanceDemoState(storage, fallback);
-  assert.equal(invalidBoth.state, fallback);
-  assert.match(invalidBoth.warning ?? "", /no es válido/);
+  const v2 = asV2(v3);
+  const v1 = asV1(v3);
+  assert.equal(isValidFinanceDemoV2State(v2), true);
+  assert.equal(isValidFinanceDemoLegacyState(v1), true);
+  assert.equal(resolveFinanceDemoInitialState(JSON.stringify(v3)).state.version, 3);
+  assert.equal(resolveFinanceDemoInitialState(JSON.stringify(v2)).state.version, 3);
+  assert.equal(resolveFinanceDemoInitialState(JSON.stringify(v1)).state.version, 3);
+  assert.equal(resolveFinanceDemoInitialState(JSON.stringify({ ...v2, expenses: [] })).state.version, 3, "invalid raw uses a safe fixture");
 });
 
-test("storage reads v2 and v1 independently without writes or namespace probing", () => {
-  const legacyState = registerFinancePayment(createFinanceDemoFixture(anchor), command, anchor).state;
-  const legacy = JSON.stringify({ version: 1, namespace: legacyState.namespace, anchor: legacyState.anchor, students: legacyState.students, payments: legacyState.payments });
-  const fallback = createFinanceDemoFixture("2032-01-01");
+test("v2 migration preserves catalog, sales, payments, dues, order, snapshots, stock, and product counter exactly before adding empty expenses", () => {
+  let state = registerFinancePayment(createFinanceDemoFixture(anchor), paymentCommand, anchor).state;
+  state = createCatalogProduct(state, {
+    id: "product-edited", actor: financeCatalogSaleActors.admin, description: "Barra", categoryId: "finance-category-drinks", priceCents: 777, stock: 8,
+  }).state;
+  state = registerCatalogSale(state, {
+    id: "sale-1", commandId: "sale-command-1", actor: financeCatalogSaleActors.teacher, productId: "product-edited", quantity: 2, unitAmountCents: 700, paymentMethod: "EFECTIVO", soldAt: anchor,
+  }, anchor).state;
+  const v2 = asV2(state);
+  const migrated = migrateFinanceDemoStateV2(v2);
+  assert.deepEqual({ ...migrated, version: 2, expenses: undefined }, { ...v2, expenses: undefined });
+  assert.deepEqual(migrated.expenses, []);
+  assert.equal(migrated.products.find((product) => product.id === "product-edited")?.stock, 6);
 
-  const v2Wins = {
-    getItem(key) {
-      assert.equal(key, FINANCE_DEMO_STORAGE_KEY, "valid v2 must not require a legacy read");
-      return serializeFinanceDemoState(createFinanceDemoFixture(anchor));
-    },
-    setItem() { throw new Error("load must not write"); },
-  };
-  assert.equal(loadFinanceDemoState(v2Wins, fallback).state.anchor, anchor);
+  const legacy = asV1(state);
+  const fromV1 = migrateFinanceDemoStateV1(legacy);
+  assert.deepEqual(fromV1.students, legacy.students);
+  assert.deepEqual(fromV1.payments, legacy.payments);
+  assert.equal(fromV1.sales.length, 0);
+  assert.deepEqual(fromV1.expenses, []);
+});
 
-  const v2FaultV1Valid = {
-    getItem(key) {
-      if (key === FINANCE_DEMO_STORAGE_KEY) throw new Error("v2 denied");
-      assert.equal(key, FINANCE_DEMO_LEGACY_STORAGE_KEY);
-      return legacy;
-    },
-    setItem() { throw new Error("load must not write"); },
-  };
-  const recovered = loadFinanceDemoState(v2FaultV1Valid, fallback);
-  assert.deepEqual(recovered.state.payments, legacyState.payments);
-  assert.match(recovered.warning ?? "", /v2/);
+test("missing, corrupt, and throwing keys fall through independently in v3 then v2 then v1 order", () => {
+  const source = registerFinancePayment(createFinanceDemoFixture(anchor), paymentCommand, anchor).state;
+  const v2 = JSON.stringify(asV2(source));
+  const v1 = JSON.stringify(asV1(source));
+  const storage = memoryStorage({ [FINANCE_DEMO_STORAGE_KEY]: "{broken", [FINANCE_DEMO_V2_STORAGE_KEY]: v2, [FINANCE_DEMO_LEGACY_STORAGE_KEY]: v1 });
+  const v2Recovered = loadFinanceDemoState(storage, createFinanceDemoFixture("2032-01-01"));
+  assert.deepEqual(v2Recovered.state.payments, source.payments);
+  assert.match(v2Recovered.warning ?? "", /v2/);
+  assert.deepEqual(storage.reads, [FINANCE_DEMO_STORAGE_KEY, FINANCE_DEMO_V2_STORAGE_KEY]);
 
-  const v2InvalidV1Fault = {
+  const faults = {
     getItem(key) {
-      if (key === FINANCE_DEMO_STORAGE_KEY) return "{broken";
-      if (key === FINANCE_DEMO_LEGACY_STORAGE_KEY) throw new Error("v1 denied");
+      if (key === FINANCE_DEMO_STORAGE_KEY || key === FINANCE_DEMO_V2_STORAGE_KEY) throw new Error("denied");
+      if (key === FINANCE_DEMO_LEGACY_STORAGE_KEY) return v1;
       throw new Error("unexpected namespace");
     },
     setItem() { throw new Error("load must not write"); },
   };
-  const v1Fault = loadFinanceDemoState(v2InvalidV1Fault, fallback);
-  assert.equal(v1Fault.state, fallback);
-  assert.match(v1Fault.warning ?? "", /No se pudo leer/);
+  const v1Recovered = loadFinanceDemoState(faults, createFinanceDemoFixture("2032-01-01"));
+  assert.deepEqual(v1Recovered.state.payments, source.payments);
+  assert.match(v1Recovered.warning ?? "", /recuperó v1/);
 
-  const bothFault = {
-    getItem() { throw new Error("denied"); },
-    setItem() { throw new Error("load must not write"); },
-  };
-  const failed = loadFinanceDemoState(bothFault, fallback);
-  assert.equal(failed.state, fallback);
-  assert.match(failed.warning ?? "", /No se pudo leer/);
+  const allCorrupt = memoryStorage({ [FINANCE_DEMO_STORAGE_KEY]: "{broken", [FINANCE_DEMO_V2_STORAGE_KEY]: "{broken", [FINANCE_DEMO_LEGACY_STORAGE_KEY]: "{broken" });
+  const fallback = createFinanceDemoFixture("2032-01-01");
+  assert.equal(loadFinanceDemoState(allCorrupt, fallback).state, fallback);
+  assert.equal(allCorrupt.writes.length, 0);
+});
+
+test("load never writes or deletes, persist writes only v3, and legacy bytes remain unchanged", () => {
+  const state = createFinanceDemoFixture(anchor);
+  const v2Bytes = JSON.stringify(asV2(state));
+  const v1Bytes = JSON.stringify(asV1(state));
+  const storage = memoryStorage({ [FINANCE_DEMO_V2_STORAGE_KEY]: v2Bytes, [FINANCE_DEMO_LEGACY_STORAGE_KEY]: v1Bytes });
+  const loaded = loadFinanceDemoState(storage, createFinanceDemoFixture("2031-01-01"));
+  assert.equal(storage.writes.length, 0);
+  assert.equal(loaded.state.version, 3);
+  assert.equal(persistFinanceDemoState(storage, loaded.state), null);
+  assert.deepEqual(storage.writes.map(([key]) => key), [FINANCE_DEMO_STORAGE_KEY]);
+  assert.equal(storage.snapshot().get(FINANCE_DEMO_V2_STORAGE_KEY), v2Bytes);
+  assert.equal(storage.snapshot().get(FINANCE_DEMO_LEGACY_STORAGE_KEY), v1Bytes);
+  assert.equal(FINANCE_DEMO_STORAGE_KEY, "wody-box-finance-demo-v3");
+});
+
+test("post-migration expense, payment, sale, and catalog transitions retain all unrelated records and a reset fixture is v3 with no expenses", () => {
+  const migrated = migrateFinanceDemoStateV2(asV2(createFinanceDemoFixture(anchor)));
+  const withExpense = registerFinanceExpense(migrated, {
+    id: "expense-1", actor: financeCatalogSaleActors.admin, amountCents: 123, description: "Luz", spentAt: anchor,
+  }, anchor).state;
+  const withPayment = registerFinancePayment(withExpense, paymentCommand, anchor).state;
+  const withSale = registerCatalogSale(withPayment, {
+    id: "sale-1", commandId: "sale-command-1", actor: financeCatalogSaleActors.teacher, productId: "finance-product-water", quantity: 1, unitAmountCents: 1500, paymentMethod: "EFECTIVO", soldAt: anchor,
+  }, anchor).state;
+  const withCatalogEdit = createCatalogProduct(withSale, {
+    id: "product-new", actor: financeCatalogSaleActors.admin, description: "Barra", categoryId: "finance-category-drinks", priceCents: 500, stock: 3,
+  }).state;
+  assert.equal(withCatalogEdit.expenses.length, 1);
+  assert.equal(withCatalogEdit.payments.length, 1);
+  assert.equal(withCatalogEdit.sales.length, 1);
+  assert.equal(withCatalogEdit.products.find((product) => product.id === "finance-product-water")?.stock, 11);
+  const reset = createFinanceDemoFixture(anchor);
+  assert.equal(reset.version, 3);
+  assert.deepEqual(reset.expenses, []);
+  assert.deepEqual(reset.payments, []);
 });

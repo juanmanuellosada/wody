@@ -1,8 +1,9 @@
 import type { FeeIdentity, FeeStudent } from "./fees-contract";
 
 export const FINANCE_DEMO_NAMESPACE = "wody-box-finance-demo";
-export const FINANCE_DEMO_VERSION = 2;
-export const FINANCE_DEMO_STORAGE_KEY = "wody-box-finance-demo-v2";
+export const FINANCE_DEMO_VERSION = 3;
+export const FINANCE_DEMO_STORAGE_KEY = "wody-box-finance-demo-v3";
+export const FINANCE_DEMO_V2_STORAGE_KEY = "wody-box-finance-demo-v2";
 export const FINANCE_DEMO_LEGACY_STORAGE_KEY = "wody-box-finance-demo-v1";
 export const FINANCE_DEMO_DEFAULT_ANCHOR = "2030-06-03";
 
@@ -51,21 +52,38 @@ export type FinanceSale = {
   recordedById: string;
 };
 
-/** No actor is persisted: every command proves its supplied identity against the fixture roster. */
-export type FinanceDemoState = {
-  version: typeof FINANCE_DEMO_VERSION;
+/** Expense amounts are positive Decimal(12,2) values represented as integer cents. */
+export type FinanceExpense = {
+  id: string;
+  amountCents: number;
+  description: string;
+  spentAt: string;
+  recordedById: string;
+};
+
+type FinanceDemoBaseState = {
   namespace: typeof FINANCE_DEMO_NAMESPACE;
   anchor: string;
   students: FinanceStudent[];
   payments: FinancePayment[];
+};
+
+export type FinanceDemoV2State = FinanceDemoBaseState & {
+  version: 2;
   categories: FinanceCategory[];
   products: FinanceProduct[];
   sales: FinanceSale[];
   nextProductCode: number;
 };
 
+/** No actor or capability is persisted: each command proves its identity against the frozen roster. */
+export type FinanceDemoState = Omit<FinanceDemoV2State, "version"> & {
+  version: typeof FINANCE_DEMO_VERSION;
+  expenses: FinanceExpense[];
+};
+
 /** The version-1 graph is read only so migration remains explicit and testable. */
-export type FinanceDemoLegacyState = Omit<FinanceDemoState, "version" | "categories" | "products" | "sales" | "nextProductCode"> & {
+export type FinanceDemoLegacyState = Omit<FinanceDemoV2State, "version" | "categories" | "products" | "sales" | "nextProductCode"> & {
   version: 1;
 };
 

@@ -3,12 +3,21 @@ import { demoFeeIdentities, getDemoFeeFixtures } from "./fees-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { financeCatalogSaleActors } from "./catalog-sales-contract.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
-import { createFinanceDemoFixture, isFinanceDate } from "./finance-demo-state.ts";
+import { isValidFinanceExpenseGraph } from "./expense-demo-state.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
-import { FINANCE_DEMO_LEGACY_STORAGE_KEY, FINANCE_DEMO_NAMESPACE, FINANCE_DEMO_STORAGE_KEY, FINANCE_DEMO_VERSION } from "./finance-demo-types.ts";
-import type { FinanceDemoLegacyState, FinanceDemoState, FinancePaymentMethod } from "./finance-demo-types";
+import { createFinanceDemoFixture, isFinanceDate } from "./finance-demo-state.ts";
+import {
+  FINANCE_DEMO_LEGACY_STORAGE_KEY,
+  FINANCE_DEMO_NAMESPACE,
+  FINANCE_DEMO_STORAGE_KEY,
+  FINANCE_DEMO_V2_STORAGE_KEY,
+  FINANCE_DEMO_VERSION,
+// @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
+} from "./finance-demo-types.ts";
+import type { FinanceDemoLegacyState, FinanceDemoState, FinanceDemoV2State, FinancePaymentMethod } from "./finance-demo-types";
 
 const LEGACY_VERSION = 1;
+const V2_VERSION = 2;
 const PAYMENT_METHODS: readonly FinancePaymentMethod[] = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADO_PAGO"];
 const MAX_PAYMENT_CENTS = 999_999_999_999;
 const MAX_CATALOG_CENTS = 999_999_999_999;
@@ -18,7 +27,7 @@ const POSTGRES_INT_MAX = 2_147_483_647;
 export type FinanceDemoStorage = Pick<Storage, "getItem" | "setItem">;
 export type FinanceStorageLoad = { state: FinanceDemoState; warning: string | null };
 
-type ParsedState = { state: FinanceDemoState; migrated: boolean } | null;
+type ParsedState = { state: FinanceDemoState; sourceVersion: 1 | 2 | 3 } | null;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -148,7 +157,8 @@ export function isValidFinanceDemoLegacyState(value: unknown): value is FinanceD
     && !("categories" in value)
     && !("products" in value)
     && !("sales" in value)
-    && !("nextProductCode" in value);
+    && !("nextProductCode" in value)
+    && !("expenses" in value);
 }
 
 function isKnownSaleRecorder(id: unknown): boolean {
@@ -156,9 +166,8 @@ function isKnownSaleRecorder(id: unknown): boolean {
 }
 
 /** Reject a malformed catalog/sale relation rather than partially salvaging it. */
-export function isValidFinanceDemoState(value: unknown): value is FinanceDemoState {
-  if (!validBaseFinanceGraph(value, FINANCE_DEMO_VERSION)
-    || !hasOnlyKeys(value, ["version", "namespace", "anchor", "students", "payments", "categories", "products", "sales", "nextProductCode"])
+function isValidCatalogSaleGraph(value: unknown, version: number): boolean {
+  if (!validBaseFinanceGraph(value, version)
     || !isDenseArray(value.categories)
     || !isDenseArray(value.products)
     || !isDenseArray(value.sales)
@@ -215,19 +224,53 @@ export function isValidFinanceDemoState(value: unknown): value is FinanceDemoSta
   return true;
 }
 
-/** Converts only a complete, valid v1 graph; payments and students retain their exact order and values. */
+/** Version 2 remains closed and read-only so v3 can migrate it without accepting expense fields. */
+export function isValidFinanceDemoV2State(value: unknown): value is FinanceDemoV2State {
+  return isRecord(value)
+    && isValidCatalogSaleGraph(value, V2_VERSION)
+    && hasOnlyKeys(value, ["version", "namespace", "anchor", "students", "payments", "categories", "products", "sales", "nextProductCode"])
+    && !("expenses" in value);
+}
+
+/** The current v3 graph adds only closed, designated-admin-recorded expenses to the former catalog graph. */
+export function isValidFinanceDemoState(value: unknown): value is FinanceDemoState {
+  return isRecord(value)
+    && isValidCatalogSaleGraph(value, FINANCE_DEMO_VERSION)
+    && hasOnlyKeys(value, ["version", "namespace", "anchor", "students", "payments", "categories", "products", "sales", "expenses", "nextProductCode"])
+    && isValidFinanceExpenseGraph(value.expenses);
+}
+
+/** Converts only a complete, valid v2 graph; all existing graph order and values are retained exactly. */
+export function migrateFinanceDemoStateV2(legacy: FinanceDemoV2State): FinanceDemoState {
+  if (!isValidFinanceDemoV2State(legacy)) throw new Error("Cannot migrate an invalid finance demo v2 state.");
+  return {
+    version: FINANCE_DEMO_VERSION,
+    namespace: legacy.namespace,
+    anchor: legacy.anchor,
+    students: legacy.students.map((student) => ({ ...student, assignedTeachers: student.assignedTeachers.map((teacher) => ({ ...teacher })) })),
+    payments: legacy.payments.map((payment) => ({ ...payment })),
+    categories: legacy.categories.map((category) => ({ ...category })),
+    products: legacy.products.map((product) => ({ ...product })),
+    sales: legacy.sales.map((sale) => ({ ...sale })),
+    expenses: [],
+    nextProductCode: legacy.nextProductCode,
+  };
+}
+
+/** Converts v1 via the established catalog fixture, then adds the empty v3 expense collection. */
 export function migrateFinanceDemoStateV1(legacy: FinanceDemoLegacyState): FinanceDemoState {
   if (!isValidFinanceDemoLegacyState(legacy)) throw new Error("Cannot migrate an invalid finance demo v1 state.");
   const fixture = createFinanceDemoFixture(legacy.anchor);
   return {
     version: FINANCE_DEMO_VERSION,
-    namespace: FINANCE_DEMO_NAMESPACE,
+    namespace: legacy.namespace,
     anchor: legacy.anchor,
     students: legacy.students.map((student) => ({ ...student, assignedTeachers: student.assignedTeachers.map((teacher) => ({ ...teacher })) })),
     payments: legacy.payments.map((payment) => ({ ...payment })),
     categories: fixture.categories.map((category) => ({ ...category })),
     products: fixture.products.map((product) => ({ ...product })),
     sales: [],
+    expenses: [],
     nextProductCode: fixture.nextProductCode,
   };
 }
@@ -236,8 +279,9 @@ function parseState(raw: string | null | undefined): ParsedState {
   if (!raw) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (isValidFinanceDemoState(parsed)) return { state: parsed, migrated: false };
-    if (isValidFinanceDemoLegacyState(parsed)) return { state: migrateFinanceDemoStateV1(parsed), migrated: true };
+    if (isValidFinanceDemoState(parsed)) return { state: parsed, sourceVersion: 3 };
+    if (isValidFinanceDemoV2State(parsed)) return { state: migrateFinanceDemoStateV2(parsed), sourceVersion: 2 };
+    if (isValidFinanceDemoLegacyState(parsed)) return { state: migrateFinanceDemoStateV1(parsed), sourceVersion: 1 };
     return null;
   } catch {
     return null;
@@ -246,6 +290,7 @@ function parseState(raw: string | null | undefined): ParsedState {
 
 function validatedFallback(fallback?: unknown): FinanceDemoState {
   if (isValidFinanceDemoState(fallback)) return fallback;
+  if (isValidFinanceDemoV2State(fallback)) return migrateFinanceDemoStateV2(fallback);
   if (isValidFinanceDemoLegacyState(fallback)) return migrateFinanceDemoStateV1(fallback);
   return createFinanceDemoFixture();
 }
@@ -255,7 +300,7 @@ export function serializeFinanceDemoState(state: FinanceDemoState): string {
   return JSON.stringify(state);
 }
 
-/** Raw input may be either valid schema version; persistence always serializes v2. */
+/** Direct raw resolution accepts strict v1, v2, or v3 graphs; persistence always serializes v3. */
 export function resolveFinanceDemoInitialState(raw: string | null | undefined, fallback?: unknown): FinanceStorageLoad {
   const safeFallback = validatedFallback(fallback);
   if (!raw) return { state: safeFallback, warning: null };
@@ -263,55 +308,68 @@ export function resolveFinanceDemoInitialState(raw: string | null | undefined, f
   if (!parsed) return { state: safeFallback, warning: "El estado financiero guardado no es válido; se usó el estado de respaldo." };
   return {
     state: parsed.state,
-    warning: parsed.migrated ? "El estado financiero anterior se migró localmente." : null,
+    warning: parsed.sourceVersion === 3 ? null : "El estado financiero anterior se migró localmente.",
   };
 }
 
+function recoveryWarning(version: 1 | 2, latest: "missing" | "invalid" | "failed", middle?: "missing" | "invalid" | "failed"): string {
+  const source = version === 2 ? "v2" : "v1";
+  if (latest === "failed" || middle === "failed") return `No se pudo leer el estado financiero más reciente; se recuperó ${source}.`;
+  if (latest === "invalid" || middle === "invalid") return `El estado financiero más reciente no es válido; se recuperó ${source}.`;
+  return `El estado financiero ${source} se migró localmente.`;
+}
+
 /**
- * v2 is authoritative when valid. If it is absent or corrupt, a complete v1
- * graph can recover the session. Legacy data is never deleted from storage.
+ * A valid v3 is authoritative and never probes legacy keys. Each unavailable,
+ * missing, or malformed key is isolated before trying the next older version.
+ * Loading is read-only; migration is persisted only by a later explicit commit.
  */
 export function loadFinanceDemoState(storage: FinanceDemoStorage | null | undefined, fallback?: unknown): FinanceStorageLoad {
   const safeFallback = validatedFallback(fallback);
   if (!storage) return { state: safeFallback, warning: "El almacenamiento de esta pestaña no está disponible; los cambios no se conservarán." };
 
-  let rawV2: string | null = null;
-  let v2ReadFailed = false;
+  let rawV3: string | null = null;
+  let v3Status: "missing" | "invalid" | "failed" = "missing";
   try {
-    rawV2 = storage.getItem(FINANCE_DEMO_STORAGE_KEY);
-    const v2 = parseState(rawV2);
-    if (v2?.migrated === false) return { state: v2.state, warning: null };
+    rawV3 = storage.getItem(FINANCE_DEMO_STORAGE_KEY);
+    const v3 = parseState(rawV3);
+    if (v3?.sourceVersion === 3) return { state: v3.state, warning: null };
+    v3Status = rawV3 === null ? "missing" : "invalid";
   } catch {
-    v2ReadFailed = true;
+    v3Status = "failed";
+  }
+
+  let rawV2: string | null = null;
+  let v2Status: "missing" | "invalid" | "failed" = "missing";
+  try {
+    rawV2 = storage.getItem(FINANCE_DEMO_V2_STORAGE_KEY);
+    const v2 = parseState(rawV2);
+    if (v2?.sourceVersion === 2) return { state: v2.state, warning: recoveryWarning(2, v3Status) };
+    v2Status = rawV2 === null ? "missing" : "invalid";
+  } catch {
+    v2Status = "failed";
   }
 
   let rawV1: string | null = null;
-  let v1ReadFailed = false;
+  let v1Status: "missing" | "invalid" | "failed" = "missing";
   try {
     rawV1 = storage.getItem(FINANCE_DEMO_LEGACY_STORAGE_KEY);
     const v1 = parseState(rawV1);
-    if (v1?.migrated) {
-      return {
-        state: v1.state,
-        warning: v2ReadFailed
-          ? "No se pudo leer el estado financiero v2; se recuperó el estado anterior."
-          : rawV2 === null
-            ? "El estado financiero anterior se migró localmente."
-            : "El estado financiero v2 no es válido; se recuperó el estado anterior.",
-      };
-    }
+    if (v1?.sourceVersion === 1) return { state: v1.state, warning: recoveryWarning(1, v3Status, v2Status) };
+    v1Status = rawV1 === null ? "missing" : "invalid";
   } catch {
-    v1ReadFailed = true;
+    v1Status = "failed";
   }
 
-  if (v2ReadFailed || v1ReadFailed) {
+  if (v3Status === "failed" || v2Status === "failed" || v1Status === "failed") {
     return { state: safeFallback, warning: "No se pudo leer el almacenamiento de esta pestaña; se usó el estado de respaldo." };
   }
-  return rawV2 === null && rawV1 === null
+  return rawV3 === null && rawV2 === null && rawV1 === null
     ? { state: safeFallback, warning: null }
     : { state: safeFallback, warning: "El estado financiero guardado no es válido; se usó el estado de respaldo." };
 }
 
+/** Persistence writes only the current v3 namespace and never mutates v1/v2 keys. */
 export function persistFinanceDemoState(storage: FinanceDemoStorage | null | undefined, state: FinanceDemoState): string | null {
   if (!storage) return "El almacenamiento de esta pestaña no está disponible; los cambios no se conservarán.";
   try {

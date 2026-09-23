@@ -143,6 +143,7 @@ export function createFinanceDemoFixture(
     categories: catalog.categories,
     products: catalog.products,
     sales: [],
+    expenses: [],
     nextProductCode: catalog.nextProductCode,
   };
 }

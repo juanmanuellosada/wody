@@ -21,7 +21,7 @@ test("finance provider hydrates before exposing callbacks and preserves its stor
   assert.doesNotMatch(provider, /localStorage|setItem\(".*actor|actor.*sessionStorage/);
   assert.match(provider, /persistFinanceDemoState\(storageRef\.current, next\)/);
   assert.match(storage, /FINANCE_DEMO_STORAGE_KEY/);
-  assert.match(types, /FINANCE_DEMO_STORAGE_KEY = "wody-box-finance-demo-v2"/);
+  assert.match(types, /FINANCE_DEMO_STORAGE_KEY = "wody-box-finance-demo-v3"/);
   assert.doesNotMatch(storage, /wody-box-training|turnos/);
   assert.equal((rootLayout.match(/<DemoFinanceProvider>/g) ?? []).length, 1);
   assert.equal((previewLayout.match(/<DemoFinanceProvider>/g) ?? []).length, 1);
