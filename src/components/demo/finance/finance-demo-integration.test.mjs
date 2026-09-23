@@ -125,6 +125,6 @@ test("Caja shell keeps production action slots and static exports retain prior p
   for (const page of [rootKiosk, previewKiosk]) assert.match(page, /DemoAccessKiosk/);
   for (const page of [rootHistory, previewHistory]) assert.match(page, /DemoAccessHistory/);
   assert.doesNotMatch(previewLayout, /\/demo\/(teacher|student)\/ingresos/);
-  assert.equal(rootPages, 19, "the prior 18 root pages retain the existing ingresos page and add its history route");
-  assert.equal(previewPages, 19, "the prior 17 Preview pages add the admin kiosk and its history route");
+  assert.equal(rootPages, 22, "the existing 19 BOX pages retain their inventory and add three PERSONAL student pages");
+  assert.equal(previewPages, 22, "the existing 19 Preview BOX pages retain their inventory and add three PERSONAL student pages");
 });

@@ -21,9 +21,10 @@ test("access provider hydrates once after finance, reads before writes, and owns
   assert.doesNotMatch(provider, /finance\.reset|finance\.callbacks|finance\.saleCallbacks|finance\.revenueCallbacks/);
   assert.match(storage, /ACCESS_DEMO_STORAGE_KEY/);
   assert.doesNotMatch(storage, /wody-box-finance-demo|wody-box-training|turnos/);
-  assert.equal((layout.match(/<DemoAccessProvider>/g) ?? []).length, 1);
-  assert.equal((previewLayout.match(/<DemoAccessProvider>/g) ?? []).length, 1);
-  assert.ok(layout.indexOf("<DemoFinanceProvider>") < layout.indexOf("<DemoAccessProvider>"));
+  for (const scenarioLayout of [layout, previewLayout]) {
+    assert.match(scenarioLayout, /DemoScenarioProviders/);
+    assert.doesNotMatch(scenarioLayout, /<DemoAccessProvider>/);
+  }
 });
 
 test("access reset remounts only access forms while finance reset does not touch access state", async () => {

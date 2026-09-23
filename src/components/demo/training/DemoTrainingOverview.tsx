@@ -12,6 +12,7 @@ const modules = [
   { href: "/demo/admin/pagos", label: "Cuotas", description: "Consultá cuotas ficticias como administración o profesorado." },
   { href: "/demo/admin/caja", label: "Caja", description: "Registrá cuotas ficticias en la caja de demostración." },
   { href: "/demo/admin/productos", label: "Productos", description: "Administrá el catálogo ficticio de productos y categorías." },
+  { href: "/demo/personal/student", label: "Wody Personal", description: "Probá tus rutinas, PRs y suscripción simulada como usuario personal." },
 ];
 
 /** Shared entry hub used by both demo applications. */

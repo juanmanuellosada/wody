@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { toInputDate } from "@/lib/dates";
+import { getTodayArgentina, toInputDate } from "@/lib/dates";
 import type { GymTerms } from "@/lib/gym-terms";
 
 export type RmMutationResult =
@@ -35,7 +35,7 @@ export function RmFormView({
   onCreateRm,
   onUpdateRm,
 }: RmFormViewProps) {
-  const todayStr = toInputDate(new Date());
+  const todayStr = toInputDate(getTodayArgentina());
   const [date, setDate] = useState(defaultDate ?? todayStr);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);

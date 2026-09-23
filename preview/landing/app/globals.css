@@ -8,6 +8,7 @@
 @source "../../../src/components/demo/training";
 @source "../../../src/components/demo/finance";
 @source "../../../src/components/demo/access";
+@source "../../../src/components/demo/personal";
 @source "../../../src/components/access/AccessKioskView.tsx";
 @source "../../../src/components/access/AccessHistoryTable.tsx";
 @source "../../../src/components/caja/CajaShell.tsx";
@@ -44,10 +45,12 @@
 @source "../../../src/components/wod/TargetSelector.tsx";
 @source "../../../src/components/group/GroupManagerView.tsx";
 @source "../../../src/components/RmsView.tsx";
+@source "../../../src/components/personal/PersonalBillingPageView.tsx";
 @source "../../../src/components/RmFormView.tsx";
 @source "../../../src/components/DeleteRmButtonView.tsx";
 @source "../../../src/components/ShareRmButton.tsx";
 @source "../../../src/components/ui/Card.tsx";
+@source "../../../src/components/ui/Input.tsx";
 @source "../../../src/components/ui/MarkdownRenderer.tsx";
 @source "../../../src/components/ui/MarkdownEditor.tsx";
 @source "../../../src/components/demo/DemoBeneficiosView.tsx";

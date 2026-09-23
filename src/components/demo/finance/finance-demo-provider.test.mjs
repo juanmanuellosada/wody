@@ -26,8 +26,10 @@ test("finance provider hydrates before exposing callbacks and preserves its stor
   assert.match(storage, /FINANCE_DEMO_STORAGE_KEY/);
   assert.match(types, /FINANCE_DEMO_STORAGE_KEY = "wody-box-finance-demo-v3"/);
   assert.doesNotMatch(storage, /wody-box-training|turnos/);
-  assert.equal((rootLayout.match(/<DemoFinanceProvider>/g) ?? []).length, 1);
-  assert.equal((previewLayout.match(/<DemoFinanceProvider>/g) ?? []).length, 1);
+  for (const scenarioLayout of [rootLayout, previewLayout]) {
+    assert.match(scenarioLayout, /DemoScenarioProviders/);
+    assert.doesNotMatch(scenarioLayout, /<DemoFinanceProvider>/);
+  }
 });
 
 test("finance exposes a stable detached roster bridge that observes synchronous commits", async () => {

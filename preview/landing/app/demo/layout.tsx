@@ -1,8 +1,6 @@
 import { DemoBanner } from "../../../../src/components/DemoBanner";
 import { DemoNavbar } from "../../../../src/components/DemoNavbar";
-import { DemoAccessProvider } from "../../../../src/components/demo/access/DemoAccessProvider";
-import { DemoFinanceProvider } from "../../../../src/components/demo/finance/DemoFinanceProvider";
-import { DemoTrainingProvider } from "../../../../src/components/demo/training/DemoTrainingProvider";
+import { DemoScenarioProviders } from "../../../../src/components/demo/scenarios/DemoScenarioProviders";
 
 const supportedRoutes = [
   "/demo/admin",
@@ -22,20 +20,17 @@ const supportedRoutes = [
   "/demo/student/rms",
   "/demo/student/turnos",
   "/demo/student/beneficios",
+  "/demo/personal/student",
+  "/demo/personal/student/rms",
+  "/demo/personal/student/suscripcion",
 ];
 
 export default function PreviewDemoLayout({ children }: { children: React.ReactNode }) {
   return (
-    <DemoTrainingProvider>
-      <DemoFinanceProvider>
-        <DemoAccessProvider>
-          <div data-demo-root className="min-h-screen flex flex-col bg-black">
-            <DemoBanner />
-            <DemoNavbar supportedRoutes={supportedRoutes} />
-            {children}
-          </div>
-        </DemoAccessProvider>
-      </DemoFinanceProvider>
-    </DemoTrainingProvider>
+    <div data-demo-root className="min-h-screen flex flex-col bg-black">
+      <DemoBanner />
+      <DemoNavbar supportedRoutes={supportedRoutes} />
+      <DemoScenarioProviders>{children}</DemoScenarioProviders>
+    </div>
   );
 }

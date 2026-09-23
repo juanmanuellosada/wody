@@ -103,8 +103,8 @@ test("root and standalone export the complete safe training route inventory", as
     source("src/app/demo/page.tsx"),
     source("preview/landing/app/demo/page.tsx"),
   ]);
-  assert.equal((rootLayout.match(/<DemoTrainingProvider>/g) ?? []).length, 1);
-  assert.equal((previewLayout.match(/<DemoTrainingProvider>/g) ?? []).length, 1);
+  assert.equal((rootLayout.match(/<DemoScenarioProviders rootPersonalNavigation>/g) ?? []).length, 1);
+  assert.equal((previewLayout.match(/<DemoScenarioProviders>/g) ?? []).length, 1);
   assert.match(rootEntry, /DemoTrainingOverview/);
   assert.match(previewEntry, /DemoTrainingOverview/);
   assert.doesNotMatch(rootEntry, /BoxBookingDemo/);
@@ -166,6 +166,7 @@ test("supported standalone links and root legacy links resolve to exported demo 
     "/demo/admin", "/demo/admin/rms", "/demo/admin/turnos", "/demo/admin/pagos",
     "/demo/teacher", "/demo/teacher/rms", "/demo/teacher/turnos", "/demo/teacher/pagos",
     "/demo/student", "/demo/student/rms", "/demo/student/turnos", "/demo/student/beneficios",
+    "/demo/personal/student", "/demo/personal/student/rms", "/demo/personal/student/suscripcion",
   ];
   for (const route of routes) assert.match(layout, new RegExp(`"${route}"`));
   assert.match(navbar, /if \(pathname === "\/demo"\) return null/);
