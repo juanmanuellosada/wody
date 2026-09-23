@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/Button";
-import { RegisterExpenseDialog } from "@/components/RegisterExpenseDialog";
+import { registerLiveExpense } from "@/components/RegisterExpenseDialog";
+import { RegisterExpenseButtonView } from "@/components/expenses/RegisterExpenseButtonView";
+
+export type {
+  ExpenseDatePolicy,
+  ExpenseRegistrationCallback,
+  ExpenseRegistrationOptions,
+  ExpenseRegistrationResult,
+} from "@/components/expenses/RegisterExpenseDialogView";
 
 interface Props {
   size?: "sm" | "md" | "lg";
@@ -10,14 +16,5 @@ interface Props {
 
 /** "Registrar gasto" button — solo se debe renderizar detrás del gate canViewRevenue. */
 export function RegisterExpenseButton({ size = "sm" }: Props) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <>
-      <Button variant="secondary" size={size} onClick={() => setOpen(true)}>
-        Registrar gasto
-      </Button>
-      <RegisterExpenseDialog open={open} onClose={() => setOpen(false)} />
-    </>
-  );
+  return <RegisterExpenseButtonView size={size} onRegisterExpense={registerLiveExpense} />;
 }
