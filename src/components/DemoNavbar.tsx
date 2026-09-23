@@ -59,7 +59,10 @@ export function DemoNavbar({ supportedRoutes }: { supportedRoutes?: string[] }) 
   const roleLabel = roleLabels[currentRole];
 
   function isActive(href: string) {
-    return pathname === href;
+    return pathname === href || (
+      href === "/demo/admin/ingresos"
+      && pathname.startsWith("/demo/admin/ingresos/")
+    );
   }
 
   return (

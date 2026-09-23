@@ -37,6 +37,20 @@ test("demo navigation has one turnos link for each role", async () => {
   }
 });
 
+test("admin access demo has kiosk and history parity without teacher or student ingress routes", async () => {
+  const [rootKiosk, previewKiosk, rootHistory, previewHistory, previewLayout] = await Promise.all([
+    source("src/app/demo/admin/ingresos/page.tsx"),
+    source("preview/landing/app/demo/admin/ingresos/page.tsx"),
+    source("src/app/demo/admin/ingresos/historial/page.tsx"),
+    source("preview/landing/app/demo/admin/ingresos/historial/page.tsx"),
+    source("preview/landing/app/demo/layout.tsx"),
+  ]);
+  for (const page of [rootKiosk, previewKiosk]) assert.match(page, /DemoAccessKiosk/);
+  for (const page of [rootHistory, previewHistory]) assert.match(page, /DemoAccessHistory/);
+  assert.equal((previewLayout.match(/"\/demo\/admin\/ingresos"/g) ?? []).length, 1);
+  assert.equal((previewLayout.match(/"\/demo\/admin\/ingresos\/historial"/g) ?? []).length, 1);
+});
+
 test("demo benefits are local, non-redeemable fixtures without dead social links", async () => {
   const [page, fixture, view, previewPage] = await Promise.all([
     source("src/app/demo/student/beneficios/page.tsx"),

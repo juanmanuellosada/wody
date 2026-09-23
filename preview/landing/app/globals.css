@@ -7,6 +7,9 @@
 @source "../../../src/components/demo/turnos";
 @source "../../../src/components/demo/training";
 @source "../../../src/components/demo/finance";
+@source "../../../src/components/demo/access";
+@source "../../../src/components/access/AccessKioskView.tsx";
+@source "../../../src/components/access/AccessHistoryTable.tsx";
 @source "../../../src/components/caja/CajaShell.tsx";
 @source "../../../src/components/payments/RegisterPaymentSectionView.tsx";
 @source "../../../src/components/payments/RegisterPaymentDialogView.tsx";

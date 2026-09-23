@@ -94,13 +94,17 @@ test("teacher projection cannot expose foreign fictional students while reducer 
   assert.equal(picker.find((student) => student.id === "fee-student-camila")?.lastAmount, null);
 });
 
-test("Caja shell keeps production action slots and both static exports retain every existing page", async () => {
-  const [shell, production, navbar, overview, previewLayout, rootPages, previewPages] = await Promise.all([
+test("Caja shell keeps production action slots and static exports retain prior pages plus named admin access routes", async () => {
+  const [shell, production, navbar, overview, previewLayout, rootKiosk, rootHistory, previewKiosk, previewHistory, rootPages, previewPages] = await Promise.all([
     source("src/components/caja/CajaShell.tsx"),
     source("src/app/[gymSlug]/caja/page.tsx"),
     source("src/components/DemoNavbar.tsx"),
     source("src/components/demo/training/DemoTrainingOverview.tsx"),
     source("preview/landing/app/demo/layout.tsx"),
+    source("src/app/demo/admin/ingresos/page.tsx"),
+    source("src/app/demo/admin/ingresos/historial/page.tsx"),
+    source("preview/landing/app/demo/admin/ingresos/page.tsx"),
+    source("preview/landing/app/demo/admin/ingresos/historial/page.tsx"),
     pageCount("src/app/demo"),
     pageCount("preview/landing/app/demo"),
   ]);
@@ -116,6 +120,11 @@ test("Caja shell keeps production action slots and both static exports retain ev
     assert.match(previewLayout, new RegExp(`"${route}"`));
   }
   assert.match(overview, /href: "\/demo\/admin\/caja", label: "Caja"/);
-  assert.equal(rootPages, 18);
-  assert.equal(previewPages, 17, "the standalone preview retains its prior safe pages plus Caja and Productos routes");
+  assert.match(previewLayout, /"\/demo\/admin\/ingresos"/);
+  assert.match(previewLayout, /"\/demo\/admin\/ingresos\/historial"/);
+  for (const page of [rootKiosk, previewKiosk]) assert.match(page, /DemoAccessKiosk/);
+  for (const page of [rootHistory, previewHistory]) assert.match(page, /DemoAccessHistory/);
+  assert.doesNotMatch(previewLayout, /\/demo\/(teacher|student)\/ingresos/);
+  assert.equal(rootPages, 19, "the prior 18 root pages retain the existing ingresos page and add its history route");
+  assert.equal(previewPages, 19, "the prior 17 Preview pages add the admin kiosk and its history route");
 });

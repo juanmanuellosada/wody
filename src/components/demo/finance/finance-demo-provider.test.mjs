@@ -30,6 +30,15 @@ test("finance provider hydrates before exposing callbacks and preserves its stor
   assert.equal((previewLayout.match(/<DemoFinanceProvider>/g) ?? []).length, 1);
 });
 
+test("finance exposes a stable detached roster bridge that observes synchronous commits", async () => {
+  const provider = await source("src/components/demo/finance/DemoFinanceProvider.tsx");
+  assert.match(provider, /const getAccessStudents = useCallback\(\(\): readonly FinanceStudent\[\] => \([\s\S]*stateRef\.current\.students\.map/);
+  assert.match(provider, /assignedTeachers: student\.assignedTeachers\.map\(\(teacher\) => \(\{ \.\.\.teacher \}\)\)/);
+  assert.match(provider, /stateRef\.current = next;\s*setState\(next\);/);
+  assert.match(provider, /getAccessStudents,/);
+  assert.doesNotMatch(provider, /getAccessStudents: .*callbacks/);
+});
+
 test("finance-only reset cancels confirmation bindings and rebuilds fixtures from Argentina today", async () => {
   const [provider, cash] = await Promise.all([
     source("src/components/demo/finance/DemoFinanceProvider.tsx"),

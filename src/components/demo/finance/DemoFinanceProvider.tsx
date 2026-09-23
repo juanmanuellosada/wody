@@ -28,7 +28,7 @@ import {
   type FinanceDemoStorage,
 } from "./finance-demo-storage";
 import type { FeeRole } from "./fees-contract";
-import type { FinanceDemoState } from "./finance-demo-types";
+import type { FinanceDemoState, FinanceStudent } from "./finance-demo-types";
 
 type FinanceRoleCallbacks = Record<FeeRole, FinancePaymentCallback>;
 type SaleRoleCallbacks = Record<FeeRole, SaleDemoCallback>;
@@ -46,6 +46,8 @@ export type DemoFinanceContextValue = {
   revenueCallbacks: DemoRevenueCallbacks | null;
   saleDatePolicy: SaleDatePolicy;
   expenseDatePolicy: SaleDatePolicy;
+  /** A detached, current roster bridge for the isolated access-demo provider. */
+  getAccessStudents: () => readonly FinanceStudent[];
 };
 
 const DemoFinanceContext = createContext<DemoFinanceContextValue | null>(null);
@@ -73,6 +75,18 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
   const storageRef = useRef<FinanceDemoStorage | null>(null);
   const resetEpochRef = useRef(0);
   const saleDatePolicy = useMemo<SaleDatePolicy>(() => ({ today: argentinaToday }), []);
+
+  /**
+   * This is intentionally a synchronous state-ref bridge: access commands can
+   * observe a just-committed payment before React has rendered the next tree.
+   * It exposes detached students only, not finance commands or persistence.
+   */
+  const getAccessStudents = useCallback((): readonly FinanceStudent[] => (
+    stateRef.current.students.map((student) => ({
+      ...student,
+      assignedTeachers: student.assignedTeachers.map((teacher) => ({ ...teacher })),
+    }))
+  ), []);
 
   const commit = useCallback((next: FinanceDemoState) => {
     stateRef.current = next;
@@ -168,7 +182,8 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
     revenueCallbacks: ready ? revenueCallbacks : null,
     saleDatePolicy,
     expenseDatePolicy: saleDatePolicy,
-  }), [callbacks, catalogCallbacks, ready, reset, resetEpoch, revenueCallbacks, saleCallbacks, saleDatePolicy, state, today, warning]);
+    getAccessStudents,
+  }), [callbacks, catalogCallbacks, getAccessStudents, ready, reset, resetEpoch, revenueCallbacks, saleCallbacks, saleDatePolicy, state, today, warning]);
 
   return <DemoFinanceContext.Provider value={value}>{children}</DemoFinanceContext.Provider>;
 }
