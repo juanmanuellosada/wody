@@ -8,6 +8,7 @@ import type {
   GymFixedDemoCreateGroupCommand,
   GymFixedDemoDeleteCommand,
   GymFixedDemoGroupResult,
+  GymFixedDemoGroup,
   GymFixedDemoRenewCommand,
   GymFixedDemoRenewalDto,
   GymFixedDemoResult,
@@ -259,6 +260,58 @@ function ownershipError(actor: GymFixedDemoRosterRecord, routine: GymFixedDemoRo
   return actor.role === "TEACHER" && routine.teacherId !== actor.id ? "No autorizado." : null;
 }
 
+type GymFixedDemoGroupEligibility =
+  | { success: true; studentIds: string[] }
+  | { success: false; error: string };
+
+/**
+ * Resolves the exact group batch selection used by the mutation: canonical
+ * staff only, existing group ownership checks, then active MUSCULACION_LIBRE
+ * members in fixture membership order. Returned IDs are detached data.
+ */
+function resolveGymFixedDemoGroupScope(
+  actor: GymFixedDemoRosterRecord,
+  groupId: string,
+): { success: true; group: GymFixedDemoGroup } | { success: false; error: string } {
+  const group = groupById.get(groupId);
+  if (!group || group.deletedAt !== null) return { success: false, error: "Grupo no encontrado." };
+  if (actor.role === "TEACHER" && group.teacherId !== actor.id) return { success: false, error: "No autorizado para este grupo." };
+  const groupTeacher = rosterById.get(group.teacherId);
+  if (actor.role === "ADMIN" && (!groupTeacher || groupTeacher.gymId !== GYM_FIXED_DEMO_GYM_ID || groupTeacher.deletedAt !== null)) {
+    return { success: false, error: "Grupo no encontrado." };
+  }
+  return { success: true, group };
+}
+
+/** One membership-order selection rule, shared by the action mirror and adapter context. */
+function resolveGymFixedDemoGroupEligibility(group: GymFixedDemoGroup): GymFixedDemoGroupEligibility {
+  const studentIds = memberships
+    .filter((membership) => membership.groupId === group.id)
+    .map((membership) => activeStudent(membership.studentId))
+    .filter((student): student is GymFixedDemoRosterRecord => !!student && student.studentType === "MUSCULACION_LIBRE")
+    .map((student) => student.id);
+  return studentIds.length > 0
+    ? { success: true, studentIds }
+    : { success: false, error: "El grupo no tiene alumnos de musculación libre." };
+}
+
+/**
+ * Adapter-only allocation context. Authorization is checked before examining
+ * the supplied group input, and no membership rows are exposed on denial.
+ */
+export function getGymFixedDemoGroupEligibility(
+  actorInput: unknown,
+  groupInput: unknown,
+): GymFixedDemoGroupEligibility {
+  const actor = canonicalActor(actorInput);
+  if (!actor || !staff(actor)) return { success: false, error: "No autorizado." };
+  if (!isId(groupInput)) return { success: false, error: "Grupo no encontrado." };
+  const scope = resolveGymFixedDemoGroupScope(actor, groupInput);
+  if (!scope.success) return scope;
+  const resolved = resolveGymFixedDemoGroupEligibility(scope.group);
+  return resolved.success ? { success: true, studentIds: [...resolved.studentIds] } : resolved;
+}
+
 /** Mirrors createFixedRoutine; GENERAL and PERSONALIZED are valid individual targets, while LITE is not. */
 export function createGymFixedRoutine(
   state: GymFixedDemoState,
@@ -352,27 +405,21 @@ export function createGymFixedRoutineForGroup(
   const command = resolveGroupCreate(rawCommand);
   if (!command) return failure(state, "La rutina de grupo no es válida.");
   if (!isValidGymFixedDemoState(state)) return failure(state, "El estado de rutinas no es válido.");
-  const group = groupById.get(command.groupId);
-  if (!group || group.deletedAt !== null) return failure(state, "Grupo no encontrado.");
-  if (actor.role === "TEACHER" && group.teacherId !== actor.id) return failure(state, "No autorizado para este grupo.");
-  const groupTeacher = rosterById.get(group.teacherId);
-  if (actor.role === "ADMIN" && (!groupTeacher || groupTeacher.gymId !== GYM_FIXED_DEMO_GYM_ID || groupTeacher.deletedAt !== null)) return failure(state, "Grupo no encontrado.");
+  const scope = resolveGymFixedDemoGroupScope(actor, command.groupId);
+  if (!scope.success) return failure(state, scope.error);
   const fields = validContent(command.title, command.content);
   if (!fields) return failure(state, !command.title.trim() ? "El título es obligatorio." : "El contenido es obligatorio.");
-  const eligible = memberships
-    .filter((membership) => membership.groupId === group.id)
-    .map((membership) => activeStudent(membership.studentId))
-    .filter((student): student is GymFixedDemoRosterRecord => !!student && student.studentType === "MUSCULACION_LIBRE");
-  if (eligible.length === 0) return failure(state, "El grupo no tiene alumnos de musculación libre.");
-  if (command.ids.length !== eligible.length || new Set(command.ids).size !== command.ids.length || command.ids.some((id) => state.fixedRoutines.some((routine) => routine.id === id))) {
+  const eligibility = resolveGymFixedDemoGroupEligibility(scope.group);
+  if (!eligibility.success) return failure(state, eligibility.error);
+  if (command.ids.length !== eligibility.studentIds.length || new Set(command.ids).size !== command.ids.length || command.ids.some((id) => state.fixedRoutines.some((routine) => routine.id === id))) {
     return failure(state, "Identificadores de rutina inválidos.");
   }
   const assigned = trustedNow(now);
   if (!assigned) return failure(state, "La hora de confianza no es válida.");
   const renewAt = resolveRenewAt(command.renewAt, assigned);
   if (!renewAt) return failure(state, "Fecha de renovación inválida.");
-  const created = eligible.map((student, index): GymFixedDemoRoutine => ({
-    id: command.ids[index]!, gymId: GYM_FIXED_DEMO_GYM_ID, studentId: student.id, teacherId: actor.id,
+  const created = eligibility.studentIds.map((studentId, index): GymFixedDemoRoutine => ({
+    id: command.ids[index]!, gymId: GYM_FIXED_DEMO_GYM_ID, studentId, teacherId: actor.id,
     title: fields.title, content: fields.content, assignedAt: assigned.toISOString(), renewAt, deletedAt: null,
   }));
   return { state: { ...state, fixedRoutines: [...state.fixedRoutines, ...created] }, result: { success: true, count: created.length } };

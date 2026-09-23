@@ -8,6 +8,7 @@ import {
   createGymFixedRoutineForGroup,
   deleteGymFixedRoutine,
   getGymFixedDemoActorToken,
+  getGymFixedDemoGroupEligibility,
   isGymFixedDemoDate,
   isValidGymFixedDemoState,
   projectGymFixedAssignmentContext,
@@ -119,6 +120,36 @@ test("group batch is atomic, scopes teachers and admin foreign groups, and delib
   }
   assertRejected(initial, createGymFixedRoutineForGroup(initial, admin(), { ...group, groupId: "gym-fixed-group-foreign" }, now));
   assert.equal(createGymFixedRoutineForGroup(initial, admin(), group, now).result.success, true, "ADMIN validates a local group teacher but bypasses teacher ownership");
+});
+
+test("shared group eligibility keeps core ordering, LITE parity, errors, and detached adapter IDs", () => {
+  const eligible = getGymFixedDemoGroupEligibility(linkedTeacher(), "gym-fixed-group-linked");
+  assert.deepEqual(eligible, {
+    success: true,
+    studentIds: ["gym-fixed-student-muslib", "gym-fixed-student-muslib-lite"],
+  });
+  assert.notEqual(eligible.studentIds, getGymFixedDemoGroupEligibility(linkedTeacher(), "gym-fixed-group-linked").studentIds);
+  eligible.studentIds.reverse();
+  assert.deepEqual(getGymFixedDemoGroupEligibility(linkedTeacher(), "gym-fixed-group-linked"), {
+    success: true,
+    studentIds: ["gym-fixed-student-muslib", "gym-fixed-student-muslib-lite"],
+  });
+  assert.deepEqual(getGymFixedDemoGroupEligibility(unlinkedTeacher(), "gym-fixed-group-linked"), {
+    success: false,
+    error: "No autorizado para este grupo.",
+  });
+  assert.deepEqual(getGymFixedDemoGroupEligibility(admin(), "gym-fixed-group-foreign"), {
+    success: false,
+    error: "Grupo no encontrado.",
+  });
+  assert.deepEqual(getGymFixedDemoGroupEligibility(linkedTeacher(), "missing"), {
+    success: false,
+    error: "Grupo no encontrado.",
+  });
+  assert.deepEqual(getGymFixedDemoGroupEligibility(token("gym-fixed-student-muslib"), Object.defineProperty({}, "id", {
+    enumerable: true,
+    get() { throw new Error("must not inspect group"); },
+  })), { success: false, error: "No autorizado." });
 });
 
 test("all command paths trim content and normalize the action parser's overflowing renewal dates without accepting NaN dates", () => {
