@@ -1,4 +1,6 @@
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
+import { datedTrainingTitle, detachDatedTrainingGroup, isDatedTrainingId } from "./dated-training-core.ts";
+// @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { createTrainingDemoFixture } from "./training-demo-fixtures.ts";
 import type {
   TrainingActor,
@@ -66,7 +68,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isId(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
+  return isDatedTrainingId(value);
 }
 
 /** Validates runtime callback input before any target discriminant is consumed. */
@@ -213,7 +215,7 @@ export function createTrainingWod(
   const wod: TrainingWod = {
     id: wodId,
     date,
-    title: title.trim() || "WOD",
+    title: datedTrainingTitle(title, "WOD"),
     content,
     teacherId: actor.id,
     ...nextTarget,
@@ -244,7 +246,7 @@ export function updateTrainingWod(
   const nextDate: string = date === undefined ? wod.date : date;
   const next = {
     ...wod,
-    title: title.trim() || "WOD",
+    title: datedTrainingTitle(title, "WOD"),
     content,
     date: nextDate,
     ...(resolvedTarget?.success ? targetFields(resolvedTarget.target) : {}),
@@ -347,13 +349,11 @@ export function deleteTrainingGroup(
   const group = activeGroup(state, groupId);
   if (!actor || !group || !canManageGroup(actor, group)) return failure(state, "Grupo no encontrado.");
   if (!isInstant(deletedAt)) return failure(state, "La fecha de eliminación no es válida.");
+  const detached = detachDatedTrainingGroup(state.groups, state.memberships, state.wods, groupId, deletedAt);
   return transition(
     {
       ...state,
-      groups: state.groups.map((candidate) => (candidate.id === groupId ? { ...candidate, deletedAt } : candidate)),
-      memberships: state.memberships.filter((membership) => membership.groupId !== groupId),
-      // Production keeps GROUP type while its SetNull relation clears this id.
-      wods: state.wods.map((wod) => (wod.targetGroupId === groupId ? { ...wod, targetGroupId: null } : wod)),
+      ...detached,
     },
     { success: true },
   );
