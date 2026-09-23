@@ -2,6 +2,8 @@
 import { createGymFixedDemoFixture } from "./gym-fixed-demo-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { isValidGymFixedDemoState } from "./gym-fixed-demo-state.ts";
+// @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
+import { snapshotDemoStorageValue } from "./demo-storage-snapshot.ts";
 import type { GymFixedDemoState } from "./gym-fixed-demo-types";
 
 /** Isolated from the BOX training, finance, access, and turnos ledgers. */
@@ -13,14 +15,15 @@ export type GymFixedDemoStorageLoad = { state: GymFixedDemoState; warning: strin
 const INVALID_STATE_WARNING = "El estado guardado de rutinas fijas no es válido; se restauró el ejemplo.";
 
 /**
- * The core owns the closed nested schema. Only a fully valid ledger is
- * serializable, which preserves every routine including soft-deleted history.
+ * Own descriptor snapshots close validate-then-serialize TOCTOU: neither the
+ * validator nor JSON sees caller-owned getters, toJSON, or volatile values.
  */
 export function serializeGymFixedDemoState(state: unknown): string {
-  if (!isValidGymFixedDemoState(state)) {
+  const snapshot = snapshotDemoStorageValue(state);
+  if (!snapshot.ok || !isValidGymFixedDemoState(snapshot.value)) {
     throw new Error("Cannot serialize an invalid gym fixed-routine demo state.");
   }
-  return JSON.stringify(state);
+  return JSON.stringify(snapshot.value);
 }
 
 /** JSON parsing always returns detached data and delegates all shape checks to the core validator. */

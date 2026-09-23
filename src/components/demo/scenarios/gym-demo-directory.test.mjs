@@ -124,11 +124,16 @@ test("unknown lookups and resolvers deny coercion, getters, symbols, poison prox
   assert.equal(hooks, 0);
 });
 
-test("foreign PERSONAL, BOX, and prepared-GYM factory values cannot enter this directory", () => {
+test("fixed compatibility tokens delegate exactly to canonical active-FULL GYM tokens while foreign registries remain denied", () => {
+  const fixedToken = getGymFixedDemoActorToken(GYM_DEMO_ADMIN_ID);
+  assert.equal(fixedToken, getGymDemoActorToken(GYM_DEMO_ADMIN_ID));
+  assert.equal(resolveGymDemoActor(fixedToken)?.id, GYM_DEMO_ADMIN_ID);
+  assert.equal(getGymFixedDemoActorToken(GYM_DEMO_HISTORICAL_MUSLIB_LITE_STUDENT_ID), null);
+  assert.equal(getGymFixedDemoActorToken(GYM_DEMO_ARCHIVED_STUDENT_ID), null);
+  assert.equal(getGymFixedDemoActorToken("unknown"), null);
   const personalToken = getPersonalTrainingActorToken();
   const boxActor = createTrainingDemoFixture().actors[0];
-  const preparedGymValue = getGymFixedDemoActorToken("gym-fixed-admin");
-  for (const foreign of [personalToken, boxActor, preparedGymValue, Object.freeze(Object.create(null))]) {
+  for (const foreign of [personalToken, boxActor, Object.freeze(Object.create(null))]) {
     assert.equal(resolveGymDemoActor(foreign), null);
   }
 });

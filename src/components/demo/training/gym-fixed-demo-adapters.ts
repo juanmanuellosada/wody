@@ -1,15 +1,18 @@
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
-import { GYM_FIXED_DEMO_GYM_ID, getGymFixedDemoRoster } from "./gym-fixed-demo-fixtures.ts";
+import { resolveGymDemoActor } from "../scenarios/gym-demo-directory.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
-import { createGymFixedRoutine, createGymFixedRoutineForGroup, deleteGymFixedRoutine, getGymFixedDemoActorToken, getGymFixedDemoGroupEligibility, isValidGymFixedDemoState, renewGymFixedRoutine, updateGymFixedRoutine } from "./gym-fixed-demo-state.ts";
+import { createGymFixedRoutine, createGymFixedRoutineForGroup, deleteGymFixedRoutine, getGymFixedDemoGroupEligibility, isValidGymFixedDemoState, preflightGymFixedRoutineGroup, renewGymFixedRoutine, updateGymFixedRoutine } from "./gym-fixed-demo-state.ts";
 import type {
   GymFixedDemoGroupResult,
   GymFixedDemoResult,
   GymFixedDemoState,
 } from "./gym-fixed-demo-types";
+import type { GymTrainingDemoState } from "./gym-training-demo-types";
 
 export type GymFixedCallbackFactoryOptions = {
   getState: () => GymFixedDemoState;
+  /** Required fresh dated GYM group ledger for each queued group batch. */
+  getTrainingState: () => GymTrainingDemoState;
   commit: (state: GymFixedDemoState) => void;
   /** The opaque reference returned by getGymFixedDemoActorToken, never a UI actor copy. */
   fixedActorToken: unknown;
@@ -36,25 +39,9 @@ type PendingOperation = {
 const MAX_ID_ATTEMPTS = 64;
 const PROBE_DATE = new Date("2000-01-01T00:00:00.000Z");
 
-/*
- * The core token is reference-based. This private table deliberately derives
- * only active local staff from its fixture and never reads a caller token's
- * fields, so detached UI identities and proxy wrappers have no authority.
- */
-const allowedActorTokens = new Map<unknown, true>();
-for (const actor of getGymFixedDemoRoster()) {
-  if (
-    actor.gymId === GYM_FIXED_DEMO_GYM_ID
-    && actor.deletedAt === null
-    && (actor.role === "ADMIN" || actor.role === "TEACHER")
-  ) {
-    const token = getGymFixedDemoActorToken(actor.id);
-    if (token) allowedActorTokens.set(token, true);
-  }
-}
-
 function isAllowedActor(token: unknown): boolean {
-  return allowedActorTokens.has(token);
+  const actor = resolveGymDemoActor(token);
+  return !!actor && (actor.role === "ADMIN" || actor.role === "TEACHER");
 }
 
 function isId(value: unknown): value is string {
@@ -225,15 +212,20 @@ export function createGymFixedCallbackFactory(options: GymFixedCallbackFactoryOp
         if (!authorized()) return groupFailure("No autorizado.");
         const state = currentValidState();
         if (!state) return groupFailure("El estado de rutinas no es válido.");
-        const eligibility = getGymFixedDemoGroupEligibility(actorToken, groupId);
+        // Capture one fresh context and synchronously resolve, allocate, and
+        // consume it before any await/yield. Never reuse a UI eligibility list.
+        const trainingState = options.getTrainingState();
+        const preflight = preflightGymFixedRoutineGroup(trainingState, actorToken, groupId, title, content);
+        if (!preflight.success) return groupFailure(preflight.error);
+        const eligibility = getGymFixedDemoGroupEligibility(trainingState, actorToken, groupId);
         if (!eligibility.success) return groupFailure(eligibility.error);
         const ids = allocateIds(state, eligibility.studentIds.length);
         if (!ids) return groupFailure("No se pudo generar un identificador de rutina único.");
         const command = { groupId, ids, title, content, ...(renewAt === undefined ? {} : { renewAt }) };
-        const probe = createGymFixedRoutineForGroup(state, actorToken, command, () => PROBE_DATE);
+        const probe = createGymFixedRoutineForGroup(state, trainingState, actorToken, command, () => PROBE_DATE);
         if (!probe.result.success) return probe.result;
         const clockValue = clockAfterSuccessfulProbe();
-        return commitGroupResult(createGymFixedRoutineForGroup(state, actorToken, command, () => clockValue));
+        return commitGroupResult(createGymFixedRoutineForGroup(state, trainingState, actorToken, command, () => clockValue));
       });
     },
 

@@ -114,3 +114,25 @@ test("storage unavailability and quota/read failures are non-fatal warnings", ()
   assert.match(loadGymFixedDemoState(blocked).warning ?? "", /No se pudo leer/i);
   assert.match(persistGymFixedDemoState(blocked, createGymFixedDemoFixture()) ?? "", /No se pudieron guardar/i);
 });
+
+test("fixed storage validates and serializes one owned descriptor snapshot without source hooks", () => {
+  const fixture = createGymFixedDemoFixture();
+  let reads = 0;
+  fixture.fixedRoutines[0] = new Proxy(fixture.fixedRoutines[0], {
+    get(target, key, receiver) { reads += 1; if (key === "toJSON") throw new Error("source JSON"); return Reflect.get(target, key, receiver); },
+  });
+  const root = new Proxy(fixture, {
+    get(target, key, receiver) { reads += 1; if (key === "toJSON") throw new Error("source JSON"); if (key === "version") return 999; return Reflect.get(target, key, receiver); },
+  });
+  const { storage, writes } = storageSpy();
+  assert.equal(persistGymFixedDemoState(storage, root), null);
+  assert.equal(reads, 0);
+  assert.equal(JSON.parse(writes[0][1]).version, 1);
+  assert.equal(JSON.parse(writes[0][1]).fixedRoutines[0].title, "Base inicial");
+  const accessor = createGymFixedDemoFixture();
+  Object.defineProperty(accessor.fixedRoutines[0], "title", { enumerable: true, get() { return "bad"; } });
+  assert.match(persistGymFixedDemoState(storage, accessor) ?? "", /no válido/i);
+  const reflectionFailure = new Proxy({}, { ownKeys() { throw new Error("own keys"); } });
+  assert.match(persistGymFixedDemoState(storage, reflectionFailure) ?? "", /no válido/i);
+  assert.equal(writes.length, 1);
+});

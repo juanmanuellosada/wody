@@ -1,5 +1,7 @@
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
-import { createTrainingDemoFixture } from "./training-demo-fixtures.ts";
+import { GYM_DEMO_GYM_ID, getGymDemoProfiles, getGymDemoTeacherStudentLinks } from "../scenarios/gym-demo-directory.ts";
+// @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
+import { createGymTrainingDemoFixture } from "./gym-training-demo-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { GYM_FIXED_DEMO_NAMESPACE, GYM_FIXED_DEMO_VERSION } from "./gym-fixed-demo-types.ts";
 import type {
@@ -10,74 +12,45 @@ import type {
   GymFixedDemoTeacherStudentLink,
 } from "./gym-fixed-demo-types";
 
-export const GYM_FIXED_DEMO_GYM_ID = "gym-fixed-gym";
-const FOREIGN_GYM_ID = "gym-fixed-foreign-gym";
+/** Compatibility alias: fixed routines and the canonical GYM directory share one tenant ID. */
+export const GYM_FIXED_DEMO_GYM_ID = GYM_DEMO_GYM_ID;
 
 /**
- * Names are derived from the existing fictional training fixture only; every
- * identifier and authorization boundary below belongs to this GYM namespace.
- */
-function derivedNames(): { admin: string; teacher: string; secondTeacher: string; personalized: string; general: string } {
-  const actors = createTrainingDemoFixture().actors;
-  const nameFor = (id: string) => actors.find((actor) => actor.id === id)?.name ?? id;
-  return {
-    admin: nameFor("a1"),
-    teacher: nameFor("t1"),
-    secondTeacher: nameFor("t2"),
-    personalized: nameFor("s1"),
-    general: nameFor("s2"),
-  };
-}
-
-/**
- * Fixture directory data is separate from the persisted ledger. State captures
- * routines only; a future provider can replace this read-only context with live
- * group/link queries without importing finance, access, or BOX state.
+ * Compatibility display fixture only. Canonical directory profiles are the
+ * sole identity, link, and token authority; these fresh copies cannot grant a
+ * capability or add a foreign profile.
  */
 export function getGymFixedDemoRoster(): GymFixedDemoRosterRecord[] {
-  const names = derivedNames();
-  return [
-    { id: "gym-fixed-admin", gymId: GYM_FIXED_DEMO_GYM_ID, name: names.admin, role: "ADMIN", studentType: null, accountKind: "FULL", deletedAt: null },
-    { id: "gym-fixed-teacher-linked", gymId: GYM_FIXED_DEMO_GYM_ID, name: names.teacher, role: "TEACHER", studentType: null, accountKind: "FULL", deletedAt: null },
-    { id: "gym-fixed-teacher-unlinked", gymId: GYM_FIXED_DEMO_GYM_ID, name: names.secondTeacher, role: "TEACHER", studentType: null, accountKind: "FULL", deletedAt: null },
-    { id: "gym-fixed-student-general", gymId: GYM_FIXED_DEMO_GYM_ID, name: names.general, role: "STUDENT", studentType: "GENERAL", accountKind: "FULL", deletedAt: null },
-    { id: "gym-fixed-student-personalized", gymId: GYM_FIXED_DEMO_GYM_ID, name: names.personalized, role: "STUDENT", studentType: "PERSONALIZED", accountKind: "FULL", deletedAt: null },
-    { id: "gym-fixed-student-muslib", gymId: GYM_FIXED_DEMO_GYM_ID, name: "Mica Musculación", role: "STUDENT", studentType: "MUSCULACION_LIBRE", accountKind: "FULL", deletedAt: null },
-    { id: "gym-fixed-student-muslib-lite", gymId: GYM_FIXED_DEMO_GYM_ID, name: "Leo Lite", role: "STUDENT", studentType: "MUSCULACION_LIBRE", accountKind: "LITE", deletedAt: null },
-    { id: "gym-fixed-student-muslib-archived", gymId: GYM_FIXED_DEMO_GYM_ID, name: "Ana Archivada", role: "STUDENT", studentType: "MUSCULACION_LIBRE", accountKind: "FULL", deletedAt: "2025-04-01T00:00:00.000Z" },
-    { id: "gym-fixed-foreign-teacher", gymId: FOREIGN_GYM_ID, name: "Profe Ajena", role: "TEACHER", studentType: null, accountKind: "FULL", deletedAt: null },
-    { id: "gym-fixed-foreign-student", gymId: FOREIGN_GYM_ID, name: "Alumno Ajeno", role: "STUDENT", studentType: "MUSCULACION_LIBRE", accountKind: "FULL", deletedAt: null },
-  ];
+  return getGymDemoProfiles().map((profile) => ({
+    id: profile.id,
+    gymId: profile.gymId,
+    name: profile.name,
+    role: profile.role,
+    studentType: profile.studentType,
+    accountKind: profile.accountKind,
+    deletedAt: profile.deletedAt,
+  }));
 }
 
+/** Compatibility display rows derived from the canonical GYM directory. */
 export function getGymFixedDemoTeacherStudentLinks(): GymFixedDemoTeacherStudentLink[] {
-  return [
-    { teacherId: "gym-fixed-teacher-linked", studentId: "gym-fixed-student-general" },
-    { teacherId: "gym-fixed-teacher-linked", studentId: "gym-fixed-student-personalized" },
-    { teacherId: "gym-fixed-teacher-linked", studentId: "gym-fixed-student-muslib" },
-    { teacherId: "gym-fixed-teacher-linked", studentId: "gym-fixed-student-muslib-lite" },
-  ];
+  return getGymDemoTeacherStudentLinks().map((link) => ({ ...link }));
 }
 
+/**
+ * Test-only historical projection of the INITIAL dated GYM fixture. It is not
+ * an authority source: current group checks must use supplied training state.
+ */
 export function getGymFixedDemoGroups(): GymFixedDemoGroup[] {
-  return [
-    { id: "gym-fixed-group-linked", teacherId: "gym-fixed-teacher-linked", name: "Musculación mañana", deletedAt: null },
-    { id: "gym-fixed-group-unlinked", teacherId: "gym-fixed-teacher-unlinked", name: "Musculación tarde", deletedAt: null },
-    { id: "gym-fixed-group-foreign", teacherId: "gym-fixed-foreign-teacher", name: "Grupo ajeno", deletedAt: null },
-  ];
+  return createGymTrainingDemoFixture().groups.map((group) => ({ ...group }));
 }
 
+/** Test-only INITIAL dated-fixture projection; never use for runtime eligibility. */
 export function getGymFixedDemoGroupMemberships(): GymFixedDemoGroupMembership[] {
-  return [
-    { groupId: "gym-fixed-group-linked", studentId: "gym-fixed-student-muslib" },
-    { groupId: "gym-fixed-group-linked", studentId: "gym-fixed-student-muslib-lite" },
-    { groupId: "gym-fixed-group-linked", studentId: "gym-fixed-student-general" },
-    { groupId: "gym-fixed-group-linked", studentId: "gym-fixed-student-personalized" },
-    { groupId: "gym-fixed-group-foreign", studentId: "gym-fixed-foreign-student" },
-  ];
+  return createGymTrainingDemoFixture().memberships.map((membership) => ({ ...membership }));
 }
 
-/** A deterministic fictional GYM ledger. It never reads a clock, storage, or another demo's state. */
+/** A deterministic isolated fixed-routine ledger; canonical identity and groups are external context. */
 export function createGymFixedDemoFixture(): GymFixedDemoState {
   return {
     version: GYM_FIXED_DEMO_VERSION,

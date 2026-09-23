@@ -339,23 +339,52 @@ export function removeGymTrainingStudentFromGroup(state: GymTrainingDemoState, a
   return transition(next.length === state.memberships.length ? state : { ...state, memberships: next }, Object.freeze({ success: true }));
 }
 
+export type GymFixedGroupScope =
+  | Readonly<{ success: true; groupId: string; teacherId: string; name: string }>
+  | Readonly<{ success: false; error: string }>;
+
+type ResolvedGymFixedGroupScope =
+  | { success: true; actor: GymDemoCanonicalActor; group: GymTrainingGroup }
+  | { success: false; error: string };
+
+/** Token-first shared authorization; neither public result carries this capability. */
+function resolveGymFixedGroupScopeInternal(state: unknown, actorToken: unknown, groupId: unknown): ResolvedGymFixedGroupScope {
+  const actor = resolveGymDemoActor(actorToken);
+  if (!actor || !isStaff(actor)) return { success: false, error: "No autorizado." };
+  if (!isValidGymTrainingDemoState(state)) return { success: false, error: "El estado de entrenamiento no es válido." };
+  if (!isDatedTrainingId(groupId)) return { success: false, error: "Grupo no encontrado." };
+  const group = activeGroup(state, groupId);
+  if (!group) return { success: false, error: "Grupo no encontrado." };
+  if (actor.role === "TEACHER" && group.teacherId !== actor.id) return { success: false, error: "No autorizado para este grupo." };
+  if (actor.role === "ADMIN" && !activeStaff(group.teacherId)) return { success: false, error: "Grupo no encontrado." };
+  return { success: true, actor, group };
+}
+
+/**
+ * Token-first current-ledger group authorization for the fixed-routine bridge.
+ * It stops before membership eligibility; returned metadata is detached data,
+ * never a capability that can be fed back into the resolver.
+ */
+export function resolveGymFixedGroupScope(state: unknown, actorToken: unknown, groupId: unknown): GymFixedGroupScope {
+  const resolved = resolveGymFixedGroupScopeInternal(state, actorToken, groupId);
+  return resolved.success
+    ? Object.freeze({ success: true, groupId: resolved.group.id, teacherId: resolved.group.teacherId, name: resolved.group.name })
+    : Object.freeze({ success: false, error: resolved.error });
+}
+
 /** Auth is intentionally resolved before state validation and before groupId is inspected. */
 export function resolveGymFixedGroupAssignment(state: unknown, actorToken: unknown, groupId: unknown): GymFixedGroupAssignment {
-  const actor = resolveGymDemoActor(actorToken);
-  if (!actor || !isStaff(actor)) return Object.freeze({ success: false, error: "No autorizado." });
-  if (!isValidGymTrainingDemoState(state)) return Object.freeze({ success: false, error: "El estado de entrenamiento no es válido." });
-  if (!isDatedTrainingId(groupId)) return Object.freeze({ success: false, error: "Grupo no encontrado." });
-  const group = activeGroup(state, groupId);
-  if (!group) return Object.freeze({ success: false, error: "Grupo no encontrado." });
-  if (actor.role === "TEACHER" && group.teacherId !== actor.id) return Object.freeze({ success: false, error: "No autorizado para este grupo." });
-  if (actor.role === "ADMIN" && !activeStaff(group.teacherId)) return Object.freeze({ success: false, error: "Grupo no encontrado." });
-  const eligibleStudentIds = state.memberships
-    .filter((membership) => membership.groupId === group.id)
+  const resolved = resolveGymFixedGroupScopeInternal(state, actorToken, groupId);
+  if (!resolved.success) return Object.freeze({ success: false, error: resolved.error });
+  // The shared helper validated this exact input before any membership read.
+  const trainingState = state as GymTrainingDemoState;
+  const eligibleStudentIds = trainingState.memberships
+    .filter((membership) => membership.groupId === resolved.group.id)
     .map((membership) => activeStudent(membership.studentId))
     .filter((student): student is Readonly<GymDemoProfile> => !!student && student.studentType === "MUSCULACION_LIBRE")
     .map((student) => student.id);
   if (eligibleStudentIds.length === 0) return Object.freeze({ success: false, error: "El grupo no tiene alumnos de musculación libre." });
-  return Object.freeze({ success: true, groupId: group.id, teacherId: group.teacherId, eligibleStudentIds: Object.freeze([...eligibleStudentIds]) });
+  return Object.freeze({ success: true, groupId: resolved.group.id, teacherId: resolved.group.teacherId, eligibleStudentIds: Object.freeze([...eligibleStudentIds]) });
 }
 
 export function projectGymTrainingViews(state: unknown, actorToken: unknown): GymTrainingProjection {
