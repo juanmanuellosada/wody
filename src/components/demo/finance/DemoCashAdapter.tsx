@@ -10,6 +10,7 @@ import { projectSaleDemoCatalog } from "./sale-demo-adapters";
 import { demoFeeIdentities } from "./fees-fixtures";
 import { NewSaleButtonView } from "@/components/sales/NewSaleButtonView";
 import { useDemoFinance } from "./DemoFinanceProvider";
+import { DemoExpenseAction, DemoRevenueAdapter } from "./DemoRevenueAdapter";
 
 const identitiesByRole = {
   ADMIN: demoFeeIdentities.admin,
@@ -38,6 +39,7 @@ export function DemoCashAdapter({ role }: { role: FeeRole }) {
   return (
     <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-10">
       <CajaShell
+        key={finance.resetEpoch}
         saleAction={(
           <NewSaleButtonView
             key={finance.resetEpoch}
@@ -47,6 +49,7 @@ export function DemoCashAdapter({ role }: { role: FeeRole }) {
             onRegisterSale={saleCallback}
           />
         )}
+        expenseAction={role === "ADMIN" ? <DemoExpenseAction /> : null}
         quotaAction={(
           <RegisterPaymentSectionView
             students={students}
@@ -61,13 +64,14 @@ export function DemoCashAdapter({ role }: { role: FeeRole }) {
       >
         <div className="flex flex-col gap-4">
           <p className="border border-brand-red/40 bg-brand-red/10 p-3 text-sm font-body text-gray-200">
-            Datos ficticios guardados solo en esta pestaña. Registrar cuotas o ventas no genera recibos, cobros ni checkout reales.
+            Datos ficticios guardados solo en esta pestaña. Registrar cuotas, ventas o gastos actualiza el informe local y no genera recibos, cobros ni checkout reales.
           </p>
           {finance.warning && (
             <p className="border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm font-body text-yellow-100" role="status">
               {finance.warning}
             </p>
           )}
+          {role === "ADMIN" && <DemoRevenueAdapter />}
           <div>
             <Button variant="ghost" size="sm" onClick={finance.reset}>
               Restablecer datos financieros

@@ -111,23 +111,58 @@ test("reports retain integer-cent totals and same-millisecond previous ranges", 
   const state = reportState();
   const students = assertReport(projectDemoRevenue(state, admin, { revenueView: "alumnos", statsFrom: "2025-03-01", statsTo: "2025-03-31" }, today));
   assert.equal(students.view, "alumnos");
-  assert.deepEqual(students.metrics, { totalCents: 10_000, count: 1, totalChange: 150, countChange: 0 });
+  assert.deepEqual(students.metrics, {
+    totalCents: 10_000, count: 1, previousTotalCents: 4_000, previousCount: 1, totalChange: 150, countChange: 0,
+  });
   assert.deepEqual(students.paymentHistory.map((row) => row.paidAt), ["2025-03-10T00:00:00.000Z"]);
 
   const products = assertReport(projectDemoRevenue(state, admin, { revenueView: "productos", statsFrom: "2025-03-01", statsTo: "2025-03-31" }, today));
   assert.equal(products.view, "productos");
-  assert.deepEqual(products.metrics, { totalCents: 600, count: 1, totalChange: 20, countChange: 0 });
+  assert.deepEqual(products.metrics, {
+    totalCents: 600, count: 1, previousTotalCents: 500, previousCount: 1, totalChange: 20, countChange: 0,
+  });
 
   const mixed = assertReport(projectDemoRevenue(state, admin, { revenueView: "mixta", statsFrom: "2025-03-01", statsTo: "2025-03-31" }, today));
   assert.equal(mixed.view, "mixta");
   assert.equal(mixed.metrics.grossIncome.totalCents, 10_600);
+  assert.equal(mixed.metrics.grossIncome.previousTotalCents, 4_500);
+  assert.equal(mixed.metrics.grossIncome.previousCount, 2);
   assert.equal(mixed.metrics.grossIncome.totalChange, 136);
   assert.equal(mixed.metrics.net.totalCents, 10_200);
+  assert.equal(mixed.metrics.net.previousTotalCents, 3_500);
+  assert.equal(mixed.metrics.net.previousCount, 1);
   assert.equal(mixed.metrics.net.totalChange, 191);
 
   const longState = { ...state, payments: [...state.payments, payment("payment-jan29", "fee-student-juan", 1_000, "2025-01-29")] };
   const longRange = assertReport(projectDemoRevenue(longState, admin, { revenueView: "alumnos", statsFrom: "2025-03-01", statsTo: "2025-03-31" }, today));
   assert.equal(longRange.metrics.totalChange, 100, "previous range is Jan 29 through Feb 28, not February only");
+});
+
+test("exact previous values survive rounded, zero, and signed comparison percentages", () => {
+  const base = createFinanceDemoFixture(today);
+  const rounded = assertReport(projectDemoRevenue({
+    ...base,
+    payments: [
+      payment("current", "fee-student-juan", 10_049, "2025-03-02"),
+      payment("previous-a", "fee-student-juan", 5_000, "2025-02-02"),
+      payment("previous-b", "fee-student-juan", 5_000, "2025-02-03"),
+    ],
+  }, admin, { revenueView: "alumnos", statsFrom: "2025-03-01", statsTo: "2025-03-31" }, today));
+  assert.equal(rounded.view, "alumnos");
+  assert.equal(rounded.metrics.totalChange, 0, "the percentage rounds while the previous cents remain exact");
+  assert.equal(rounded.metrics.previousTotalCents, 10_000);
+  assert.equal(rounded.metrics.previousCount, 2);
+
+  const zeroPrevious = assertReport(projectDemoRevenue(base, admin, {
+    revenueView: "alumnos", statsFrom: "2025-03-01", statsTo: "2025-03-31",
+  }, today));
+  assert.equal(zeroPrevious.view, "alumnos");
+  assert.deepEqual({
+    previousTotalCents: zeroPrevious.metrics.previousTotalCents,
+    previousCount: zeroPrevious.metrics.previousCount,
+    totalChange: zeroPrevious.metrics.totalChange,
+    countChange: zeroPrevious.metrics.countChange,
+  }, { previousTotalCents: 0, previousCount: 0, totalChange: null, countChange: null });
 });
 
 test("view-specific filters preserve the live mixed-report asymmetry and historical relations", () => {
@@ -177,6 +212,7 @@ test("monthly points stay sparse, percentage math supports negative prior net, a
   };
   const mixed = assertReport(projectDemoRevenue(negativePrior, admin, { revenueView: "mixta", statsFrom: "2025-03-01", statsTo: "2025-03-31" }, today));
   assert.equal(mixed.view, "mixta");
+  assert.equal(mixed.metrics.net.previousTotalCents, -200, "the exact negative previous net is never inferred from a rounded change");
   assert.equal(mixed.metrics.net.totalChange, -150, "net percentage keeps the negative prior denominator");
   assert.equal(mixed.metrics.expenses.totalChange, -100);
   const deeperNegative = {
@@ -293,5 +329,7 @@ test("year-one previous ranges stay internal Gregorian UTC dates rather than Dat
   }, "0096-02-10"));
   assert.equal(result.view, "alumnos");
   assert.equal(result.metrics.totalCents, 0);
+  assert.equal(result.metrics.previousTotalCents, 0);
+  assert.equal(result.metrics.previousCount, 0);
   assert.equal(result.metrics.totalChange, null);
 });

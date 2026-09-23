@@ -22,6 +22,8 @@ export type DemoRevenueFilterParseResult =
 export type DemoRevenueMetric = {
   totalCents: number;
   count: number;
+  previousTotalCents: number;
+  previousCount: number;
   totalChange: number | null;
   countChange: number | null;
 };

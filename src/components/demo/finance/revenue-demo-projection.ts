@@ -74,6 +74,8 @@ function metric<T>(currentRows: readonly T[], previousRows: readonly T[], amount
   return {
     totalCents,
     count: currentRows.length,
+    previousTotalCents: previousCents,
+    previousCount: previousRows.length,
     totalChange: change(totalCents, previousCents),
     countChange: change(currentRows.length, previousRows.length),
   };
@@ -295,8 +297,20 @@ export function projectDemoRevenue(
       payments,
       sales,
       expenses,
-      grossIncome: { totalCents: grossCurrent, count: payments.count + sales.count, totalChange: change(grossCurrent, grossPrevious) },
-      net: { totalCents: netCurrent, count: payments.count + sales.count - expenses.count, totalChange: change(netCurrent, netPrevious) },
+      grossIncome: {
+        totalCents: grossCurrent,
+        count: payments.count + sales.count,
+        previousTotalCents: grossPrevious,
+        previousCount: payments.previousCount + sales.previousCount,
+        totalChange: change(grossCurrent, grossPrevious),
+      },
+      net: {
+        totalCents: netCurrent,
+        count: payments.count + sales.count - expenses.count,
+        previousTotalCents: netPrevious,
+        previousCount: payments.previousCount + sales.previousCount - expenses.previousCount,
+        totalChange: change(netCurrent, netPrevious),
+      },
     },
     evolution,
     paymentHistory: paymentRows(paymentHistory, state),
