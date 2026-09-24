@@ -6,6 +6,8 @@ import {
   GYM_DEMO_GENERAL_STUDENT_ID,
   GYM_DEMO_PERSONALIZED_STUDENT_ID,
   GYM_DEMO_PRIMARY_TEACHER_ID,
+  GYM_DEMO_SECONDARY_TEACHER_ID,
+  GYM_DEMO_UNLINKED_PERSONALIZED_STUDENT_ID,
 } from "../scenarios/gym-demo-directory.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { createGymDemoProfileFixture, getGymDemoProfileActorToken } from "./gym-demo-profile-core.ts";
@@ -15,6 +17,7 @@ import {
   GYM_DEMO_PROFILE_JOURNAL_VERSION,
   acknowledgeGymDemoProfileGroupDetach,
   createGymDemoProfileJournalFixture,
+  effectsMatchPreparedCommand,
   getValidatedGymDemoProfileJournal,
   prepareGymDemoProfileJournalCommand,
   stageGymDemoProfileJournal,
@@ -271,4 +274,96 @@ test("closed journal shapes reject symbols, hidden keys, accessors, prototypes, 
     { studentId: GYM_DEMO_PERSONALIZED_STUDENT_ID, revision: 1 },
   ];
   for (const candidate of [symbol, hidden, accessor, prototype, sparse, cyclic, duplicate]) assert.equal(getValidatedGymDemoProfileJournal(candidate), null);
+});
+
+// R3-001: `clock` is now a genuinely required own key on a SET_BLOCKED command (its value may still be
+// `undefined`). These two tests document the decided direction and its runtime parity in both cases.
+test("R3-001: a SET_BLOCKED command that omits the clock own key is rejected as an invalid command", () => {
+  const initial = createGymDemoProfileJournalFixture();
+  const withoutClockKey = { type: "SET_BLOCKED", actorToken: admin, input: { studentId: GYM_DEMO_GENERAL_STUDENT_ID, blocked: false } };
+  assert.equal(Reflect.ownKeys(withoutClockKey).includes("clock"), false);
+  const prepared = prepareGymDemoProfileJournalCommand(initial, withoutClockKey);
+  assert.equal(prepared.success, false);
+  assert.equal(prepared.journal, initial);
+});
+
+test("R3-001: a SET_BLOCKED command with clock explicitly undefined is accepted when unblocking needs no clock", () => {
+  const initial = createGymDemoProfileJournalFixture();
+  const staged = stageCommand(initial, {
+    type: "SET_BLOCKED",
+    actorToken: admin,
+    input: { studentId: GYM_DEMO_GENERAL_STUDENT_ID, blocked: false },
+    clock: undefined,
+  });
+  assert.equal(staged.success, true);
+  assert.equal(profileRow(staged.journal.profileState, GYM_DEMO_GENERAL_STUDENT_ID).blockedAt, null);
+});
+
+// R3-002: journal-level coverage for the three previously untested dispatch arms.
+test("R3-002: stages a SET_PAYMENT_EXEMPT command", () => {
+  const initial = createGymDemoProfileJournalFixture();
+  const staged = stageCommand(initial, {
+    type: "SET_PAYMENT_EXEMPT",
+    actorToken: admin,
+    input: { studentId: GYM_DEMO_GENERAL_STUDENT_ID, exempt: true, reason: "Beca deportiva" },
+  });
+  assert.equal(staged.success, true);
+  const row = profileRow(staged.journal.profileState, GYM_DEMO_GENERAL_STUDENT_ID);
+  assert.equal(row.paymentExempt, true);
+  assert.equal(row.paymentExemptReason, "Beca deportiva");
+  assert.deepEqual(staged.journal.pendingGroupDetaches, []);
+});
+
+test("R3-002: stages a SET_OWN_ROUTINES command", () => {
+  const initial = createGymDemoProfileJournalFixture();
+  const staged = stageCommand(initial, {
+    type: "SET_OWN_ROUTINES",
+    actorToken: admin,
+    input: { studentId: GYM_DEMO_PERSONALIZED_STUDENT_ID, canCreateOwnRoutines: true },
+  });
+  assert.equal(staged.success, true);
+  assert.equal(profileRow(staged.journal.profileState, GYM_DEMO_PERSONALIZED_STUDENT_ID).canCreateOwnRoutines, true);
+});
+
+test("R3-002: stages an ASSIGN_TEACHER command", () => {
+  const initial = createGymDemoProfileJournalFixture();
+  const staged = stageCommand(initial, {
+    type: "ASSIGN_TEACHER",
+    actorToken: admin,
+    input: { teacherId: GYM_DEMO_SECONDARY_TEACHER_ID, studentId: GYM_DEMO_UNLINKED_PERSONALIZED_STUDENT_ID },
+  });
+  assert.equal(staged.success, true);
+  assert.ok(staged.journal.profileState.links.some(
+    (link) => link.teacherId === GYM_DEMO_SECONDARY_TEACHER_ID && link.studentId === GYM_DEMO_UNLINKED_PERSONALIZED_STUDENT_ID,
+  ));
+});
+
+test("R3-002: prepare passes through an authorized core business failure instead of a generic invalid-command error", () => {
+  const initial = createGymDemoProfileJournalFixture();
+  // GYM_DEMO_PERSONALIZED_STUDENT_ID is already linked to GYM_DEMO_PRIMARY_TEACHER_ID in the canonical fixture.
+  const duplicate = prepareGymDemoProfileJournalCommand(initial, {
+    type: "ASSIGN_TEACHER",
+    actorToken: admin,
+    input: { teacherId: GYM_DEMO_PRIMARY_TEACHER_ID, studentId: GYM_DEMO_PERSONALIZED_STUDENT_ID },
+  });
+  assert.equal(duplicate.success, false);
+  assert.equal(duplicate.journal, initial);
+  assert.equal(duplicate.error, "Ese alumno ya está asignado a ese profe.");
+});
+
+test("R3-002: effectsMatchPreparedCommand rejects a hand-built ticket whose effect does not correspond to an actual GENERAL transition", () => {
+  const fixture = createGymDemoProfileFixture();
+  // Through the real, approved core this mismatch cannot occur; this ticket is hand-built specifically
+  // to exercise the rejection branch, since prepare's captured tickets are always self-consistent.
+  const mismatched = {
+    baseRevision: 0,
+    baseProfileState: fixture,
+    transition: {
+      state: fixture,
+      result: { success: true },
+      effects: [{ type: "DETACH_ALL_GROUPS", studentId: GYM_DEMO_PERSONALIZED_STUDENT_ID }],
+    },
+  };
+  assert.equal(profileRow(fixture, GYM_DEMO_PERSONALIZED_STUDENT_ID).studentType, "PERSONALIZED");
+  assert.equal(effectsMatchPreparedCommand(mismatched), false);
 });

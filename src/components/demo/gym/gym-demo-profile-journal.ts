@@ -22,7 +22,9 @@ export type GymDemoProfileJournal = {
 /** The only accepted operation source: each arm dispatches to the approved profile core. */
 export type GymDemoProfileJournalCommand =
   | { type: "EDIT_STUDENT"; actorToken: unknown; input: unknown }
-  | { type: "SET_BLOCKED"; actorToken: unknown; input: unknown; clock?: GymDemoProfileClock }
+  // R3-001: `clock` is genuinely required (its value may still be `undefined`), matching captureCommand's
+  // runtime requirement that the own key be present for SET_BLOCKED; a type-correct command can no longer omit it.
+  | { type: "SET_BLOCKED"; actorToken: unknown; input: unknown; clock: GymDemoProfileClock | undefined }
   | { type: "SET_PAYMENT_EXEMPT"; actorToken: unknown; input: unknown }
   | { type: "SET_TYPE"; actorToken: unknown; input: unknown }
   | { type: "SET_OWN_ROUTINES"; actorToken: unknown; input: unknown }
@@ -234,7 +236,12 @@ function sameProfileState(left: GymDemoProfileState, right: GymDemoProfileState)
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function effectsMatchPreparedCommand(prepared: PreparedTicket): boolean {
+/**
+ * Exported only so journal-level tests can exercise its rejection branch directly (R3-002): through the
+ * real, approved core every ticket's captured transition is self-consistent by construction, so this
+ * branch is unreachable via the public prepare/stage flow and needs a hand-built ticket to cover.
+ */
+export function effectsMatchPreparedCommand(prepared: PreparedTicket): boolean {
   const { baseProfileState: previous, transition } = prepared;
   const next = transition.state;
   const effects = transition.effects;
