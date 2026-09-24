@@ -70,7 +70,7 @@ function PersonaSelector({ role, selectedId, onSelect }: { role: DemoGymScreenRo
     <label className="self-start text-xs font-heading font-bold uppercase tracking-[0.12em] text-gray-500">
       Persona de demostración
       <select value={selectedId} onChange={(event) => onSelect(event.target.value)} className="ml-3 bg-panel border border-edge px-2 py-1 text-white normal-case tracking-normal">
-        {people.map((person) => <option key={person.id} value={person.id}>{nameOverrides.get(person.id) ?? person.name}</option>)}
+        {people.map((person) => <option key={person.id} value={person.id}>{resolveGymDisplayName(nameOverrides, person.id, person.name)}</option>)}
       </select>
     </label>
   );
@@ -109,7 +109,7 @@ function RmsScreen() {
   const nameOverrides = useGymNameOverrides();
   const rms = gym.rmProjection.success ? mapGymRms(gym.rmProjection.rms) : gym.rmProjection;
   if (!rms.success || !gym.rmCallbacks) return <ProjectionError error={rms.success ? "No se pudieron preparar los PRs." : rms.error} />;
-  const athleteName = nameOverrides.get(gym.selectedActor.id) ?? gym.selectedActor.name;
+  const athleteName = resolveGymDisplayName(nameOverrides, gym.selectedActor.id, gym.selectedActor.name);
   return <div key={gym.rmEpoch} className="flex flex-col gap-6"><RmsView rms={rms.value} athleteName={athleteName} gymName={gymName} gymSlug={gymSlug} terms={terms} onCreateRm={gym.rmCallbacks.onCreateRm} onUpdateRm={gym.rmCallbacks.onUpdateRm} onDeleteRm={gym.rmCallbacks.onDeleteRm} /><button type="button" onClick={gym.resetRms} className="self-start text-xs font-heading font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-white">Restablecer PRs</button></div>;
 }
 
@@ -159,6 +159,16 @@ type GymRouteProjection = { success: true; staff: GymTrainingSuccess["staff"]; s
 function useGymNameOverrides(): ReadonlyMap<string, string> {
   const { profileState } = useDemoGymProfile();
   return useMemo(() => new Map(profileState.students.map((student) => [student.id, student.name])), [profileState]);
+}
+
+/**
+ * The single route-level resolver for every non-projection display site (persona selector, RM athlete
+ * name). A blank or whitespace-only override is not a display name; the canonical name is used instead,
+ * matching the same rule the pure projections (gym-fixed-demo-state.ts, gym-training-demo-state.ts) apply.
+ */
+function resolveGymDisplayName(nameOverrides: ReadonlyMap<string, string>, id: string, canonicalName: string): string {
+  const override = nameOverrides.get(id);
+  return override !== undefined && override.trim() !== "" ? override : canonicalName;
 }
 
 function useGymProjection(actorId: string, includeStaffFixed: boolean, includeStudentFixed = false): GymRouteProjection {

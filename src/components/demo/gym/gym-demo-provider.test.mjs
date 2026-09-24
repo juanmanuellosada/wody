@@ -285,6 +285,91 @@ test("controlled route threads the profile bridge's name overrides into all thre
   assert.equal(renewal?.studentName, editedName);
 });
 
+test("controlled route resolves the persona selector and the RM athlete name through the same blank-to-canonical rule as the projections", async () => {
+  const compiled = ts.transpileModule(await source("src/components/demo/gym/DemoGymTrainingRoute.tsx"), {
+    compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const jsx = (type, props) => typeof type === "function" ? type(props ?? {}) : { type, props: props ?? {} };
+  const findNode = (root, predicate) => {
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.pop();
+      if (!node || typeof node !== "object") continue;
+      if (predicate(node)) return node;
+      const children = node.props?.children;
+      if (Array.isArray(children)) stack.push(...children);
+      else stack.push(children);
+    }
+    return null;
+  };
+  const editedName = "Micaela Editada";
+  const muslibId = directory.GYM_DEMO_MUSLIB_STUDENT_ID; // canonical "Micaela Torres", overridden below
+  const generalId = directory.GYM_DEMO_GENERAL_STUDENT_ID; // canonical "Paula Méndez", overridden with a blank
+  const personalizedId = directory.GYM_DEMO_PERSONALIZED_STUDENT_ID; // canonical "Irene Soto", absent from the map
+  // One map exercises all three rules at once: an edited name, a blank/whitespace-only override that must
+  // fall back to canonical (not render blank), and an id absent from the map entirely (partial map).
+  const profileStudents = [{ id: muslibId, name: editedName }, { id: generalId, name: "   " }];
+  let rmsProps = null;
+  const RmsView = (props) => { rmsProps = props; return null; };
+  let gym = null;
+  const mocks = {
+    react: { useEffect: () => {}, useRef: (value) => ({ current: value }), useState: (value) => [value, () => {}], useMemo: (factory) => factory() },
+    "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: Symbol.for("fragment") },
+    "@/components/RmsView": { RmsView },
+    "@/components/fixed-routine/FixedRoutineManagerView": { FixedRoutineManagerView: () => null },
+    "@/components/fixed-routine/FixedRoutineStudentView": { FixedRoutineStudentView: () => null },
+    "@/components/group/GroupManagerView": { GroupManagerView: () => null },
+    "@/components/wod/ShareWodButton": { ShareWodButton: () => null },
+    "@/components/wod/StudentWodDetailView": { StudentWodDetailView: () => null },
+    "@/components/wod/WodCard": { WodCard: () => null },
+    "@/components/wod/WodHistory": { WodHistory: () => null },
+    "@/components/wod/WodManagerView": { WodManagerView: () => null },
+    "@/lib/gym-terms": { gymTerms: () => ({ wod: "Rutina", wods: "Rutinas" }) },
+    "./gym-demo-view-model": gymViewModel,
+    "@/components/demo/training/gym-fixed-demo-state": fixedState,
+    "@/components/demo/training/gym-training-demo-state": trainingState,
+    "@/components/demo/scenarios/gym-demo-directory": directory,
+    "./DemoGymProvider": { defaultActorId: () => personalizedId, useDemoGym: () => gym },
+    "./DemoGymProfileProvider": { useDemoGymProfile: () => ({ profileState: { students: profileStudents } }) },
+  };
+  const commonjsModule = { exports: {} };
+  const require = (specifier) => { if (!(specifier in mocks)) throw new Error(`Unexpected module: ${specifier}`); return mocks[specifier]; };
+  new Function("require", "exports", "module", compiled)(require, commonjsModule.exports, commonjsModule);
+  const baseGym = {
+    ready: true, warning: null,
+    trainingState: trainingFixtures.createGymTrainingDemoFixture(),
+    fixedState: fixedFixtures.createGymFixedDemoFixture(),
+    rmsState: rmCore.createDemoRmCore({ kind: "GYM", ownerIds: [] }).emptyState(),
+    actorsForRole: (role) => role === "STUDENT" ? [muslibId, generalId, personalizedId].map((id) => directory.getGymDemoProfile(id)) : [],
+    selectActor: () => {},
+    trainingCallbacks: {}, fixedCallbacks: {}, rmCallbacks: {},
+    rmProjection: { success: true, rms: [] },
+    resetDatedTraining: () => {}, resetFixedRoutines: () => {}, resetRms: () => {},
+    datedEpoch: 0, fixedEpoch: 0, rmEpoch: 0, today: "2025-05-25",
+  };
+
+  // RM screen: one render per persona. Would still pass with the old bare `??`, or with a resolver that
+  // forgot to trim, ONLY for the muslib/edited case below; the blank and partial cases are what catch it.
+  for (const [actorId, expectedName] of [[muslibId, editedName], [generalId, "Paula Méndez"], [personalizedId, "Irene Soto"]]) {
+    rmsProps = null;
+    gym = { ...baseGym, selectedActor: directory.getGymDemoProfile(actorId) };
+    commonjsModule.exports.SharedDemoGymTrainingRoute({ routeKey: `rms-${actorId}`, routeRole: "STUDENT", routeActorId: actorId, screen: "rms" });
+    assert.ok(rmsProps, `RmsView was never rendered for ${actorId}`);
+    assert.equal(rmsProps.athleteName, expectedName, `athleteName for ${actorId}`);
+  }
+
+  // Persona selector: one render listing all three students. Would still pass with the old bare `??` for
+  // the muslib/edited and personalized/absent options; only the general/blank option catches the bug.
+  gym = { ...baseGym, selectedActor: directory.getGymDemoProfile(personalizedId) };
+  const studentResult = commonjsModule.exports.SharedDemoGymTrainingRoute({ routeKey: "selector-test", routeRole: "STUDENT", routeActorId: personalizedId, screen: "student" });
+  const selectNode = findNode(studentResult, (node) => node.type === "select");
+  assert.ok(selectNode, "persona selector <select> was never rendered");
+  const optionsById = new Map(selectNode.props.children.map((option) => [option.props.value, option.props.children]));
+  assert.equal(optionsById.get(muslibId), editedName);
+  assert.equal(optionsById.get(generalId), "Paula Méndez");
+  assert.equal(optionsById.get(personalizedId), "Irene Soto");
+});
+
 test("controlled provider effects restart after pre-hydration cleanup without writes", async () => {
   const providerSource = await source("src/components/demo/gym/DemoGymProvider.tsx");
   const compiled = ts.transpileModule(providerSource, {
