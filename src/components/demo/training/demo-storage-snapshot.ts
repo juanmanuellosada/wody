@@ -15,7 +15,10 @@ function capturesExactly(keys: readonly (string | symbol)[], descriptors: object
  * proxies cannot be universally detected; only this coherent capture is
  * admitted before detached validation and JSON serialization.
  */
-export function snapshotDemoStorageValue(value: unknown, ancestors = new WeakSet<object>()): Snapshot {
+export type DemoStorageRootGuard = (keys: readonly (string | symbol)[], descriptors: PropertyDescriptorMap) => boolean;
+
+/** Optional root-only guard runs after coherent descriptors and before any child traversal. */
+export function snapshotDemoStorageValue(value: unknown, ancestors = new WeakSet<object>(), rootGuard?: DemoStorageRootGuard): Snapshot {
   if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") return { ok: true, value };
   if (typeof value !== "object") return FAILURE;
   try {
@@ -25,7 +28,7 @@ export function snapshotDemoStorageValue(value: unknown, ancestors = new WeakSet
       if (Object.getPrototypeOf(value) !== Array.prototype) return FAILURE;
       const keys = Reflect.ownKeys(value);
       const descriptors: PropertyDescriptorMap = Object.getOwnPropertyDescriptors(value as object);
-      if (!capturesExactly(keys, descriptors)) return FAILURE;
+      if (!capturesExactly(keys, descriptors) || (rootGuard && !rootGuard(keys, descriptors))) return FAILURE;
       const length = descriptors.length;
       if (!length || !("value" in length) || typeof length.value !== "number" || !Number.isSafeInteger(length.value) || length.value < 0 || length.enumerable) return FAILURE;
       const lengthValue = length.value;
@@ -43,7 +46,7 @@ export function snapshotDemoStorageValue(value: unknown, ancestors = new WeakSet
     if (Object.getPrototypeOf(value) !== Object.prototype) return FAILURE;
     const keys = Reflect.ownKeys(value);
     const descriptors: PropertyDescriptorMap = Object.getOwnPropertyDescriptors(value);
-    if (!capturesExactly(keys, descriptors) || keys.some((key) => typeof key !== "string")) return FAILURE;
+    if (!capturesExactly(keys, descriptors) || keys.some((key) => typeof key !== "string") || (rootGuard && !rootGuard(keys, descriptors))) return FAILURE;
     const copy: Record<string, unknown> = {};
     for (const key of keys) {
       const descriptor = descriptors[key as string];

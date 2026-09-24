@@ -6,6 +6,14 @@ import { financeCatalogSaleActors } from "./catalog-sales-contract.ts";
 import { isValidFinanceExpenseGraph } from "./expense-demo-state.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { createFinanceDemoFixture, isFinanceDate } from "./finance-demo-state.ts";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore Node's native type-stripping test runner requires explicit extensions.
+import { getGymFinancePeople } from "./gym-finance-demo-fixtures.ts";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore Node's native type-stripping test runner requires explicit extensions.
+import { GYM_DEMO_ADMIN_ID, getGymDemoProfile, getGymDemoTeacherStudentLinks } from "../scenarios/gym-demo-directory.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { snapshotDemoStorageValue } from "../training/demo-storage-snapshot.ts";
 import {
   FINANCE_DEMO_LEGACY_STORAGE_KEY,
   FINANCE_DEMO_NAMESPACE,
@@ -14,7 +22,7 @@ import {
   FINANCE_DEMO_VERSION,
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 } from "./finance-demo-types.ts";
-import type { FinanceDemoLegacyState, FinanceDemoState, FinanceDemoV2State, FinancePaymentMethod } from "./finance-demo-types";
+import type { FinanceDemoLegacyState, FinanceDemoState, FinanceDemoV2State, FinancePaymentMethod, GymFinanceDemoState, KnownFinanceDemoState } from "./finance-demo-types";
 
 const LEGACY_VERSION = 1;
 const V2_VERSION = 2;
@@ -238,6 +246,105 @@ export function isValidFinanceDemoState(value: unknown): value is FinanceDemoSta
     && isValidCatalogSaleGraph(value, FINANCE_DEMO_VERSION)
     && hasOnlyKeys(value, ["version", "namespace", "anchor", "students", "payments", "categories", "products", "sales", "expenses", "nextProductCode"])
     && isValidFinanceExpenseGraph(value.expenses);
+}
+
+/** GYM v1 is isolated from BOX storage migrations but validates the same closed accounting graph. */
+function isValidOwnedGymFinanceDemoState(value: unknown): value is GymFinanceDemoState {
+  if (!isRecord(value)
+    || value.version !== 1
+    || value.namespace !== "wody-gym-finance-demo"
+    || !isFinanceDate(value.anchor)
+    || !hasOnlyKeys(value, ["version", "namespace", "anchor", "students", "payments", "categories", "products", "sales", "expenses", "nextProductCode"])
+    || !isDenseArray(value.students)
+    || !isDenseArray(value.payments)
+    || !isDenseArray(value.categories)
+    || !isDenseArray(value.products)
+    || !isDenseArray(value.sales)
+    || !isDenseArray(value.expenses)
+    || !isPositivePostgresInt(value.nextProductCode)) return false;
+  const fixtures = getGymFinancePeople(value.anchor);
+  if (value.students.length !== fixtures.length) return false;
+  const students = new Map<string, Record<string, unknown>>();
+  for (const row of value.students) {
+    if (!isRecord(row) || !hasOnlyKeys(row, ["id", "name", "email", "nextPaymentDate", "studentType", "accountKind", "canCreateOwnRoutines", "paymentExempt", "paymentExemptReason", "assignedTeachers", "blocked", "deletedAt"])
+      || !isId(row.id) || !isFinanceDate(row.nextPaymentDate) || !isDenseArray(row.assignedTeachers) || students.has(row.id)) return false;
+    const fixture = fixtures.find((candidate) => candidate.id === row.id);
+    if (!fixture || row.name !== fixture.name || row.email !== fixture.email || row.studentType !== fixture.studentType
+      || row.accountKind !== fixture.accountKind || row.canCreateOwnRoutines !== fixture.canCreateOwnRoutines
+      || row.paymentExempt !== fixture.paymentExempt || row.paymentExemptReason !== fixture.paymentExemptReason
+      || row.blocked !== fixture.blocked || row.deletedAt !== fixture.deletedAt
+      || !sameArray(row.assignedTeachers.map((teacher) => isRecord(teacher) ? `${teacher.id}:${teacher.name}` : null), fixture.assignedTeachers.map((teacher) => `${teacher.id}:${teacher.name}`))) return false;
+    students.set(row.id, row);
+  }
+  const categories = new Set<string>();
+  const categoryNames = new Set<string>();
+  for (const row of value.categories) {
+    if (!isRecord(row) || !hasOnlyKeys(row, ["id", "name"]) || !isId(row.id) || typeof row.name !== "string" || !row.name.trim() || categories.has(row.id) || categoryNames.has(row.name)) return false;
+    categories.add(row.id); categoryNames.add(row.name);
+  }
+  const products = new Set<string>(); const activeCodes = new Set<number>();
+  for (const row of value.products) {
+    if (!isRecord(row) || !hasOnlyKeys(row, ["id", "code", "description", "categoryId", "priceCents", "stock", "deletedAt"])
+      || !isId(row.id) || !isPositivePostgresInt(row.code) || typeof row.description !== "string" || !row.description.trim()
+      || !isId(row.categoryId) || !categories.has(row.categoryId) || !isCents(row.priceCents) || !isPostgresInt(row.stock)
+      || (row.deletedAt !== null && !isFinanceDate(row.deletedAt)) || products.has(row.id)
+      || (row.deletedAt === null && activeCodes.has(row.code))) return false;
+    products.add(row.id); if (row.deletedAt === null) activeCodes.add(row.code);
+  }
+  const paymentIds = new Set<string>(); const commandIds = new Set<string>();
+  for (const row of value.payments) {
+    if (!isRecord(row) || !hasOnlyKeys(row, ["id", "studentId", "amountCents", "paidAt", "nextPaymentDate", "paymentMethod", "recordedById", "commandId"])
+      || !isId(row.id) || !isId(row.commandId) || !isId(row.studentId) || !students.has(row.studentId)
+      || !isCents(row.amountCents) || row.amountCents < 1 || !isFinanceDate(row.paidAt) || !isFinanceDate(row.nextPaymentDate) || !isPaymentMethod(row.paymentMethod)
+      || typeof row.recordedById !== "string" || paymentIds.has(row.id) || commandIds.has(row.commandId)) return false;
+    const recorder = getGymDemoProfile(row.recordedById);
+    if (!recorder || (recorder.role !== "ADMIN" && (recorder.role !== "TEACHER" || !getGymDemoTeacherStudentLinks().some((link) => link.teacherId === recorder.id && link.studentId === row.studentId)))) return false;
+    paymentIds.add(row.id); commandIds.add(row.commandId);
+  }
+  const saleIds = new Set<string>(); commandIds.clear();
+  for (const row of value.sales) {
+    if (!isRecord(row) || !hasOnlyKeys(row, ["id", "commandId", "productId", "quantity", "unitAmountCents", "totalAmountCents", "paymentMethod", "soldAt", "recordedById"])
+      || !isId(row.id) || !isId(row.commandId) || !isId(row.productId) || !products.has(row.productId) || !isPositivePostgresInt(row.quantity)
+      || !isCents(row.unitAmountCents) || !isCents(row.totalAmountCents) || row.totalAmountCents !== row.quantity * row.unitAmountCents
+      || !isPaymentMethod(row.paymentMethod) || !isFinanceDate(row.soldAt) || typeof row.recordedById !== "string" || saleIds.has(row.id) || commandIds.has(row.commandId)) return false;
+    const recorder = getGymDemoProfile(row.recordedById);
+    if (!recorder || (recorder.role !== "ADMIN" && recorder.role !== "TEACHER")) return false;
+    saleIds.add(row.id); commandIds.add(row.commandId);
+  }
+  const expenseIds = new Set<string>();
+  for (const row of value.expenses) {
+    if (!isRecord(row) || !hasOnlyKeys(row, ["id", "amountCents", "description", "spentAt", "recordedById"])
+      || !isId(row.id) || !isCents(row.amountCents) || row.amountCents < 1 || typeof row.description !== "string" || !row.description || row.description !== row.description.trim()
+      || !isFinanceDate(row.spentAt) || row.recordedById !== GYM_DEMO_ADMIN_ID || expenseIds.has(row.id)) return false;
+    expenseIds.add(row.id);
+  }
+  return true;
+}
+
+function gymRootHeaderGuard(keys: readonly (string | symbol)[], descriptors: PropertyDescriptorMap): boolean {
+  if (!keys.includes("namespace") || !keys.includes("version")) return false;
+  const namespace = descriptors.namespace;
+  const version = descriptors.version;
+  return Boolean(namespace && version && "value" in namespace && "value" in version
+    && namespace.value === "wody-gym-finance-demo" && version.value === 1);
+}
+
+/** Captures a closed, owned GYM graph before validation so hostile input is never reread. */
+export function getValidatedGymFinanceDemoState(value: unknown): GymFinanceDemoState | null {
+  const captured = snapshotDemoStorageValue(value, new WeakSet<object>(), gymRootHeaderGuard);
+  return captured.ok && isValidOwnedGymFinanceDemoState(captured.value) ? captured.value : null;
+}
+
+export function isValidGymFinanceDemoState(value: unknown): value is GymFinanceDemoState {
+  return getValidatedGymFinanceDemoState(value) !== null;
+}
+
+export function isValidKnownFinanceDemoState(value: unknown): value is KnownFinanceDemoState {
+  const captured = snapshotDemoStorageValue(value);
+  if (captured.ok && isRecord(captured.value) && captured.value.namespace === "wody-gym-finance-demo") {
+    return isValidOwnedGymFinanceDemoState(captured.value);
+  }
+  return isValidFinanceDemoState(value);
 }
 
 /** Converts only a complete, valid v2 graph; all existing graph order and values are retained exactly. */

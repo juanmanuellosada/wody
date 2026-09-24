@@ -104,3 +104,33 @@ test("continues from its captured graph without a third source ownKeys read", ()
   assert.deepEqual(snapshotDemoStorageValue(stableCapture), { ok: true, value: fixture });
   assert.equal(ownKeysCalls, 2);
 });
+
+test("optional root guard rejects changed namespace/version descriptors before child traversal", () => {
+  const frozen = Object.freeze({ namespace: "wody-gym-finance-demo", version: 1, nested: Object.freeze({ stable: true }) });
+  assert.deepEqual(snapshotDemoStorageValue(frozen), { ok: true, value: { namespace: "wody-gym-finance-demo", version: 1, nested: { stable: true } } });
+  assert.deepEqual(snapshotDemoStorageValue(frozen, new WeakSet(), (keys, descriptors) => (
+    keys.includes("namespace")
+    && keys.includes("version")
+    && descriptors.namespace?.value === "wody-gym-finance-demo"
+    && descriptors.version?.value === 1
+  )), { ok: true, value: { namespace: "wody-gym-finance-demo", version: 1, nested: { stable: true } } });
+
+  let childReads = 0;
+  const source = {
+    namespace: "wody-gym-finance-demo",
+    version: 1,
+    nested: new Proxy({ stable: true }, {
+      get() { childReads += 1; throw new Error("root guard must reject before child get"); },
+      ownKeys() { childReads += 1; throw new Error("root guard must reject before child keys"); },
+      getOwnPropertyDescriptor() { childReads += 1; throw new Error("root guard must reject before child descriptors"); },
+      getPrototypeOf() { childReads += 1; throw new Error("root guard must reject before child prototype"); },
+    }),
+  };
+  assert.deepEqual(snapshotDemoStorageValue(source, new WeakSet(), (keys, descriptors) => (
+    keys.includes("namespace")
+    && keys.includes("version")
+    && descriptors.namespace?.value === "wody-box-finance-demo"
+    && descriptors.version?.value === 3
+  )), { ok: false });
+  assert.equal(childReads, 0);
+});

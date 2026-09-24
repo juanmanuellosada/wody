@@ -6,6 +6,11 @@ export const FINANCE_DEMO_STORAGE_KEY = "wody-box-finance-demo-v3";
 export const FINANCE_DEMO_V2_STORAGE_KEY = "wody-box-finance-demo-v2";
 export const FINANCE_DEMO_LEGACY_STORAGE_KEY = "wody-box-finance-demo-v1";
 export const FINANCE_DEMO_DEFAULT_ANCHOR = "2030-06-03";
+export const GYM_FINANCE_DEMO_NAMESPACE = "wody-gym-finance-demo";
+export const GYM_FINANCE_DEMO_VERSION = 1;
+/** Reserved for the future isolated GYM provider; no storage I/O is implemented here. */
+export const GYM_FINANCE_DEMO_STORAGE_KEY = "wody-gym-finance-demo-v1";
+export const GYM_FINANCE_DEMO_DEFAULT_ANCHOR = "2030-06-03";
 
 export type FinancePaymentMethod = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA" | "MERCADO_PAGO";
 
@@ -81,6 +86,15 @@ export type FinanceDemoState = Omit<FinanceDemoV2State, "version"> & {
   version: typeof FINANCE_DEMO_VERSION;
   expenses: FinanceExpense[];
 };
+
+/** A separate v1 namespace avoids coupling GYM finance persistence to BOX migrations. */
+export type GymFinanceDemoState = Omit<FinanceDemoState, "version" | "namespace"> & {
+  version: typeof GYM_FINANCE_DEMO_VERSION;
+  namespace: typeof GYM_FINANCE_DEMO_NAMESPACE;
+};
+
+/** Reducers retain the caller's narrow state type across the closed BOX/GYM union. */
+export type KnownFinanceDemoState = FinanceDemoState | GymFinanceDemoState;
 
 /** The version-1 graph is read only so migration remains explicit and testable. */
 export type FinanceDemoLegacyState = Omit<FinanceDemoV2State, "version" | "categories" | "products" | "sales" | "nextProductCode"> & {

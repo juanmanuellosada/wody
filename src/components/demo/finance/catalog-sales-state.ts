@@ -1,9 +1,13 @@
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { FINANCE_CENTS_MAX, FINANCE_CATALOG_GYM_KIND, POSTGRES_INT_MAX, POSTGRES_INT_MIN, catalogPaymentMethods, financeCatalogSaleActors } from "./catalog-sales-contract.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { actorMatchesFinanceState, actorMatchesOwnedFinanceState, canManageFinanceCatalog, canReadFinanceCatalog, isGymFinanceActor, isKnownFinanceRecorder, resolveFinanceDemoActor } from "./finance-demo-policy.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { getValidatedGymFinanceDemoState } from "./finance-demo-storage.ts";
 import type { CatalogSaleActor, CatalogSaleResult, CatalogSaleTransition } from "./catalog-sales-contract";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { isFinanceDate } from "./finance-demo-state.ts";
-import type { FinanceCategory, FinanceDemoState, FinanceProduct, FinanceSale } from "./finance-demo-types";
+import type { FinanceCategory, KnownFinanceDemoState, FinanceProduct, FinanceSale } from "./finance-demo-types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -37,12 +41,15 @@ function isPaymentMethod(value: unknown): boolean {
   return typeof value === "string" && catalogPaymentMethods.includes(value as never);
 }
 
-function result(state: FinanceDemoState, value: CatalogSaleResult): CatalogSaleTransition<FinanceDemoState> {
+const originalGymInputs = new WeakMap<object, KnownFinanceDemoState>();
+
+function result<T extends KnownFinanceDemoState>(state: T, value: CatalogSaleResult): CatalogSaleTransition<T> {
   return { state, result: value };
 }
 
-function failure(state: FinanceDemoState, error: string): CatalogSaleTransition<FinanceDemoState> {
-  return result(state, { success: false, error });
+function failure<T extends KnownFinanceDemoState>(state: T, error: string): CatalogSaleTransition<T> {
+  const original = typeof state === "object" && state !== null ? originalGymInputs.get(state) : undefined;
+  return result((original ?? state) as T, { success: false, error });
 }
 
 /** Caller-supplied capability claims may only match the closed demo roster. */
@@ -56,20 +63,20 @@ export function resolveCatalogSaleActor(value: unknown): CatalogSaleActor | null
 }
 
 export function canManageCatalog(value: unknown): boolean {
-  const actor = resolveCatalogSaleActor(value);
-  return actor?.role === "ADMIN" && actor.canViewRevenue === true;
+  const actor = resolveFinanceDemoActor(value);
+  return Boolean(actor && canManageFinanceCatalog(actor));
 }
 
 export function canReadCatalog(value: unknown): boolean {
-  const actor = resolveCatalogSaleActor(value);
-  return actor?.role === "ADMIN" || actor?.role === "TEACHER";
+  const actor = resolveFinanceDemoActor(value);
+  return Boolean(actor && canReadFinanceCatalog(actor));
 }
 
 export function canRegisterSale(value: unknown): boolean {
   return canReadCatalog(value);
 }
 
-function validCatalogGraph(state: unknown): state is FinanceDemoState {
+function validCatalogGraph(state: KnownFinanceDemoState): boolean {
   if (!isRecord(state)
     || !isDenseArray(state.categories)
     || !isDenseArray(state.products)
@@ -116,7 +123,7 @@ function validCatalogGraph(state: unknown): state is FinanceDemoState {
       || sale.totalAmountCents !== sale.quantity * sale.unitAmountCents
       || !isPaymentMethod(sale.paymentMethod)
       || !isFinanceDate(sale.soldAt)
-      || !Object.values(financeCatalogSaleActors).some((actor) => actor.id === sale.recordedById)) return false;
+      || !isKnownFinanceRecorder(state, sale.recordedById)) return false;
     if (saleIds.has(sale.id) || commandIds.has(sale.commandId)) return false;
     saleIds.add(sale.id);
     commandIds.add(sale.commandId);
@@ -124,35 +131,58 @@ function validCatalogGraph(state: unknown): state is FinanceDemoState {
   return true;
 }
 
-function stateIsUsable(state: FinanceDemoState): boolean {
+function stateIsUsable(state: KnownFinanceDemoState): boolean {
   return Boolean(state) && validCatalogGraph(state);
 }
 
-function category(state: FinanceDemoState, id: unknown): FinanceCategory | null {
+function readableState<T extends KnownFinanceDemoState>(state: T, actor: NonNullable<ReturnType<typeof resolveFinanceDemoActor>>): KnownFinanceDemoState | null {
+  if (!isGymFinanceActor(actor)) return actorMatchesFinanceState(actor, state) ? state : null;
+  if (!actorMatchesFinanceState(actor, state)) return null;
+  const owned = getValidatedGymFinanceDemoState(state);
+  if (!owned || !actorMatchesOwnedFinanceState(actor, owned)) return null;
+  originalGymInputs.set(owned, state);
+  return owned;
+}
+
+function category(state: KnownFinanceDemoState, id: unknown): FinanceCategory | null {
   return isId(id) ? state.categories.find((item) => item.id === id) ?? null : null;
 }
 
-function activeProduct(state: FinanceDemoState, id: unknown): FinanceProduct | null {
+function activeProduct(state: KnownFinanceDemoState, id: unknown): FinanceProduct | null {
   return isId(id) ? state.products.find((item) => item.id === id && item.deletedAt === null) ?? null : null;
 }
 
-export function getCatalogProducts(state: FinanceDemoState, actor: unknown): FinanceProduct[] {
-  if (!stateIsUsable(state) || !canReadCatalog(actor)) return [];
-  return state.products.filter((product) => product.deletedAt === null).map((product) => ({ ...product }));
+export function getCatalogProducts<T extends KnownFinanceDemoState>(state: T, rawActor: unknown): FinanceProduct[] {
+  const actor = resolveFinanceDemoActor(rawActor);
+  if (!actor || !canReadFinanceCatalog(actor)) return [];
+  const graph = readableState(state, actor);
+  if (!graph || !stateIsUsable(graph)) return [];
+  return graph.products.filter((product) => product.deletedAt === null).map((product) => ({ ...product }));
 }
 
-export function createCatalogCategory(state: FinanceDemoState, rawCommand: unknown): CatalogSaleTransition<FinanceDemoState> {
+export function createCatalogCategory<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown): CatalogSaleTransition<T> {
+  const actor = isRecord(rawCommand) ? resolveFinanceDemoActor(rawCommand.actor) : null;
+  if (!actor || !canManageFinanceCatalog(actor)) return failure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph) return failure(state, "No autorizado.");
+  // Safe generic narrowing after closed GYM capture; BOX remains its original object.
+  state = graph as T;
   if (!stateIsUsable(state)) return failure(state, "El catálogo no es válido.");
-  if (!isRecord(rawCommand) || !canManageCatalog(rawCommand.actor)) return failure(state, "No autorizado.");
+  if (!isRecord(rawCommand)) return failure(state, "No autorizado.");
   if (!isId(rawCommand.id) || typeof rawCommand.name !== "string" || !rawCommand.name.trim()) return failure(state, "La categoría no es válida.");
   const name = rawCommand.name.trim();
   if (state.categories.some((item) => item.id === rawCommand.id || item.name === name)) return failure(state, "La categoría ya existe.");
   return result({ ...state, categories: [...state.categories, { id: rawCommand.id, name }] }, { success: true, id: rawCommand.id });
 }
 
-export function updateCatalogCategory(state: FinanceDemoState, rawCommand: unknown): CatalogSaleTransition<FinanceDemoState> {
+export function updateCatalogCategory<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown): CatalogSaleTransition<T> {
+  const actor = isRecord(rawCommand) ? resolveFinanceDemoActor(rawCommand.actor) : null;
+  if (!actor || !canManageFinanceCatalog(actor)) return failure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph) return failure(state, "No autorizado.");
+  state = graph as T;
   if (!stateIsUsable(state)) return failure(state, "El catálogo no es válido.");
-  if (!isRecord(rawCommand) || !canManageCatalog(rawCommand.actor)) return failure(state, "No autorizado.");
+  if (!isRecord(rawCommand)) return failure(state, "No autorizado.");
   if (!isId(rawCommand.id) || !isId(rawCommand.categoryId) || typeof rawCommand.name !== "string" || !rawCommand.name.trim()) return failure(state, "La categoría no es válida.");
   const name = rawCommand.name.trim();
   if (!category(state, rawCommand.categoryId)) return failure(state, "Categoría no encontrada.");
@@ -160,9 +190,14 @@ export function updateCatalogCategory(state: FinanceDemoState, rawCommand: unkno
   return result({ ...state, categories: state.categories.map((item) => item.id === rawCommand.categoryId ? { ...item, name } : item) }, { success: true, id: rawCommand.categoryId });
 }
 
-export function deleteCatalogCategory(state: FinanceDemoState, rawCommand: unknown): CatalogSaleTransition<FinanceDemoState> {
+export function deleteCatalogCategory<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown): CatalogSaleTransition<T> {
+  const actor = isRecord(rawCommand) ? resolveFinanceDemoActor(rawCommand.actor) : null;
+  if (!actor || !canManageFinanceCatalog(actor)) return failure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph) return failure(state, "No autorizado.");
+  state = graph as T;
   if (!stateIsUsable(state)) return failure(state, "El catálogo no es válido.");
-  if (!isRecord(rawCommand) || !canManageCatalog(rawCommand.actor)) return failure(state, "No autorizado.");
+  if (!isRecord(rawCommand)) return failure(state, "No autorizado.");
   if (!isId(rawCommand.id) || !isId(rawCommand.categoryId)) return failure(state, "La categoría no es válida.");
   if (!category(state, rawCommand.categoryId)) return failure(state, "Categoría no encontrada.");
   if (state.products.some((product) => product.categoryId === rawCommand.categoryId)) return failure(state, "No se puede eliminar una categoría con productos asociados.");
@@ -180,7 +215,7 @@ function validProductInput(command: Record<string, unknown>): command is Record<
     && isPostgresInt(command.stock);
 }
 
-function recoverAutomaticProductCode(state: FinanceDemoState): { code: number; nextProductCode: number } | null {
+function recoverAutomaticProductCode(state: KnownFinanceDemoState): { code: number; nextProductCode: number } | null {
   const currentCode = state.nextProductCode;
   const activeCodes = state.products.filter((product) => product.deletedAt === null).map((product) => product.code);
   if (!activeCodes.includes(currentCode)) {
@@ -194,9 +229,14 @@ function recoverAutomaticProductCode(state: FinanceDemoState): { code: number; n
   return { code: recoveredCode, nextProductCode: recoveredCode + 1 };
 }
 
-export function createCatalogProduct(state: FinanceDemoState, rawCommand: unknown): CatalogSaleTransition<FinanceDemoState> {
+export function createCatalogProduct<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown): CatalogSaleTransition<T> {
+  const actor = isRecord(rawCommand) ? resolveFinanceDemoActor(rawCommand.actor) : null;
+  if (!actor || !canManageFinanceCatalog(actor)) return failure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph) return failure(state, "No autorizado.");
+  state = graph as T;
   if (!stateIsUsable(state)) return failure(state, "El catálogo no es válido.");
-  if (!isRecord(rawCommand) || !canManageCatalog(rawCommand.actor)) return failure(state, "No autorizado.");
+  if (!isRecord(rawCommand)) return failure(state, "No autorizado.");
   if (!validProductInput(rawCommand)) return failure(state, "El producto no es válido.");
   if (!category(state, rawCommand.categoryId)) return failure(state, "Categoría no encontrada.");
   if (state.products.some((product) => product.id === rawCommand.id)) return failure(state, "Identificador de producto inválido.");
@@ -223,9 +263,14 @@ export function createCatalogProduct(state: FinanceDemoState, rawCommand: unknow
   }, { success: true, id: product.id, code });
 }
 
-export function updateCatalogProduct(state: FinanceDemoState, rawCommand: unknown): CatalogSaleTransition<FinanceDemoState> {
+export function updateCatalogProduct<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown): CatalogSaleTransition<T> {
+  const actor = isRecord(rawCommand) ? resolveFinanceDemoActor(rawCommand.actor) : null;
+  if (!actor || !canManageFinanceCatalog(actor)) return failure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph) return failure(state, "No autorizado.");
+  state = graph as T;
   if (!stateIsUsable(state)) return failure(state, "El catálogo no es válido.");
-  if (!isRecord(rawCommand) || !canManageCatalog(rawCommand.actor)) return failure(state, "No autorizado.");
+  if (!isRecord(rawCommand)) return failure(state, "No autorizado.");
   if (!isId(rawCommand.id) || !isId(rawCommand.productId)) return failure(state, "El producto no es válido.");
   const product = activeProduct(state, rawCommand.productId);
   if (!product) return failure(state, "Producto no encontrado.");
@@ -255,24 +300,33 @@ export function updateCatalogProduct(state: FinanceDemoState, rawCommand: unknow
   return result({ ...state, products: state.products.map((item) => item.id === product.id ? { ...item, ...changes } : item) }, { success: true, id: product.id });
 }
 
-export function softDeleteCatalogProduct(state: FinanceDemoState, rawCommand: unknown): CatalogSaleTransition<FinanceDemoState> {
+export function softDeleteCatalogProduct<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown): CatalogSaleTransition<T> {
+  const actor = isRecord(rawCommand) ? resolveFinanceDemoActor(rawCommand.actor) : null;
+  if (!actor || !canManageFinanceCatalog(actor)) return failure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph) return failure(state, "No autorizado.");
+  state = graph as T;
   if (!stateIsUsable(state)) return failure(state, "El catálogo no es válido.");
-  if (!isRecord(rawCommand) || !canManageCatalog(rawCommand.actor)) return failure(state, "No autorizado.");
+  if (!isRecord(rawCommand)) return failure(state, "No autorizado.");
   if (!isId(rawCommand.id) || !isId(rawCommand.productId) || !isFinanceDate(rawCommand.deletedAt)) return failure(state, "El producto no es válido.");
   const product = activeProduct(state, rawCommand.productId);
   if (!product) return failure(state, "Producto no encontrado.");
   return result({ ...state, products: state.products.map((item) => item.id === product.id ? { ...item, deletedAt: rawCommand.deletedAt as string } : item) }, { success: true, id: product.id });
 }
 
-export function registerCatalogSale(state: FinanceDemoState, rawCommand: unknown, today: string = state.anchor): CatalogSaleTransition<FinanceDemoState> {
+export function registerCatalogSale<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown, today?: string): CatalogSaleTransition<T> {
+  const actor = isRecord(rawCommand) ? resolveFinanceDemoActor(rawCommand.actor) : null;
+  if (!actor || !canReadFinanceCatalog(actor)) return failure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph) return failure(state, "No autorizado.");
+  state = graph as T;
   if (!stateIsUsable(state)) return failure(state, "El catálogo no es válido.");
-  if (!isRecord(rawCommand) || !canRegisterSale(rawCommand.actor)) return failure(state, "No autorizado.");
+  if (!isRecord(rawCommand)) return failure(state, "No autorizado.");
+  const effectiveToday = today ?? state.anchor;
   if (!isId(rawCommand.id) || !isId(rawCommand.commandId) || !isId(rawCommand.productId)
     || !isPositivePostgresInt(rawCommand.quantity) || !isCents(rawCommand.unitAmountCents)
-    || !isPaymentMethod(rawCommand.paymentMethod) || !isFinanceDate(rawCommand.soldAt) || !isFinanceDate(today)) return failure(state, "La venta no es válida.");
-  if (rawCommand.soldAt > today) return failure(state, "La fecha de la venta no puede ser futura.");
-  const actor = resolveCatalogSaleActor(rawCommand.actor);
-  if (!actor) return failure(state, "No autorizado.");
+    || !isPaymentMethod(rawCommand.paymentMethod) || !isFinanceDate(rawCommand.soldAt) || !isFinanceDate(effectiveToday)) return failure(state, "La venta no es válida.");
+  if (rawCommand.soldAt > effectiveToday) return failure(state, "La fecha de la venta no puede ser futura.");
   const existing = state.sales.find((sale) => sale.commandId === rawCommand.commandId);
   if (existing) {
     const matches = existing.id === rawCommand.id

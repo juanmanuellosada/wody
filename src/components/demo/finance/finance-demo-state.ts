@@ -1,18 +1,21 @@
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { getCatalogSalesFixtures } from "./catalog-sales-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
-import { demoFeeIdentities, getDemoFeeFixtures } from "./fees-fixtures.ts";
+import { getDemoFeeFixtures } from "./fees-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { FINANCE_DEMO_DEFAULT_ANCHOR, FINANCE_DEMO_NAMESPACE, FINANCE_DEMO_VERSION } from "./finance-demo-types.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { actorMatchesFinanceState, actorMatchesOwnedFinanceState, canRecordFinancePayment, isGymFinanceActor, resolveFinanceDemoActor } from "./finance-demo-policy.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { getValidatedGymFinanceDemoState } from "./finance-demo-storage.ts";
 import type {
-  FinanceActor,
   FinanceDemoState,
+  KnownFinanceDemoState,
   FinanceFixtureOptions,
   FinancePayment,
   FinancePaymentMethod,
   FinancePaymentResult,
   FinanceStudent,
-  FinanceTransition,
 } from "./finance-demo-types";
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const PAYMENT_METHODS: readonly FinancePaymentMethod[] = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADO_PAGO"];
@@ -29,11 +32,11 @@ type ResolvedPaymentCommand = {
   confirmedDuplicate: boolean;
 };
 
-function transition(state: FinanceDemoState, result: FinancePaymentResult): FinanceTransition {
+function transition<T extends KnownFinanceDemoState>(state: T, result: FinancePaymentResult): { state: T; result: FinancePaymentResult } {
   return { state, result };
 }
 
-function failure(state: FinanceDemoState, error: string): FinanceTransition {
+function failure<T extends KnownFinanceDemoState>(state: T, error: string): { state: T; result: FinancePaymentResult } {
   return transition(state, { success: false, error });
 }
 
@@ -66,20 +69,21 @@ export function parseFinanceAmountCents(value: unknown): number | null {
   return Number.isSafeInteger(cents) && cents >= 1 && cents <= MAX_CENTS ? cents : null;
 }
 
-function knownActor(value: unknown): FinanceActor | null {
-  if (!isRecord(value) || !isId(value.id) || (value.role !== "ADMIN" && value.role !== "TEACHER")) return null;
-  const actor = Object.values(demoFeeIdentities).find((candidate) => candidate.id === value.id);
-  return actor && actor.role === value.role ? actor : null;
+function readableState<T extends KnownFinanceDemoState>(state: T, actor: NonNullable<ReturnType<typeof resolveFinanceDemoActor>>): KnownFinanceDemoState | null {
+  if (!isGymFinanceActor(actor)) return actorMatchesFinanceState(actor, state) ? state : null;
+  if (!actorMatchesFinanceState(actor, state)) return null;
+  const owned = getValidatedGymFinanceDemoState(state);
+  return owned && actorMatchesOwnedFinanceState(actor, owned) ? owned : null;
 }
 
-function activeStudent(state: FinanceDemoState, value: unknown): FinanceStudent | null {
+function activeStudent(state: KnownFinanceDemoState, value: unknown): FinanceStudent | null {
   if (!isId(value)) return null;
   const student = state.students.find((candidate) => candidate.id === value);
   return student && !student.deletedAt ? student : null;
 }
 
-function canRecordPayment(student: FinanceStudent, actor: FinanceActor): boolean {
-  return actor.role === "ADMIN" || student.assignedTeachers.some((teacher) => teacher.id === actor.id);
+function canRecordPayment(student: FinanceStudent, actor: NonNullable<ReturnType<typeof resolveFinanceDemoActor>>): boolean {
+  return canRecordFinancePayment(actor, student.id, student.assignedTeachers.map((teacher) => teacher.id));
 }
 
 function resolveCommand(value: unknown): ResolvedPaymentCommand | null {
@@ -98,7 +102,7 @@ function resolveCommand(value: unknown): ResolvedPaymentCommand | null {
   };
 }
 
-function samePayload(payment: FinancePayment, command: ResolvedPaymentCommand, actor: FinanceActor): boolean {
+function samePayload(payment: FinancePayment, command: ResolvedPaymentCommand, actor: NonNullable<ReturnType<typeof resolveFinanceDemoActor>>): boolean {
   return payment.id === command.id
     && payment.studentId === command.studentId
     && payment.amountCents === command.amountCents
@@ -152,35 +156,38 @@ export function createFinanceDemoFixture(
  * A reducer command creates only a fictional local payment. It never changes
  * profile, exemption, block, assignment, or any production record.
  */
-export function registerFinancePayment(
-  state: FinanceDemoState,
+export function registerFinancePayment<T extends KnownFinanceDemoState>(
+  state: T,
   rawCommand: unknown,
-  today: string = state.anchor,
-): FinanceTransition {
-  if (!state || !Array.isArray(state.students) || !Array.isArray(state.payments)) return failure(state, "El estado financiero no es válido.");
+  today?: string,
+): { state: T; result: FinancePaymentResult } {
   const rawActor = isRecord(rawCommand) ? rawCommand.actor : undefined;
-  const actor = knownActor(rawActor);
+  const actor = resolveFinanceDemoActor(rawActor);
   if (!actor) return failure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph) return failure(state, "No autorizado.");
+  if (!Array.isArray(graph.students) || !Array.isArray(graph.payments)) return failure(state, "El estado financiero no es válido.");
 
-  // Authorize the current actor before considering any idempotent replay.
-  const student = activeStudent(state, isRecord(rawCommand) ? rawCommand.studentId : undefined);
+  // GYM semantics use the detached validated graph; BOX retains the original reference behavior.
+  const student = activeStudent(graph, isRecord(rawCommand) ? rawCommand.studentId : undefined);
   if (!student) return failure(state, "Alumno no encontrado.");
   if (!canRecordPayment(student, actor)) return failure(state, "Este alumno no está asignado a vos.");
 
   const command = resolveCommand(rawCommand);
   if (!command) return failure(state, "El pago no es válido.");
-  if (!isFinanceDate(today)) return failure(state, "La fecha actual no es válida.");
-  if (paymentDateIsFuture(command.paidAt, today)) return failure(state, "La fecha del pago no puede ser futura.");
+  const effectiveToday = today ?? graph.anchor;
+  if (!isFinanceDate(effectiveToday)) return failure(state, "La fecha actual no es válida.");
+  if (paymentDateIsFuture(command.paidAt, effectiveToday)) return failure(state, "La fecha del pago no puede ser futura.");
 
-  const existingCommand = state.payments.find((payment) => payment.commandId === command.commandId);
+  const existingCommand = graph.payments.find((payment) => payment.commandId === command.commandId);
   if (existingCommand) {
     return samePayload(existingCommand, command, actor)
       ? transition(state, { success: true, paymentId: existingCommand.id, idempotent: true })
       : failure(state, "El identificador del comando ya fue usado con otro pago.");
   }
-  if (state.payments.some((payment) => payment.id === command.id)) return failure(state, "Identificador de pago inválido.");
+  if (graph.payments.some((payment) => payment.id === command.id)) return failure(state, "Identificador de pago inválido.");
 
-  const duplicate = state.payments.find((payment) => payment.studentId === student.id && payment.paidAt === command.paidAt);
+  const duplicate = graph.payments.find((payment) => payment.studentId === student.id && payment.paidAt === command.paidAt);
   if (duplicate && !command.confirmedDuplicate) {
     return transition(state, {
       success: false,
@@ -200,13 +207,14 @@ export function registerFinancePayment(
     recordedById: actor.id,
   };
   return transition(
+    // Safe generic narrowing: graph is either the original BOX state or a closed owned GYM graph.
     {
-      ...state,
-      students: state.students.map((candidate) => candidate.id === student.id
+      ...graph,
+      students: graph.students.map((candidate) => candidate.id === student.id
         ? { ...candidate, nextPaymentDate: command.nextPaymentDate }
         : candidate),
-      payments: [...state.payments, payment],
-    },
+      payments: [...graph.payments, payment],
+    } as T,
     { success: true, paymentId: payment.id, idempotent: false },
   );
 }

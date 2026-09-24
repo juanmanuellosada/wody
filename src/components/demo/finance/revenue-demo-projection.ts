@@ -1,11 +1,10 @@
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { financeCatalogSaleActors } from "./catalog-sales-contract.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
-import { resolveCatalogSaleActor } from "./catalog-sales-state.ts";
-// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
-import { isValidFinanceDemoState } from "./finance-demo-storage.ts";
-// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
-import { demoFeeIdentities } from "./fees-fixtures.ts";
+import { getValidatedGymFinanceDemoState, isValidFinanceDemoState } from "./finance-demo-storage.ts";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore Node's native type-stripping test runner requires explicit extensions.
+import { actorMatchesFinanceState, actorMatchesOwnedFinanceState, canReadFinanceRevenue, financeRecorderName, isGymFinanceActor, isGymFinanceState, resolveFinanceDemoActor } from "./finance-demo-policy.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { demoRevenueDateAtUtcMilliseconds, demoRevenueDateToUtcMs, isPlainDemoRevenueRecord, parseDemoRevenueFilters } from "./revenue-demo-contract.ts";
 import type {
@@ -19,7 +18,7 @@ import type {
   DemoRevenueProjectionResult,
   DemoSaleHistoryRow,
 } from "./revenue-demo-contract";
-import type { FinanceDemoState, FinanceExpense, FinancePayment, FinanceProduct, FinanceSale } from "./finance-demo-types";
+import type { KnownFinanceDemoState, FinanceExpense, FinancePayment, FinanceProduct, FinanceSale } from "./finance-demo-types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -31,8 +30,8 @@ function unauthorized(): DemoRevenueProjectionResult {
 function designatedRevenueAdmin(rawActor: unknown): boolean {
   try {
     if (!isPlainDemoRevenueRecord(rawActor)) return false;
-    const actor = resolveCatalogSaleActor(rawActor);
-    return actor?.id === financeCatalogSaleActors.admin.id && actor.role === "ADMIN" && actor.canViewRevenue === true;
+    const actor = resolveFinanceDemoActor(rawActor);
+    return Boolean(actor && canReadFinanceRevenue(actor));
   } catch {
     return false;
   }
@@ -85,20 +84,19 @@ const EXTRA_FROZEN_RECORDER_NAMES: Readonly<Record<string, string>> = Object.fre
   [financeCatalogSaleActors.unprivilegedAdmin.id]: "Administrador sin acceso a recaudación",
 });
 
-function recorderName(id: string): string | null {
-  const identity = Object.values(demoFeeIdentities).find((candidate) => candidate.id === id);
-  return identity?.name ?? EXTRA_FROZEN_RECORDER_NAMES[id] ?? null;
+function recorderName(state: KnownFinanceDemoState, id: string): string | null {
+  return financeRecorderName(state, id) ?? EXTRA_FROZEN_RECORDER_NAMES[id] ?? null;
 }
 
 function dateTime(dateOnly: string): string {
   return `${dateOnly}T00:00:00.000Z`;
 }
 
-function paymentMatches(payment: FinancePayment, state: FinanceDemoState, filters: DemoRevenueFilters, from: string, to: string, includeStudentFilters: boolean): boolean {
+function paymentMatches(payment: FinancePayment, state: KnownFinanceDemoState, filters: DemoRevenueFilters, from: string, to: string, includeStudentFilters: boolean): boolean {
   if (!inRange(payment.paidAt, from, to) || (filters.methods.length > 0 && !filters.methods.includes(payment.paymentMethod))) return false;
   if (!includeStudentFilters) return true;
   const student = state.students.find((candidate) => candidate.id === payment.studentId);
-  if (!student || student.deletedAt) return false;
+  if (!student || (student.deletedAt && !isGymFinanceState(state))) return false;
   if (filters.teacherIds.length > 0 && !student.assignedTeachers.some((teacher) => filters.teacherIds.includes(teacher.id))) return false;
   return !filters.studentType || student.studentType === filters.studentType;
 }
@@ -127,7 +125,7 @@ function monthly<T>(rows: readonly T[], date: (row: T) => string, amount: (row: 
     .map(([month, value]) => ({ month, ...value }));
 }
 
-function paymentRows(rows: readonly FinancePayment[], state: FinanceDemoState): DemoPaymentHistoryRow[] {
+function paymentRows(rows: readonly FinancePayment[], state: KnownFinanceDemoState): DemoPaymentHistoryRow[] {
   const studentNames = new Map(state.students.map((student) => [student.id, student.name]));
   return rows
     .map((payment) => ({
@@ -136,14 +134,14 @@ function paymentRows(rows: readonly FinancePayment[], state: FinanceDemoState): 
       studentName: studentNames.get(payment.studentId) ?? "",
       amountCents: payment.amountCents,
       paidAt: dateTime(payment.paidAt),
-      recordedByName: recorderName(payment.recordedById),
+      recordedByName: recorderName(state, payment.recordedById),
       paymentMethod: payment.paymentMethod,
     }))
     // Stable sort preserves stored append order for same-date records; do not invent an ID ordering.
     .sort((left, right) => right.paidAt.localeCompare(left.paidAt));
 }
 
-function saleRows(rows: readonly FinanceSale[], state: FinanceDemoState): DemoSaleHistoryRow[] {
+function saleRows(rows: readonly FinanceSale[], state: KnownFinanceDemoState): DemoSaleHistoryRow[] {
   const products = new Map(state.products.map((product) => [product.id, product]));
   const categories = new Map(state.categories.map((category) => [category.id, category]));
   return rows
@@ -162,25 +160,25 @@ function saleRows(rows: readonly FinanceSale[], state: FinanceDemoState): DemoSa
         totalAmountCents: sale.totalAmountCents,
         paymentMethod: sale.paymentMethod,
         soldAt: dateTime(sale.soldAt),
-        recordedByName: recorderName(sale.recordedById),
+        recordedByName: recorderName(state, sale.recordedById),
       };
     })
     .sort((left, right) => right.soldAt.localeCompare(left.soldAt));
 }
 
-function expenseRows(rows: readonly FinanceExpense[]): DemoExpenseHistoryRow[] {
+function expenseRows(rows: readonly FinanceExpense[], state: KnownFinanceDemoState): DemoExpenseHistoryRow[] {
   return rows
     .map((expense) => ({
       id: expense.id,
       amountCents: expense.amountCents,
       description: expense.description,
       spentAt: dateTime(expense.spentAt),
-      recordedByName: recorderName(expense.recordedById),
+      recordedByName: recorderName(state, expense.recordedById),
     }))
     .sort((left, right) => right.spentAt.localeCompare(left.spentAt));
 }
 
-function filterOptions(state: FinanceDemoState): DemoRevenueFilterOptions {
+function filterOptions(state: KnownFinanceDemoState): DemoRevenueFilterOptions {
   const seenTeachers = new Set<string>();
   const teachers: DemoRevenueFilterOptions["teachers"] = [];
   for (const student of state.students) {
@@ -225,13 +223,36 @@ function netEvolution(payments: readonly FinancePayment[], sales: readonly Finan
  * gate. The returned DTO contains date strings and integer cents only.
  */
 export function projectDemoRevenue(
-  state: FinanceDemoState,
+  rawState: KnownFinanceDemoState,
   actor: unknown,
   query: URLSearchParams | Readonly<Record<string, unknown>> | null | undefined,
   today: string,
 ): DemoRevenueProjectionResult {
-  if (!designatedRevenueAdmin(actor)) return unauthorized();
-  if (!isValidFinanceDemoState(state)) return { success: false, error: "El estado financiero no es válido." };
+  const resolvedActor = resolveFinanceDemoActor(actor);
+  if (!resolvedActor || !designatedRevenueAdmin(actor)) return unauthorized();
+  if (isGymFinanceActor(resolvedActor)) {
+    if (!actorMatchesFinanceState(resolvedActor, rawState)) return unauthorized();
+    const state = getValidatedGymFinanceDemoState(rawState);
+    if (!state || !actorMatchesOwnedFinanceState(resolvedActor, state)) return { success: false, error: "El estado financiero no es válido." };
+    return projectValidatedDemoRevenue(state, query, today);
+  }
+  // Explicit foreign namespaces must be rejected before BOX graph validation.
+  // Missing/accessor headers retain BOX's existing authorized validation path,
+  // including propagation of trusted getter failures rather than masking them.
+  if (typeof rawState === "object" && rawState !== null) {
+    const namespace = Object.getOwnPropertyDescriptor(rawState, "namespace");
+    if (namespace && "value" in namespace && namespace.value !== resolvedActor.policy.namespace) return unauthorized();
+  }
+  if (!isValidFinanceDemoState(rawState)) return { success: false, error: "El estado financiero no es válido." };
+  if (!actorMatchesFinanceState(resolvedActor, rawState)) return unauthorized();
+  return projectValidatedDemoRevenue(rawState, query, today);
+}
+
+function projectValidatedDemoRevenue(
+  state: KnownFinanceDemoState,
+  query: URLSearchParams | Readonly<Record<string, unknown>> | null | undefined,
+  today: string,
+): DemoRevenueProjectionResult {
   const parsed = parseDemoRevenueFilters(query, today);
   if (!parsed.ok) return { success: false, error: parsed.error };
   const filters = parsed.filters;
@@ -315,6 +336,6 @@ export function projectDemoRevenue(
     evolution,
     paymentHistory: paymentRows(paymentHistory, state),
     saleHistory: saleRows(saleHistory, state),
-    expenseHistory: expenseRows(currentExpenses),
+    expenseHistory: expenseRows(currentExpenses, state),
   };
 }

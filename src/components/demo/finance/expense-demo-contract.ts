@@ -2,6 +2,8 @@
 import { FINANCE_CENTS_MAX, financeCatalogSaleActors } from "./catalog-sales-contract.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { resolveCatalogSaleActor } from "./catalog-sales-state.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { canManageFinanceExpenses, resolveFinanceDemoActor } from "./finance-demo-policy.ts";
 import type { CatalogSaleActor } from "./catalog-sales-contract";
 
 export type ExpenseDemoResult =
@@ -36,8 +38,8 @@ export function resolveExpenseActor(value: unknown): CatalogSaleActor | null {
 }
 
 export function canManageExpenses(value: unknown): boolean {
-  const actor = resolveExpenseActor(value);
-  return actor?.role === "ADMIN" && actor.canViewRevenue === true;
+  const actor = resolveFinanceDemoActor(value);
+  return Boolean(actor && canManageFinanceExpenses(actor));
 }
 
 export function isKnownExpenseRecorder(id: unknown): boolean {
