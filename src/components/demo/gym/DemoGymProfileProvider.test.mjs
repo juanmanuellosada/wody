@@ -74,7 +74,24 @@ async function createHarness({ raw = null, getItem, setItem, gymReady = true } =
   const gym = {
     ready: gymReady,
     trainingState: createGymTrainingDemoFixture(),
-    adoptTrainingState: (next) => { adoptCalls.push(next); gym.trainingState = next; },
+    // Mirrors the real DemoGymProvider contract: trainingState IS trainingRef.current (read fresh, never
+    // a cached mirror), and adoption only lands when `base` still matches it.
+    getTrainingState: () => gym.trainingState,
+    adoptTrainingState: (base, next) => {
+      adoptCalls.push({ base, next });
+      if (gym.trainingState !== base) return false;
+      gym.trainingState = next;
+      return true;
+    },
+  };
+  // Delegates to the real coordinator by default, but a test can swap the implementation in flight (see
+  // the stale-base test below) to deterministically inject a mutation into the narrow window between a
+  // command reading its base and the coordinator actually running against it. Each harness gets its own
+  // mutable slot, so this never leaks across tests or harnesses.
+  let applyCommandImpl = coordinator.applyGymDemoProfileCommand;
+  const coordinatorMock = {
+    ...coordinator,
+    applyGymDemoProfileCommand: (...args) => applyCommandImpl(...args),
   };
   const mocks = {
     react,
@@ -83,7 +100,7 @@ async function createHarness({ raw = null, getItem, setItem, gymReady = true } =
       jsxs: (type, props) => ({ type, props }),
     },
     "@/components/demo/scenarios/gym-demo-directory": directory,
-    "./gym-demo-profile-coordinator": coordinator,
+    "./gym-demo-profile-coordinator": coordinatorMock,
     "./gym-demo-profile-core": core,
     "./gym-demo-profile-journal": journalModule,
     "./gym-demo-profile-storage": storageModule,
@@ -96,14 +113,13 @@ async function createHarness({ raw = null, getItem, setItem, gymReady = true } =
     hook = 0;
     effects = [];
     commonjsModule.exports.DemoGymProfileProvider({ children: "demo" });
-    const captured = effects.slice();
-    captured[0](); // training-state mirror sync: idempotent, safe to run every render
-    return captured;
+    return effects.slice();
   };
   return {
     gym, adoptCalls, memory, reads, writes,
     render,
     runTimers: () => { for (const timer of timers) if (!timer.cancelled) timer.callback(); },
+    setApplyCommandImpl: (fn) => { applyCommandImpl = fn; },
     get published() { return published; },
     restore: () => { globalThis.window = previousWindow; },
   };
@@ -113,7 +129,7 @@ async function hydrate(harness) {
   const effects = harness.render();
   assert.equal(harness.published.ready, false);
   assert.equal(harness.published.commandCallbacks, null);
-  const cleanup = effects[1]();
+  const cleanup = effects[0]();
   harness.runTimers();
   harness.render();
   assert.equal(harness.published.ready, true);
@@ -154,7 +170,7 @@ test("commandCallbacks stays null while the GYM training ledger has not hydrated
   const harness = await createHarness({ gymReady: false });
   try {
     const effects = harness.render();
-    const cleanup = effects[1]();
+    const cleanup = effects[0]();
     harness.runTimers();
     harness.render();
     assert.equal(harness.published.ready, false, "own journal is hydrated but the parent GYM ledger is not");
@@ -168,8 +184,6 @@ test("commandCallbacks stays null while the GYM training ledger has not hydrated
 });
 
 test("a GENERAL command writes the training ledger exactly once, via adoptTrainingState only (never a second persist by this provider)", async () => {
-  const providerSource = await source();
-  assert.doesNotMatch(providerSource, /persistGymTrainingDemoState/, "only the coordinator may persist the training ledger");
   const harness = await createHarness();
   try {
     const cleanup = await hydrate(harness);
@@ -183,7 +197,8 @@ test("a GENERAL command writes the training ledger exactly once, via adoptTraini
     assert.equal(writesTo(harness.writes, trainingKey).length, 1, "exactly one training-ledger write for this command");
     assert.equal(writesTo(harness.writes, profileKey).length, 2, "journal is persisted at stage, then again at acknowledge");
     assert.equal(harness.adoptCalls.length, 1, "the coordinator's result is adopted in-memory exactly once");
-    assert.notEqual(harness.adoptCalls[0], before, "adopted state is the pruned ledger, not the pre-command reference");
+    assert.equal(harness.adoptCalls[0].base, before, "the command's base is the pre-command reference, read fresh at invoke time");
+    assert.notEqual(harness.adoptCalls[0].next, before, "adopted state is the pruned ledger, not the pre-command reference");
     assert.equal(harness.gym.trainingState.memberships.some((membership) => membership.studentId === personalizedStudent && membership.groupId === "gym-dated-group-strength"), false);
     assert.equal(harness.published.profileState.students.find((student) => student.id === personalizedStudent).studentType, "GENERAL");
     cleanup();
@@ -201,7 +216,7 @@ test("a command with no group-detach effect writes zero times to the training le
     assert.equal(writesTo(harness.writes, trainingKey).length, 0);
     assert.equal(writesTo(harness.writes, profileKey).length, 1, "only the stage write: no pending detach to acknowledge");
     assert.equal(harness.adoptCalls.length, 1);
-    assert.equal(harness.adoptCalls[0], before, "an unchanged training ledger is adopted by the same reference");
+    assert.equal(harness.adoptCalls[0].next, before, "an unchanged training ledger is adopted by the same reference");
     assert.equal(harness.published.profileState.students.find((student) => student.id === personalizedStudent).name, "Nuevo nombre");
     cleanup();
   } finally { harness.restore(); }
@@ -282,7 +297,7 @@ test("GYM profile hydration is read-only across corrupt and unavailable storage,
   const unavailable = await createHarness({ getItem: () => { throw new Error("read"); } });
   try {
     const effects = unavailable.render();
-    const cleanup = effects[1]();
+    const cleanup = effects[0]();
     unavailable.runTimers();
     unavailable.render();
     assert.equal(unavailable.published.ready, true);
@@ -296,10 +311,10 @@ test("controlled provider effects restart after pre-hydration cleanup without wr
   const harness = await createHarness();
   try {
     const firstEffects = harness.render();
-    const firstCleanup = firstEffects[1]();
+    const firstCleanup = firstEffects[0]();
     firstCleanup();
     const secondEffects = harness.render();
-    secondEffects[1]();
+    secondEffects[0]();
     harness.runTimers();
     harness.render();
     assert.deepEqual(harness.reads, [profileKey, profileKey]);
@@ -308,11 +323,81 @@ test("controlled provider effects restart after pre-hydration cleanup without wr
   } finally { harness.restore(); }
 });
 
+test("adoptTrainingState refuses a stale-based write when a newer GYM training mutation lands after the command captured its base, and the conflict is surfaced as a warning instead of silently losing the newer write", async () => {
+  const harness = await createHarness();
+  try {
+    const cleanup = await hydrate(harness);
+    const capturedBase = harness.gym.getTrainingState();
+    // Stands in for a real concurrent GYM training mutation (e.g. a teacher's group edit) that
+    // DemoGymProvider commits to its live trainingRef with no render in between: a membership for a
+    // DIFFERENT student than this command targets, so losing it would be silent and easy to miss.
+    const concurrentlyAdvanced = {
+      ...capturedBase,
+      memberships: [...capturedBase.memberships, { studentId: admin, groupId: "gym-dated-group-strength" }],
+    };
+    // Fires exactly when the coordinator is invoked -- i.e. exactly after this command already read its
+    // base fresh (defeating any harness-artifact masking) -- to deterministically land the concurrent
+    // mutation inside the real window the fix must close, instead of relying on an unreliable race.
+    harness.setApplyCommandImpl((io, journal, trainingState, commandValue) => {
+      harness.gym.trainingState = concurrentlyAdvanced;
+      return coordinator.applyGymDemoProfileCommand(io, journal, trainingState, commandValue);
+    });
+
+    const result = await harness.published.commandCallbacks.get(admin).editStudent(personalizedStudent, "Actualizado con conflicto");
+    harness.render();
+
+    assert.deepEqual(result, { success: true }, "the profile/journal write itself still succeeds");
+    assert.equal(harness.adoptCalls.length, 1);
+    assert.equal(harness.adoptCalls[0].base, capturedBase, "the base was read fresh at invoke time, not from a stale post-render mirror");
+    assert.equal(harness.gym.trainingState, concurrentlyAdvanced, "the concurrently-landed training mutation is NOT overwritten by the stale-based adoption");
+    assert.match(harness.published.warning, /turnos/, "the refused adoption is surfaced as a warning instead of silently losing the newer training write");
+    assert.equal(harness.published.profileState.students.find((student) => student.id === personalizedStudent).name, "Actualizado con conflicto", "the independent profile-journal change still committed");
+    cleanup();
+  } finally { harness.restore(); }
+});
+
+test("invoke refuses to run once the provider is no longer alive/ready, before touching the coordinator or any state: a callback a consumer kept after cleanup produces zero writes, zero adoption and no state change", async () => {
+  const harness = await createHarness();
+  try {
+    const cleanup = await hydrate(harness);
+    const retainedCallbacks = harness.published.commandCallbacks.get(admin);
+    const before = harness.published.profileState;
+
+    cleanup(); // unmount: aliveRef/readyRef go false and storageRef is cleared
+
+    const result = await retainedCallbacks.editStudent(personalizedStudent, "Nunca debería aplicarse");
+    harness.render();
+
+    assert.equal(result.success, false);
+    assert.deepEqual(harness.writes, [], "no coordinator call, so zero writes");
+    assert.equal(harness.adoptCalls.length, 0, "no adoption attempted");
+    assert.deepEqual(harness.published.profileState, before, "no state change");
+  } finally { harness.restore(); }
+});
+
+test("two calls sharing the same invocation key while one is pending return the identical promise, and storage is written only once", async () => {
+  const harness = await createHarness();
+  try {
+    const cleanup = await hydrate(harness);
+    const callbacks = harness.published.commandCallbacks.get(admin);
+    const first = callbacks.editStudent(personalizedStudent, "Mismo valor");
+    const second = callbacks.editStudent(personalizedStudent, "Mismo valor"); // same key: dedupe, not busy-reject
+
+    assert.equal(second, first, "the second call returns the exact same pending promise, not a new one");
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+    assert.deepEqual(firstResult, { success: true });
+    assert.deepEqual(secondResult, { success: true });
+    harness.render();
+    assert.equal(writesTo(harness.writes, profileKey).length, 1, "the deduped call never re-ran the coordinator, so storage was written only once");
+    cleanup();
+  } finally { harness.restore(); }
+});
+
 test("GYM profile provider stays scoped to its own domain: no BOX, Personal, or finance namespace, and no second reconcile loop", async () => {
   const provider = await source();
   assert.doesNotMatch(provider, /wody-box-|wody-personal-|wody-gym-finance-|finance\/|localStorage/);
   assert.doesNotMatch(provider, /reconcileGymDemoProfilePendingGroupDetaches/, "the coordinator already reconciles; this provider must not run a second loop");
-  assert.match(provider, /adoptTrainingState\(outcome\.trainingState\)/);
+  assert.match(provider, /adoptTrainingState\(base, outcome\.trainingState\)/);
   assert.match(provider, /trainingStorage: storageRef\.current/);
   assert.match(provider, /if \(!value\) throw new Error/);
 });

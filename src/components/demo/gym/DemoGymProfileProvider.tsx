@@ -22,6 +22,9 @@ const staffIds = [GYM_DEMO_ADMIN_ID, GYM_DEMO_PRIMARY_TEACHER_ID, GYM_DEMO_SECON
 
 const BUSY_WARNING = "Hay otra operación de perfiles en curso.";
 const CANCELLED_WARNING = "La operación de perfiles fue cancelada.";
+const UNAVAILABLE_WARNING = "El proveedor de perfiles ya no está disponible.";
+const TRAINING_ADOPTION_CONFLICT_WARNING =
+  "El cambio de perfil se guardó, pero hay una actualización de turnos más reciente: la ficha de turnos en memoria no se modificó.";
 
 export type GymDemoProfileCallbackResult = { success: true } | { success: false; error: string };
 
@@ -42,8 +45,11 @@ type GymDemoProfileCallbackFactoryOptions = {
   actorToken: object;
   getIo: () => GymDemoProfileCoordinatorIO;
   getJournal: () => GymDemoProfileJournal;
+  /** Reads DemoGymProvider's live `trainingRef` directly; never a value cached from a previous render. */
   getTrainingState: () => GymTrainingDemoState;
-  applyOutcome: (outcome: GymDemoProfileCommandOutcome) => GymDemoProfileCallbackResult;
+  /** True only while the provider is mounted, hydrated, and holding a storage handle. */
+  isUsable: () => boolean;
+  applyOutcome: (base: GymTrainingDemoState, outcome: GymDemoProfileCommandOutcome) => GymDemoProfileCallbackResult;
 };
 
 type PendingCommand = { key: string; generation: number; promise: Promise<GymDemoProfileCallbackResult> };
@@ -98,6 +104,10 @@ function createGymDemoProfileCallbackFactory(options: GymDemoProfileCallbackFact
   let pending: PendingCommand | null = null;
 
   function invoke(key: string, buildCommand: () => unknown): Promise<GymDemoProfileCallbackResult> {
+    // Refused before touching the coordinator or any state: cleanup unpublishes readiness but not the
+    // factories themselves, so a callback a consumer kept past unmount (or a StrictMode effect restart)
+    // must not run against null storage or commit an outcome nobody will ever read.
+    if (!options.isUsable()) return Promise.resolve({ success: false, error: UNAVAILABLE_WARNING });
     if (pending) {
       return pending.key === key && pending.generation === generation
         ? pending.promise
@@ -107,8 +117,11 @@ function createGymDemoProfileCallbackFactory(options: GymDemoProfileCallbackFact
     const entry = {} as PendingCommand;
     const promise = Promise.resolve().then(() => {
       if (operationGeneration !== generation) return { success: false, error: CANCELLED_WARNING } as const;
-      const outcome = applyGymDemoProfileCommand(options.getIo(), options.getJournal(), options.getTrainingState(), buildCommand());
-      return options.applyOutcome(outcome);
+      // Captured fresh, in the same synchronous step the coordinator runs in: no render or mirror sync
+      // sits between this read and the coordinator call, so it is always DemoGymProvider's live ledger.
+      const base = options.getTrainingState();
+      const outcome = applyGymDemoProfileCommand(options.getIo(), options.getJournal(), base, buildCommand());
+      return options.applyOutcome(base, outcome);
     });
     entry.key = key;
     entry.generation = operationGeneration;
@@ -158,30 +171,33 @@ function createGymDemoProfileCallbackFactory(options: GymDemoProfileCallbackFact
 export function DemoGymProfileProvider({ children }: { children: React.ReactNode }) {
   const gym = useDemoGym();
   const adoptTrainingState = gym.adoptTrainingState;
+  const getTrainingState = gym.getTrainingState;
   const [journal, setJournal] = useState<GymDemoProfileJournal>(() => createGymDemoProfileJournalFixture());
   const [ready, setReady] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const [resetEpoch, setResetEpoch] = useState(0);
   const [publishedFactories, setPublishedFactories] = useState<ReadonlyMap<string, GymDemoProfileActorCallbacks> | null>(null);
   const journalRef = useRef(journal);
-  const trainingMirrorRef = useRef<GymTrainingDemoState>(gym.trainingState);
   const storageRef = useRef<GymDemoProfileStorage | null>(null);
   const readyRef = useRef(false);
   const aliveRef = useRef(false);
   const hydrationGenerationRef = useRef(0);
   const factories = useRef(new Map<string, GymDemoProfileActorCallbacks>());
 
-  useEffect(() => {
-    trainingMirrorRef.current = gym.trainingState;
-  }, [gym.trainingState]);
+  const isUsable = useCallback(
+    () => aliveRef.current && readyRef.current && storageRef.current !== null,
+    [],
+  );
 
-  const applyOutcome = useCallback((outcome: GymDemoProfileCommandOutcome): GymDemoProfileCallbackResult => {
+  const applyOutcome = useCallback((base: GymTrainingDemoState, outcome: GymDemoProfileCommandOutcome): GymDemoProfileCallbackResult => {
     if (!outcome.success) return { success: false, error: outcome.error };
     journalRef.current = outcome.journal;
     setJournal(outcome.journal);
-    setWarning(outcome.warning);
-    trainingMirrorRef.current = outcome.trainingState;
-    adoptTrainingState(outcome.trainingState);
+    const adopted = adoptTrainingState(base, outcome.trainingState);
+    // A refused adoption means DemoGymProvider's ledger moved past `base` after this command captured
+    // it: the journal/profile write above still landed, so the command itself still succeeds, but the
+    // conflict is surfaced as a warning instead of silently discarding the newer training mutation.
+    setWarning(adopted ? outcome.warning : TRAINING_ADOPTION_CONFLICT_WARNING);
     return { success: true };
   }, [adoptTrainingState]);
 
@@ -213,7 +229,8 @@ export function DemoGymProfileProvider({ children }: { children: React.ReactNode
           actorToken: token,
           getIo: () => ({ profileStorage: storageRef.current, trainingStorage: storageRef.current }),
           getJournal: () => journalRef.current,
-          getTrainingState: () => trainingMirrorRef.current,
+          getTrainingState,
+          isUsable,
           applyOutcome,
         }));
       }
@@ -233,7 +250,7 @@ export function DemoGymProfileProvider({ children }: { children: React.ReactNode
       storageRef.current = null;
       if (hydrationGenerationRef.current === hydrationGeneration) hydrationGenerationRef.current += 1;
     };
-  }, [applyOutcome]);
+  }, [applyOutcome, getTrainingState, isUsable]);
 
   const reset = useCallback(() => {
     if (!readyRef.current || !aliveRef.current) return;

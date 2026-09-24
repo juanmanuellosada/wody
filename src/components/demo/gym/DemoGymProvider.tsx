@@ -63,10 +63,18 @@ type DemoGymContextValue = {
   resetRms: () => void;
   /**
    * Adopts a training ledger already persisted by another owner (the GYM profile coordinator, after its
-   * single durable write) into this provider's in-memory state only. It never persists: a second write of
-   * the same storage key per command would race the coordinator's own write.
+   * single durable write) into this provider's in-memory state only, and only when `base` still matches
+   * the live `trainingRef` — the ledger the command actually computed its result from. It never persists:
+   * a second write of the same storage key per command would race the coordinator's own write.
+   *
+   * Returns false, leaving in-memory state untouched, when a newer GYM training mutation landed in
+   * `trainingRef` after `base` was captured: the coordinator's write was already durable against a ledger
+   * this provider has since moved past, so adopting it here would silently discard that newer mutation.
+   * The caller decides how to surface the refusal; it is never retried automatically.
    */
-  adoptTrainingState: (next: GymTrainingDemoState) => void;
+  adoptTrainingState: (base: GymTrainingDemoState, next: GymTrainingDemoState) => boolean;
+  /** Reads `trainingRef.current` directly, never a snapshot cached from a previous render. */
+  getTrainingState: () => GymTrainingDemoState;
   datedEpoch: number;
   fixedEpoch: number;
   rmEpoch: number;
@@ -135,10 +143,13 @@ export function DemoGymProvider({ children }: { children: React.ReactNode }) {
     const nextWarning = gymRmStorage.persist(storageRef.current, next);
     setDomainWarning("rms", nextWarning);
   }, [setDomainWarning]);
-  const adoptTrainingState = useCallback((next: GymTrainingDemoState) => {
+  const adoptTrainingState = useCallback((base: GymTrainingDemoState, next: GymTrainingDemoState): boolean => {
+    if (trainingRef.current !== base) return false;
     trainingRef.current = next;
     setTrainingState(next);
+    return true;
   }, []);
+  const getTrainingState = useCallback(() => trainingRef.current, []);
 
   useEffect(() => {
     if (hydratedRef.current) return;
@@ -243,11 +254,12 @@ export function DemoGymProvider({ children }: { children: React.ReactNode }) {
     resetFixedRoutines,
     resetRms,
     adoptTrainingState,
+    getTrainingState,
     datedEpoch,
     fixedEpoch,
     rmEpoch,
     today,
-  }), [adoptTrainingState, datedEpoch, fixedEpoch, fixedState, publishedFactories, ready, rmEpoch, rmsState, resetDatedTraining, resetFixedRoutines, resetRms, selectedActor, selectActor, today, trainingState, warnings]);
+  }), [adoptTrainingState, datedEpoch, fixedEpoch, fixedState, getTrainingState, publishedFactories, ready, rmEpoch, rmsState, resetDatedTraining, resetFixedRoutines, resetRms, selectedActor, selectActor, today, trainingState, warnings]);
 
   return <DemoGymContext.Provider value={value}>{children}</DemoGymContext.Provider>;
 }
