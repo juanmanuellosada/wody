@@ -104,6 +104,26 @@ test("persistence writes exactly the isolated key only for validated state and k
   assert.equal(writes.length, 1);
 });
 
+test("fixed ledger TOCTOU markers are rejected before writes or storage key access", () => {
+  const fixture = createGymFixedDemoFixture();
+  let ownKeysCalls = 0;
+  const changingRoot = new Proxy(fixture, {
+    ownKeys(target) {
+      ownKeysCalls += 1;
+      return ownKeysCalls === 1 ? Reflect.ownKeys(target) : [...Reflect.ownKeys(target), "invalidMarker"];
+    },
+    getOwnPropertyDescriptor(target, key) {
+      return key === "invalidMarker"
+        ? { value: true, enumerable: true, configurable: true, writable: true }
+        : Reflect.getOwnPropertyDescriptor(target, key);
+    },
+  });
+  const { storage, reads, writes } = storageSpy(new Map([["wody-box-training-demo-v2", "unrelated"]]));
+  assert.match(persistGymFixedDemoState(storage, changingRoot) ?? "", /no válido/i);
+  assert.deepEqual(writes, []);
+  assert.deepEqual(reads, []);
+});
+
 test("storage unavailability and quota/read failures are non-fatal warnings", () => {
   assert.match(loadGymFixedDemoState(null).warning ?? "", /no está disponible/i);
   assert.match(persistGymFixedDemoState(null, createGymFixedDemoFixture()) ?? "", /no está disponible/i);

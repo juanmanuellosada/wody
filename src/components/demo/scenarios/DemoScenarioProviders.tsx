@@ -6,8 +6,9 @@ import { DemoAccessProvider } from "@/components/demo/access/DemoAccessProvider"
 import { DemoFinanceProvider } from "@/components/demo/finance/DemoFinanceProvider";
 import { DemoPersonalProvider } from "@/components/demo/personal/DemoPersonalProvider";
 import { DemoTrainingProvider } from "@/components/demo/training/DemoTrainingProvider";
+import { DemoGymProvider } from "@/components/demo/gym/DemoGymProvider";
 
-export type DemoScenario = "BOX" | "PERSONAL";
+export type DemoScenario = "BOX" | "PERSONAL" | "GYM";
 
 type DemoScenarioProvidersProps = {
   children: React.ReactNode;
@@ -15,10 +16,11 @@ type DemoScenarioProvidersProps = {
   rootPersonalNavigation?: boolean;
 };
 
-function scenarioForPathname(pathname: string): DemoScenario {
-  return pathname === "/demo/personal" || pathname.startsWith("/demo/personal/")
-    ? "PERSONAL"
-    : "BOX";
+export function scenarioForPathname(pathname: string): DemoScenario | null {
+  if (pathname === "/demo/gym" || pathname.startsWith("/demo/gym/")) return "GYM";
+  if (pathname === "/demo/personal" || pathname.startsWith("/demo/personal/")) return "PERSONAL";
+  if (pathname === "/demo" || pathname === "/demo/" || pathname === "/demo/admin" || pathname === "/demo/teacher" || pathname === "/demo/student" || pathname.startsWith("/demo/admin/") || pathname.startsWith("/demo/teacher/") || pathname.startsWith("/demo/student/")) return "BOX";
+  return null;
 }
 
 /**
@@ -30,8 +32,14 @@ export function DemoScenarioProviders({ children, rootPersonalNavigation = false
 
   // Compatibility mode may briefly yield null; do not choose BOX until routing is known.
   if (pathname === null) return null;
+  const scenario = scenarioForPathname(pathname);
+  if (scenario === null) return null;
 
-  if (scenarioForPathname(pathname) === "PERSONAL") {
+  if (scenario === "GYM") {
+    return <DemoGymProvider><DemoNavbar scenario="GYM" />{children}</DemoGymProvider>;
+  }
+
+  if (scenario === "PERSONAL") {
     return (
       <DemoPersonalProvider>
         {rootPersonalNavigation && <DemoNavbar scenario="PERSONAL" />}

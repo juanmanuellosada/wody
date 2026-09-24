@@ -34,6 +34,12 @@ const roleLinks = {
   ],
 };
 
+const gymRoleLinks = {
+  admin: [{ href: "/demo/gym/admin", label: "Entrenamiento" }, { href: "/demo/gym/admin/rms", label: "Mis PRs" }],
+  teacher: [{ href: "/demo/gym/teacher", label: "Mis rutinas" }, { href: "/demo/gym/teacher/rms", label: "Mis PRs" }],
+  student: [{ href: "/demo/gym/student", label: "Mi rutina" }, { href: "/demo/gym/student/rms", label: "Mis PRs" }],
+};
+
 const personalLinks = [
   { href: "/demo/personal/student", label: "Mis rutinas" },
   { href: "/demo/personal/student/rms", label: "Mis PRs" },
@@ -47,26 +53,29 @@ const roleLabels: Record<string, string> = {
 };
 
 function detectRole(pathname: string): string {
-  if (pathname.startsWith("/demo/admin")) return "admin";
-  if (pathname.startsWith("/demo/teacher")) return "teacher";
+  if (pathname.startsWith("/demo/gym/admin") || pathname.startsWith("/demo/admin")) return "admin";
+  if (pathname.startsWith("/demo/gym/teacher") || pathname.startsWith("/demo/teacher")) return "teacher";
   return "student";
 }
 
-export function DemoNavbar({ supportedRoutes, scenario }: { supportedRoutes?: string[]; scenario?: "PERSONAL" }) {
+export function DemoNavbar({ supportedRoutes, scenario }: { supportedRoutes?: string[]; scenario?: "PERSONAL" | "GYM" }) {
   const pathname = usePathname() ?? "";
   const [menuOpen, setMenuOpen] = useState(false);
+  const isGym = scenario === "GYM" || pathname === "/demo/gym" || pathname.startsWith("/demo/gym/");
   const isPersonal = scenario === "PERSONAL" || pathname === "/demo/personal" || pathname.startsWith("/demo/personal/");
 
-  if (pathname === "/demo") return null;
+  if (pathname === "/demo" || pathname === "/demo/") return null;
+  // Preview owns its existing global navbar. The GYM provider renders the scoped one.
+  if (isGym && scenario !== "GYM") return null;
 
   const currentRole = detectRole(pathname);
   const boxLinks = roleLinks[currentRole as keyof typeof roleLinks].filter(
     (link) => !supportedRoutes || supportedRoutes.includes(link.href),
   );
-  const links = isPersonal
+  const links = isGym ? gymRoleLinks[currentRole as keyof typeof gymRoleLinks] : isPersonal
     ? personalLinks.filter((link) => !supportedRoutes || supportedRoutes.includes(link.href))
     : boxLinks;
-  const roleLabel = isPersonal ? "Personal" : roleLabels[currentRole];
+  const roleLabel = isGym ? "Gimnasio" : isPersonal ? "Personal" : roleLabels[currentRole];
 
   function isActive(href: string) {
     return pathname === href || (
@@ -107,7 +116,7 @@ export function DemoNavbar({ supportedRoutes, scenario }: { supportedRoutes?: st
             </Link>
           ) : (
             Object.entries(roleLabels).map(([role, label]) => (
-              <Link key={role} href={`/demo/${role}`} className={[
+              <Link key={role} href={isGym ? `/demo/gym/${role}` : `/demo/${role}`} className={[
                 "text-xs font-heading font-bold uppercase tracking-[0.1em] px-2 py-1 border transition-colors duration-200",
                 currentRole === role ? "border-brand-red text-brand-red bg-brand-red/10" : "border-edge text-gray-500 hover:border-gray-500 hover:text-white",
               ].join(" ")}>
@@ -147,7 +156,7 @@ export function DemoNavbar({ supportedRoutes, scenario }: { supportedRoutes?: st
               <p className="text-xs text-gray-500 font-heading uppercase tracking-[0.1em] mb-3">Cambiar rol</p>
               <div className="flex gap-2">
                 {Object.entries(roleLabels).map(([role, label]) => (
-                  <Link key={role} href={`/demo/${role}`} onClick={() => setMenuOpen(false)} className={[
+                  <Link key={role} href={isGym ? `/demo/gym/${role}` : `/demo/${role}`} onClick={() => setMenuOpen(false)} className={[
                     "text-xs font-heading font-bold uppercase tracking-[0.1em] px-3 py-2 border transition-colors duration-200",
                     currentRole === role ? "border-brand-red text-brand-red bg-brand-red/10" : "border-edge text-gray-400",
                   ].join(" ")}>

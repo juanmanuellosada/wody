@@ -136,15 +136,15 @@ test("root and Preview retain 19 BOX demo pages and add exactly three PERSONAL s
     source("src/components/DemoNavbar.tsx"),
     source("preview/landing/app/demo/layout.tsx"),
   ]);
-  assert.equal(rootCount, 22);
-  assert.equal(previewCount, 22);
+  assert.equal(rootCount, 29);
+  assert.equal(previewCount, 29);
   assert.match(rootHub, /DemoTrainingOverview/);
   assert.match(previewHub, /DemoTrainingOverview/);
   for (const href of ["/demo/personal/student", "/demo/personal/student/rms", "/demo/personal/student/suscripcion"]) {
     assert.match(navbar, new RegExp(`href: "${href}"`));
     assert.match(previewLayout, new RegExp(`"${href}"`));
   }
-  assert.match(navbar, /scenario\?: "PERSONAL"/);
+  assert.match(navbar, /scenario\?: "PERSONAL" \| "GYM"/);
   assert.match(navbar, /Volver al BOX/);
   assert.doesNotMatch(navbar, /\/demo\/personal\/(admin|teacher|caja|ingresos|turnos|productos)/);
   for (const [leaf, component] of personalPages) {
@@ -248,7 +248,7 @@ test("scenario selection is pathname-only and never mounts BOX providers for PER
   assert.match(providers, /usePathname/);
   assert.match(providers, /pathname === "\/demo\/personal" \|\| pathname\.startsWith\("\/demo\/personal\/"\)/);
   assert.match(providers, /if \(pathname === null\) return null/);
-  const personalBranchStart = providers.indexOf('if (scenarioForPathname(pathname) === "PERSONAL") {');
+  const personalBranchStart = providers.indexOf('if (scenario === "PERSONAL") {');
   const boxBranchStart = providers.indexOf("\n  return (\n    <DemoTrainingProvider>", personalBranchStart);
   assert.ok(personalBranchStart >= 0 && boxBranchStart > personalBranchStart, "PERSONAL precedes the BOX provider branch");
   const personalBranch = providers.slice(personalBranchStart, boxBranchStart);

@@ -9,6 +9,7 @@
 @source "../../../src/components/demo/finance";
 @source "../../../src/components/demo/access";
 @source "../../../src/components/demo/personal";
+@source "../../../src/components/demo/gym";
 @source "../../../src/components/access/AccessKioskView.tsx";
 @source "../../../src/components/access/AccessHistoryTable.tsx";
 @source "../../../src/components/caja/CajaShell.tsx";
@@ -44,6 +45,8 @@
 @source "../../../src/components/wod/CopyWodDialogView.tsx";
 @source "../../../src/components/wod/TargetSelector.tsx";
 @source "../../../src/components/group/GroupManagerView.tsx";
+@source "../../../src/components/fixed-routine/FixedRoutineManagerView.tsx";
+@source "../../../src/components/fixed-routine/FixedRoutineStudentView.tsx";
 @source "../../../src/components/RmsView.tsx";
 @source "../../../src/components/personal/PersonalBillingPageView.tsx";
 @source "../../../src/components/RmFormView.tsx";

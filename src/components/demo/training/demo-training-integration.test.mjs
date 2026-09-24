@@ -169,5 +169,5 @@ test("supported standalone links and root legacy links resolve to exported demo 
     "/demo/personal/student", "/demo/personal/student/rms", "/demo/personal/student/suscripcion",
   ];
   for (const route of routes) assert.match(layout, new RegExp(`"${route}"`));
-  assert.match(navbar, /if \(pathname === "\/demo"\) return null/);
+  assert.match(navbar, /if \(pathname === "\/demo" \|\| pathname === "\/demo\/"\) return null/);
 });

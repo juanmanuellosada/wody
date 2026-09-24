@@ -18,11 +18,19 @@ const supportedRoutes = [
   "/demo/teacher/caja",
   "/demo/student",
   "/demo/student/rms",
+  "/demo/student/wod",
   "/demo/student/turnos",
   "/demo/student/beneficios",
   "/demo/personal/student",
   "/demo/personal/student/rms",
   "/demo/personal/student/suscripcion",
+  "/demo/gym/admin",
+  "/demo/gym/admin/rms",
+  "/demo/gym/teacher",
+  "/demo/gym/teacher/rms",
+  "/demo/gym/student",
+  "/demo/gym/student/rms",
+  "/demo/gym/student/wod",
 ];
 
 export default function PreviewDemoLayout({ children }: { children: React.ReactNode }) {

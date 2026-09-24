@@ -129,6 +129,26 @@ test("persistence writes only a descriptor-detached snapshot and never calls cal
   assert.equal(deserializeGymTrainingDemoState(writes[0][1]).warning, null);
 });
 
+test("dated ledger TOCTOU markers are rejected before writes or storage key access", () => {
+  const fixture = createGymTrainingDemoFixture();
+  let ownKeysCalls = 0;
+  const changingRoot = new Proxy(fixture, {
+    ownKeys(target) {
+      ownKeysCalls += 1;
+      return ownKeysCalls === 1 ? Reflect.ownKeys(target) : [...Reflect.ownKeys(target), "invalidMarker"];
+    },
+    getOwnPropertyDescriptor(target, key) {
+      return key === "invalidMarker"
+        ? { value: true, enumerable: true, configurable: true, writable: true }
+        : Reflect.getOwnPropertyDescriptor(target, key);
+    },
+  });
+  const { storage, reads, writes } = storageSpy(new Map([["wody-box-training-demo-v2", "unrelated"]]));
+  assert.match(persistGymTrainingDemoState(storage, changingRoot) ?? "", /no válido/i);
+  assert.deepEqual(writes, []);
+  assert.deepEqual(reads, []);
+});
+
 test("invalid descriptor graphs perform zero writes", () => {
   const { storage, writes } = storageSpy();
   const invalid = createGymTrainingDemoFixture();
