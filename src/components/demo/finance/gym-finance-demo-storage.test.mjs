@@ -5,7 +5,7 @@ import { createCatalogProduct, registerCatalogSale } from "./catalog-sales-state
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { registerFinanceExpense } from "./expense-demo-state.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
-import { getGymDemoActorToken, GYM_DEMO_ADMIN_ID } from "../scenarios/gym-demo-directory.ts";
+import { getGymDemoActorToken, GYM_DEMO_ADMIN_ID, GYM_DEMO_SECONDARY_TEACHER_ID } from "../scenarios/gym-demo-directory.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { createGymFinanceDemoFixture } from "./gym-finance-demo-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
@@ -147,6 +147,69 @@ test("only null denotes absence; blank, malformed, foreign, unknown, and capabil
   assert.deepEqual(corrupt.reads, [GYM_FINANCE_DEMO_STORAGE_KEY]);
   assert.deepEqual(corrupt.writes, []);
   assert.equal(corrupt.values.get(GYM_FINANCE_DEMO_STORAGE_KEY), "");
+});
+
+test("editable profile-bridge fields on a GYM student row diverge freely from the fixture, while canonical fields and assigned-teacher identity stay pinned", () => {
+  const fixture = createGymFinanceDemoFixture(anchor);
+  const edited = clone(fixture);
+  edited.students[0] = {
+    ...edited.students[0],
+    name: "Nombre Editado",
+    studentType: "PERSONALIZED",
+    canCreateOwnRoutines: true,
+    paymentExempt: true,
+    paymentExemptReason: "Convenio actualizado",
+    blocked: true,
+    assignedTeachers: [{ id: GYM_DEMO_SECONDARY_TEACHER_ID, name: "Nora Vidal" }],
+  };
+  assert.equal(isValidGymFinanceDemoState(edited), true);
+
+  for (const [field, value] of [
+    ["email", "forged@finance-demo.invalid"],
+    ["accountKind", fixture.students[0].accountKind === "FULL" ? "LITE" : "FULL"],
+    ["deletedAt", "2020-01-01T00:00:00.000Z"],
+  ]) {
+    const broken = clone(fixture);
+    broken.students[0] = { ...broken.students[0], [field]: value };
+    assert.equal(isValidGymFinanceDemoState(broken), false, field);
+  }
+
+  const unknownId = clone(fixture);
+  unknownId.students[0] = { ...unknownId.students[0], id: "unknown-student" };
+  assert.equal(isValidGymFinanceDemoState(unknownId), false);
+
+  const forgedTeacherName = clone(fixture);
+  forgedTeacherName.students[0].assignedTeachers = [{ id: GYM_DEMO_SECONDARY_TEACHER_ID, name: "Impostor" }];
+  assert.equal(isValidGymFinanceDemoState(forgedTeacherName), false);
+
+  const fakeTeacherId = clone(fixture);
+  fakeTeacherId.students[0].assignedTeachers = [{ id: "not-a-real-actor", name: "Nadie" }];
+  assert.equal(isValidGymFinanceDemoState(fakeTeacherId), false);
+});
+
+test("editable GYM student fields are still type-checked even though their values may diverge from the fixture", () => {
+  const fixture = createGymFinanceDemoFixture(anchor);
+  const invalidRows = [
+    { name: 42 },
+    { name: "" },
+    { name: "   " },
+    { studentType: "OTRO" },
+    { studentType: null },
+    { canCreateOwnRoutines: "true" },
+    { paymentExempt: 1 },
+    { blocked: "false" },
+    { paymentExemptReason: 123 },
+    { assignedTeachers: [{ id: GYM_DEMO_SECONDARY_TEACHER_ID }] },
+    { assignedTeachers: [{ id: GYM_DEMO_SECONDARY_TEACHER_ID, name: "Nora Vidal", extra: true }] },
+    { assignedTeachers: [{ id: 42, name: "Nora Vidal" }] },
+    { assignedTeachers: [{ id: GYM_DEMO_SECONDARY_TEACHER_ID, name: 42 }] },
+  ];
+  for (const patch of invalidRows) {
+    const broken = clone(fixture);
+    broken.students[0] = { ...broken.students[0], ...patch };
+    assert.equal(isValidGymFinanceDemoState(broken), false, JSON.stringify(patch));
+  }
+  assert.equal(isValidGymFinanceDemoState(fixture), true);
 });
 
 test("loads only its v1 GYM key and rejects all BOX generations without probing or changing other demo ledgers", () => {

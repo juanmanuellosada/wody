@@ -248,6 +248,10 @@ export function isValidFinanceDemoState(value: unknown): value is FinanceDemoSta
     && isValidFinanceExpenseGraph(value.expenses);
 }
 
+function isGymFinanceStudentType(value: unknown): value is "GENERAL" | "PERSONALIZED" | "MUSCULACION_LIBRE" {
+  return value === "GENERAL" || value === "PERSONALIZED" || value === "MUSCULACION_LIBRE";
+}
+
 /** GYM v1 is isolated from BOX storage migrations but validates the same closed accounting graph. */
 function isValidOwnedGymFinanceDemoState(value: unknown): value is GymFinanceDemoState {
   if (!isRecord(value)
@@ -269,11 +273,18 @@ function isValidOwnedGymFinanceDemoState(value: unknown): value is GymFinanceDem
     if (!isRecord(row) || !hasOnlyKeys(row, ["id", "name", "email", "nextPaymentDate", "studentType", "accountKind", "canCreateOwnRoutines", "paymentExempt", "paymentExemptReason", "assignedTeachers", "blocked", "deletedAt"])
       || !isId(row.id) || !isFinanceDate(row.nextPaymentDate) || !isDenseArray(row.assignedTeachers) || students.has(row.id)) return false;
     const fixture = fixtures.find((candidate) => candidate.id === row.id);
-    if (!fixture || row.name !== fixture.name || row.email !== fixture.email || row.studentType !== fixture.studentType
-      || row.accountKind !== fixture.accountKind || row.canCreateOwnRoutines !== fixture.canCreateOwnRoutines
-      || row.paymentExempt !== fixture.paymentExempt || row.paymentExemptReason !== fixture.paymentExemptReason
-      || row.blocked !== fixture.blocked || row.deletedAt !== fixture.deletedAt
-      || !sameArray(row.assignedTeachers.map((teacher) => isRecord(teacher) ? `${teacher.id}:${teacher.name}` : null), fixture.assignedTeachers.map((teacher) => `${teacher.id}:${teacher.name}`))) return false;
+    // Canonical fields are never editable through the profile bridge: they still pin to the frozen fixture.
+    if (!fixture || row.email !== fixture.email || row.accountKind !== fixture.accountKind || row.deletedAt !== fixture.deletedAt) return false;
+    // The seven profile-bridge commands can change these; only their shape is validated, not their fixture value.
+    if (typeof row.name !== "string" || !row.name.trim()) return false;
+    if (!isGymFinanceStudentType(row.studentType)) return false;
+    if (typeof row.canCreateOwnRoutines !== "boolean" || typeof row.paymentExempt !== "boolean" || typeof row.blocked !== "boolean") return false;
+    if (row.paymentExemptReason !== null && typeof row.paymentExemptReason !== "string") return false;
+    if (!row.assignedTeachers.every((teacher) => {
+      if (!isRecord(teacher) || !hasOnlyKeys(teacher, ["id", "name"]) || !isId(teacher.id) || typeof teacher.name !== "string") return false;
+      const canonicalTeacher = getGymDemoProfile(teacher.id);
+      return canonicalTeacher !== null && (canonicalTeacher.role === "TEACHER" || canonicalTeacher.role === "ADMIN") && canonicalTeacher.deletedAt === null && teacher.name === canonicalTeacher.name;
+    })) return false;
     students.set(row.id, row);
   }
   const categories = new Set<string>();
