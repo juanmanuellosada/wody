@@ -205,7 +205,7 @@ test("a GENERAL command writes the training ledger exactly once, via adoptTraini
   } finally { harness.restore(); }
 });
 
-test("a command with no group-detach effect writes zero times to the training ledger and still adopts the unchanged reference", async () => {
+test("a command with no group-detach effect writes zero times to the training ledger and skips adoption entirely, since there is nothing to adopt", async () => {
   const harness = await createHarness();
   try {
     const cleanup = await hydrate(harness);
@@ -215,8 +215,9 @@ test("a command with no group-detach effect writes zero times to the training le
     assert.deepEqual(result, { success: true });
     assert.equal(writesTo(harness.writes, trainingKey).length, 0);
     assert.equal(writesTo(harness.writes, profileKey).length, 1, "only the stage write: no pending detach to acknowledge");
-    assert.equal(harness.adoptCalls.length, 1);
-    assert.equal(harness.adoptCalls[0].next, before, "an unchanged training ledger is adopted by the same reference");
+    assert.equal(harness.adoptCalls.length, 0, "adoptTrainingState is never called when the outcome carries no training change");
+    assert.equal(harness.gym.trainingState, before, "the live training ledger is left untouched by reference");
+    assert.equal(harness.published.warning, null, "no conflict warning when there was nothing to adopt");
     assert.equal(harness.published.profileState.students.find((student) => student.id === personalizedStudent).name, "Nuevo nombre");
     cleanup();
   } finally { harness.restore(); }
@@ -323,11 +324,12 @@ test("controlled provider effects restart after pre-hydration cleanup without wr
   } finally { harness.restore(); }
 });
 
-test("adoptTrainingState refuses a stale-based write when a newer GYM training mutation lands after the command captured its base, and the conflict is surfaced as a warning instead of silently losing the newer write", async () => {
+test("adoptTrainingState refuses a stale-based write when a newer GYM training mutation lands after the command captured its base: the persisted training ledger diverges from live memory, and the warning says the persisted ledger is stale", async () => {
   const harness = await createHarness();
   try {
     const cleanup = await hydrate(harness);
     const capturedBase = harness.gym.getTrainingState();
+    assert.ok(capturedBase.memberships.some((membership) => membership.studentId === personalizedStudent && membership.groupId === "gym-dated-group-strength"));
     // Stands in for a real concurrent GYM training mutation (e.g. a teacher's group edit) that
     // DemoGymProvider commits to its live trainingRef with no render in between: a membership for a
     // DIFFERENT student than this command targets, so losing it would be silent and easy to miss.
@@ -343,15 +345,44 @@ test("adoptTrainingState refuses a stale-based write when a newer GYM training m
       return coordinator.applyGymDemoProfileCommand(io, journal, trainingState, commandValue);
     });
 
-    const result = await harness.published.commandCallbacks.get(admin).editStudent(personalizedStudent, "Actualizado con conflicto");
+    // SET_TYPE to GENERAL performs a real group-detach training-ledger write, unlike editStudent (which
+    // performs none): only a command that actually writes the training ledger can exercise the
+    // storage/memory divergence this warning describes, so it -- never a no-op command -- must be used.
+    const result = await harness.published.commandCallbacks.get(admin).setType(personalizedStudent, "GENERAL");
     harness.render();
 
     assert.deepEqual(result, { success: true }, "the profile/journal write itself still succeeds");
+    assert.equal(writesTo(harness.writes, trainingKey).length, 1, "exactly one training-ledger write, computed from the stale base");
     assert.equal(harness.adoptCalls.length, 1);
     assert.equal(harness.adoptCalls[0].base, capturedBase, "the base was read fresh at invoke time, not from a stale post-render mirror");
-    assert.equal(harness.gym.trainingState, concurrentlyAdvanced, "the concurrently-landed training mutation is NOT overwritten by the stale-based adoption");
-    assert.match(harness.published.warning, /turnos/, "the refused adoption is surfaced as a warning instead of silently losing the newer training write");
-    assert.equal(harness.published.profileState.students.find((student) => student.id === personalizedStudent).name, "Actualizado con conflicto", "the independent profile-journal change still committed");
+    assert.notEqual(harness.adoptCalls[0].next, capturedBase, "the coordinator computed a real pruned training write from the (stale) base");
+    assert.equal(harness.gym.trainingState, concurrentlyAdvanced, "the concurrently-landed training mutation is NOT overwritten in memory by the refused adoption");
+    assert.match(harness.published.warning, /turnos/);
+    assert.match(harness.published.warning, /desactualiz/i, "the warning must describe the PERSISTED training ledger as stale");
+    assert.doesNotMatch(harness.published.warning, /en memoria no se modificó/i, "must not claim the in-memory sheet was simply left untouched: the durable ledger actually diverged from it");
+    assert.equal(harness.published.profileState.students.find((student) => student.id === personalizedStudent).studentType, "GENERAL", "the independent profile-journal change still committed");
+
+    // Prove the divergence at the storage layer, not just describe it: the persisted training ledger was
+    // computed from the stale `capturedBase`, so it reflects this command's own detach but never saw the
+    // concurrent admin membership, which only ever landed in live memory. A reload would restore this
+    // stale-based ledger from storage and silently lose that concurrent mutation.
+    const persistedTraining = JSON.parse(harness.memory.get(trainingKey));
+    assert.equal(
+      persistedTraining.memberships.some((membership) => membership.studentId === admin && membership.groupId === "gym-dated-group-strength"),
+      false,
+      "the concurrent mutation never reached the persisted training ledger",
+    );
+    assert.equal(
+      persistedTraining.memberships.some((membership) => membership.studentId === personalizedStudent && membership.groupId === "gym-dated-group-strength"),
+      false,
+      "this command's own detach IS reflected in the persisted training ledger",
+    );
+    assert.equal(
+      harness.gym.trainingState.memberships.some((membership) => membership.studentId === admin && membership.groupId === "gym-dated-group-strength"),
+      true,
+      "live memory still holds the concurrent mutation that the persisted ledger lost",
+    );
+
     cleanup();
   } finally { harness.restore(); }
 });
@@ -370,6 +401,31 @@ test("invoke refuses to run once the provider is no longer alive/ready, before t
 
     assert.equal(result.success, false);
     assert.deepEqual(harness.writes, [], "no coordinator call, so zero writes");
+    assert.equal(harness.adoptCalls.length, 0, "no adoption attempted");
+    assert.deepEqual(harness.published.profileState, before, "no state change");
+  } finally { harness.restore(); }
+});
+
+test("invoke re-checks isUsable() inside the queued microtask, not only at synchronous call time: cleanup landing after the call but before that microtask drains still produces zero writes, zero adoption and no state change", async () => {
+  const harness = await createHarness();
+  try {
+    const cleanup = await hydrate(harness);
+    const before = harness.published.profileState;
+    const callbacks = harness.published.commandCallbacks.get(admin);
+
+    // isUsable() is true at this exact synchronous instant, so the call is accepted and its
+    // `Promise.resolve().then(...)` microtask gets queued.
+    const pending = callbacks.editStudent(personalizedStudent, "Nunca debería aplicarse");
+    // Cleanup (unmount) runs synchronously right after, in the same tick, strictly before that queued
+    // microtask has any chance to drain: this is the exact gap the isUsable() re-check inside the
+    // then-callback must close, not merely the generation bump that cleanup's cancelPending() also does.
+    cleanup();
+
+    const result = await pending;
+    harness.render();
+
+    assert.equal(result.success, false);
+    assert.deepEqual(harness.writes, [], "the microtask never reached storage or the coordinator");
     assert.equal(harness.adoptCalls.length, 0, "no adoption attempted");
     assert.deepEqual(harness.published.profileState, before, "no state change");
   } finally { harness.restore(); }

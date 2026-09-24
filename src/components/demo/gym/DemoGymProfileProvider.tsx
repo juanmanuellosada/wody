@@ -23,8 +23,8 @@ const staffIds = [GYM_DEMO_ADMIN_ID, GYM_DEMO_PRIMARY_TEACHER_ID, GYM_DEMO_SECON
 const BUSY_WARNING = "Hay otra operación de perfiles en curso.";
 const CANCELLED_WARNING = "La operación de perfiles fue cancelada.";
 const UNAVAILABLE_WARNING = "El proveedor de perfiles ya no está disponible.";
-const TRAINING_ADOPTION_CONFLICT_WARNING =
-  "El cambio de perfil se guardó, pero hay una actualización de turnos más reciente: la ficha de turnos en memoria no se modificó.";
+const STALE_TRAINING_LEDGER_WARNING =
+  "El cambio de perfil se guardó, pero el registro de turnos guardado quedó desactualizado: se calculó antes de una actualización de turnos más reciente, así que si recargás la página vas a perder esa actualización más reciente.";
 
 export type GymDemoProfileCallbackResult = { success: true } | { success: false; error: string };
 
@@ -117,6 +117,10 @@ function createGymDemoProfileCallbackFactory(options: GymDemoProfileCallbackFact
     const entry = {} as PendingCommand;
     const promise = Promise.resolve().then(() => {
       if (operationGeneration !== generation) return { success: false, error: CANCELLED_WARNING } as const;
+      // Re-checked here, not just at invoke entry: cleanup can run in the gap between this microtask
+      // being scheduled and it actually draining, and it must not be trusted to always fall through
+      // the generation check above before this callback touches storage or the coordinator.
+      if (!options.isUsable()) return { success: false, error: UNAVAILABLE_WARNING } as const;
       // Captured fresh, in the same synchronous step the coordinator runs in: no render or mirror sync
       // sits between this read and the coordinator call, so it is always DemoGymProvider's live ledger.
       const base = options.getTrainingState();
@@ -193,11 +197,21 @@ export function DemoGymProfileProvider({ children }: { children: React.ReactNode
     if (!outcome.success) return { success: false, error: outcome.error };
     journalRef.current = outcome.journal;
     setJournal(outcome.journal);
+    if (outcome.trainingState === base) {
+      // This command produced no training-ledger write: there is nothing to adopt, and if the live ref
+      // moved since `base` was captured, that drift belongs to some unrelated mutation, not this
+      // command, so it must never be reported as a conflict here.
+      setWarning(outcome.warning);
+      return { success: true };
+    }
     const adopted = adoptTrainingState(base, outcome.trainingState);
-    // A refused adoption means DemoGymProvider's ledger moved past `base` after this command captured
-    // it: the journal/profile write above still landed, so the command itself still succeeds, but the
-    // conflict is surfaced as a warning instead of silently discarding the newer training mutation.
-    setWarning(adopted ? outcome.warning : TRAINING_ADOPTION_CONFLICT_WARNING);
+    // A refused adoption means DemoGymProvider's live ledger moved past `base` after this command
+    // captured it. The journal/profile write above still landed, so the command itself still succeeds.
+    // The coordinator already durably persisted `outcome.trainingState` (computed from the now-stale
+    // `base`) to the training storage key, so storage and memory have diverged: memory keeps the newer
+    // mutation, but a reload would restore the stale-based ledger and silently lose it. The warning must
+    // say that, not that the in-memory sheet was untouched.
+    setWarning(adopted ? outcome.warning : STALE_TRAINING_LEDGER_WARNING);
     return { success: true };
   }, [adoptTrainingState]);
 
