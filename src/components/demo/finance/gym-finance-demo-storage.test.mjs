@@ -5,7 +5,7 @@ import { createCatalogProduct, registerCatalogSale } from "./catalog-sales-state
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { registerFinanceExpense } from "./expense-demo-state.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
-import { getGymDemoActorToken, GYM_DEMO_ADMIN_ID, GYM_DEMO_SECONDARY_TEACHER_ID } from "../scenarios/gym-demo-directory.ts";
+import { getGymDemoActorToken, GYM_DEMO_ADMIN_ID, GYM_DEMO_PERSONALIZED_STUDENT_ID, GYM_DEMO_PRIMARY_TEACHER_ID, GYM_DEMO_SECONDARY_TEACHER_ID } from "../scenarios/gym-demo-directory.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { createGymFinanceDemoFixture } from "./gym-finance-demo-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
@@ -203,6 +203,8 @@ test("editable GYM student fields are still type-checked even though their value
     { assignedTeachers: [{ id: GYM_DEMO_SECONDARY_TEACHER_ID, name: "Nora Vidal", extra: true }] },
     { assignedTeachers: [{ id: 42, name: "Nora Vidal" }] },
     { assignedTeachers: [{ id: GYM_DEMO_SECONDARY_TEACHER_ID, name: 42 }] },
+    // A real, active, correctly-named profile whose role is STUDENT rather than TEACHER/ADMIN.
+    { assignedTeachers: [{ id: GYM_DEMO_PERSONALIZED_STUDENT_ID, name: "Irene Soto" }] },
   ];
   for (const patch of invalidRows) {
     const broken = clone(fixture);
@@ -210,6 +212,44 @@ test("editable GYM student fields are still type-checked even though their value
     assert.equal(isValidGymFinanceDemoState(broken), false, JSON.stringify(patch));
   }
   assert.equal(isValidGymFinanceDemoState(fixture), true);
+});
+
+test("a GYM student row rejects the same assigned teacher listed twice, even when every entry is individually valid", () => {
+  const fixture = createGymFinanceDemoFixture(anchor);
+  const duplicated = clone(fixture);
+  duplicated.students[0].assignedTeachers = [
+    { id: GYM_DEMO_PRIMARY_TEACHER_ID, name: "Tomás Ríos" },
+    { id: GYM_DEMO_PRIMARY_TEACHER_ID, name: "Tomás Ríos" },
+  ];
+  assert.equal(isValidGymFinanceDemoState(duplicated), false);
+
+  const distinct = clone(fixture);
+  distinct.students[0].assignedTeachers = [
+    { id: GYM_DEMO_PRIMARY_TEACHER_ID, name: "Tomás Ríos" },
+    { id: GYM_DEMO_SECONDARY_TEACHER_ID, name: "Nora Vidal" },
+  ];
+  assert.equal(isValidGymFinanceDemoState(distinct), true);
+});
+
+test("a GYM student's exemption reason accepts every shape the profile bridge can produce, but not a blank or untrimmed one", () => {
+  const fixture = createGymFinanceDemoFixture(anchor);
+  // setGymDemoStudentPaymentExempt never couples the flag to the reason; both combinations are reachable.
+  for (const [paymentExempt, paymentExemptReason] of [
+    [false, "Motivo retenido al desactivar la excepción"],
+    [true, null],
+    [true, "Beca de demostración"],
+    [false, null],
+  ]) {
+    const reachable = clone(fixture);
+    reachable.students[0] = { ...reachable.students[0], paymentExempt, paymentExemptReason };
+    assert.equal(isValidGymFinanceDemoState(reachable), true, JSON.stringify({ paymentExempt, paymentExemptReason }));
+  }
+  // The core always does `reason.trim() ? reason.trim() : null`, so these can never be persisted by the bridge.
+  for (const paymentExemptReason of ["", "   ", " Beca de demostración", "Beca de demostración ", "\tBeca\n"]) {
+    const unreachable = clone(fixture);
+    unreachable.students[0] = { ...unreachable.students[0], paymentExempt: true, paymentExemptReason };
+    assert.equal(isValidGymFinanceDemoState(unreachable), false, JSON.stringify(paymentExemptReason));
+  }
 });
 
 test("loads only its v1 GYM key and rejects all BOX generations without probing or changing other demo ledgers", () => {

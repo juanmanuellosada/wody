@@ -279,11 +279,16 @@ function isValidOwnedGymFinanceDemoState(value: unknown): value is GymFinanceDem
     if (typeof row.name !== "string" || !row.name.trim()) return false;
     if (!isGymFinanceStudentType(row.studentType)) return false;
     if (typeof row.canCreateOwnRoutines !== "boolean" || typeof row.paymentExempt !== "boolean" || typeof row.blocked !== "boolean") return false;
-    if (row.paymentExemptReason !== null && typeof row.paymentExemptReason !== "string") return false;
+    // The core always trims a stored reason and collapses a blank one to null; a blank/untrimmed reason cannot come from the bridge.
+    if (row.paymentExemptReason !== null
+      && (typeof row.paymentExemptReason !== "string" || !row.paymentExemptReason.trim() || row.paymentExemptReason !== row.paymentExemptReason.trim())) return false;
+    const assignedTeacherIds = new Set<string>();
     if (!row.assignedTeachers.every((teacher) => {
-      if (!isRecord(teacher) || !hasOnlyKeys(teacher, ["id", "name"]) || !isId(teacher.id) || typeof teacher.name !== "string") return false;
+      if (!isRecord(teacher) || !hasOnlyKeys(teacher, ["id", "name"]) || !isId(teacher.id) || typeof teacher.name !== "string" || assignedTeacherIds.has(teacher.id)) return false;
       const canonicalTeacher = getGymDemoProfile(teacher.id);
-      return canonicalTeacher !== null && (canonicalTeacher.role === "TEACHER" || canonicalTeacher.role === "ADMIN") && canonicalTeacher.deletedAt === null && teacher.name === canonicalTeacher.name;
+      if (canonicalTeacher === null || (canonicalTeacher.role !== "TEACHER" && canonicalTeacher.role !== "ADMIN") || canonicalTeacher.deletedAt !== null || teacher.name !== canonicalTeacher.name) return false;
+      assignedTeacherIds.add(teacher.id);
+      return true;
     })) return false;
     students.set(row.id, row);
   }
