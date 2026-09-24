@@ -110,3 +110,33 @@ test("closed state and renewal projection retain historical routines, Map orderi
   const empty = { version: 1, namespace: "demo-gym-fixed-routines/v1", fixedRoutines: [] };
   assert.deepEqual(projectGymFixedRenewals(empty, admin(), "2025-05-25"), []);
 });
+
+test("assignment context and renewal projection accept an optional display-only nameOverrides map that never changes eligibility, order, or canonical-only fields", () => {
+  const state = createGymFixedDemoFixture();
+  const current = training();
+  const baselineContext = projectGymFixedAssignmentContext(state, current, teacher());
+
+  // Omitted, explicit undefined, an empty map, and a map matching canonical names must all be byte-identical to no override.
+  assert.deepEqual(projectGymFixedAssignmentContext(state, current, teacher(), undefined), baselineContext);
+  assert.deepEqual(projectGymFixedAssignmentContext(state, current, teacher(), new Map()), baselineContext);
+  const canonicalContextOverrides = new Map([["gym-fixed-student-muslib-lite", "León Acosta"], ["gym-fixed-student-muslib", "Micaela Torres"]]);
+  assert.deepEqual(projectGymFixedAssignmentContext(state, current, teacher(), canonicalContextOverrides), baselineContext);
+
+  const editedContext = projectGymFixedAssignmentContext(state, current, teacher(), new Map([["gym-fixed-student-muslib", "Nombre Editado"]]));
+  assert.ok(editedContext.muslibStudents.some((student) => student.id === "gym-fixed-student-muslib" && student.name === "Nombre Editado"));
+  // Eligibility (which students are pickable, and their id order) and unrelated fields are untouched.
+  assert.deepEqual(editedContext.muslibStudents.map((student) => student.id), baselineContext.muslibStudents.map((student) => student.id));
+  assert.deepEqual(editedContext.muslibStudents.map((student) => student.accountKind), baselineContext.muslibStudents.map((student) => student.accountKind));
+  assert.deepEqual(editedContext.groups, baselineContext.groups);
+
+  const baselineRenewals = projectGymFixedRenewals(state, admin(), "2025-05-25");
+  assert.deepEqual(projectGymFixedRenewals(state, admin(), "2025-05-25", undefined), baselineRenewals);
+  assert.deepEqual(projectGymFixedRenewals(state, admin(), "2025-05-25", new Map()), baselineRenewals);
+  assert.deepEqual(projectGymFixedRenewals(state, admin(), "2025-05-25", new Map([["gym-fixed-student-muslib", "Micaela Torres"]])), baselineRenewals);
+  const editedRenewals = projectGymFixedRenewals(state, admin(), "2025-05-25", new Map([["gym-fixed-student-muslib", "Nombre Editado"]]));
+  assert.equal(baselineRenewals[0].studentName, "Micaela Torres");
+  assert.equal(editedRenewals[0].studentName, "Nombre Editado");
+  // Canonical-only fields (id/studentId/renewAt/overdue) are byte-identical; only the name text differs.
+  const canonicalRenewalFields = (routine) => ({ id: routine.id, studentId: routine.studentId, renewAt: routine.renewAt, overdue: routine.overdue });
+  assert.deepEqual(editedRenewals.map(canonicalRenewalFields), baselineRenewals.map(canonicalRenewalFields));
+});

@@ -387,7 +387,14 @@ export function resolveGymFixedGroupAssignment(state: unknown, actorToken: unkno
   return Object.freeze({ success: true, groupId: resolved.group.id, teacherId: resolved.group.teacherId, eligibleStudentIds: Object.freeze([...eligibleStudentIds]) });
 }
 
-export function projectGymTrainingViews(state: unknown, actorToken: unknown): GymTrainingProjection {
+/**
+ * `nameOverrides` is an optional display-only lookup (student id -> current editable name) from the
+ * profile bridge. It never affects eligibility: group/candidate membership below still resolves
+ * `studentType` from the frozen canonical directory, matching what the training storage/adapters
+ * (which have no bridge context) will re-validate on every load. Omitted, this is byte-identical to
+ * the previous canonical-only projection.
+ */
+export function projectGymTrainingViews(state: unknown, actorToken: unknown, nameOverrides?: ReadonlyMap<string, string>): GymTrainingProjection {
   const actor = resolveGymDemoActor(actorToken);
   if (!actor) return projectionFailure("No autorizado.");
   if (!isValidGymTrainingDemoState(state)) return projectionFailure("El estado de entrenamiento no es válido.");
@@ -395,7 +402,12 @@ export function projectGymTrainingViews(state: unknown, actorToken: unknown): Gy
   if (!profile) return projectionFailure("No autorizado.");
   const activeGroups = state.groups.filter((group) => group.deletedAt === null);
   const groupName = (groupId: string | null) => activeGroups.find((group) => group.id === groupId)?.name ?? null;
-  const studentName = (studentId: string | null) => studentId === null ? null : directoryProfile(studentId)?.name ?? null;
+  const displayName = (id: string, canonicalName: string) => nameOverrides?.get(id) ?? canonicalName;
+  const studentName = (studentId: string | null) => {
+    if (studentId === null) return null;
+    const canonical = directoryProfile(studentId);
+    return canonical ? displayName(studentId, canonical.name) : null;
+  };
   const ownStaffGroups = isStaff(actor)
     ? activeGroups.filter((group) => group.teacherId === actor.id).sort((left, right) => GYM_GROUP_NAME_COLLATOR.compare(left.name, right.name))
     : [];
@@ -407,8 +419,8 @@ export function projectGymTrainingViews(state: unknown, actorToken: unknown): Gy
       id: group.id,
       name: group.name,
       // Persisted memberships are projected independently from the assignment picker: an ADMIN may have assigned an unlinked PERSONALIZED student.
-      students: Object.freeze(state.memberships.filter((membership) => membership.groupId === group.id).map((membership) => directoryProfile(membership.studentId)).filter((candidate): candidate is Readonly<GymDemoProfile> => candidate !== null).map((candidate) => frozenDatedTrainingSnapshot({ id: candidate.id, name: candidate.name }))),
-      availableToAdd: Object.freeze(groupCandidates.filter((candidate) => !memberIds.has(candidate.id)).map((candidate) => frozenDatedTrainingSnapshot({ id: candidate.id, name: candidate.name }))),
+      students: Object.freeze(state.memberships.filter((membership) => membership.groupId === group.id).map((membership) => directoryProfile(membership.studentId)).filter((candidate): candidate is Readonly<GymDemoProfile> => candidate !== null).map((candidate) => frozenDatedTrainingSnapshot({ id: candidate.id, name: displayName(candidate.id, candidate.name) }))),
+      availableToAdd: Object.freeze(groupCandidates.filter((candidate) => !memberIds.has(candidate.id)).map((candidate) => frozenDatedTrainingSnapshot({ id: candidate.id, name: displayName(candidate.id, candidate.name) }))),
     };
     return Object.freeze(row);
   });
@@ -426,7 +438,7 @@ export function projectGymTrainingViews(state: unknown, actorToken: unknown): Gy
     staff: Object.freeze({
       wods: Object.freeze((isStaff(actor) ? state.wods.filter((wod) => wod.teacherId === actor.id).sort(byDatedWodDescending) : []).map((wod) => Object.freeze({ ...wod, targetGroupName: groupName(wod.targetGroupId), targetStudentName: studentName(wod.targetStudentId) }))),
       groups: Object.freeze(groupRows),
-      students: Object.freeze(linkedPersonalized.map((candidate) => frozenDatedTrainingSnapshot({ id: candidate.id, name: candidate.name }))),
+      students: Object.freeze(linkedPersonalized.map((candidate) => frozenDatedTrainingSnapshot({ id: candidate.id, name: displayName(candidate.id, candidate.name) }))),
     }),
     student: Object.freeze({ wods: Object.freeze(studentWods.sort(byDatedWodDescending)) }),
   });

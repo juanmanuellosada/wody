@@ -184,6 +184,39 @@ test("GYM staff projection preserves persisted admin-assigned members separately
   assert.ok(group?.availableToAdd.some((candidate) => candidate.id === ids.muslib), "ADMIN's current muslib picker remains independent from persisted members");
 });
 
+test("GYM projections accept an optional display-only nameOverrides map that never changes eligibility or canonical-only fields", () => {
+  const state = createGymTrainingDemoFixture();
+  const actor = token(ids.primary);
+  const baseline = projectGymTrainingViews(state, actor);
+
+  // Omitted, explicit undefined, an empty map, and a map matching canonical names must all be byte-identical to no override.
+  assert.deepEqual(projectGymTrainingViews(state, actor, undefined), baseline);
+  assert.deepEqual(projectGymTrainingViews(state, actor, new Map()), baseline);
+  const canonicalOverrides = new Map([[ids.personalized, "Irene Soto"], [ids.muslib, "Micaela Torres"]]);
+  assert.deepEqual(projectGymTrainingViews(state, actor, canonicalOverrides), baseline);
+
+  const edited = projectGymTrainingViews(state, actor, new Map([[ids.personalized, "Nombre Editado"]]));
+  assert.equal(edited.success, true);
+  const baselineGroup = baseline.staff.groups.find((candidate) => candidate.id === "gym-dated-group-strength");
+  const editedGroup = edited.staff.groups.find((candidate) => candidate.id === "gym-dated-group-strength");
+  // Display text follows the override: group roster and the WOD's direct-target name both change.
+  assert.deepEqual(editedGroup.students, [
+    { id: ids.personalized, name: "Nombre Editado" },
+    { id: ids.muslib, name: "Micaela Torres" },
+    { id: "gym-fixed-student-muslib-lite", name: "León Acosta" },
+  ]);
+  assert.deepEqual(baseline.staff.students, [{ id: ids.personalized, name: "Irene Soto" }]);
+  assert.deepEqual(edited.staff.students, [{ id: ids.personalized, name: "Nombre Editado" }]);
+  assert.equal(edited.staff.wods.find((wod) => wod.id === "gym-dated-direct")?.targetStudentName, "Nombre Editado");
+  // Eligibility (who is a member, who is still pickable) is untouched: identical id sets/order to the baseline.
+  assert.deepEqual(editedGroup.availableToAdd.map((candidate) => candidate.id), baselineGroup.availableToAdd.map((candidate) => candidate.id));
+  assert.deepEqual(edited.staff.groups.map((group) => group.id), baseline.staff.groups.map((group) => group.id));
+  // Canonical-only fields (wod id/teacherId/targetType/date/content, group id) are byte-identical; only the name text differs.
+  const canonicalWodFields = (wod) => ({ id: wod.id, title: wod.title, content: wod.content, date: wod.date, teacherId: wod.teacherId, targetType: wod.targetType, targetGroupName: wod.targetGroupName });
+  assert.deepEqual(edited.staff.wods.map(canonicalWodFields), baseline.staff.wods.map(canonicalWodFields));
+  assert.deepEqual(edited.student, baseline.student);
+});
+
 test("GYM WOD errors use gymTerms wording and production content-target-date precedence without mutation", () => {
   const state = createGymTrainingDemoFixture();
   const before = structuredClone(state);
