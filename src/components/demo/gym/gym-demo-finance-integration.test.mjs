@@ -191,7 +191,7 @@ test("GYM finance uses its isolated provider, canonical identity tokens, and no 
   }
 });
 
-test("financial presentation keeps readiness, failures, warnings, empty scope, and deferred profile controls explicit", async () => {
+test("financial presentation keeps readiness, failures, warnings, empty scope, and active profile controls explicit", async () => {
   const [fees, cash, products] = await Promise.all([
     source("src/components/demo/gym/DemoGymFeesAdapter.tsx"),
     source("src/components/demo/gym/DemoGymCashAdapter.tsx"),
@@ -199,7 +199,7 @@ test("financial presentation keeps readiness, failures, warnings, empty scope, a
   ]);
   assert.match(fees, /Preparando cuotas de demostración/);
   assert.match(fees, /No tenés alumnos asignados/);
-  assert.match(fees, /edición de perfiles, bloqueos, exenciones y asignaciones se incorporarán con el puente de perfiles/);
+  assert.match(fees, /editar el nombre, bloquear o desbloquear y marcar exenciones de pago/);
   assert.match(cash, /Preparando caja de demostración/);
   assert.match(cash, /Datos de demostración guardados solo en esta pestaña/);
   assert.match(products, /Preparando catálogo de demostración/);
@@ -212,8 +212,17 @@ test("financial presentation keeps readiness, failures, warnings, empty scope, a
  * components are mocked, while the projection module and directory are the real, unmocked
  * implementations. Captures the actual props PaymentControlView and RegisterPaymentSectionView
  * receive, so assertions are about rendered behavior, not source text.
+ *
+ * `DemoGymFeeRowActions` (also real/unmocked — it lives inside DemoGymFeesAdapter.tsx) is captured
+ * shallowly instead of invoked: once the module has loaded, the jsx implementation is swapped to
+ * intercept calls whose `type` is the module's own `DemoGymFeeRowActions` export and return
+ * `{ type: "DemoGymFeeRowActions", props }` instead of running it. This exposes exactly the props
+ * DemoGymFeesAdapter computed for each row (studentId, isAdmin, callbacks, blockedAt, ...) so the
+ * adapter's own wiring — actor-scoped callback lookup, isAdmin derivation, per-row blockedAt
+ * sourcing — can be asserted directly, the same way paymentControlProps()/registerPaymentProps()
+ * already expose PaymentControlView's/RegisterPaymentSectionView's props.
  */
-async function feesAdapterHarness({ actorId, profileStudents, financeState }) {
+async function feesAdapterHarness({ actorId, profileStudents, financeState, commandCallbacksByActor = null }) {
   const compiled = ts.transpileModule(await source("src/components/demo/gym/DemoGymFeesAdapter.tsx"), {
     compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
@@ -221,31 +230,54 @@ async function feesAdapterHarness({ actorId, profileStudents, financeState }) {
   let registerPaymentProps = null;
   const PaymentControlView = (props) => { paymentControlProps = props; return null; };
   const RegisterPaymentSectionView = (props) => { registerPaymentProps = props; return null; };
-  const jsx = (type, props) => typeof type === "function" ? type(props ?? {}) : { type, props: props ?? {} };
+  let jsxImpl = (type, props) => typeof type === "function" ? type(props ?? {}) : { type, props: props ?? {} };
+  // React's automatic JSX runtime passes the element's `key` as this third argument, separate from
+  // `props` (compiled from `jsx(Foo, {...props}, "the-key")`); captured below so the shallow
+  // DemoGymFeeRowActions interception can expose the actual React reconciliation key.
+  const jsx = (type, props, key) => jsxImpl(type, props, key);
   const actor = directory.getGymDemoProfile(actorId);
   const cancelPendingDuplicate = () => {};
   const paymentCallbacks = new Map([[actorId, Object.assign(async () => ({ success: true }), { cancelPendingDuplicate })]]);
   const gym = { ready: true, selectedActor: actor };
   const finance = { ready: true, state: financeState, today: "2030-06-03", resetEpoch: 0, warning: null, paymentCallbacks };
+  const commandCallbacks = commandCallbacksByActor ? new Map(Object.entries(commandCallbacksByActor)) : null;
   const mocks = {
     react: { useState: (initial) => [typeof initial === "function" ? initial() : initial, () => {}], useMemo: (factory) => factory() },
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: Symbol.for("fragment") },
     "@/components/payments/PaymentControlView": { PaymentControlView },
     "@/components/payments/RegisterPaymentSectionView": { RegisterPaymentSectionView },
     "@/components/StudentTypeSelectView": { StudentTypeSelectView: () => null },
+    "@/components/ui/Button": { Button: () => null },
+    "@/components/ui/ConfirmDialog": { ConfirmDialog: () => null },
+    "./DemoGymProfileEditorView": { DemoGymProfileEditorView: () => null },
     // Real, unmocked projection module: this exercises the actual profileOverrides wiring end to
     // end (both projectGymFinanceFeesData and projectGymFinancePaymentStudentSelection), not a stand-in.
     "@/components/demo/finance/gym-finance-demo-projection": gymFinanceProjection,
     "@/components/demo/scenarios/gym-demo-directory": directory,
     "./DemoGymProvider": { useDemoGym: () => gym },
     "./DemoGymFinanceProvider": { useDemoGymFinance: () => finance },
-    "./DemoGymProfileProvider": { useDemoGymProfile: () => ({ profileState: { students: profileStudents } }) },
+    "./DemoGymProfileProvider": { useDemoGymProfile: () => ({ profileState: { students: profileStudents }, commandCallbacks }) },
   };
   const commonjsModule = { exports: {} };
   const require = (specifier) => { if (!(specifier in mocks)) throw new Error(`Unexpected module: ${specifier}`); return mocks[specifier]; };
   new Function("require", "exports", "module", compiled)(require, commonjsModule.exports, commonjsModule);
+  const RowActionsRef = commonjsModule.exports.DemoGymFeeRowActions;
+  jsxImpl = (type, props, key) => {
+    if (type === RowActionsRef) return { type: "DemoGymFeeRowActions", props: props ?? {}, key };
+    return typeof type === "function" ? type(props ?? {}) : { type, props: props ?? {} };
+  };
   const element = commonjsModule.exports.DemoGymFeesAdapter();
-  return { element, paymentControlProps: () => paymentControlProps, registerPaymentProps: () => registerPaymentProps };
+  return {
+    element,
+    paymentControlProps: () => paymentControlProps,
+    registerPaymentProps: () => registerPaymentProps,
+    // Shallow row-actions props keyed by student id, straight from PaymentControlView's own
+    // rowActions prop — proves it was actually passed, not dropped.
+    rowActionsProps: (studentId) => paymentControlProps?.rowActions?.[studentId]?.props ?? null,
+    // The element's own React reconciliation key (not the object-map key, which stays row.id) —
+    // proves whether DemoGymFeesAdapter scopes it to the selected actor.
+    rowActionsKey: (studentId) => paymentControlProps?.rowActions?.[studentId]?.key ?? null,
+  };
 }
 
 test("DemoGymFeesAdapter threads the profile bridge overrides into the real Cuotas rows and the real payment picker, and they agree", async () => {
@@ -297,4 +329,81 @@ test("DemoGymFeesAdapter threads the profile bridge overrides into the real Cuot
   assert.deepEqual(untouchedRow?.blockStatus, { blocked: true, kind: "manual" });
   assert.equal(untouchedPicker?.name, "Irene Soto");
   assert.equal(untouchedPicker?.paymentExempt, false);
+});
+
+/**
+ * Proves the adapter-level wiring between DemoGymFeesAdapter and DemoGymFeeRowActions that no
+ * other test covers: the isolated DemoGymFeeRowActions tests inject props directly, and the test
+ * above stubs commandCallbacks as null and never reads the rowActions prop. Here commandCallbacks
+ * is a real, non-null Map with per-actor sentinel objects, so a wrong actor.id lookup returns a
+ * different (or absent) object instead of the expected one by reference.
+ */
+test("DemoGymFeesAdapter wires rowActions with the actor-scoped callbacks, the actor's own isAdmin, and each row's own blockedAt", async () => {
+  const profileStudents = [
+    {
+      id: directory.GYM_DEMO_GENERAL_STUDENT_ID,
+      name: "Paula Méndez",
+      studentType: "GENERAL",
+      canCreateOwnRoutines: false,
+      blockedAt: "2030-06-01T00:00:00.000Z",
+      paymentExempt: false,
+      paymentExemptReason: null,
+    },
+    {
+      id: directory.GYM_DEMO_PERSONALIZED_STUDENT_ID,
+      name: "Irene Soto",
+      studentType: "PERSONALIZED",
+      canCreateOwnRoutines: false,
+      blockedAt: null,
+      paymentExempt: false,
+      paymentExemptReason: null,
+    },
+  ];
+  const financeState = createGymFinanceDemoFixture();
+  const adminCallbacks = { marker: "admin-callbacks" };
+  const teacherCallbacks = { marker: "teacher-callbacks" };
+
+  const admin = await feesAdapterHarness({
+    actorId: directory.GYM_DEMO_ADMIN_ID, profileStudents, financeState,
+    commandCallbacksByActor: { [directory.GYM_DEMO_ADMIN_ID]: adminCallbacks, [directory.GYM_DEMO_PRIMARY_TEACHER_ID]: teacherCallbacks },
+  });
+  assert.ok(admin.paymentControlProps()?.rowActions, "rowActions must reach PaymentControlView");
+  const adminGeneralRow = admin.rowActionsProps(directory.GYM_DEMO_GENERAL_STUDENT_ID);
+  const adminPersonalizedRow = admin.rowActionsProps(directory.GYM_DEMO_PERSONALIZED_STUDENT_ID);
+  assert.equal(adminGeneralRow?.callbacks, adminCallbacks, "must select the currently selected actor's own callbacks object, not another actor's or null");
+  assert.equal(adminGeneralRow?.isAdmin, true);
+  assert.equal(adminGeneralRow?.blockedAt, "2030-06-01T00:00:00.000Z", "blockedAt must come from this row's own profile record");
+  assert.equal(adminPersonalizedRow?.blockedAt, null, "a different row must not reuse another row's blockedAt");
+
+  const teacher = await feesAdapterHarness({
+    actorId: directory.GYM_DEMO_PRIMARY_TEACHER_ID, profileStudents, financeState,
+    commandCallbacksByActor: { [directory.GYM_DEMO_ADMIN_ID]: adminCallbacks, [directory.GYM_DEMO_PRIMARY_TEACHER_ID]: teacherCallbacks },
+  });
+  const teacherGeneralRow = teacher.rowActionsProps(directory.GYM_DEMO_GENERAL_STUDENT_ID);
+  assert.equal(teacherGeneralRow?.callbacks, teacherCallbacks, "a different actor must get that actor's own callbacks object");
+  assert.equal(teacherGeneralRow?.isAdmin, false, "isAdmin must follow the selected actor's own role");
+});
+
+/**
+ * A row's local edit-modal/pending/error state (owned by DemoGymFeeRowActions) must not survive a
+ * persona switch: an editor opened as ADMIN staying open after switching to a TEACHER, or a stale
+ * error lingering on the row, is visible in the demo's primary interaction. React only discards a
+ * component's local state across a re-render when its `key` prop changes, so this proves the
+ * actual contract that guarantees that: the same student's row-action element gets a different
+ * React key under a different actor. (finance.resetEpoch is deliberately not part of this key —
+ * see the comment at its definition in DemoGymFeesAdapter.tsx.)
+ */
+test("DemoGymFeeRowActions is keyed by the selected actor, so switching actors discards its local edit/error state", async () => {
+  const financeState = createGymFinanceDemoFixture();
+  const admin = await feesAdapterHarness({ actorId: directory.GYM_DEMO_ADMIN_ID, profileStudents: [], financeState });
+  const teacher = await feesAdapterHarness({ actorId: directory.GYM_DEMO_PRIMARY_TEACHER_ID, profileStudents: [], financeState });
+
+  const studentId = directory.GYM_DEMO_GENERAL_STUDENT_ID;
+  const adminKey = admin.rowActionsKey(studentId);
+  const teacherKey = teacher.rowActionsKey(studentId);
+  assert.ok(adminKey, "the row-action element must carry a React key");
+  assert.ok(teacherKey);
+  assert.notEqual(adminKey, teacherKey, "the same student's row must get a different key under a different actor, so a persona switch remounts it and discards local edit/error state");
+  assert.equal(adminKey, `${directory.GYM_DEMO_ADMIN_ID}:${studentId}`);
+  assert.equal(teacherKey, `${directory.GYM_DEMO_PRIMARY_TEACHER_ID}:${studentId}`);
 });
