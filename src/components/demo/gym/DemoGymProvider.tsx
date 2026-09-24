@@ -61,6 +61,12 @@ type DemoGymContextValue = {
   resetDatedTraining: () => void;
   resetFixedRoutines: () => void;
   resetRms: () => void;
+  /**
+   * Adopts a training ledger already persisted by another owner (the GYM profile coordinator, after its
+   * single durable write) into this provider's in-memory state only. It never persists: a second write of
+   * the same storage key per command would race the coordinator's own write.
+   */
+  adoptTrainingState: (next: GymTrainingDemoState) => void;
   datedEpoch: number;
   fixedEpoch: number;
   rmEpoch: number;
@@ -129,6 +135,10 @@ export function DemoGymProvider({ children }: { children: React.ReactNode }) {
     const nextWarning = gymRmStorage.persist(storageRef.current, next);
     setDomainWarning("rms", nextWarning);
   }, [setDomainWarning]);
+  const adoptTrainingState = useCallback((next: GymTrainingDemoState) => {
+    trainingRef.current = next;
+    setTrainingState(next);
+  }, []);
 
   useEffect(() => {
     if (hydratedRef.current) return;
@@ -232,11 +242,12 @@ export function DemoGymProvider({ children }: { children: React.ReactNode }) {
     resetDatedTraining,
     resetFixedRoutines,
     resetRms,
+    adoptTrainingState,
     datedEpoch,
     fixedEpoch,
     rmEpoch,
     today,
-  }), [datedEpoch, fixedEpoch, fixedState, publishedFactories, ready, rmEpoch, rmsState, resetDatedTraining, resetFixedRoutines, resetRms, selectedActor, selectActor, today, trainingState, warnings]);
+  }), [adoptTrainingState, datedEpoch, fixedEpoch, fixedState, publishedFactories, ready, rmEpoch, rmsState, resetDatedTraining, resetFixedRoutines, resetRms, selectedActor, selectActor, today, trainingState, warnings]);
 
   return <DemoGymContext.Provider value={value}>{children}</DemoGymContext.Provider>;
 }
