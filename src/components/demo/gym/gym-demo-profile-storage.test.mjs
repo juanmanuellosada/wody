@@ -7,7 +7,7 @@ import {
   stageGymDemoProfileJournal,
 } from "./gym-demo-profile-journal.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
-import { GYM_DEMO_ADMIN_ID, GYM_DEMO_PERSONALIZED_STUDENT_ID } from "../scenarios/gym-demo-directory.ts";
+import { GYM_DEMO_ADMIN_ID, GYM_DEMO_MUSLIB_STUDENT_ID, GYM_DEMO_PERSONALIZED_STUDENT_ID } from "../scenarios/gym-demo-directory.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { getGymDemoProfileActorToken } from "./gym-demo-profile-core.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
@@ -94,6 +94,40 @@ test("only null is absent; blank, malformed, foreign, unknown, and invalid profi
     assert.deepEqual(recovered.journal, fixture);
     assert.notEqual(recovered.journal, fixture);
   }
+});
+
+test("a journal persisted under the pre-fix version-1 seed (nobody blocked, nobody exempt) is rejected on load and falls back to the fresh fixture, not silently resurrected", () => {
+  const fresh = createGymDemoProfileJournalFixture();
+  // Simulates exactly what a pre-fix tab would have persisted before GYM_DEMO_PROFILE_VERSION moved to
+  // 2: the same envelope shape, but the OLD embedded profile-state version and the OLD all-clear seed
+  // (blockedAt: null / paymentExempt: false for every student, including the two the new seed narrates).
+  const staleProfileState = {
+    ...fresh.profileState,
+    version: 1,
+    students: fresh.profileState.students.map((student) => ({ ...student, blockedAt: null, paymentExempt: false, paymentExemptReason: null })),
+  };
+  const staleJournal = { ...fresh, profileState: staleProfileState };
+  const raw = JSON.stringify(staleJournal);
+
+  const recovered = deserializeGymDemoProfileJournal(raw);
+  assert.equal(recovered.source, "corrupt");
+  assert.match(recovered.warning ?? "", /no es válido/i);
+  assert.equal(recovered.raw, raw);
+  assert.deepEqual(recovered.journal, fresh);
+
+  // Sanity: the fallback actually carries the CURRENT narrative seed, not just "some" valid fixture -
+  // this is what proves the regression cannot come back through a stale persisted journal.
+  const personalized = recovered.journal.profileState.students.find((student) => student.id === GYM_DEMO_PERSONALIZED_STUDENT_ID);
+  const muslib = recovered.journal.profileState.students.find((student) => student.id === GYM_DEMO_MUSLIB_STUDENT_ID);
+  assert.notEqual(personalized?.blockedAt, null);
+  assert.equal(muslib?.paymentExempt, true);
+  assert.equal(muslib?.paymentExemptReason, "Beca de demostración");
+
+  // Same rejection through the storage-reading path (loadGymDemoProfileJournal), not just deserialize.
+  const { storage } = storageSpy({ [GYM_DEMO_PROFILE_STORAGE_KEY]: raw });
+  const loaded = loadGymDemoProfileJournal(storage);
+  assert.equal(loaded.source, "corrupt");
+  assert.deepEqual(loaded.journal, fresh);
 });
 
 test("load reads exactly the owned journal key, never writes, prunes, acknowledges, or probes unrelated ledger sentinels", () => {

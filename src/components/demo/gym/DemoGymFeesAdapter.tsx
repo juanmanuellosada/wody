@@ -5,10 +5,11 @@ import { PaymentControlView } from "@/components/payments/PaymentControlView";
 import { RegisterPaymentSectionView } from "@/components/payments/RegisterPaymentSectionView";
 import { StudentTypeSelectView } from "@/components/StudentTypeSelectView";
 import type { FeeStatusFilter, FeeStudentType } from "@/components/demo/finance/fees-contract";
-import { projectGymFinanceFeesData, projectGymFinancePaymentStudentSelection } from "@/components/demo/finance/gym-finance-demo-projection";
+import { projectGymFinanceFeesData, projectGymFinancePaymentStudentSelection, type GymFinanceFeesProfileOverride } from "@/components/demo/finance/gym-finance-demo-projection";
 import { getGymDemoActorToken } from "@/components/demo/scenarios/gym-demo-directory";
 import { useDemoGym } from "./DemoGymProvider";
 import { useDemoGymFinance } from "./DemoGymFinanceProvider";
+import { useDemoGymProfile } from "./DemoGymProfileProvider";
 
 const statusKeys: FeeStatusFilter[] = ["all", "overdue", "due-soon", "ok", "exempt"];
 
@@ -16,17 +17,28 @@ const statusKeys: FeeStatusFilter[] = ["all", "overdue", "due-soon", "ok", "exem
 export function DemoGymFeesAdapter() {
   const gym = useDemoGym();
   const finance = useDemoGymFinance();
+  const { profileState } = useDemoGymProfile();
   const [activeFilter, setActiveFilter] = useState<FeeStatusFilter>("all");
   const [activeType, setActiveType] = useState<FeeStudentType | "">("");
   const actor = gym.selectedActor;
   const token = getGymDemoActorToken(actor.id);
   const callbacks = token ? finance.paymentCallbacks?.get(actor.id) ?? null : null;
+  // Display-level overlay for the three bridge-editable, Cuotas-visible attributes. Canonical-only
+  // fields (id, email, accountKind, deletedAt, memberNumber, role) are never sourced from here.
+  const profileOverrides = useMemo(() => new Map<string, GymFinanceFeesProfileOverride>(
+    profileState.students.map((student) => [student.id, {
+      name: student.name,
+      blocked: student.blockedAt !== null,
+      paymentExempt: student.paymentExempt,
+      paymentExemptReason: student.paymentExemptReason,
+    }]),
+  ), [profileState]);
   const fees = useMemo(() => token && finance.ready
-    ? projectGymFinanceFeesData(finance.state, token, finance.today, activeFilter, activeType)
-    : null, [activeFilter, activeType, finance.ready, finance.state, finance.today, token]);
+    ? projectGymFinanceFeesData(finance.state, token, finance.today, activeFilter, activeType, profileOverrides)
+    : null, [activeFilter, activeType, finance.ready, finance.state, finance.today, token, profileOverrides]);
   const paymentStudents = useMemo(() => token && finance.ready
-    ? projectGymFinancePaymentStudentSelection(finance.state, token)
-    : null, [finance.ready, finance.state, token]);
+    ? projectGymFinancePaymentStudentSelection(finance.state, token, profileOverrides)
+    : null, [finance.ready, finance.state, token, profileOverrides]);
 
   if (!finance.ready || !gym.ready || !token || !fees || !paymentStudents || actor.role === "STUDENT") return <Loading />;
   if (!fees.success || !paymentStudents.success || !callbacks) return <Failure error={!fees.success ? fees.error : !paymentStudents.success ? paymentStudents.error : "No se pudo preparar el registro de cuotas."} />;

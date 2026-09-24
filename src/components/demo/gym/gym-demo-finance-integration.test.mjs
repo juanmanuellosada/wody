@@ -4,6 +4,11 @@ import test from "node:test";
 import ts from "typescript";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { parseDemoRevenueFilters } from "../finance/revenue-demo-contract.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import * as gymFinanceProjection from "../finance/gym-finance-demo-projection.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { createGymFinanceDemoFixture } from "../finance/gym-finance-demo-fixtures.ts";
+import * as directory from "../scenarios/gym-demo-directory.ts";
 
 const root = new URL("../../../../", import.meta.url);
 const source = (path) => readFile(new URL(path, root), "utf8");
@@ -199,4 +204,97 @@ test("financial presentation keeps readiness, failures, warnings, empty scope, a
   assert.match(cash, /Datos de demostración guardados solo en esta pestaña/);
   assert.match(products, /Preparando catálogo de demostración/);
   for (const sourceText of [fees, cash, products]) assert.match(sourceText, /finance\.warning/);
+});
+
+/**
+ * Renders the real DemoGymFeesAdapter.tsx through a CJS-require-mock harness, same shape as
+ * gym-demo-provider.test.mjs's DemoGymTrainingRoute harness: only the providers and leaf view
+ * components are mocked, while the projection module and directory are the real, unmocked
+ * implementations. Captures the actual props PaymentControlView and RegisterPaymentSectionView
+ * receive, so assertions are about rendered behavior, not source text.
+ */
+async function feesAdapterHarness({ actorId, profileStudents, financeState }) {
+  const compiled = ts.transpileModule(await source("src/components/demo/gym/DemoGymFeesAdapter.tsx"), {
+    compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  let paymentControlProps = null;
+  let registerPaymentProps = null;
+  const PaymentControlView = (props) => { paymentControlProps = props; return null; };
+  const RegisterPaymentSectionView = (props) => { registerPaymentProps = props; return null; };
+  const jsx = (type, props) => typeof type === "function" ? type(props ?? {}) : { type, props: props ?? {} };
+  const actor = directory.getGymDemoProfile(actorId);
+  const cancelPendingDuplicate = () => {};
+  const paymentCallbacks = new Map([[actorId, Object.assign(async () => ({ success: true }), { cancelPendingDuplicate })]]);
+  const gym = { ready: true, selectedActor: actor };
+  const finance = { ready: true, state: financeState, today: "2030-06-03", resetEpoch: 0, warning: null, paymentCallbacks };
+  const mocks = {
+    react: { useState: (initial) => [typeof initial === "function" ? initial() : initial, () => {}], useMemo: (factory) => factory() },
+    "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: Symbol.for("fragment") },
+    "@/components/payments/PaymentControlView": { PaymentControlView },
+    "@/components/payments/RegisterPaymentSectionView": { RegisterPaymentSectionView },
+    "@/components/StudentTypeSelectView": { StudentTypeSelectView: () => null },
+    // Real, unmocked projection module: this exercises the actual profileOverrides wiring end to
+    // end (both projectGymFinanceFeesData and projectGymFinancePaymentStudentSelection), not a stand-in.
+    "@/components/demo/finance/gym-finance-demo-projection": gymFinanceProjection,
+    "@/components/demo/scenarios/gym-demo-directory": directory,
+    "./DemoGymProvider": { useDemoGym: () => gym },
+    "./DemoGymFinanceProvider": { useDemoGymFinance: () => finance },
+    "./DemoGymProfileProvider": { useDemoGymProfile: () => ({ profileState: { students: profileStudents } }) },
+  };
+  const commonjsModule = { exports: {} };
+  const require = (specifier) => { if (!(specifier in mocks)) throw new Error(`Unexpected module: ${specifier}`); return mocks[specifier]; };
+  new Function("require", "exports", "module", compiled)(require, commonjsModule.exports, commonjsModule);
+  const element = commonjsModule.exports.DemoGymFeesAdapter();
+  return { element, paymentControlProps: () => paymentControlProps, registerPaymentProps: () => registerPaymentProps };
+}
+
+test("DemoGymFeesAdapter threads the profile bridge overrides into the real Cuotas rows and the real payment picker, and they agree", async () => {
+  const editedName = "Paula Editada";
+  const editedReason = "Convenio de demostración";
+  // Only gym-fixed-student-general is overridden (name, blocked via blockedAt, exempt+reason). Every
+  // other finance student (e.g. gym-fixed-student-personalized) is deliberately absent from the
+  // profile map: it proves a partial bridge map leaves the untouched students exactly as finance has them.
+  const profileStudents = [{
+    id: directory.GYM_DEMO_GENERAL_STUDENT_ID,
+    name: editedName,
+    studentType: "GENERAL",
+    canCreateOwnRoutines: false,
+    blockedAt: "2030-06-01T00:00:00.000Z",
+    paymentExempt: true,
+    paymentExemptReason: editedReason,
+  }];
+  const financeState = createGymFinanceDemoFixture();
+  const { element, paymentControlProps, registerPaymentProps } = await feesAdapterHarness({
+    actorId: directory.GYM_DEMO_ADMIN_ID, profileStudents, financeState,
+  });
+  assert.equal(element.type, "main");
+
+  const rows = paymentControlProps()?.rows;
+  assert.ok(rows, "PaymentControlView was never rendered with rows");
+  const editedRow = rows.find((row) => row.id === directory.GYM_DEMO_GENERAL_STUDENT_ID);
+  assert.equal(editedRow?.name, editedName);
+  assert.deepEqual(editedRow?.blockStatus, { blocked: true, kind: "manual" });
+  assert.equal(editedRow?.paymentExempt, true);
+  assert.equal(editedRow?.paymentExemptReason, editedReason);
+  // The exempt override must be counted/filtered consistently, not just painted on the row.
+  // (gym-fixed-student-muslib is already exempt in the finance fixture; this adds a second.)
+  assert.equal(paymentControlProps()?.counts.exempt, 2);
+  assert.equal(paymentControlProps()?.activeFilter, "all");
+
+  const students = registerPaymentProps()?.students;
+  assert.ok(students, "RegisterPaymentSectionView was never rendered with students");
+  const pickerStudent = students.find((student) => student.id === directory.GYM_DEMO_GENERAL_STUDENT_ID);
+  // Both surfaces of the same screen must agree: this is the exact contradiction this test exists to catch.
+  assert.equal(pickerStudent?.name, editedRow?.name);
+  assert.equal(pickerStudent?.paymentExempt, editedRow?.paymentExempt);
+  assert.equal(pickerStudent?.paymentExemptReason, editedRow?.paymentExemptReason);
+
+  // A student absent from the profile map (canonically blocked in the finance fixture) stays canonical
+  // on both surfaces: the bridge does not blank or override what nobody edited.
+  const untouchedRow = rows.find((row) => row.id === directory.GYM_DEMO_PERSONALIZED_STUDENT_ID);
+  const untouchedPicker = students.find((student) => student.id === directory.GYM_DEMO_PERSONALIZED_STUDENT_ID);
+  assert.equal(untouchedRow?.name, "Irene Soto");
+  assert.deepEqual(untouchedRow?.blockStatus, { blocked: true, kind: "manual" });
+  assert.equal(untouchedPicker?.name, "Irene Soto");
+  assert.equal(untouchedPicker?.paymentExempt, false);
 });

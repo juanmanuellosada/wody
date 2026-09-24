@@ -1,7 +1,7 @@
 import type { PaymentStudent } from "@/components/payments/RegisterPaymentDialogView";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore Node's native type-stripping test runner requires explicit extensions.
-import { getFeeBlockStatus, projectFeeStudents, type FeeBlockStatus, type FeeProjection, type FeeStatusFilter, type FeeStudentType } from "./fees-contract.ts";
+import { getFeeBlockStatus, projectFeeStudents, type FeeBlockStatus, type FeeProjection, type FeeStatusFilter, type FeeStudentType, type FeeStudent } from "./fees-contract.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { isFinanceDate, suggestNextFinancePaymentDate } from "./finance-demo-state.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
@@ -29,6 +29,19 @@ export type GymFinanceFeesDataResult = ProjectionFailure | {
 export type GymFinancePaymentStudentSelectionResult = ProjectionFailure | {
   success: true;
   students: PaymentStudent[];
+};
+
+/**
+ * Display-level profile bridge overlay for the Cuotas row shape. Only these three bridge-editable
+ * attributes are represented; every other FeeStudent field (id, email, accountKind, deletedAt,
+ * memberNumber, role, nextPaymentDate, studentType, assignedTeachers) stays canonical-only and is
+ * never touched by this overlay.
+ */
+export type GymFinanceFeesProfileOverride = {
+  name: string;
+  blocked: boolean;
+  paymentExempt: boolean;
+  paymentExemptReason: string | null;
 };
 
 const NOT_AUTHORIZED = "No autorizado." as const;
@@ -98,6 +111,30 @@ function feeRows(state: GymFinanceDemoState, studentIds: ReadonlySet<string>) {
 }
 
 /**
+ * Applies the profile bridge overlay BEFORE projectFeeStudents runs, so status counts, the active
+ * filter and every rendered row agree with each other (an exempt override must be counted/filtered
+ * as exempt, not just painted that way). Omitted or empty, this is a no-op and the result is
+ * byte-identical to the un-overlaid rows. A student absent from the map is returned unchanged.
+ */
+function applyGymFinanceFeesProfileOverlay(
+  students: FeeStudent[],
+  profileOverrides: ReadonlyMap<string, GymFinanceFeesProfileOverride> | undefined,
+): FeeStudent[] {
+  if (!profileOverrides || profileOverrides.size === 0) return students;
+  return students.map((student) => {
+    const override = profileOverrides.get(student.id);
+    if (!override) return student;
+    return {
+      ...student,
+      name: override.name,
+      blocked: override.blocked,
+      paymentExempt: override.paymentExempt,
+      paymentExemptReason: override.paymentExemptReason,
+    };
+  });
+}
+
+/**
  * Safe, unmounted Cuotas projection for canonical GYM staff only.
  * `referenceDate` is an already-trusted Argentina caller date (YYYY-MM-DD),
  * matching the mounted BOX adapter's provider-supplied day rather than reading
@@ -109,12 +146,14 @@ export function projectGymFinanceFeesData(
   referenceDate: unknown,
   activeFilter: FeeStatusFilter = "all",
   activeType: FeeStudentType | "" = "",
+  profileOverrides?: ReadonlyMap<string, GymFinanceFeesProfileOverride>,
 ): GymFinanceFeesDataResult {
   const captured = captureScopedGymState(rawState, gymActorToken);
   if ("success" in captured) return captured;
   if (!isFinanceDate(referenceDate)) return { success: false, error: INVALID_REFERENCE_DATE };
 
-  const projection = projectFeeStudents(feeRows(captured.state, captured.studentIds), referenceDate, activeFilter, activeType);
+  const overlaidRows = applyGymFinanceFeesProfileOverlay(feeRows(captured.state, captured.studentIds), profileOverrides);
+  const projection = projectFeeStudents(overlaidRows, referenceDate, activeFilter, activeType);
   return {
     success: true,
     counts: { ...projection.counts },
@@ -144,11 +183,15 @@ function latestScopedPayment(state: GymFinanceDemoState, studentId: string) {
 export function projectGymFinancePaymentStudentSelection(
   rawState: unknown,
   gymActorToken: unknown,
+  profileOverrides?: ReadonlyMap<string, GymFinanceFeesProfileOverride>,
 ): GymFinancePaymentStudentSelectionResult {
   const captured = captureScopedGymState(rawState, gymActorToken);
   if ("success" in captured) return captured;
 
-  const students = feeRows(captured.state, captured.studentIds).map((student) => {
+  // Same display-only overlay as the Cuotas list, so both surfaces of the same screen agree.
+  // `id` is never overridden, so `latestScopedPayment` (keyed on canonical id) is unaffected.
+  const overlaidRows = applyGymFinanceFeesProfileOverlay(feeRows(captured.state, captured.studentIds), profileOverrides);
+  const students = overlaidRows.map((student) => {
     const latest = latestScopedPayment(captured.state, student.id);
     return {
       id: student.id,

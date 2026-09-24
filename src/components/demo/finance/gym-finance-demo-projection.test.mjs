@@ -16,6 +16,8 @@ import {
   projectGymFinanceFeesData,
   projectGymFinancePaymentStudentSelection,
 } from "./gym-finance-demo-projection.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { createGymDemoProfileFixture } from "../gym/gym-demo-profile-core.ts";
 
 const anchor = "2030-06-03";
 const admin = getGymDemoActorToken(GYM_DEMO_ADMIN_ID);
@@ -248,4 +250,189 @@ test("DTOs are detached, fresh per call, and invalid foreign student IDs are rej
     recordedById: GYM_DEMO_ADMIN_ID,
   });
   assert.deepEqual(projectGymFinancePaymentStudentSelection(foreignPayment, admin), INVALID_STATE);
+});
+
+function row(result, id) {
+  assert.equal(result.success, true);
+  return result.rows.find((candidate) => candidate.id === id);
+}
+
+test("no profile override argument leaves the projection byte-identical to before", () => {
+  const state = fixture();
+  const noArg = projectGymFinanceFeesData(state, admin, anchor, "all", "");
+  const undefinedArg = projectGymFinanceFeesData(state, admin, anchor, "all", "", undefined);
+  const emptyMap = projectGymFinanceFeesData(state, admin, anchor, "all", "", new Map());
+  assert.deepEqual(undefinedArg, noArg);
+  assert.deepEqual(emptyMap, noArg);
+});
+
+test("a bridge name override renders on the row while every canonical-only field stays sourced from finance/directory", () => {
+  const state = fixture();
+  const overrides = new Map([["gym-fixed-student-general", {
+    name: "Paula Editada",
+    blocked: false,
+    paymentExempt: false,
+    paymentExemptReason: null,
+  }]]);
+  const overridden = projectGymFinanceFeesData(state, admin, anchor, "all", "", overrides);
+  const baseline = projectGymFinanceFeesData(state, admin, anchor);
+  const overriddenRow = row(overridden, "gym-fixed-student-general");
+  const baselineRow = row(baseline, "gym-fixed-student-general");
+  assert.equal(overriddenRow.name, "Paula Editada");
+  assert.notEqual(overriddenRow.name, baselineRow.name);
+  for (const key of ["id", "email", "accountKind", "deletedAt", "studentType", "nextPaymentDate", "canCreateOwnRoutines"]) {
+    assert.deepEqual(overriddenRow[key], baselineRow[key], `canonical field ${key} must be unaffected by a name-only override`);
+  }
+  assert.deepEqual(overriddenRow.assignedTeachers, baselineRow.assignedTeachers);
+});
+
+test("a bridge blocked override drives blockStatus in both directions without moving status counts or the status filter", () => {
+  const state = fixture();
+  // gym-fixed-student-general is naturally NOT blocked (12 days overdue, well under the 45-day auto-block).
+  const forcedBlocked = projectGymFinanceFeesData(state, admin, anchor, "all", "", new Map([["gym-fixed-student-general", {
+    name: "Paula Méndez", blocked: true, paymentExempt: false, paymentExemptReason: null,
+  }]]));
+  assert.deepEqual(row(forcedBlocked, "gym-fixed-student-general").blockStatus, { blocked: true, kind: "manual" });
+  assert.deepEqual(row(forcedBlocked, "gym-fixed-student-general").status, { kind: "overdue", days: 12 });
+  assert.equal(forcedBlocked.counts.overdue, 1); // unchanged: blocked does not affect status counts/filter
+
+  // gym-fixed-student-personalized is naturally blocked=true in the fixture.
+  const forcedUnblocked = projectGymFinanceFeesData(state, admin, anchor, "all", "", new Map([["gym-fixed-student-personalized", {
+    name: "Bruno Ferreyra", blocked: false, paymentExempt: false, paymentExemptReason: null,
+  }]]));
+  assert.deepEqual(row(forcedUnblocked, "gym-fixed-student-personalized").blockStatus, { blocked: false });
+
+  // Filtering by "overdue" must still include the forced-blocked student: block state is presentational only.
+  const overdueFiltered = projectGymFinanceFeesData(state, admin, anchor, "overdue", "", new Map([["gym-fixed-student-general", {
+    name: "Paula Méndez", blocked: true, paymentExempt: false, paymentExemptReason: null,
+  }]]));
+  assert.ok(overdueFiltered.rows.some((candidate) => candidate.id === "gym-fixed-student-general"));
+});
+
+test("a bridge paymentExempt override keeps counts, the exempt/overdue filters and the row presentation all in agreement", () => {
+  const state = fixture();
+  // gym-fixed-student-general is naturally overdue (12 days) and not exempt.
+  const exemptOverride = new Map([["gym-fixed-student-general", {
+    name: "Paula Méndez", blocked: false, paymentExempt: true, paymentExemptReason: "Convenio de demostración",
+  }]]);
+  const allWithExempt = projectGymFinanceFeesData(state, admin, anchor, "all", "", exemptOverride);
+  assert.equal(allWithExempt.counts.exempt, 2); // gym-fixed-student-muslib is already exempt in the fixture
+  assert.equal(allWithExempt.counts.overdue, 0);
+  assert.equal(allWithExempt.counts.all, 5);
+  const overriddenRow = row(allWithExempt, "gym-fixed-student-general");
+  assert.equal(overriddenRow.paymentExempt, true);
+  assert.equal(overriddenRow.paymentExemptReason, "Convenio de demostración");
+  assert.equal(overriddenRow.status, null);
+
+  const exemptFiltered = projectGymFinanceFeesData(state, admin, anchor, "exempt", "", exemptOverride);
+  assert.deepEqual(exemptFiltered.rows.map((candidate) => candidate.id), ["gym-fixed-student-general", "gym-fixed-student-muslib"]);
+  const overdueFiltered = projectGymFinanceFeesData(state, admin, anchor, "overdue", "", exemptOverride);
+  assert.equal(overdueFiltered.rows.some((candidate) => candidate.id === "gym-fixed-student-general"), false);
+
+  // gym-fixed-student-muslib is naturally exempt; flipping it off must move it back into "overdue" (-30 days).
+  const unexemptOverride = new Map([["gym-fixed-student-muslib", {
+    name: "Camila Ríos", blocked: false, paymentExempt: false, paymentExemptReason: null,
+  }]]);
+  const allWithUnexempt = projectGymFinanceFeesData(state, admin, anchor, "all", "", unexemptOverride);
+  assert.equal(allWithUnexempt.counts.exempt, 0);
+  assert.equal(allWithUnexempt.counts.overdue, 2);
+  const unexemptRow = row(allWithUnexempt, "gym-fixed-student-muslib");
+  assert.deepEqual(unexemptRow.status, { kind: "overdue", days: 30 });
+  assert.equal(unexemptRow.paymentExemptReason, null);
+});
+
+test("a student absent from the profile override map keeps every finance-derived value untouched", () => {
+  const state = fixture();
+  const overrides = new Map([["gym-fixed-student-general", {
+    name: "Paula Editada", blocked: true, paymentExempt: true, paymentExemptReason: "Ajena a este alumno",
+  }]]);
+  const overridden = projectGymFinanceFeesData(state, admin, anchor, "all", "", overrides);
+  const baseline = projectGymFinanceFeesData(state, admin, anchor);
+  for (const id of ["gym-fixed-student-personalized", "gym-fixed-student-personalized-unlinked", "gym-fixed-student-muslib", "gym-fixed-student-muslib-lite"]) {
+    assert.deepEqual(row(overridden, id), row(baseline, id), `student ${id} is absent from the override map and must be untouched`);
+  }
+});
+
+function pickerStudent(result, id) {
+  assert.equal(result.success, true);
+  return result.students.find((candidate) => candidate.id === id);
+}
+
+test("no profile override argument leaves the payment picker byte-identical to before", () => {
+  const state = fixture();
+  const noArg = projectGymFinancePaymentStudentSelection(state, admin);
+  const undefinedArg = projectGymFinancePaymentStudentSelection(state, admin, undefined);
+  const emptyMap = projectGymFinancePaymentStudentSelection(state, admin, new Map());
+  assert.deepEqual(undefinedArg, noArg);
+  assert.deepEqual(emptyMap, noArg);
+});
+
+test("the same profile override map makes the Cuotas row and the payment picker agree for the same student", () => {
+  const state = fixture();
+  const overrides = new Map([["gym-fixed-student-general", {
+    name: "Paula Editada", blocked: true, paymentExempt: true, paymentExemptReason: "Convenio de demostración",
+  }]]);
+  const fees = projectGymFinanceFeesData(state, admin, anchor, "all", "", overrides);
+  const picker = projectGymFinancePaymentStudentSelection(state, admin, overrides);
+  const feesRow = row(fees, "gym-fixed-student-general");
+  const pickerRow = pickerStudent(picker, "gym-fixed-student-general");
+  assert.equal(feesRow.name, "Paula Editada");
+  assert.equal(pickerRow.name, "Paula Editada");
+  assert.equal(feesRow.name, pickerRow.name);
+  assert.equal(feesRow.paymentExempt, true);
+  assert.equal(pickerRow.paymentExempt, true);
+  assert.equal(feesRow.paymentExemptReason, pickerRow.paymentExemptReason);
+});
+
+test("the payment picker overlay leaves canonical id/suggestedNextDate/lastAmount untouched and only the override map moves it", () => {
+  let state = fixture();
+  const recorded = payment(state, "payment-picker", "gym-fixed-student-general", "500", "2030-06-02", "2030-07-02");
+  assert.equal(recorded.result.success, true);
+  state = recorded.state;
+
+  const baselinePicker = pickerStudent(projectGymFinancePaymentStudentSelection(state, admin), "gym-fixed-student-general");
+  const overrides = new Map([["gym-fixed-student-general", {
+    name: "Paula Editada", blocked: false, paymentExempt: true, paymentExemptReason: "Beca puente",
+  }]]);
+  const overriddenPicker = pickerStudent(projectGymFinancePaymentStudentSelection(state, admin, overrides), "gym-fixed-student-general");
+  assert.equal(overriddenPicker.id, baselinePicker.id);
+  assert.equal(overriddenPicker.suggestedNextDate, baselinePicker.suggestedNextDate);
+  assert.equal(overriddenPicker.lastAmount, baselinePicker.lastAmount);
+  assert.notEqual(overriddenPicker.name, baselinePicker.name);
+  assert.notEqual(overriddenPicker.paymentExempt, baselinePicker.paymentExempt);
+
+  // A student absent from the map keeps every finance-derived picker value.
+  const untouched = pickerStudent(projectGymFinancePaymentStudentSelection(state, admin, overrides), "gym-fixed-student-personalized");
+  const untouchedBaseline = pickerStudent(projectGymFinancePaymentStudentSelection(state, admin), "gym-fixed-student-personalized");
+  assert.deepEqual(untouched, untouchedBaseline);
+});
+
+/**
+ * Mirrors DemoGymFeesAdapter.tsx's profileOverrides construction EXACTLY: every student from the
+ * real, unmocked profile bridge fixture (createGymDemoProfileFixture), not a hand-picked subset.
+ * This is the map the adapter actually builds on first render, before any user edit.
+ */
+function adapterBuiltOverrideMap() {
+  const profileState = createGymDemoProfileFixture();
+  return new Map(profileState.students.map((student) => [student.id, {
+    name: student.name,
+    blocked: student.blockedAt !== null,
+    paymentExempt: student.paymentExempt,
+    paymentExemptReason: student.paymentExemptReason,
+  }]));
+}
+
+test("the full, real adapter-built override map is a no-op on first load: fees and picker projections are byte-identical to the no-overlay projection for every canonical staff token", () => {
+  const state = fixture();
+  const overrides = adapterBuiltOverrideMap();
+  assert.ok(overrides.size > 0, "the profile fixture must contain at least one student to be a meaningful test");
+  for (const token of [admin, tomas, nora]) {
+    const feesBaseline = projectGymFinanceFeesData(state, token, anchor);
+    const feesWithOverlay = projectGymFinanceFeesData(state, token, anchor, "all", "", overrides);
+    assert.deepEqual(feesWithOverlay, feesBaseline, "Cuotas projection must not change on first load with no user edit");
+
+    const pickerBaseline = projectGymFinancePaymentStudentSelection(state, token);
+    const pickerWithOverlay = projectGymFinancePaymentStudentSelection(state, token, overrides);
+    assert.deepEqual(pickerWithOverlay, pickerBaseline, "payment picker must not change on first load with no user edit");
+  }
 });

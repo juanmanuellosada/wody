@@ -1,11 +1,15 @@
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
-import { getGymDemoActorToken, getGymDemoProfiles, getGymDemoTeacherStudentLinks, resolveGymDemoActor } from "../scenarios/gym-demo-directory.ts";
+import { GYM_DEMO_MUSLIB_STUDENT_ID, GYM_DEMO_PERSONALIZED_STUDENT_ID, getGymDemoActorToken, getGymDemoProfiles, getGymDemoTeacherStudentLinks, resolveGymDemoActor } from "../scenarios/gym-demo-directory.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { snapshotDemoStorageValue } from "../training/demo-storage-snapshot.ts";
 
 /** Reserved persistence namespace. Storage/recovery deliberately belong to a later unit. */
 export const GYM_DEMO_PROFILE_NAMESPACE = "wody-gym-profiles-demo";
-export const GYM_DEMO_PROFILE_VERSION = 1;
+// Bumped 1 -> 2: the initial narrative seed changed (blockedAt/paymentExempt for two students are no
+// longer all-null/all-false). A profile state persisted under version 1 still carries the stale
+// all-clear seed and must fail validation on load, falling back to the fresh fixture, rather than
+// silently resurrecting the pre-fix regression through persisted state.
+export const GYM_DEMO_PROFILE_VERSION = 2;
 
 export type GymDemoProfileStudentType = "GENERAL" | "PERSONALIZED" | "MUSCULACION_LIBRE";
 export type GymDemoProfileStudent = {
@@ -113,8 +117,27 @@ export function isValidGymDemoProfileState(value: unknown): value is GymDemoProf
   return getValidatedGymDemoProfileState(value) !== null;
 }
 
-/** Fresh mutable metadata and links derived solely from the canonical GYM directory. */
+/**
+ * Fresh mutable metadata and links derived solely from the canonical GYM directory.
+ *
+ * blockedAt/paymentExempt live in this bridge, not in finance, so this is the authority for the
+ * demo's initial narrative state on those two fields. It must therefore seed the SAME initial
+ * state the GYM finance fixture (gym-finance-demo-fixtures.ts) hardcodes as literals for the same
+ * two students, or the finance-Cuotas overlay silently overwrites that narrative on first render,
+ * before any user edit: gym-fixed-student-personalized (GYM_DEMO_PERSONALIZED_STUDENT_ID, "Irene
+ * Soto") is blocked, and gym-fixed-student-muslib (GYM_DEMO_MUSLIB_STUDENT_ID, "Micaela Torres") is
+ * payment-exempt with reason "Beca de demostración". The finance fixture's own reason literal is a
+ * separate spelling that still must match this one by hand: the two fixtures live in isolated
+ * modules by design (finance must not depend on the profile bridge, and this bridge must not depend
+ * on finance), so a single shared constant would require a new shared module neither fixture
+ * currently has, which is out of scope for this fix.
+ */
 export function createGymDemoProfileFixture(): GymDemoProfileState {
+  // Canonical UTC ISO per gym-demo-profile-journal.ts's isCanonicalUtcIso (new Date(v).toISOString() === v);
+  // same day as GYM_FINANCE_DEMO_DEFAULT_ANCHOR ("2030-06-03"), noon UTC = morning in Argentina (UTC-3).
+  const NARRATIVE_BLOCKED_AT = "2030-06-03T12:00:00.000Z";
+  // Must match gym-finance-demo-fixtures.ts's own literal for GYM_DEMO_MUSLIB_STUDENT_ID's exempt reason.
+  const NARRATIVE_EXEMPT_REASON = "Beca de demostración";
   const state: GymDemoProfileState = {
     namespace: GYM_DEMO_PROFILE_NAMESPACE,
     version: GYM_DEMO_PROFILE_VERSION,
@@ -123,9 +146,9 @@ export function createGymDemoProfileFixture(): GymDemoProfileState {
       name: profile.name,
       studentType: profile.studentType as GymDemoProfileStudentType,
       canCreateOwnRoutines: profile.canCreateOwnRoutines,
-      blockedAt: null,
-      paymentExempt: false,
-      paymentExemptReason: null,
+      blockedAt: profile.id === GYM_DEMO_PERSONALIZED_STUDENT_ID ? NARRATIVE_BLOCKED_AT : null,
+      paymentExempt: profile.id === GYM_DEMO_MUSLIB_STUDENT_ID,
+      paymentExemptReason: profile.id === GYM_DEMO_MUSLIB_STUDENT_ID ? NARRATIVE_EXEMPT_REASON : null,
     })),
     links: getGymDemoTeacherStudentLinks().map((link) => ({ ...link })),
   };
