@@ -94,7 +94,7 @@ test("teacher projection cannot expose foreign fictional students while reducer 
   assert.equal(picker.find((student) => student.id === "fee-student-camila")?.lastAmount, null);
 });
 
-test("Caja shell keeps production action slots and static exports retain prior pages plus named admin access routes", async () => {
+test("Caja shell keeps production action slots and static exports retain bounded demo pages plus named admin access routes", async () => {
   const [shell, production, navbar, overview, previewLayout, rootKiosk, rootHistory, previewKiosk, previewHistory, rootPages, previewPages] = await Promise.all([
     source("src/components/caja/CajaShell.tsx"),
     source("src/app/[gymSlug]/caja/page.tsx"),
@@ -125,6 +125,6 @@ test("Caja shell keeps production action slots and static exports retain prior p
   for (const page of [rootKiosk, previewKiosk]) assert.match(page, /DemoAccessKiosk/);
   for (const page of [rootHistory, previewHistory]) assert.match(page, /DemoAccessHistory/);
   assert.doesNotMatch(previewLayout, /\/demo\/(teacher|student)\/ingresos/);
-  assert.equal(rootPages, 31, "the existing 19 BOX pages, five PERSONAL student pages, and seven GYM pages retain the bounded demo inventory");
-  assert.equal(previewPages, 31, "the existing 19 Preview BOX pages, five PERSONAL student pages, and seven GYM pages retain the bounded demo inventory");
+  assert.equal(rootPages, 36, "the existing 19 BOX pages, five PERSONAL student pages, and twelve GYM pages retain the bounded demo inventory");
+  assert.equal(previewPages, 36, "the existing 19 Preview BOX pages, five PERSONAL student pages, and twelve GYM pages retain the bounded demo inventory");
 });

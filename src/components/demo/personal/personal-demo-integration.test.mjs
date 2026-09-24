@@ -129,7 +129,7 @@ test("RM new-form initialization uses Argentina today and preserves supplied dat
   }
 });
 
-test("root and Preview retain 19 BOX demo pages and add exactly five PERSONAL student routes", async () => {
+test("root and Preview retain 19 BOX demo pages, five PERSONAL routes, and twelve GYM routes", async () => {
   const [rootCount, previewCount, rootHub, previewHub, navbar, previewLayout] = await Promise.all([
     pageCount("src/app/demo"),
     pageCount("preview/landing/app/demo"),
@@ -138,8 +138,8 @@ test("root and Preview retain 19 BOX demo pages and add exactly five PERSONAL st
     source("src/components/DemoNavbar.tsx"),
     source("preview/landing/app/demo/layout.tsx"),
   ]);
-  assert.equal(rootCount, 31);
-  assert.equal(previewCount, 31);
+  assert.equal(rootCount, 36);
+  assert.equal(previewCount, 36);
   assert.match(rootHub, /DemoTrainingOverview/);
   assert.match(previewHub, /DemoTrainingOverview/);
   for (const href of ["/demo/personal/student", "/demo/personal/student/rms", "/demo/personal/student/timers", "/demo/personal/student/beneficios", "/demo/personal/student/suscripcion"]) {

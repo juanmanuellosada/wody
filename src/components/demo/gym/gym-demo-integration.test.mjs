@@ -39,9 +39,17 @@ const routes = [
   ["student/wod/page.tsx", "gym-student-wod", "STUDENT", "student-wod"],
 ];
 
-test("GYM adds the bounded seven-route inventory to root and Preview", async () => {
-  assert.equal(await pageCount("src/app/demo"), 31);
-  assert.equal(await pageCount("preview/landing/app/demo"), 31);
+const financeRoutes = [
+  ["admin/pagos/page.tsx", "gym-admin-pagos", "ADMIN", "fees"],
+  ["admin/caja/page.tsx", "gym-admin-caja", "ADMIN", "cash"],
+  ["admin/productos/page.tsx", "gym-admin-productos", "ADMIN", "products"],
+  ["teacher/pagos/page.tsx", "gym-teacher-pagos", "TEACHER", "fees"],
+  ["teacher/caja/page.tsx", "gym-teacher-caja", "TEACHER", "cash"],
+];
+
+test("GYM adds the bounded twelve-route inventory to root and Preview", async () => {
+  assert.equal(await pageCount("src/app/demo"), 36);
+  assert.equal(await pageCount("preview/landing/app/demo"), 36);
   for (const [leaf, key, role, screen] of routes) {
     const [rootPage, previewPage] = await Promise.all([
       source(`src/app/demo/gym/${leaf}`), source(`preview/landing/app/demo/gym/${leaf}`),
@@ -51,6 +59,18 @@ test("GYM adds the bounded seven-route inventory to root and Preview", async () 
       assert.match(page, new RegExp(`routeKey="${key}"`));
       assert.match(page, new RegExp(`routeRole="${role}"`));
       assert.match(page, new RegExp(`screen="${screen}"`));
+    }
+  }
+  for (const [leaf, key, role, screen] of financeRoutes) {
+    const [rootPage, previewPage] = await Promise.all([
+      source(`src/app/demo/gym/${leaf}`), source(`preview/landing/app/demo/gym/${leaf}`),
+    ]);
+    for (const page of [rootPage, previewPage]) {
+      assert.match(page, /SharedDemoGymFinanceRoute/);
+      assert.match(page, new RegExp(`routeKey="${key}"`));
+      assert.match(page, new RegExp(`routeRole="${role}"`));
+      assert.match(page, new RegExp(`screen="${screen}"`));
+      assert.match(page, /gym-fixed-(admin|teacher-linked)/);
     }
   }
 });
@@ -71,6 +91,7 @@ test("trailing-slash hub uses the actual scenario branch and contains the GYM li
     "@/components/demo/personal/DemoPersonalProvider": { DemoPersonalProvider: personalProvider },
     "@/components/demo/training/DemoTrainingProvider": { DemoTrainingProvider: boxProvider },
     "@/components/demo/gym/DemoGymProvider": { DemoGymProvider: gymProvider },
+    "@/components/demo/gym/DemoGymFinanceProvider": { DemoGymFinanceProvider: gymProvider },
   });
   const expected = new Map([
     ["/demo", "BOX"], ["/demo/", "BOX"], ["/demo/admin/", "BOX"], ["/demo/teacher/rms/", "BOX"], ["/demo/student/wod/", "BOX"],
@@ -82,7 +103,8 @@ test("trailing-slash hub uses the actual scenario branch and contains the GYM li
   pathname = "/demo/gym/admin/";
   const gymTree = scenarios.DemoScenarioProviders({ children: "gym" });
   assert.equal(gymTree.type, gymProvider);
-  assert.equal(gymTree.props.children[0].type, navbar);
+  assert.equal(gymTree.props.children.type, gymProvider);
+  assert.equal(gymTree.props.children.props.children[0].type, navbar);
   pathname = null;
   assert.equal(scenarios.DemoScenarioProviders({ children: "none" }), null);
 
@@ -128,8 +150,9 @@ test("GYM is pathname-gated, has its three ledgers, and preserves other scenario
   assert.match(scenarios, /pathname === "\/demo\/gym" \|\| pathname\.startsWith\("\/demo\/gym\/"\)/);
   assert.match(scenarios, /pathname === "\/demo\/admin"[\s\S]*pathname\.startsWith\("\/demo\/student\/"\)[\s\S]*return "BOX"/);
   assert.match(scenarios, /if \(scenario === null\) return null/);
-  assert.match(scenarios, /<DemoGymProvider><DemoNavbar scenario="GYM" \/>\{children\}<\/DemoGymProvider>/);
+  assert.match(scenarios, /<DemoGymProvider><DemoGymFinanceProvider><DemoNavbar scenario="GYM" \/>\{children\}<\/DemoGymFinanceProvider><\/DemoGymProvider>/);
   assert.match(navbar, /gymRoleLinks/);
   assert.match(layout, /"\/demo\/student\/wod"/);
   for (const route of routes) assert.match(layout, new RegExp(`"/demo/gym/${route[0].replace("/page.tsx", "")}"`.replace("/admin/rms", "/admin/rms").replace("/teacher/rms", "/teacher/rms").replace("/student/rms", "/student/rms").replace("/student/wod", "/student/wod").replace("/admin", "/admin").replace("/teacher", "/teacher").replace("/student", "/student")));
+  for (const route of financeRoutes) assert.match(layout, new RegExp(`"/demo/gym/${route[0].replace("/page.tsx", "")}"`));
 });

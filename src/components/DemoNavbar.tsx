@@ -35,8 +35,19 @@ const roleLinks = {
 };
 
 const gymRoleLinks = {
-  admin: [{ href: "/demo/gym/admin", label: "Entrenamiento" }, { href: "/demo/gym/admin/rms", label: "Mis PRs" }],
-  teacher: [{ href: "/demo/gym/teacher", label: "Mis rutinas" }, { href: "/demo/gym/teacher/rms", label: "Mis PRs" }],
+  admin: [
+    { href: "/demo/gym/admin", label: "Entrenamiento" },
+    { href: "/demo/gym/admin/pagos", label: "Cuotas" },
+    { href: "/demo/gym/admin/caja", label: "Caja" },
+    { href: "/demo/gym/admin/productos", label: "Productos" },
+    { href: "/demo/gym/admin/rms", label: "Mis PRs" },
+  ],
+  teacher: [
+    { href: "/demo/gym/teacher", label: "Mis rutinas" },
+    { href: "/demo/gym/teacher/pagos", label: "Cuotas" },
+    { href: "/demo/gym/teacher/caja", label: "Caja" },
+    { href: "/demo/gym/teacher/rms", label: "Mis PRs" },
+  ],
   student: [{ href: "/demo/gym/student", label: "Mi rutina" }, { href: "/demo/gym/student/rms", label: "Mis PRs" }],
 };
 
