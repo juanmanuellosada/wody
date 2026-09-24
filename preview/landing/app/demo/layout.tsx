@@ -23,6 +23,8 @@ const supportedRoutes = [
   "/demo/student/beneficios",
   "/demo/personal/student",
   "/demo/personal/student/rms",
+  "/demo/personal/student/timers",
+  "/demo/personal/student/beneficios",
   "/demo/personal/student/suscripcion",
   "/demo/gym/admin",
   "/demo/gym/admin/rms",

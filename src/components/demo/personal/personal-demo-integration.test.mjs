@@ -81,6 +81,8 @@ async function pageCount(directory) {
 const personalPages = [
   ["personal/student/page.tsx", "DemoPersonalTrainingRoute"],
   ["personal/student/rms/page.tsx", "DemoPersonalRms"],
+  ["personal/student/timers/page.tsx", "TimersClient"],
+  ["personal/student/beneficios/page.tsx", "DemoBeneficiosView"],
   ["personal/student/suscripcion/page.tsx", "DemoPersonalBilling"],
 ];
 
@@ -127,7 +129,7 @@ test("RM new-form initialization uses Argentina today and preserves supplied dat
   }
 });
 
-test("root and Preview retain 19 BOX demo pages and add exactly three PERSONAL student routes", async () => {
+test("root and Preview retain 19 BOX demo pages and add exactly five PERSONAL student routes", async () => {
   const [rootCount, previewCount, rootHub, previewHub, navbar, previewLayout] = await Promise.all([
     pageCount("src/app/demo"),
     pageCount("preview/landing/app/demo"),
@@ -136,11 +138,11 @@ test("root and Preview retain 19 BOX demo pages and add exactly three PERSONAL s
     source("src/components/DemoNavbar.tsx"),
     source("preview/landing/app/demo/layout.tsx"),
   ]);
-  assert.equal(rootCount, 29);
-  assert.equal(previewCount, 29);
+  assert.equal(rootCount, 31);
+  assert.equal(previewCount, 31);
   assert.match(rootHub, /DemoTrainingOverview/);
   assert.match(previewHub, /DemoTrainingOverview/);
-  for (const href of ["/demo/personal/student", "/demo/personal/student/rms", "/demo/personal/student/suscripcion"]) {
+  for (const href of ["/demo/personal/student", "/demo/personal/student/rms", "/demo/personal/student/timers", "/demo/personal/student/beneficios", "/demo/personal/student/suscripcion"]) {
     assert.match(navbar, new RegExp(`href: "${href}"`));
     assert.match(previewLayout, new RegExp(`"${href}"`));
   }

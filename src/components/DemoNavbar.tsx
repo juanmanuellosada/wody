@@ -43,6 +43,8 @@ const gymRoleLinks = {
 const personalLinks = [
   { href: "/demo/personal/student", label: "Mis rutinas" },
   { href: "/demo/personal/student/rms", label: "Mis PRs" },
+  { href: "/demo/personal/student/timers", label: "Cronómetros" },
+  { href: "/demo/personal/student/beneficios", label: "Beneficios" },
   { href: "/demo/personal/student/suscripcion", label: "Suscripción" },
 ];
 

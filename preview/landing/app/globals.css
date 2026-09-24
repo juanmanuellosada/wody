@@ -9,6 +9,7 @@
 @source "../../../src/components/demo/finance";
 @source "../../../src/components/demo/access";
 @source "../../../src/components/demo/personal";
+@source "../../../src/components/timers";
 @source "../../../src/components/demo/gym";
 @source "../../../src/components/access/AccessKioskView.tsx";
 @source "../../../src/components/access/AccessHistoryTable.tsx";
