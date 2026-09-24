@@ -104,7 +104,7 @@ test("controlled route rejects malformed MUSLIB fixed state without hiding it as
   let gym;
   const jsx = (type, props) => typeof type === "function" ? type(props ?? {}) : { type, props: props ?? {} };
   const mocks = {
-    react: { useEffect: () => {}, useRef: (value) => ({ current: value }), useState: (value) => [value, () => {}] },
+    react: { useEffect: () => {}, useRef: (value) => ({ current: value }), useState: (value) => [value, () => {}], useMemo: (factory) => factory() },
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: Symbol.for("fragment") },
     "@/components/RmsView": { RmsView: () => null },
     "@/components/fixed-routine/FixedRoutineManagerView": { FixedRoutineManagerView: () => null },
@@ -121,6 +121,7 @@ test("controlled route rejects malformed MUSLIB fixed state without hiding it as
     "@/components/demo/training/gym-training-demo-state": trainingState,
     "@/components/demo/scenarios/gym-demo-directory": directory,
     "./DemoGymProvider": { defaultActorId: () => directory.GYM_DEMO_ADMIN_ID, useDemoGym: () => gym },
+    "./DemoGymProfileProvider": { useDemoGymProfile: () => ({ profileState: { students: [] } }) },
   };
   const commonjsModule = { exports: {} };
   const require = (specifier) => { if (!(specifier in mocks)) throw new Error(`Unexpected module: ${specifier}`); return mocks[specifier]; };
@@ -206,6 +207,82 @@ test("controlled route rejects malformed MUSLIB fixed state without hiding it as
     assert.equal(result.type, "main");
     assert.equal(findNode(result, (node) => node.type === "p" && node.props.role === "alert"), null);
   }
+});
+
+test("controlled route threads the profile bridge's name overrides into all three training projections, and a partial map blanks nobody", async () => {
+  const compiled = ts.transpileModule(await source("src/components/demo/gym/DemoGymTrainingRoute.tsx"), {
+    compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  let groupManagerProps = null;
+  let fixedRoutineManagerProps = null;
+  const GroupManagerView = (props) => { groupManagerProps = props; return null; };
+  const FixedRoutineManagerView = (props) => { fixedRoutineManagerProps = props; return null; };
+  const jsx = (type, props) => typeof type === "function" ? type(props ?? {}) : { type, props: props ?? {} };
+  // Only gym-fixed-student-muslib is overridden. gym-fixed-student-muslib-lite (also visible at both the
+  // training-groups and fixed-assignment call sites below) is deliberately absent from the map: it proves a
+  // partial map falls back to the canonical name instead of blanking a student nobody edited.
+  const editedName = "Micaela Editada";
+  const teacherId = directory.GYM_DEMO_PRIMARY_TEACHER_ID;
+  const gym = {
+    ready: true, warning: null,
+    trainingState: trainingFixtures.createGymTrainingDemoFixture(),
+    fixedState: fixedFixtures.createGymFixedDemoFixture(),
+    rmsState: rmCore.createDemoRmCore({ kind: "GYM", ownerIds: [] }).emptyState(),
+    selectedActor: directory.getGymDemoProfile(teacherId),
+    actorsForRole: () => [], selectActor: () => {},
+    trainingCallbacks: {}, fixedCallbacks: {}, rmCallbacks: null,
+    rmProjection: { success: true, rms: [] },
+    resetDatedTraining: () => {}, resetFixedRoutines: () => {}, resetRms: () => {},
+    datedEpoch: 0, fixedEpoch: 0, rmEpoch: 0,
+    // Within 7 days of gym-fixed-active's 2025-05-30 renewAt, and not overdue: matches the pure-module fixture test.
+    today: "2025-05-25",
+  };
+  const mocks = {
+    react: { useEffect: () => {}, useRef: (value) => ({ current: value }), useState: (value) => [value, () => {}], useMemo: (factory) => factory() },
+    "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: Symbol.for("fragment") },
+    "@/components/RmsView": { RmsView: () => null },
+    "@/components/fixed-routine/FixedRoutineManagerView": { FixedRoutineManagerView },
+    "@/components/fixed-routine/FixedRoutineStudentView": { FixedRoutineStudentView: () => null },
+    "@/components/group/GroupManagerView": { GroupManagerView },
+    "@/components/wod/ShareWodButton": { ShareWodButton: () => null },
+    "@/components/wod/StudentWodDetailView": { StudentWodDetailView: () => null },
+    "@/components/wod/WodCard": { WodCard: () => null },
+    "@/components/wod/WodHistory": { WodHistory: () => null },
+    "@/components/wod/WodManagerView": { WodManagerView: () => null },
+    "@/lib/gym-terms": { gymTerms: () => ({ wod: "Rutina", wods: "Rutinas" }) },
+    "./gym-demo-view-model": gymViewModel,
+    // Real, unmocked pure projections: this exercises the actual nameOverrides wiring end to end, not a stand-in.
+    "@/components/demo/training/gym-fixed-demo-state": fixedState,
+    "@/components/demo/training/gym-training-demo-state": trainingState,
+    "@/components/demo/scenarios/gym-demo-directory": directory,
+    "./DemoGymProvider": { defaultActorId: () => teacherId, useDemoGym: () => gym },
+    "./DemoGymProfileProvider": {
+      useDemoGymProfile: () => ({ profileState: { students: [{ id: directory.GYM_DEMO_MUSLIB_STUDENT_ID, name: editedName }] } }),
+    },
+  };
+  const commonjsModule = { exports: {} };
+  const require = (specifier) => { if (!(specifier in mocks)) throw new Error(`Unexpected module: ${specifier}`); return mocks[specifier]; };
+  new Function("require", "exports", "module", compiled)(require, commonjsModule.exports, commonjsModule);
+  commonjsModule.exports.SharedDemoGymTrainingRoute({ routeKey: "profile-bridge-test", routeRole: "TEACHER", routeActorId: teacherId, screen: "staff" });
+
+  // Call site 1: projectGymTrainingViews -> GroupManagerView's group roster (gym-dated-group-strength has
+  // both students as members). Would still pass with an empty/unused override map, a map keyed by the wrong
+  // field, or a dropped fourth argument: every assertion below would fail in exactly that case.
+  assert.ok(groupManagerProps, "GroupManagerView was never rendered");
+  const group = groupManagerProps.groups.find((candidate) => candidate.id === "gym-dated-group-strength");
+  assert.equal(group?.students.find((student) => student.id === directory.GYM_DEMO_MUSLIB_STUDENT_ID)?.name, editedName);
+  assert.equal(group?.students.find((student) => student.id === directory.GYM_DEMO_HISTORICAL_MUSLIB_LITE_STUDENT_ID)?.name, "León Acosta");
+
+  // Call site 2: projectGymFixedAssignmentContext -> FixedRoutineManagerView's muslibStudents picker.
+  assert.ok(fixedRoutineManagerProps, "FixedRoutineManagerView was never rendered");
+  const muslib = fixedRoutineManagerProps.muslibStudents.find((student) => student.id === directory.GYM_DEMO_MUSLIB_STUDENT_ID);
+  const muslibLite = fixedRoutineManagerProps.muslibStudents.find((student) => student.id === directory.GYM_DEMO_HISTORICAL_MUSLIB_LITE_STUDENT_ID);
+  assert.equal(muslib?.name, editedName);
+  assert.equal(muslibLite?.name, "León Acosta");
+
+  // Call site 3: projectGymFixedRenewals -> FixedRoutineManagerView's renewalRoutines list.
+  const renewal = fixedRoutineManagerProps.renewalRoutines.find((routine) => routine.studentId === directory.GYM_DEMO_MUSLIB_STUDENT_ID);
+  assert.equal(renewal?.studentName, editedName);
 });
 
 test("controlled provider effects restart after pre-hydration cleanup without writes", async () => {

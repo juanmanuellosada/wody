@@ -402,7 +402,8 @@ export function projectGymTrainingViews(state: unknown, actorToken: unknown, nam
   if (!profile) return projectionFailure("No autorizado.");
   const activeGroups = state.groups.filter((group) => group.deletedAt === null);
   const groupName = (groupId: string | null) => activeGroups.find((group) => group.id === groupId)?.name ?? null;
-  const displayName = (id: string, canonicalName: string) => nameOverrides?.get(id) ?? canonicalName;
+  // A blank or whitespace-only override is not a display name; the canonical name is used instead.
+  const displayName = (id: string, canonicalName: string) => { const override = nameOverrides?.get(id); return override !== undefined && override.trim() !== "" ? override : canonicalName; };
   const studentName = (studentId: string | null) => {
     if (studentId === null) return null;
     const canonical = directoryProfile(studentId);

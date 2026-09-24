@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RmsView } from "@/components/RmsView";
 import { FixedRoutineManagerView } from "@/components/fixed-routine/FixedRoutineManagerView";
 import { FixedRoutineStudentView } from "@/components/fixed-routine/FixedRoutineStudentView";
@@ -19,6 +19,7 @@ import type { GymFixedDemoAssignmentContext, GymFixedDemoRenewalDto } from "@/co
 import type { GymTrainingProjection } from "@/components/demo/training/gym-training-demo-types";
 import { getGymDemoActorToken, getGymDemoProfile } from "@/components/demo/scenarios/gym-demo-directory";
 import { defaultActorId, useDemoGym, type DemoGymScreenRole } from "./DemoGymProvider";
+import { useDemoGymProfile } from "./DemoGymProfileProvider";
 
 export type DemoGymTrainingScreen = "staff" | "rms" | "student" | "student-wod";
 type Props = { routeKey: string; routeRole: DemoGymScreenRole; routeActorId: string; screen: DemoGymTrainingScreen };
@@ -63,12 +64,13 @@ export function SharedDemoGymTrainingRoute({ routeKey, routeRole, routeActorId, 
 
 function PersonaSelector({ role, selectedId, onSelect }: { role: DemoGymScreenRole; selectedId: string; onSelect: (actorId: string) => void }) {
   const { actorsForRole } = useDemoGym();
+  const nameOverrides = useGymNameOverrides();
   const people = actorsForRole(role);
   return (
     <label className="self-start text-xs font-heading font-bold uppercase tracking-[0.12em] text-gray-500">
       Persona de demostración
       <select value={selectedId} onChange={(event) => onSelect(event.target.value)} className="ml-3 bg-panel border border-edge px-2 py-1 text-white normal-case tracking-normal">
-        {people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+        {people.map((person) => <option key={person.id} value={person.id}>{nameOverrides.get(person.id) ?? person.name}</option>)}
       </select>
     </label>
   );
@@ -104,9 +106,11 @@ function StaffScreen() {
 
 function RmsScreen() {
   const gym = useDemoGym();
+  const nameOverrides = useGymNameOverrides();
   const rms = gym.rmProjection.success ? mapGymRms(gym.rmProjection.rms) : gym.rmProjection;
   if (!rms.success || !gym.rmCallbacks) return <ProjectionError error={rms.success ? "No se pudieron preparar los PRs." : rms.error} />;
-  return <div key={gym.rmEpoch} className="flex flex-col gap-6"><RmsView rms={rms.value} athleteName={gym.selectedActor.name} gymName={gymName} gymSlug={gymSlug} terms={terms} onCreateRm={gym.rmCallbacks.onCreateRm} onUpdateRm={gym.rmCallbacks.onUpdateRm} onDeleteRm={gym.rmCallbacks.onDeleteRm} /><button type="button" onClick={gym.resetRms} className="self-start text-xs font-heading font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-white">Restablecer PRs</button></div>;
+  const athleteName = nameOverrides.get(gym.selectedActor.id) ?? gym.selectedActor.name;
+  return <div key={gym.rmEpoch} className="flex flex-col gap-6"><RmsView rms={rms.value} athleteName={athleteName} gymName={gymName} gymSlug={gymSlug} terms={terms} onCreateRm={gym.rmCallbacks.onCreateRm} onUpdateRm={gym.rmCallbacks.onUpdateRm} onDeleteRm={gym.rmCallbacks.onDeleteRm} /><button type="button" onClick={gym.resetRms} className="self-start text-xs font-heading font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-white">Restablecer PRs</button></div>;
 }
 
 function StudentScreen({ selectedWodId, setSelectedWodId }: { selectedWodId: string | null; setSelectedWodId: (id: string | null) => void }) {
@@ -148,16 +152,26 @@ function StudentWodHome({ wods, onSelect }: { wods: import("./gym-demo-view-mode
 type GymTrainingSuccess = Extract<GymTrainingProjection, { success: true }>;
 type GymRouteProjection = { success: true; staff: GymTrainingSuccess["staff"]; student: GymTrainingSuccess["student"]; fixed?: { assignment: GymFixedDemoAssignmentContext; renewals: GymFixedDemoRenewalDto[] }; fixedStudent?: ReturnType<typeof projectGymFixedStudentRoutineSafe> } | { success: false; error: string };
 
+/**
+ * Display-only student id -> current editable name, from the profile bridge. Eligibility and
+ * canonical-only fields stay on the frozen directory everywhere this map is passed downstream.
+ */
+function useGymNameOverrides(): ReadonlyMap<string, string> {
+  const { profileState } = useDemoGymProfile();
+  return useMemo(() => new Map(profileState.students.map((student) => [student.id, student.name])), [profileState]);
+}
+
 function useGymProjection(actorId: string, includeStaffFixed: boolean, includeStudentFixed = false): GymRouteProjection {
   const gym = useDemoGym();
+  const nameOverrides = useGymNameOverrides();
   // The prepared state projector resolves only a canonical directory token generated from this active FULL identity.
   const token = requireGymToken(actorId);
   if (!token) return { success: false, error: "La identidad de demostración no es válida." };
-  const training = projectGymTrainingViews(gym.trainingState, token);
+  const training = projectGymTrainingViews(gym.trainingState, token, nameOverrides);
   if (!training.success) return { success: false, error: training.error };
   if (!includeStaffFixed) return { success: true, staff: training.staff, student: training.student, fixedStudent: includeStudentFixed ? projectGymFixedStudentRoutineSafe(gym.fixedState, token) : undefined };
-  const assignment = projectGymFixedAssignmentContext(gym.fixedState, gym.trainingState, token);
-  const renewals = gym.today ? projectGymFixedRenewals(gym.fixedState, token, gym.today) : null;
+  const assignment = projectGymFixedAssignmentContext(gym.fixedState, gym.trainingState, token, nameOverrides);
+  const renewals = gym.today ? projectGymFixedRenewals(gym.fixedState, token, gym.today, nameOverrides) : null;
   if (!assignment || !renewals) return { success: false, error: "No se pudo proyectar el entrenamiento de demostración." };
   return { success: true, staff: training.staff, student: training.student, fixed: { assignment, renewals } };
 }

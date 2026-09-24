@@ -215,6 +215,10 @@ test("GYM projections accept an optional display-only nameOverrides map that nev
   const canonicalWodFields = (wod) => ({ id: wod.id, title: wod.title, content: wod.content, date: wod.date, teacherId: wod.teacherId, targetType: wod.targetType, targetGroupName: wod.targetGroupName });
   assert.deepEqual(edited.staff.wods.map(canonicalWodFields), baseline.staff.wods.map(canonicalWodFields));
   assert.deepEqual(edited.student, baseline.student);
+
+  // A blank or whitespace-only override is not a display name: it falls back to the canonical name.
+  const blank = projectGymTrainingViews(state, actor, new Map([[ids.personalized, "   "]]));
+  assert.deepEqual(blank, baseline);
 });
 
 test("GYM WOD errors use gymTerms wording and production content-target-date precedence without mutation", () => {

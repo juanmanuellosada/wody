@@ -99,6 +99,11 @@ function activeStudent(studentId: string) {
   return student && student.gymId === GYM_FIXED_DEMO_GYM_ID && student.role === "STUDENT" && student.deletedAt === null ? student : null;
 }
 function linked(teacherId: string, studentId: string): boolean { return getGymDemoTeacherStudentLinks().some((link) => link.teacherId === teacherId && link.studentId === studentId); }
+/** A blank or whitespace-only override is not a display name; the canonical name is used instead. */
+function resolveDisplayName(nameOverrides: ReadonlyMap<string, string> | undefined, id: string, canonicalName: string): string {
+  const override = nameOverrides?.get(id);
+  return override !== undefined && override.trim() !== "" ? override : canonicalName;
+}
 
 function routineRecord(value: unknown): GymFixedDemoRoutine | null {
   const record = exactRecord(value, ["id", "gymId", "studentId", "teacherId", "title", "content", "assignedAt", "renewAt", "deletedAt"]);
@@ -231,7 +236,7 @@ export function projectGymFixedStudentRoutine(state: GymFixedDemoState, actorInp
 export function projectGymFixedAssignmentContext(state: GymFixedDemoState, trainingState: unknown, actorInput: unknown, nameOverrides?: ReadonlyMap<string, string>): GymFixedDemoAssignmentContext | null {
   const actor = canonicalActor(actorInput); if (!actor || !staff(actor) || !isValidGymFixedDemoState(state)) return null;
   const training = projectGymTrainingViews(trainingState, actorInput); if (!training.success) return null;
-  const muslibStudents = getGymDemoProfiles().filter((student) => student.gymId === GYM_FIXED_DEMO_GYM_ID && student.role === "STUDENT" && student.deletedAt === null && student.studentType === "MUSCULACION_LIBRE" && (actor.role === "ADMIN" || linked(actor.id, student.id))).map((student) => ({ id: student.id, name: nameOverrides?.get(student.id) ?? student.name, accountKind: student.accountKind })).sort((left, right) => left.name.localeCompare(right.name));
+  const muslibStudents = getGymDemoProfiles().filter((student) => student.gymId === GYM_FIXED_DEMO_GYM_ID && student.role === "STUDENT" && student.deletedAt === null && student.studentType === "MUSCULACION_LIBRE" && (actor.role === "ADMIN" || linked(actor.id, student.id))).sort((left, right) => left.name.localeCompare(right.name)).map((student) => ({ id: student.id, name: resolveDisplayName(nameOverrides, student.id, student.name), accountKind: student.accountKind }));
   return { muslibStudents, groups: training.staff.groups.map((group) => ({ id: group.id, name: group.name })) };
 }
 /** `nameOverrides` (student id -> current editable name) is display-only; omitted, output is unchanged. */
@@ -241,6 +246,6 @@ export function projectGymFixedRenewals(state: GymFixedDemoState, actorInput: un
   const sourceOrder = state.fixedRoutines.map((routine, index) => ({ routine, index })).filter(({ routine }) => routine.deletedAt === null && routine.renewAt <= sevenDaysOut && (actor.role !== "TEACHER" || routine.teacherId === actor.id)).sort((left, right) => left.routine.renewAt === right.routine.renewAt ? left.index - right.index : left.routine.renewAt.localeCompare(right.routine.renewAt));
   const byStudent = new Map<string, GymFixedDemoRoutine>();
   for (const { routine } of sourceOrder) { const existing = byStudent.get(routine.studentId); if (!existing || routine.renewAt > existing.renewAt) byStudent.set(routine.studentId, routine); }
-  return [...byStudent.values()].map((routine) => ({ id: routine.id, studentId: routine.studentId, studentName: nameOverrides?.get(routine.studentId) ?? (profile(routine.studentId)?.name ?? ""), renewAt: dateFromKey(routine.renewAt), overdue: routine.renewAt < today }));
+  return [...byStudent.values()].map((routine) => ({ id: routine.id, studentId: routine.studentId, studentName: resolveDisplayName(nameOverrides, routine.studentId, profile(routine.studentId)?.name ?? ""), renewAt: dateFromKey(routine.renewAt), overdue: routine.renewAt < today }));
 }
 export function resetGymFixedDemoState(): GymFixedDemoState { return createGymFixedDemoFixture(); }

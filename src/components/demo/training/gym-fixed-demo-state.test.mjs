@@ -122,12 +122,19 @@ test("assignment context and renewal projection accept an optional display-only 
   const canonicalContextOverrides = new Map([["gym-fixed-student-muslib-lite", "León Acosta"], ["gym-fixed-student-muslib", "Micaela Torres"]]);
   assert.deepEqual(projectGymFixedAssignmentContext(state, current, teacher(), canonicalContextOverrides), baselineContext);
 
-  const editedContext = projectGymFixedAssignmentContext(state, current, teacher(), new Map([["gym-fixed-student-muslib", "Nombre Editado"]]));
-  assert.ok(editedContext.muslibStudents.some((student) => student.id === "gym-fixed-student-muslib" && student.name === "Nombre Editado"));
+  // "Ana Reordenada" sorts before "León Acosta" (the canonical name of the other muslib student, who
+  // is currently first). If ordering keyed on display text instead of the frozen canonical name, this
+  // override would move gym-fixed-student-muslib to the first position; the canonical order must hold.
+  const editedContext = projectGymFixedAssignmentContext(state, current, teacher(), new Map([["gym-fixed-student-muslib", "Ana Reordenada"]]));
+  assert.ok(editedContext.muslibStudents.some((student) => student.id === "gym-fixed-student-muslib" && student.name === "Ana Reordenada"));
   // Eligibility (which students are pickable, and their id order) and unrelated fields are untouched.
   assert.deepEqual(editedContext.muslibStudents.map((student) => student.id), baselineContext.muslibStudents.map((student) => student.id));
   assert.deepEqual(editedContext.muslibStudents.map((student) => student.accountKind), baselineContext.muslibStudents.map((student) => student.accountKind));
   assert.deepEqual(editedContext.groups, baselineContext.groups);
+
+  // A blank or whitespace-only override is not a display name: it falls back to the canonical name.
+  const blankContext = projectGymFixedAssignmentContext(state, current, teacher(), new Map([["gym-fixed-student-muslib", "   "]]));
+  assert.deepEqual(blankContext, baselineContext);
 
   const baselineRenewals = projectGymFixedRenewals(state, admin(), "2025-05-25");
   assert.deepEqual(projectGymFixedRenewals(state, admin(), "2025-05-25", undefined), baselineRenewals);
@@ -136,6 +143,8 @@ test("assignment context and renewal projection accept an optional display-only 
   const editedRenewals = projectGymFixedRenewals(state, admin(), "2025-05-25", new Map([["gym-fixed-student-muslib", "Nombre Editado"]]));
   assert.equal(baselineRenewals[0].studentName, "Micaela Torres");
   assert.equal(editedRenewals[0].studentName, "Nombre Editado");
+  // A blank or whitespace-only override falls back to the canonical name here too.
+  assert.deepEqual(projectGymFixedRenewals(state, admin(), "2025-05-25", new Map([["gym-fixed-student-muslib", ""]])), baselineRenewals);
   // Canonical-only fields (id/studentId/renewAt/overdue) are byte-identical; only the name text differs.
   const canonicalRenewalFields = (routine) => ({ id: routine.id, studentId: routine.studentId, renewAt: routine.renewAt, overdue: routine.overdue });
   assert.deepEqual(editedRenewals.map(canonicalRenewalFields), baselineRenewals.map(canonicalRenewalFields));
