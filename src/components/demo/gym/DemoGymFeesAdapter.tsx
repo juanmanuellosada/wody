@@ -163,12 +163,15 @@ export function DemoGymFeesAdapter() {
       paymentExemptReason: student.paymentExemptReason,
     }]),
   ), [profileState]);
+  // Threads the bridge's teacher-student links into the same scoping/authorization resolution
+  // canRecordFinancePayment uses, so a TEACHER never sees a student they cannot charge or vice
+  // versa. Omitted, both fall back to the canonical directory link set (see gym-finance-demo-projection.ts).
   const fees = useMemo(() => token && finance.ready
-    ? projectGymFinanceFeesData(finance.state, token, finance.today, activeFilter, activeType, profileOverrides)
-    : null, [activeFilter, activeType, finance.ready, finance.state, finance.today, token, profileOverrides]);
+    ? projectGymFinanceFeesData(finance.state, token, finance.today, activeFilter, activeType, profileOverrides, profileState.links)
+    : null, [activeFilter, activeType, finance.ready, finance.state, finance.today, token, profileOverrides, profileState.links]);
   const paymentStudents = useMemo(() => token && finance.ready
-    ? projectGymFinancePaymentStudentSelection(finance.state, token, profileOverrides)
-    : null, [finance.ready, finance.state, token, profileOverrides]);
+    ? projectGymFinancePaymentStudentSelection(finance.state, token, profileOverrides, profileState.links)
+    : null, [finance.ready, finance.state, token, profileOverrides, profileState.links]);
   const profileStudentsById = useMemo(() => new Map(profileState.students.map((s) => [s.id, s])), [profileState]);
   const rowActions = useMemo(() => Object.fromEntries((fees?.success ? fees.rows : []).map((row) => [row.id, (
     // Keyed by actor, not just row.id: local edit-modal/pending/error state is UI state for the

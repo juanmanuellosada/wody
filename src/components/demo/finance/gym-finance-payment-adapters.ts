@@ -11,6 +11,7 @@ import { getValidatedGymFinanceDemoState } from "./finance-demo-storage.ts";
 import { actorMatchesOwnedFinanceState, isGymFinanceActor, resolveFinanceDemoActor } from "./finance-demo-policy.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { resolveGymDemoActor } from "../scenarios/gym-demo-directory.ts";
+import type { GymFinanceTeacherStudentLink } from "./finance-demo-policy";
 import type { GymFinanceDemoState } from "./finance-demo-types";
 
 type GymPaymentIdKind = "payment" | "command";
@@ -35,6 +36,13 @@ export type GymFinancePaymentCallbackFactoryOptions = {
   today?: () => string;
   /** Test-only deterministic identifier source; reservations remain factory-private. */
   nextId?: (kind: GymPaymentIdKind, state: GymFinanceDemoState) => string;
+  /**
+   * Live profile-bridge link accessor, read fresh once per execution (never
+   * captured at factory creation) so authorization stays in agreement with
+   * whatever link set the Cuotas scoping projection is showing right now.
+   * Omitted, the reducer falls back to the canonical directory link set.
+   */
+  getGymTeacherStudentLinks?: () => readonly GymFinanceTeacherStudentLink[];
 };
 
 /** The dialog keeps this shape while the future GYM provider owns reset/unmount wiring. */
@@ -210,8 +218,12 @@ export function createGymFinancePaymentCallbackFactory(
     // date semantics never consume IDs or accidentally reinterpret `today`.
     const today = resolveToday(state);
     if (!isCurrent(operationGeneration)) return failure(CANCELLED);
+    // Read once per execution and reuse for the probe and the real commit, so a
+    // link change mid-execution cannot make the two calls disagree with each other.
+    const gymTeacherStudentLinks = options.getGymTeacherStudentLinks?.();
+    if (!isCurrent(operationGeneration)) return failure(CANCELLED);
     const probeIds = freshProbeIds(state);
-    const finalProbe = registerFinancePayment(state, command(input, actorToken, probeIds), today);
+    const finalProbe = registerFinancePayment(state, command(input, actorToken, probeIds), today, gymTeacherStudentLinks);
     if (!isCurrent(operationGeneration)) return failure(CANCELLED);
     if (!finalProbe.result.success && !("requiresConfirmation" in finalProbe.result)) return finalProbe.result;
 
@@ -231,7 +243,7 @@ export function createGymFinancePaymentCallbackFactory(
     if (!isCurrent(operationGeneration)) return failure(CANCELLED);
     if (!ids) return failure(ID_FAILURE);
 
-    const transition = registerFinancePayment(state, command(input, actorToken, ids), today);
+    const transition = registerFinancePayment(state, command(input, actorToken, ids), today, gymTeacherStudentLinks);
     // Never let an obsolete execution recreate dialog/replay state or commit.
     if (!isCurrent(operationGeneration)) return failure(CANCELLED);
     if ("requiresConfirmation" in transition.result) {

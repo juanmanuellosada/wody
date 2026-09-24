@@ -8,6 +8,7 @@ import { FINANCE_DEMO_DEFAULT_ANCHOR, FINANCE_DEMO_NAMESPACE, FINANCE_DEMO_VERSI
 import { actorMatchesFinanceState, actorMatchesOwnedFinanceState, canRecordFinancePayment, isGymFinanceActor, resolveFinanceDemoActor } from "./finance-demo-policy.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { getValidatedGymFinanceDemoState } from "./finance-demo-storage.ts";
+import type { GymFinanceTeacherStudentLink } from "./finance-demo-policy";
 import type {
   FinanceDemoState,
   KnownFinanceDemoState,
@@ -82,8 +83,12 @@ function activeStudent(state: KnownFinanceDemoState, value: unknown): FinanceStu
   return student && !student.deletedAt ? student : null;
 }
 
-function canRecordPayment(student: FinanceStudent, actor: NonNullable<ReturnType<typeof resolveFinanceDemoActor>>): boolean {
-  return canRecordFinancePayment(actor, student.id, student.assignedTeachers.map((teacher) => teacher.id));
+function canRecordPayment(
+  student: FinanceStudent,
+  actor: NonNullable<ReturnType<typeof resolveFinanceDemoActor>>,
+  gymTeacherStudentLinks: readonly GymFinanceTeacherStudentLink[] | undefined,
+): boolean {
+  return canRecordFinancePayment(actor, student.id, student.assignedTeachers.map((teacher) => teacher.id), gymTeacherStudentLinks);
 }
 
 function resolveCommand(value: unknown): ResolvedPaymentCommand | null {
@@ -160,6 +165,7 @@ export function registerFinancePayment<T extends KnownFinanceDemoState>(
   state: T,
   rawCommand: unknown,
   today?: string,
+  gymTeacherStudentLinks?: readonly GymFinanceTeacherStudentLink[],
 ): { state: T; result: FinancePaymentResult } {
   const rawActor = isRecord(rawCommand) ? rawCommand.actor : undefined;
   const actor = resolveFinanceDemoActor(rawActor);
@@ -171,7 +177,7 @@ export function registerFinancePayment<T extends KnownFinanceDemoState>(
   // GYM semantics use the detached validated graph; BOX retains the original reference behavior.
   const student = activeStudent(graph, isRecord(rawCommand) ? rawCommand.studentId : undefined);
   if (!student) return failure(state, "Alumno no encontrado.");
-  if (!canRecordPayment(student, actor)) return failure(state, "Este alumno no está asignado a vos.");
+  if (!canRecordPayment(student, actor, gymTeacherStudentLinks)) return failure(state, "Este alumno no está asignado a vos.");
 
   const command = resolveCommand(rawCommand);
   if (!command) return failure(state, "El pago no es válido.");

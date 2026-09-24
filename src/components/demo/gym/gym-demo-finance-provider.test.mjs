@@ -25,7 +25,7 @@ const primaryTeacher = directory.GYM_DEMO_PRIMARY_TEACHER_ID;
 const secondaryTeacher = directory.GYM_DEMO_SECONDARY_TEACHER_ID;
 const generalStudent = directory.GYM_DEMO_GENERAL_STUDENT_ID;
 
-async function createHarness({ raw = null, getItem, setItem } = {}) {
+async function createHarness({ raw = null, getItem, setItem, profileLinks = directory.getGymDemoTeacherStudentLinks() } = {}) {
   const compiled = ts.transpileModule(await source(), {
     compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
@@ -37,6 +37,8 @@ async function createHarness({ raw = null, getItem, setItem } = {}) {
   const timers = [];
   const reads = [];
   const writes = [];
+  let currentProfileLinks = profileLinks;
+  const paymentFactoryOptions = [];
   const Context = { Provider: () => null };
   const react = {
     createContext: () => Context,
@@ -79,13 +81,25 @@ async function createHarness({ raw = null, getItem, setItem } = {}) {
       jsxs: (type, props) => ({ type, props }),
     },
     "@/lib/dates": { getTodayArgentina: () => new Date("2030-06-03T12:00:00.000Z"), toInputDate: (date) => date.toISOString().slice(0, 10) },
-    "@/components/demo/finance/gym-finance-payment-adapters": { ...payments, createGymFinancePaymentCallbackFactory: (options) => (counts.payment += 1, payments.createGymFinancePaymentCallbackFactory(options)) },
+    "@/components/demo/finance/gym-finance-payment-adapters": {
+      ...payments,
+      createGymFinancePaymentCallbackFactory: (options) => {
+        counts.payment += 1;
+        paymentFactoryOptions.push(options);
+        return payments.createGymFinancePaymentCallbackFactory(options);
+      },
+    },
     "@/components/demo/finance/gym-catalog-demo-adapters": { ...catalog, createGymCatalogDemoCallbackFactory: (options) => (counts.catalog += 1, catalog.createGymCatalogDemoCallbackFactory(options)) },
     "@/components/demo/finance/gym-sale-demo-adapters": { ...sales, createGymSaleDemoCallbackFactory: (options) => (counts.sale += 1, sales.createGymSaleDemoCallbackFactory(options)) },
     "@/components/demo/finance/gym-revenue-demo-adapters": { ...revenue, createGymRevenueDemoCallbackFactory: (options) => (counts.revenue += 1, revenue.createGymRevenueDemoCallbackFactory(options)) },
     "@/components/demo/finance/gym-finance-demo-fixtures": fixtures,
     "@/components/demo/finance/gym-finance-demo-storage": storageModule,
     "@/components/demo/scenarios/gym-demo-directory": directory,
+    // Structural harness patch (same class of gap fixed for gym-demo-provider.test.mjs and
+    // gym-demo-integration.test.mjs): the real module is intentionally not loaded here, so
+    // DemoGymFinanceProvider's useDemoGymProfile() call resolves against this minimal stand-in
+    // instead of the real profile bridge context, which this CJS harness cannot provide.
+    "./DemoGymProfileProvider": { useDemoGymProfile: () => ({ profileState: { links: currentProfileLinks } }) },
   };
   const commonjsModule = { exports: {} };
   const require = (specifier) => { if (!(specifier in mocks)) throw new Error(`Unexpected module: ${specifier}`); return mocks[specifier]; };
@@ -97,10 +111,11 @@ async function createHarness({ raw = null, getItem, setItem } = {}) {
     return effects.slice();
   };
   return {
-    counts, memory, reads, writes,
+    counts, memory, reads, writes, paymentFactoryOptions,
     render,
     runTimers: () => { for (const timer of timers) if (!timer.cancelled) timer.callback(); },
     get published() { return published; },
+    setProfileLinks: (next) => { currentProfileLinks = next; },
     restore: () => { globalThis.window = previousWindow; },
   };
 }
@@ -159,6 +174,39 @@ test("GYM finance provider reads its one key before publishing exactly eight can
     assert.deepEqual([...harness.published.revenueCallbacks.keys()], [admin]);
     assert.equal(harness.published.catalogCallbacks.get(primaryTeacher), undefined);
     assert.equal(harness.published.today, "2030-06-03");
+    cleanup();
+  } finally {
+    harness.restore();
+  }
+});
+
+test("GYM finance provider threads a live getGymTeacherStudentLinks accessor from the profile bridge into every payment factory", async () => {
+  const injectedLinks = [{ teacherId: primaryTeacher, studentId: generalStudent }];
+  const harness = await createHarness({ profileLinks: injectedLinks });
+  try {
+    const cleanup = await hydrate(harness);
+    assert.equal(harness.paymentFactoryOptions.length, 3, "one options object per payment factory");
+    for (const options of harness.paymentFactoryOptions) {
+      assert.equal(typeof options.getGymTeacherStudentLinks, "function");
+      assert.deepEqual(options.getGymTeacherStudentLinks(), injectedLinks, "the provider's accessor must return the current useDemoGymProfile() links, not a canonical default");
+    }
+
+    // The SAME already-created accessor must observe a later profile-bridge change: this is the
+    // provider-level half of freshness (the factory-level half is proven in
+    // gym-finance-payment-adapters.test.mjs). Simulates DemoGymProfileProvider committing a new
+    // links array and this provider's own sync effect reacting to it on the next render.
+    //
+    // Deliberately not indexed (e.g. effects[1]): a future added or reordered effect would make an
+    // index-based lookup silently run the wrong effect. Every effect from this render is run
+    // instead, which stays correct regardless of position or count. Re-running the hydration effect
+    // here is a harmless no-op for this assertion: its own setTimeout is captured but never fired
+    // (harness.runTimers() is not called again), so it neither touches harness.published nor
+    // duplicates any payment/catalog/sale/revenue factory (each registration is itself guarded by
+    // `if (factories.current.has(actorId)) continue;`).
+    const updatedLinks = [{ teacherId: secondaryTeacher, studentId: generalStudent }];
+    harness.setProfileLinks(updatedLinks);
+    for (const effect of harness.render()) effect();
+    assert.deepEqual(harness.paymentFactoryOptions[0].getGymTeacherStudentLinks(), updatedLinks);
     cleanup();
   } finally {
     harness.restore();

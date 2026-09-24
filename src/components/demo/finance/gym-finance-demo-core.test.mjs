@@ -241,6 +241,48 @@ test("GYM tokens use the closed shared policy for payments, catalog, sales, expe
   assert.equal(isValidGymFinanceDemoState(state), true);
 });
 
+test("registerFinancePayment's optional gymTeacherStudentLinks argument moves real payment authorization, both directions, through the real reducer path", () => {
+  const state = createGymFinanceDemoFixture(anchor);
+  const paula = state.students[0].id; // canonically linked to tomas only
+  const valeria = state.students[2].id; // canonically unlinked
+
+  // Addition: nora is canonically unassigned from paula, but a bridge link granting it must let
+  // the real reducer (not just the policy function in isolation) record the payment.
+  const grantedByBridge = registerFinancePayment(state, payment(nora, paula, "bridge-granted-payment"), anchor, [
+    { teacherId: GYM_DEMO_SECONDARY_TEACHER_ID, studentId: paula },
+  ]);
+  assert.equal(grantedByBridge.result.success, true);
+
+  // Removal: tomas is canonically linked to paula, but an explicit bridge link set that omits it
+  // must deny the real reducer exactly like an unassigned teacher.
+  const revokedByBridge = registerFinancePayment(state, payment(tomas, paula, "bridge-revoked-payment"), anchor, []);
+  assert.deepEqual(revokedByBridge.result, { success: false, error: "Este alumno no está asignado a vos." });
+
+  // Omitted argument keeps the exact canonical-fallback behavior already proven above: tomas
+  // remains authorized for paula, and remains denied for the canonically unlinked valeria.
+  const omittedArg = registerFinancePayment(state, payment(tomas, paula, "omitted-arg-payment"), anchor);
+  assert.equal(omittedArg.result.success, true);
+  assert.deepEqual(
+    registerFinancePayment(state, payment(tomas, valeria, "omitted-arg-unlinked-payment"), anchor).result,
+    { success: false, error: "Este alumno no está asignado a vos." },
+  );
+
+  // A bridge link naming an id other than nora's own does not authorize nora, through the real
+  // reducer. Redundantly rejected: isActiveGymTeacherOrAdmin excludes "not-a-real-directory-id"
+  // first (it does not resolve to an active TEACHER/ADMIN at all), and the downstream
+  // `link.teacherId === actor.id` match would exclude it too (it is not nora's id). This does not
+  // isolate or prove either check alone — see the comment on isActiveGymTeacherOrAdmin in
+  // finance-demo-policy.ts for why no test in this codebase can isolate it.
+  const linkForSomeoneElse = registerFinancePayment(state, payment(nora, paula, "link-for-someone-else-payment"), anchor, [
+    { teacherId: "not-a-real-directory-id", studentId: paula },
+  ]);
+  assert.deepEqual(linkForSomeoneElse.result, { success: false, error: "Este alumno no está asignado a vos." });
+
+  // ADMIN authorization is unaffected by any gymTeacherStudentLinks content.
+  const adminWithEmptyLinks = registerFinancePayment(state, payment(admin, valeria, "admin-empty-links-payment"), anchor, []);
+  assert.equal(adminWithEmptyLinks.result.success, true);
+});
+
 test("closed GYM snapshots reject hostile/unclosed graphs and policy helpers require resolver brands", () => {
   const state = createGymFinanceDemoFixture(anchor);
   const symbol = structuredClone(state);

@@ -7,10 +7,11 @@ import { isFinanceDate, suggestNextFinancePaymentDate } from "./finance-demo-sta
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { getValidatedGymFinanceDemoState } from "./finance-demo-storage.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
-import { actorMatchesOwnedFinanceState, isGymFinanceActor, resolveFinanceDemoActor } from "./finance-demo-policy.ts";
+import { actorMatchesOwnedFinanceState, isGymFinanceActor, resolveFinanceDemoActor, resolveHonoredGymTeacherStudentLinks } from "./finance-demo-policy.ts";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore Node's native type-stripping test runner requires explicit extensions.
-import { getGymDemoProfiles, getGymDemoTeacherStudentLinks, resolveGymDemoActor } from "../scenarios/gym-demo-directory.ts";
+import { getGymDemoProfiles, resolveGymDemoActor } from "../scenarios/gym-demo-directory.ts";
+import type { GymFinanceTeacherStudentLink } from "./finance-demo-policy";
 import type { GymFinanceDemoState } from "./finance-demo-types";
 
 type GymFeeRow = FeeProjection["rows"][number] & { blockStatus: FeeBlockStatus };
@@ -64,20 +65,32 @@ function resolveGymStaffActor(token: unknown) {
  * The canonical directory, not the mutable ledger roster, defines who is in a
  * staff member's GYM scope. The validator separately proves every ledger row
  * has the immutable directory metadata before this function is reached.
+ * `bridgeLinks` shares resolveHonoredGymTeacherStudentLinks with
+ * canRecordFinancePayment so scoping and payment authorization can never
+ * independently drift apart; omitted, this falls back to the canonical
+ * directory link set exactly as before this parameter existed.
  */
-function scopedActiveStudentIds(actorId: string, role: "ADMIN" | "TEACHER"): Set<string> {
+function scopedActiveStudentIds(
+  actorId: string,
+  role: "ADMIN" | "TEACHER",
+  bridgeLinks: readonly GymFinanceTeacherStudentLink[] | undefined,
+): Set<string> {
   const activeStudents = new Set(getGymDemoProfiles()
     .filter((profile) => profile.role === "STUDENT" && profile.deletedAt === null)
     .map((profile) => profile.id));
   if (role === "ADMIN") return activeStudents;
 
-  return new Set(getGymDemoTeacherStudentLinks()
+  return new Set(resolveHonoredGymTeacherStudentLinks(bridgeLinks)
     .filter((link) => link.teacherId === actorId && activeStudents.has(link.studentId))
     .map((link) => link.studentId));
 }
 
 /** Captures a fresh private ledger only after opaque staff authorization succeeds. */
-function captureScopedGymState(state: unknown, token: unknown): {
+function captureScopedGymState(
+  state: unknown,
+  token: unknown,
+  bridgeLinks: readonly GymFinanceTeacherStudentLink[] | undefined,
+): {
   state: GymFinanceDemoState;
   actorId: string;
   role: "ADMIN" | "TEACHER";
@@ -96,7 +109,7 @@ function captureScopedGymState(state: unknown, token: unknown): {
     state: captured,
     actorId: actor.id,
     role: actor.role,
-    studentIds: scopedActiveStudentIds(actor.id, actor.role),
+    studentIds: scopedActiveStudentIds(actor.id, actor.role, bridgeLinks),
   };
 }
 
@@ -147,8 +160,9 @@ export function projectGymFinanceFeesData(
   activeFilter: FeeStatusFilter = "all",
   activeType: FeeStudentType | "" = "",
   profileOverrides?: ReadonlyMap<string, GymFinanceFeesProfileOverride>,
+  bridgeLinks?: readonly GymFinanceTeacherStudentLink[],
 ): GymFinanceFeesDataResult {
-  const captured = captureScopedGymState(rawState, gymActorToken);
+  const captured = captureScopedGymState(rawState, gymActorToken, bridgeLinks);
   if ("success" in captured) return captured;
   if (!isFinanceDate(referenceDate)) return { success: false, error: INVALID_REFERENCE_DATE };
 
@@ -184,8 +198,9 @@ export function projectGymFinancePaymentStudentSelection(
   rawState: unknown,
   gymActorToken: unknown,
   profileOverrides?: ReadonlyMap<string, GymFinanceFeesProfileOverride>,
+  bridgeLinks?: readonly GymFinanceTeacherStudentLink[],
 ): GymFinancePaymentStudentSelectionResult {
-  const captured = captureScopedGymState(rawState, gymActorToken);
+  const captured = captureScopedGymState(rawState, gymActorToken, bridgeLinks);
   if ("success" in captured) return captured;
 
   // Same display-only overlay as the Cuotas list, so both surfaces of the same screen agree.

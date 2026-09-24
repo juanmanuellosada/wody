@@ -222,7 +222,7 @@ test("financial presentation keeps readiness, failures, warnings, empty scope, a
  * sourcing — can be asserted directly, the same way paymentControlProps()/registerPaymentProps()
  * already expose PaymentControlView's/RegisterPaymentSectionView's props.
  */
-async function feesAdapterHarness({ actorId, profileStudents, financeState, commandCallbacksByActor = null }) {
+async function feesAdapterHarness({ actorId, profileStudents, financeState, commandCallbacksByActor = null, profileLinks }) {
   const compiled = ts.transpileModule(await source("src/components/demo/gym/DemoGymFeesAdapter.tsx"), {
     compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
@@ -256,7 +256,7 @@ async function feesAdapterHarness({ actorId, profileStudents, financeState, comm
     "@/components/demo/scenarios/gym-demo-directory": directory,
     "./DemoGymProvider": { useDemoGym: () => gym },
     "./DemoGymFinanceProvider": { useDemoGymFinance: () => finance },
-    "./DemoGymProfileProvider": { useDemoGymProfile: () => ({ profileState: { students: profileStudents }, commandCallbacks }) },
+    "./DemoGymProfileProvider": { useDemoGymProfile: () => ({ profileState: { students: profileStudents, links: profileLinks }, commandCallbacks }) },
   };
   const commonjsModule = { exports: {} };
   const require = (specifier) => { if (!(specifier in mocks)) throw new Error(`Unexpected module: ${specifier}`); return mocks[specifier]; };
@@ -329,6 +329,53 @@ test("DemoGymFeesAdapter threads the profile bridge overrides into the real Cuot
   assert.deepEqual(untouchedRow?.blockStatus, { blocked: true, kind: "manual" });
   assert.equal(untouchedPicker?.name, "Irene Soto");
   assert.equal(untouchedPicker?.paymentExempt, false);
+});
+
+/**
+ * Proves DemoGymFeesAdapter itself (not just the pure projection module in isolation) threads
+ * profileState.links into both projectGymFinanceFeesData and projectGymFinancePaymentStudentSelection:
+ * a bridge link change must move the real rendered Cuotas rows and the real payment picker together.
+ */
+test("DemoGymFeesAdapter threads the profile bridge's teacher-student links into the real Cuotas scoping and the real payment picker, and they agree", async () => {
+  const financeState = createGymFinanceDemoFixture();
+  const secondaryTeacher = directory.GYM_DEMO_SECONDARY_TEACHER_ID;
+
+  // Canonically unassigned: an omitted links prop (undefined) must fall back to the canonical
+  // directory, where the secondary teacher has zero students.
+  const withoutLinks = await feesAdapterHarness({ actorId: secondaryTeacher, profileStudents: [], financeState });
+  assert.deepEqual(withoutLinks.paymentControlProps()?.rows.map((row) => row.id), []);
+  assert.deepEqual(withoutLinks.registerPaymentProps()?.students.map((student) => student.id), []);
+
+  // Adding a bridge link must make the same student appear on BOTH surfaces.
+  const added = await feesAdapterHarness({
+    actorId: secondaryTeacher,
+    profileStudents: [],
+    financeState,
+    profileLinks: [{ teacherId: secondaryTeacher, studentId: directory.GYM_DEMO_GENERAL_STUDENT_ID }],
+  });
+  assert.deepEqual(added.paymentControlProps()?.rows.map((row) => row.id), [directory.GYM_DEMO_GENERAL_STUDENT_ID]);
+  assert.deepEqual(added.registerPaymentProps()?.students.map((student) => student.id), [directory.GYM_DEMO_GENERAL_STUDENT_ID]);
+
+  // Removing a canonical link (primary teacher, empty bridge link set) must remove that student
+  // from BOTH surfaces even though the canonical directory still links them.
+  const primaryTeacher = directory.GYM_DEMO_PRIMARY_TEACHER_ID;
+  const removed = await feesAdapterHarness({ actorId: primaryTeacher, profileStudents: [], financeState, profileLinks: [] });
+  assert.deepEqual(removed.paymentControlProps()?.rows.map((row) => row.id), []);
+  assert.deepEqual(removed.registerPaymentProps()?.students.map((student) => student.id), []);
+
+  // A link naming an id other than the acting teacher grants that teacher nothing. Redundantly
+  // rejected: isActiveGymTeacherOrAdmin excludes "not-a-real-teacher" first (it does not resolve to
+  // an active TEACHER/ADMIN at all), and the downstream `link.teacherId === actor.id` match would
+  // exclude it too (it is not secondaryTeacher's id). This does not isolate or prove either check
+  // alone — see the comment on isActiveGymTeacherOrAdmin in finance-demo-policy.ts for why no test
+  // in this codebase can isolate it.
+  const linkForSomeoneElse = await feesAdapterHarness({
+    actorId: secondaryTeacher,
+    profileStudents: [],
+    financeState,
+    profileLinks: [{ teacherId: "not-a-real-teacher", studentId: directory.GYM_DEMO_GENERAL_STUDENT_ID }],
+  });
+  assert.deepEqual(linkForSomeoneElse.paymentControlProps()?.rows.map((row) => row.id), []);
 });
 
 /**

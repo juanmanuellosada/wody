@@ -3,6 +3,8 @@ import test from "node:test";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import {
   getGymDemoActorToken,
+  getGymDemoProfiles,
+  getGymDemoTeacherStudentLinks,
   GYM_DEMO_ADMIN_ID,
   GYM_DEMO_PRIMARY_TEACHER_ID,
   GYM_DEMO_SECONDARY_TEACHER_ID,
@@ -16,6 +18,8 @@ import {
   projectGymFinanceFeesData,
   projectGymFinancePaymentStudentSelection,
 } from "./gym-finance-demo-projection.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { canRecordFinancePayment, resolveFinanceDemoActor } from "./finance-demo-policy.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { createGymDemoProfileFixture } from "../gym/gym-demo-profile-core.ts";
 
@@ -434,5 +438,156 @@ test("the full, real adapter-built override map is a no-op on first load: fees a
     const pickerBaseline = projectGymFinancePaymentStudentSelection(state, token);
     const pickerWithOverlay = projectGymFinancePaymentStudentSelection(state, token, overrides);
     assert.deepEqual(pickerWithOverlay, pickerBaseline, "payment picker must not change on first load with no user edit");
+  }
+});
+
+// --- Bridge teacher-student links: threaded as an optional last argument into both scoping
+// (projectGymFinanceFeesData/projectGymFinancePaymentStudentSelection) and authorization
+// (canRecordFinancePayment), sharing one resolution so the two can never independently drift.
+
+const generalStudentId = "gym-fixed-student-general";
+const personalizedStudentId = "gym-fixed-student-personalized";
+const unlinkedPersonalizedStudentId = "gym-fixed-student-personalized-unlinked";
+const muslibStudentId = "gym-fixed-student-muslib";
+const muslibLiteStudentId = "gym-fixed-student-muslib-lite";
+const noraId = GYM_DEMO_SECONDARY_TEACHER_ID;
+const tomasId = GYM_DEMO_PRIMARY_TEACHER_ID;
+
+test("no bridge links argument leaves the fees scoping byte-identical to before", () => {
+  const state = fixture();
+  const noArg = ids(projectGymFinanceFeesData(state, tomas, anchor));
+  const undefinedArg = ids(projectGymFinanceFeesData(state, tomas, anchor, "all", "", undefined, undefined));
+  assert.deepEqual(undefinedArg, noArg);
+});
+
+test("the real adapter-built bridge link snapshot at first load is byte-identical to the no-bridge-links scoping, for every canonical staff token", () => {
+  const state = fixture();
+  const firstLoadLinks = createGymDemoProfileFixture().links;
+  assert.ok(firstLoadLinks.length > 0, "the profile fixture must seed at least one link to be a meaningful test");
+  for (const token of [admin, tomas, nora]) {
+    const baseline = projectGymFinanceFeesData(state, token, anchor);
+    const withFirstLoadLinks = projectGymFinanceFeesData(state, token, anchor, "all", "", undefined, firstLoadLinks);
+    assert.deepEqual(withFirstLoadLinks, baseline, "first-load bridge links must be a no-op on the Cuotas projection");
+
+    const pickerBaseline = projectGymFinancePaymentStudentSelection(state, token);
+    const pickerWithFirstLoadLinks = projectGymFinancePaymentStudentSelection(state, token, undefined, firstLoadLinks);
+    assert.deepEqual(pickerWithFirstLoadLinks, pickerBaseline, "first-load bridge links must be a no-op on the payment picker");
+  }
+});
+
+test("a bridge link addition grows a TEACHER's scope and a removal shrinks it; ADMIN scope ignores bridge links entirely", () => {
+  const state = fixture();
+  // nora has zero canonical links; adding one must make exactly that student visible.
+  const added = ids(projectGymFinanceFeesData(state, nora, anchor, "all", "", undefined, [
+    { teacherId: noraId, studentId: unlinkedPersonalizedStudentId },
+  ]));
+  assert.deepEqual(added, [unlinkedPersonalizedStudentId]);
+
+  // tomas canonically sees general/personalized/muslib/muslib-lite; dropping the muslib link
+  // (while keeping the rest) must remove exactly that student and nothing else.
+  const canonicalTomasLinks = getGymDemoTeacherStudentLinks();
+  const withoutMuslib = canonicalTomasLinks.filter((link) => link.studentId !== muslibStudentId);
+  const removed = ids(projectGymFinanceFeesData(state, tomas, anchor, "all", "", undefined, withoutMuslib));
+  assert.deepEqual(removed, [generalStudentId, personalizedStudentId, muslibLiteStudentId]);
+
+  // ADMIN's scope is always the full active roster, regardless of bridge link content.
+  const adminWithEmptyLinks = ids(projectGymFinanceFeesData(state, admin, anchor, "all", "", undefined, []));
+  const adminBaseline = ids(projectGymFinanceFeesData(state, admin, anchor));
+  assert.deepEqual(adminWithEmptyLinks, adminBaseline);
+});
+
+test("a bridge link addition/removal moves the payment picker's own scoping, independently of the fees projection call", () => {
+  const state = fixture();
+  const addedPicker = projectGymFinancePaymentStudentSelection(state, nora, undefined, [
+    { teacherId: noraId, studentId: unlinkedPersonalizedStudentId },
+  ]);
+  assert.equal(addedPicker.success, true);
+  assert.deepEqual(addedPicker.students.map((student) => student.id), [unlinkedPersonalizedStudentId]);
+
+  const canonicalTomasLinks = getGymDemoTeacherStudentLinks();
+  const withoutMuslib = canonicalTomasLinks.filter((link) => link.studentId !== muslibStudentId);
+  const removedPicker = projectGymFinancePaymentStudentSelection(state, tomas, undefined, withoutMuslib);
+  assert.equal(removedPicker.success, true);
+  assert.deepEqual(removedPicker.students.map((student) => student.id), [generalStudentId, personalizedStudentId, muslibLiteStudentId]);
+});
+
+test("a bridge link naming an id other than the acting teacher grants that teacher nothing, whether the id is unknown or a real different-role identity", () => {
+  // "not-a-real-directory-id" and the general student's real id are BOTH rejected redundantly:
+  // isActiveGymTeacherOrAdmin excludes them first (neither resolves to an active TEACHER/ADMIN),
+  // and scopedActiveStudentIds's downstream `link.teacherId === actorId` match would exclude them
+  // too (neither equals nora's own id), independent of the filter. This test cannot isolate or
+  // prove either check on its own: removing just one leaves the other rejecting the same inputs
+  // with an identical observable result, confirmed by mutation testing. See the comment on
+  // isActiveGymTeacherOrAdmin in finance-demo-policy.ts for why no test in this codebase can
+  // isolate it.
+  const state = fixture();
+  const unknownTeacher = ids(projectGymFinanceFeesData(state, nora, anchor, "all", "", undefined, [
+    { teacherId: "not-a-real-directory-id", studentId: generalStudentId },
+  ]));
+  assert.deepEqual(unknownTeacher, []);
+
+  const differentRealIdentity = ids(projectGymFinanceFeesData(state, nora, anchor, "all", "", undefined, [
+    { teacherId: generalStudentId, studentId: generalStudentId },
+  ]));
+  assert.deepEqual(differentRealIdentity, []);
+});
+
+test("a bridge link for the acting teacher naming a different student is not conflated with the target student", () => {
+  const state = fixture();
+  const wrongStudent = ids(projectGymFinanceFeesData(state, nora, anchor, "all", "", undefined, [
+    { teacherId: noraId, studentId: unlinkedPersonalizedStudentId },
+  ]));
+  assert.deepEqual(wrongStudent.includes(generalStudentId), false);
+});
+
+test("BOX finance authorization is unaffected by a gymTeacherStudentLinks argument", () => {
+  // canRecordFinancePayment's non-GYM branch never even reads its 4th parameter; passing a
+  // fabricated GYM-shaped link list to a BOX actor must have zero effect either way.
+  const boxTeacher = resolveFinanceDemoActor({ id: "finance-teacher-carlos", role: "TEACHER" });
+  assert.ok(boxTeacher, "the BOX teacher fixture token must resolve");
+  const withoutAssignment = canRecordFinancePayment(boxTeacher, "any-student", [], [{ teacherId: "finance-teacher-carlos", studentId: "any-student" }]);
+  assert.equal(withoutAssignment, false, "BOX authorization must still come from assignedTeacherIds, never from a gym link list");
+  const withAssignment = canRecordFinancePayment(boxTeacher, "any-student", ["finance-teacher-carlos"], []);
+  assert.equal(withAssignment, true, "an empty gym link list must not suppress the BOX assignedTeacherIds path");
+});
+
+/**
+ * The central invariant this candidate exists to prove: for every staff actor and every active
+ * student, whether the Cuotas projection shows that student MUST exactly match whether
+ * canRecordFinancePayment authorizes charging that student, under every link scenario the bridge
+ * can realistically produce (nothing yet, a first-load mirror, one addition, one removal).
+ */
+test("scoping and authorization agree over the full active roster, for every staff actor, under every bridge link scenario", () => {
+  const state = fixture();
+  const activeStudentIds = getGymDemoProfiles()
+    .filter((profile) => profile.role === "STUDENT" && profile.deletedAt === null)
+    .map((profile) => profile.id);
+  assert.ok(activeStudentIds.length > 0);
+
+  const canonicalLinks = getGymDemoTeacherStudentLinks();
+  const scenarios = {
+    "no links input": undefined,
+    "canonical links mirror": canonicalLinks,
+    "one assignment added": [...canonicalLinks, { teacherId: noraId, studentId: unlinkedPersonalizedStudentId }],
+    "one assignment removed": canonicalLinks.filter((link) => !(link.teacherId === tomasId && link.studentId === muslibStudentId)),
+  };
+
+  for (const [scenarioName, links] of Object.entries(scenarios)) {
+    for (const token of [admin, tomas, nora]) {
+      const actor = resolveFinanceDemoActor(token);
+      assert.ok(actor, `${scenarioName}: token must resolve to a finance actor`);
+      const projection = projectGymFinanceFeesData(state, token, anchor, "all", "", undefined, links);
+      assert.equal(projection.success, true, `${scenarioName}: projection must succeed`);
+      const visibleIds = new Set(projection.rows.map((row) => row.id));
+      for (const studentId of activeStudentIds) {
+        const visible = visibleIds.has(studentId);
+        const authorized = canRecordFinancePayment(actor, studentId, [], links);
+        assert.equal(
+          visible,
+          authorized,
+          `${scenarioName}: actor ${actor.id} and student ${studentId} disagree (visible=${visible}, authorized=${authorized})`,
+        );
+      }
+    }
   }
 });

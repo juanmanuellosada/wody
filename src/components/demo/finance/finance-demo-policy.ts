@@ -20,6 +20,54 @@ const policies = Object.freeze({
 });
 const resolvedActors = new WeakSet<object>();
 
+/**
+ * Structurally mirrors the bridge's GymDemoProfileLink without importing the
+ * bridge: this module is called from load and adapter paths that have no
+ * bridge context and must receive links only as a parameter.
+ */
+export type GymFinanceTeacherStudentLink = Readonly<{ teacherId: string; studentId: string }>;
+
+/**
+ * The same predicate gym-demo-profile-core.ts uses for activeTeacherIds, and
+ * finance-demo-storage.ts uses for persisted assignedTeachers: a link only
+ * counts when its teacher is a currently active TEACHER or ADMIN in the
+ * canonical directory. Applied independently of any upstream bridge
+ * validation, since this module never imports the bridge and never trusts it.
+ *
+ * This is purely defensive and, as of both current call sites below, cannot be
+ * observed through any reachable entry point: both scopedActiveStudentIds and
+ * canRecordFinancePayment only ever consult a link where `link.teacherId ===
+ * actor.id`, and `actor.id` always comes from an already-resolved, currently
+ * active TEACHER/ADMIN (resolveGymDemoActor only mints tokens for non-deleted
+ * FULL accounts, and callers reject anything else before reaching here). A
+ * link naming an unknown or soft-deleted teacher is already excluded by that
+ * equality check alone, before this predicate would ever matter. It exists so
+ * the guarantee still holds if a future call site stops gating on the acting
+ * actor's own id — e.g. one that inspects a link belonging to someone other
+ * than the caller. No test in this codebase can distinguish this predicate
+ * present from absent without a soft-deleted TEACHER/ADMIN fixture, which this
+ * effort has declined to add (see finance-demo-storage.ts's own equivalent,
+ * long-documented gap on canonicalTeacher.deletedAt).
+ */
+function isActiveGymTeacherOrAdmin(id: string): boolean {
+  const profile = getGymDemoProfile(id);
+  return profile !== null && (profile.role === "TEACHER" || profile.role === "ADMIN") && profile.deletedAt === null;
+}
+
+/**
+ * Shared link resolution for both scoping (who a TEACHER sees) and
+ * authorization (who a TEACHER may charge), so the two can never
+ * independently drift apart. Omitted, falls back to the canonical directory
+ * link set, byte-identical to before this parameter existed. A link naming
+ * an unknown or soft-deleted teacher is dropped regardless of source.
+ */
+export function resolveHonoredGymTeacherStudentLinks(
+  gymTeacherStudentLinks: readonly GymFinanceTeacherStudentLink[] | undefined,
+): readonly GymFinanceTeacherStudentLink[] {
+  const source = gymTeacherStudentLinks ?? getGymDemoTeacherStudentLinks();
+  return source.filter((link) => isActiveGymTeacherOrAdmin(link.teacherId));
+}
+
 type ResolvedFinanceActor = Readonly<{
   policy: FinancePolicy;
   id: string;
@@ -146,11 +194,17 @@ export function canCorrectFinanceHistory(actor: ResolvedFinanceActor): boolean {
   return resolvedActor(actor) && actor.role === "ADMIN";
 }
 
-export function canRecordFinancePayment(actor: ResolvedFinanceActor, studentId: string, assignedTeacherIds: readonly string[]): boolean {
+export function canRecordFinancePayment(
+  actor: ResolvedFinanceActor,
+  studentId: string,
+  assignedTeacherIds: readonly string[],
+  gymTeacherStudentLinks?: readonly GymFinanceTeacherStudentLink[],
+): boolean {
   if (!resolvedActor(actor)) return false;
   if (actor.role === "ADMIN") return true;
   if (actor.policy.id === "gym") {
-    return getGymDemoTeacherStudentLinks().some((link) => link.teacherId === actor.id && link.studentId === studentId);
+    return resolveHonoredGymTeacherStudentLinks(gymTeacherStudentLinks)
+      .some((link) => link.teacherId === actor.id && link.studentId === studentId);
   }
   return assignedTeacherIds.includes(actor.id);
 }
