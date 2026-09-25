@@ -1,7 +1,7 @@
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { getCatalogSalesFixtures } from "./catalog-sales-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
-import { getDemoFeeFixtures } from "./fees-fixtures.ts";
+import { demoFeeTeachers, getDemoFeeFixtures } from "./fees-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { FINANCE_DEMO_DEFAULT_ANCHOR, FINANCE_DEMO_NAMESPACE, FINANCE_DEMO_VERSION } from "./finance-demo-types.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
@@ -16,6 +16,7 @@ import type {
   FinancePayment,
   FinancePaymentMethod,
   FinancePaymentResult,
+  FinanceProfileResult,
   FinanceStudent,
 } from "./finance-demo-types";
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -223,4 +224,108 @@ export function registerFinancePayment<T extends KnownFinanceDemoState>(
     } as T,
     { success: true, paymentId: payment.id, idempotent: false },
   );
+}
+
+function profileFailure<T extends KnownFinanceDemoState>(state: T, error: string): { state: T; result: FinanceProfileResult } {
+  return { state, result: { success: false, error } };
+}
+
+function profileSuccess<T extends KnownFinanceDemoState>(state: T): { state: T; result: FinanceProfileResult } {
+  return { state, result: { success: true } };
+}
+
+/** ADMIN or the student's currently assigned TEACHER may rename them; mirrors GYM's name-only edit scope. */
+export function editFinanceStudentName<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown): { state: T; result: FinanceProfileResult } {
+  const actor = resolveFinanceDemoActor(isRecord(rawCommand) ? rawCommand.actor : undefined);
+  if (!actor) return profileFailure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph || !Array.isArray(graph.students)) return profileFailure(state, "No autorizado.");
+  const student = activeStudent(graph, isRecord(rawCommand) ? rawCommand.studentId : undefined);
+  if (!student) return profileFailure(state, "Alumno no encontrado.");
+  if (actor.role === "TEACHER" && !student.assignedTeachers.some((teacher) => teacher.id === actor.id)) {
+    return profileFailure(state, "Este alumno no está asignado a vos.");
+  }
+  if (!isRecord(rawCommand) || typeof rawCommand.name !== "string" || !rawCommand.name.trim()) return profileFailure(state, "El nombre no puede estar vacío.");
+  const name = rawCommand.name.trim();
+  return profileSuccess({
+    ...graph,
+    students: graph.students.map((candidate) => candidate.id === student.id ? { ...candidate, name } : candidate),
+  } as T);
+}
+
+/** ADMIN only. Toggles the manual block flag; auto-block from overdue days stays computed separately in fees-contract.ts. */
+export function setFinanceStudentBlocked<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown): { state: T; result: FinanceProfileResult } {
+  const actor = resolveFinanceDemoActor(isRecord(rawCommand) ? rawCommand.actor : undefined);
+  if (!actor || actor.role !== "ADMIN") return profileFailure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph || !Array.isArray(graph.students)) return profileFailure(state, "No autorizado.");
+  const student = activeStudent(graph, isRecord(rawCommand) ? rawCommand.studentId : undefined);
+  if (!student) return profileFailure(state, "Alumno no encontrado.");
+  if (!isRecord(rawCommand) || typeof rawCommand.blocked !== "boolean") return profileFailure(state, "El estado de bloqueo no es válido.");
+  const blocked = rawCommand.blocked;
+  return profileSuccess({
+    ...graph,
+    students: graph.students.map((candidate) => candidate.id === student.id ? { ...candidate, blocked } : candidate),
+  } as T);
+}
+
+/** ADMIN only. A blank or whitespace-only reason is normalized to null, matching production. */
+export function setFinanceStudentPaymentExempt<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown): { state: T; result: FinanceProfileResult } {
+  const actor = resolveFinanceDemoActor(isRecord(rawCommand) ? rawCommand.actor : undefined);
+  if (!actor || actor.role !== "ADMIN") return profileFailure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph || !Array.isArray(graph.students)) return profileFailure(state, "No autorizado.");
+  const student = activeStudent(graph, isRecord(rawCommand) ? rawCommand.studentId : undefined);
+  if (!student) return profileFailure(state, "Alumno no encontrado.");
+  if (!isRecord(rawCommand) || typeof rawCommand.exempt !== "boolean" || (rawCommand.reason !== null && typeof rawCommand.reason !== "string")) {
+    return profileFailure(state, "La exención no es válida.");
+  }
+  const exempt = rawCommand.exempt;
+  const reason = typeof rawCommand.reason === "string" && rawCommand.reason.trim() ? rawCommand.reason.trim() : null;
+  return profileSuccess({
+    ...graph,
+    students: graph.students.map((candidate) => candidate.id === student.id
+      ? { ...candidate, paymentExempt: exempt, paymentExemptReason: reason }
+      : candidate),
+  } as T);
+}
+
+/** ADMIN only. The assigned teacher's name always comes from the fixed BOX teacher roster, never from the caller. */
+export function assignFinanceStudentTeacher<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown): { state: T; result: FinanceProfileResult } {
+  const actor = resolveFinanceDemoActor(isRecord(rawCommand) ? rawCommand.actor : undefined);
+  if (!actor || actor.role !== "ADMIN") return profileFailure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph || !Array.isArray(graph.students)) return profileFailure(state, "No autorizado.");
+  const student = activeStudent(graph, isRecord(rawCommand) ? rawCommand.studentId : undefined);
+  if (!student) return profileFailure(state, "Alumno no encontrado.");
+  const teacherId = isRecord(rawCommand) ? rawCommand.teacherId : undefined;
+  const teacher = typeof teacherId === "string" ? demoFeeTeachers.find((candidate) => candidate.id === teacherId) : undefined;
+  if (!teacher) return profileFailure(state, "El profe no existe.");
+  if (student.assignedTeachers.some((assigned) => assigned.id === teacher.id)) return profileFailure(state, "Ese alumno ya está asignado a ese profe.");
+  return profileSuccess({
+    ...graph,
+    students: graph.students.map((candidate) => candidate.id === student.id
+      ? { ...candidate, assignedTeachers: [...candidate.assignedTeachers, { ...teacher }] }
+      : candidate),
+  } as T);
+}
+
+/** ADMIN only. */
+export function unassignFinanceStudentTeacher<T extends KnownFinanceDemoState>(state: T, rawCommand: unknown): { state: T; result: FinanceProfileResult } {
+  const actor = resolveFinanceDemoActor(isRecord(rawCommand) ? rawCommand.actor : undefined);
+  if (!actor || actor.role !== "ADMIN") return profileFailure(state, "No autorizado.");
+  const graph = readableState(state, actor);
+  if (!graph || !Array.isArray(graph.students)) return profileFailure(state, "No autorizado.");
+  const student = activeStudent(graph, isRecord(rawCommand) ? rawCommand.studentId : undefined);
+  if (!student) return profileFailure(state, "Alumno no encontrado.");
+  const teacherId = isRecord(rawCommand) ? rawCommand.teacherId : undefined;
+  if (typeof teacherId !== "string" || !student.assignedTeachers.some((assigned) => assigned.id === teacherId)) {
+    return profileFailure(state, "La asignación no existe.");
+  }
+  return profileSuccess({
+    ...graph,
+    students: graph.students.map((candidate) => candidate.id === student.id
+      ? { ...candidate, assignedTeachers: candidate.assignedTeachers.filter((assigned) => assigned.id !== teacherId) }
+      : candidate),
+  } as T);
 }

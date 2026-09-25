@@ -1,5 +1,5 @@
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
-import { demoFeeIdentities, getDemoFeeFixtures } from "./fees-fixtures.ts";
+import { demoFeeIdentities, demoFeeTeachers, getDemoFeeFixtures } from "./fees-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
 import { financeCatalogSaleActors } from "./catalog-sales-contract.ts";
 // @ts-expect-error Node's native type-stripping test runner requires the explicit extension.
@@ -11,7 +11,7 @@ import { createFinanceDemoFixture, isFinanceDate } from "./finance-demo-state.ts
 import { getGymFinancePeople } from "./gym-finance-demo-fixtures.ts";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore Node's native type-stripping test runner requires explicit extensions.
-import { GYM_DEMO_ADMIN_ID, getGymDemoProfile, getGymDemoTeacherStudentLinks } from "../scenarios/gym-demo-directory.ts";
+import { GYM_DEMO_ADMIN_ID, getGymDemoProfile } from "../scenarios/gym-demo-directory.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { snapshotDemoStorageValue } from "../training/demo-storage-snapshot.ts";
 import {
@@ -63,13 +63,6 @@ function isDenseArray(value: unknown): value is unknown[] {
   return true;
 }
 
-function sameArray(left: unknown, right: unknown): boolean {
-  return isDenseArray(left)
-    && isDenseArray(right)
-    && left.length === right.length
-    && left.every((value, index) => value === right[index]);
-}
-
 function isPostgresInt(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= POSTGRES_INT_MIN && value <= POSTGRES_INT_MAX;
 }
@@ -82,7 +75,15 @@ function isCents(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= MAX_CATALOG_CENTS;
 }
 
-/** State keeps fixture metadata closed: only an active student's next due date is mutable. */
+/**
+ * State keeps canonical fixture metadata closed (email, studentType, accountKind,
+ * canCreateOwnRoutines, deletedAt), plus an active student's next due date, which was already
+ * mutable. The four profile commands (editFinanceStudentName, setFinanceStudentBlocked,
+ * setFinanceStudentPaymentExempt, assign/unassignFinanceStudentTeacher) can additionally change
+ * name, blocked, paymentExempt, paymentExemptReason, and assignedTeachers: only their shape — and,
+ * for a teacher, its canonical identity in the fixed BOX roster — is validated, not their fixture
+ * value.
+ */
 function hasFixtureStudentMetadata(state: Record<string, unknown>): boolean {
   if (!isFinanceDate(state.anchor) || !isDenseArray(state.students)) return false;
   const studentKeys = ["id", "name", "email", "nextPaymentDate", "studentType", "accountKind", "canCreateOwnRoutines", "paymentExempt", "paymentExemptReason", "assignedTeachers", "blocked", "deletedAt"];
@@ -95,25 +96,29 @@ function hasFixtureStudentMetadata(state: Record<string, unknown>): boolean {
       || !hasOnlyKeys(student, studentKeys)
       || !isId(student.id)
       || !isFinanceDate(student.nextPaymentDate)
-      || !isDenseArray(student.assignedTeachers)
-      || !student.assignedTeachers.every((teacher) => isRecord(teacher) && hasOnlyKeys(teacher, teacherKeys) && isId(teacher.id) && typeof teacher.name === "string")) return false;
+      || typeof student.name !== "string" || !student.name.trim()
+      || typeof student.paymentExempt !== "boolean"
+      || typeof student.blocked !== "boolean"
+      || !isDenseArray(student.assignedTeachers)) return false;
+    if (student.paymentExemptReason !== null
+      && (typeof student.paymentExemptReason !== "string" || !student.paymentExemptReason.trim() || student.paymentExemptReason !== student.paymentExemptReason.trim())) return false;
+    const assignedIds = new Set<string>();
+    if (!student.assignedTeachers.every((teacher) => {
+      if (!isRecord(teacher) || !hasOnlyKeys(teacher, teacherKeys) || !isId(teacher.id) || typeof teacher.name !== "string" || assignedIds.has(teacher.id)) return false;
+      const canonicalTeacher = demoFeeTeachers.find((candidate) => candidate.id === teacher.id);
+      if (!canonicalTeacher || teacher.name !== canonicalTeacher.name) return false;
+      assignedIds.add(teacher.id);
+      return true;
+    })) return false;
     if (seenIds.has(student.id)) return false;
     seenIds.add(student.id);
     const fixture = fixtures.find((candidate) => candidate.id === student.id);
     if (!fixture) return false;
-    return student.name === fixture.name
-      && student.email === fixture.email
+    return student.email === fixture.email
       && student.studentType === fixture.studentType
       && student.accountKind === fixture.accountKind
       && student.canCreateOwnRoutines === fixture.canCreateOwnRoutines
-      && student.paymentExempt === fixture.paymentExempt
-      && student.paymentExemptReason === fixture.paymentExemptReason
-      && student.blocked === fixture.blocked
-      && student.deletedAt === fixture.deletedAt
-      && sameArray(
-        student.assignedTeachers.map((teacher) => isRecord(teacher) ? `${teacher.id}:${teacher.name}` : null),
-        fixture.assignedTeachers.map((teacher) => `${teacher.id}:${teacher.name}`),
-      );
+      && student.deletedAt === fixture.deletedAt;
   });
 }
 
@@ -152,9 +157,7 @@ function validBaseFinanceGraph(value: unknown, version: number): value is Record
     commandIds.add(payment.commandId);
     const student = studentById.get(payment.studentId);
     if (!student || student.deletedAt) return false;
-    if (!knownPaymentRecorder(payment.recordedById)) return false;
-    const recorder = Object.values(demoFeeIdentities).find((identity) => identity.id === payment.recordedById);
-    return recorder?.role === "ADMIN" || (isDenseArray(student.assignedTeachers) && student.assignedTeachers.some((teacher) => isRecord(teacher) && teacher.id === recorder?.id));
+    return knownPaymentRecorder(payment.recordedById);
   });
 }
 
@@ -314,7 +317,7 @@ function isValidOwnedGymFinanceDemoState(value: unknown): value is GymFinanceDem
       || !isCents(row.amountCents) || row.amountCents < 1 || !isFinanceDate(row.paidAt) || !isFinanceDate(row.nextPaymentDate) || !isPaymentMethod(row.paymentMethod)
       || typeof row.recordedById !== "string" || paymentIds.has(row.id) || commandIds.has(row.commandId)) return false;
     const recorder = getGymDemoProfile(row.recordedById);
-    if (!recorder || (recorder.role !== "ADMIN" && (recorder.role !== "TEACHER" || !getGymDemoTeacherStudentLinks().some((link) => link.teacherId === recorder.id && link.studentId === row.studentId)))) return false;
+    if (!recorder || (recorder.role !== "ADMIN" && recorder.role !== "TEACHER")) return false;
     paymentIds.add(row.id); commandIds.add(row.commandId);
   }
   const saleIds = new Set<string>(); commandIds.clear();

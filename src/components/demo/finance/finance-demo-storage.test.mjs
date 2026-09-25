@@ -7,7 +7,7 @@ import { createCatalogProduct, registerCatalogSale } from "./catalog-sales-state
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { registerFinanceExpense } from "./expense-demo-state.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
-import { createFinanceDemoFixture, registerFinancePayment } from "./finance-demo-state.ts";
+import { createFinanceDemoFixture, registerFinancePayment, unassignFinanceStudentTeacher } from "./finance-demo-state.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import {
   isValidFinanceDemoLegacyState,
@@ -200,4 +200,30 @@ test("post-migration expense, payment, sale, and catalog transitions retain all 
   assert.equal(reset.version, 3);
   assert.deepEqual(reset.expenses, []);
   assert.deepEqual(reset.payments, []);
+});
+
+test("a payment recorded by a TEACHER stays valid and persistable once an ADMIN unassigns that teacher from the student, but an unknown recorder is still rejected", () => {
+  const admin = { id: "finance-admin", role: "ADMIN" };
+  const teacher = { id: "finance-teacher-carlos", role: "TEACHER" };
+  let state = registerFinancePayment(createFinanceDemoFixture(anchor), {
+    id: "payment-teacher",
+    commandId: "command-teacher",
+    actor: teacher,
+    studentId: "fee-student-juan",
+    amountInput: "15000,50",
+    paidAt: anchor,
+    nextPaymentDate: "2030-07-03",
+    paymentMethod: "EFECTIVO",
+    confirmedDuplicate: false,
+  }, anchor).state;
+  assert.equal(state.students.find((student) => student.id === "fee-student-juan")?.assignedTeachers.some((assigned) => assigned.id === teacher.id), true);
+
+  state = unassignFinanceStudentTeacher(state, { actor: admin, studentId: "fee-student-juan", teacherId: teacher.id }).state;
+  assert.equal(state.students.find((student) => student.id === "fee-student-juan")?.assignedTeachers.length, 0);
+  assert.equal(isValidFinanceDemoState(state), true);
+  assert.doesNotThrow(() => serializeFinanceDemoState(state));
+  assert.equal(persistFinanceDemoState(memoryStorage(), state), null);
+
+  const unknownRecorder = { ...state, payments: state.payments.map((payment) => (payment.id === "payment-teacher" ? { ...payment, recordedById: "not-a-known-recorder" } : payment)) };
+  assert.equal(isValidFinanceDemoState(unknownRecorder), false);
 });

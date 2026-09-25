@@ -6,11 +6,18 @@ import { getDemoFeeFixtures } from "./fees-fixtures.ts";
 import { projectFeeStudents } from "./fees-contract.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import {
+  assignFinanceStudentTeacher,
   createFinanceDemoFixture,
+  editFinanceStudentName,
   parseFinanceAmountCents,
   registerFinancePayment,
+  setFinanceStudentBlocked,
+  setFinanceStudentPaymentExempt,
   suggestNextFinancePaymentDate,
+  unassignFinanceStudentTeacher,
 } from "./finance-demo-state.ts";
+// @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
+import { isValidFinanceDemoState, serializeFinanceDemoState } from "./finance-demo-storage.ts";
 
 const anchor = "2030-06-03";
 const admin = { id: "finance-admin", role: "ADMIN" };
@@ -133,4 +140,133 @@ test("authorization is rechecked before an otherwise matching idempotent replay"
   const replay = registerFinancePayment(state, command({ actor: { id: teacher.id, role: "ADMIN" } }), anchor);
   assert.equal(replay.state, state);
   assert.deepEqual(replay.result, { success: false, error: "No autorizado." });
+});
+
+function studentById(state, id) {
+  return state.students.find((student) => student.id === id);
+}
+
+function withoutFields(student, ...fields) {
+  const clone = { ...student };
+  for (const field of fields) delete clone[field];
+  return clone;
+}
+
+test("editFinanceStudentName: ADMIN or the assigned TEACHER renames a student, changing only the name", () => {
+  const state = createFinanceDemoFixture(anchor);
+  const before = studentById(state, "fee-student-juan");
+
+  const byAdmin = editFinanceStudentName(state, { actor: admin, studentId: "fee-student-juan", name: "  Juan P.  " });
+  assert.equal(byAdmin.result.success, true);
+  const afterAdmin = studentById(byAdmin.state, "fee-student-juan");
+  assert.equal(afterAdmin.name, "Juan P.");
+  assert.deepEqual(withoutFields(afterAdmin, "name"), withoutFields(before, "name"));
+
+  const byTeacher = editFinanceStudentName(state, { actor: teacher, studentId: "fee-student-juan", name: "Juan T." });
+  assert.equal(byTeacher.result.success, true);
+  assert.equal(studentById(byTeacher.state, "fee-student-juan").name, "Juan T.");
+});
+
+test("editFinanceStudentName: a TEACHER not assigned to the student is refused, and a blank name is rejected", () => {
+  const state = createFinanceDemoFixture(anchor);
+  const unassigned = editFinanceStudentName(state, { actor: teacher, studentId: "fee-student-tomas", name: "Tomás T." });
+  assert.equal(unassigned.state, state);
+  assert.deepEqual(unassigned.result, { success: false, error: "Este alumno no está asignado a vos." });
+
+  const blank = editFinanceStudentName(state, { actor: admin, studentId: "fee-student-juan", name: "   " });
+  assert.equal(blank.state, state);
+  assert.equal(blank.result.success, false);
+});
+
+test("setFinanceStudentBlocked: ADMIN toggles blocked, changing only that field; a TEACHER is refused", () => {
+  const state = createFinanceDemoFixture(anchor);
+  const before = studentById(state, "fee-student-juan");
+  assert.equal(before.blocked, false);
+
+  const blocked = setFinanceStudentBlocked(state, { actor: admin, studentId: "fee-student-juan", blocked: true });
+  assert.equal(blocked.result.success, true);
+  const after = studentById(blocked.state, "fee-student-juan");
+  assert.equal(after.blocked, true);
+  assert.deepEqual(withoutFields(after, "blocked"), withoutFields(before, "blocked"));
+
+  const unblocked = setFinanceStudentBlocked(blocked.state, { actor: admin, studentId: "fee-student-juan", blocked: false });
+  assert.equal(studentById(unblocked.state, "fee-student-juan").blocked, false);
+
+  const refused = setFinanceStudentBlocked(state, { actor: teacher, studentId: "fee-student-juan", blocked: true });
+  assert.equal(refused.state, state);
+  assert.deepEqual(refused.result, { success: false, error: "No autorizado." });
+});
+
+test("setFinanceStudentPaymentExempt: ADMIN toggles exemption and normalizes a blank reason to null; a TEACHER is refused", () => {
+  const state = createFinanceDemoFixture(anchor);
+  const before = studentById(state, "fee-student-juan");
+
+  const exempted = setFinanceStudentPaymentExempt(state, { actor: admin, studentId: "fee-student-juan", exempt: true, reason: "  Becado  " });
+  assert.equal(exempted.result.success, true);
+  const after = studentById(exempted.state, "fee-student-juan");
+  assert.equal(after.paymentExempt, true);
+  assert.equal(after.paymentExemptReason, "Becado");
+  assert.deepEqual(withoutFields(after, "paymentExempt", "paymentExemptReason"), withoutFields(before, "paymentExempt", "paymentExemptReason"));
+
+  const cleared = setFinanceStudentPaymentExempt(exempted.state, { actor: admin, studentId: "fee-student-juan", exempt: false, reason: "   " });
+  assert.equal(cleared.result.success, true);
+  const afterClear = studentById(cleared.state, "fee-student-juan");
+  assert.equal(afterClear.paymentExempt, false);
+  assert.equal(afterClear.paymentExemptReason, null);
+
+  const refused = setFinanceStudentPaymentExempt(state, { actor: teacher, studentId: "fee-student-juan", exempt: true, reason: null });
+  assert.equal(refused.state, state);
+  assert.deepEqual(refused.result, { success: false, error: "No autorizado." });
+});
+
+test("assign/unassignFinanceStudentTeacher: ADMIN manages assignment from the fixed BOX teacher roster; a TEACHER is refused", () => {
+  const state = createFinanceDemoFixture(anchor);
+  const before = studentById(state, "fee-student-tomas");
+  assert.deepEqual(before.assignedTeachers, []);
+
+  const assigned = assignFinanceStudentTeacher(state, { actor: admin, studentId: "fee-student-tomas", teacherId: teacher.id });
+  assert.equal(assigned.result.success, true);
+  const afterAssign = studentById(assigned.state, "fee-student-tomas");
+  assert.deepEqual(afterAssign.assignedTeachers, [{ id: teacher.id, name: "Carlos Entrenador" }]);
+  assert.deepEqual(withoutFields(afterAssign, "assignedTeachers"), withoutFields(before, "assignedTeachers"));
+
+  const duplicate = assignFinanceStudentTeacher(assigned.state, { actor: admin, studentId: "fee-student-tomas", teacherId: teacher.id });
+  assert.deepEqual(duplicate.result, { success: false, error: "Ese alumno ya está asignado a ese profe." });
+
+  const unknownTeacher = assignFinanceStudentTeacher(state, { actor: admin, studentId: "fee-student-tomas", teacherId: "finance-admin" });
+  assert.deepEqual(unknownTeacher.result, { success: false, error: "El profe no existe." });
+
+  const refusedAssign = assignFinanceStudentTeacher(state, { actor: teacher, studentId: "fee-student-tomas", teacherId: teacher.id });
+  assert.deepEqual(refusedAssign.result, { success: false, error: "No autorizado." });
+
+  const unassigned = unassignFinanceStudentTeacher(assigned.state, { actor: admin, studentId: "fee-student-tomas", teacherId: teacher.id });
+  assert.equal(unassigned.result.success, true);
+  assert.deepEqual(studentById(unassigned.state, "fee-student-tomas").assignedTeachers, []);
+
+  const missingLink = unassignFinanceStudentTeacher(state, { actor: admin, studentId: "fee-student-tomas", teacherId: teacher.id });
+  assert.deepEqual(missingLink.result, { success: false, error: "La asignación no existe." });
+
+  const refusedUnassign = unassignFinanceStudentTeacher(assigned.state, { actor: teacher, studentId: "fee-student-tomas", teacherId: teacher.id });
+  assert.deepEqual(refusedUnassign.result, { success: false, error: "No autorizado." });
+});
+
+test("every profile command's resulting state survives a persist/restore round trip", () => {
+  const state = createFinanceDemoFixture(anchor);
+  const mutated = [
+    editFinanceStudentName(state, { actor: admin, studentId: "fee-student-juan", name: "Juan P." }).state,
+    setFinanceStudentBlocked(state, { actor: admin, studentId: "fee-student-juan", blocked: true }).state,
+    setFinanceStudentPaymentExempt(state, { actor: admin, studentId: "fee-student-juan", exempt: true, reason: "Becado" }).state,
+    assignFinanceStudentTeacher(state, { actor: admin, studentId: "fee-student-tomas", teacherId: teacher.id }).state,
+  ];
+  for (const next of mutated) {
+    assert.equal(isValidFinanceDemoState(next), true);
+    assert.deepEqual(JSON.parse(serializeFinanceDemoState(next)), next);
+  }
+
+  const assignedThenUnassigned = unassignFinanceStudentTeacher(
+    assignFinanceStudentTeacher(state, { actor: admin, studentId: "fee-student-tomas", teacherId: teacher.id }).state,
+    { actor: admin, studentId: "fee-student-tomas", teacherId: teacher.id },
+  ).state;
+  assert.equal(isValidFinanceDemoState(assignedThenUnassigned), true);
+  assert.deepEqual(JSON.parse(serializeFinanceDemoState(assignedThenUnassigned)), assignedThenUnassigned);
 });

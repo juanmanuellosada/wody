@@ -8,6 +8,10 @@ import {
   type FinancePaymentCallback,
 } from "./finance-demo-adapters";
 import {
+  createFinanceProfileCallbackFactory,
+  type FinanceProfileCallbacks,
+} from "./finance-profile-demo-adapters";
+import {
   createCatalogDemoCallbackFactory,
   type CatalogDemoCallbacks,
 } from "./catalog-demo-adapters";
@@ -32,6 +36,7 @@ import type { FinanceDemoState, FinanceStudent } from "./finance-demo-types";
 
 type FinanceRoleCallbacks = Record<FeeRole, FinancePaymentCallback>;
 type SaleRoleCallbacks = Record<FeeRole, SaleDemoCallback>;
+type ProfileRoleCallbacks = Record<FeeRole, FinanceProfileCallbacks>;
 
 export type DemoFinanceContextValue = {
   ready: boolean;
@@ -44,6 +49,7 @@ export type DemoFinanceContextValue = {
   catalogCallbacks: CatalogDemoCallbacks | null;
   saleCallbacks: SaleRoleCallbacks | null;
   revenueCallbacks: DemoRevenueCallbacks | null;
+  profileCallbacks: ProfileRoleCallbacks | null;
   saleDatePolicy: SaleDatePolicy;
   expenseDatePolicy: SaleDatePolicy;
   /** A detached, current roster bridge for the isolated access-demo provider. */
@@ -69,6 +75,7 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
   const [catalogCallbacks, setCatalogCallbacks] = useState<CatalogDemoCallbacks | null>(null);
   const [saleCallbacks, setSaleCallbacks] = useState<SaleRoleCallbacks | null>(null);
   const [revenueCallbacks, setRevenueCallbacks] = useState<DemoRevenueCallbacks | null>(null);
+  const [profileCallbacks, setProfileCallbacks] = useState<ProfileRoleCallbacks | null>(null);
   const [resetEpoch, setResetEpoch] = useState(0);
   const stateRef = useRef(state);
   const todayRef = useRef(state.anchor);
@@ -150,6 +157,18 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
         fixedActor: financeCatalogSaleActors.admin,
         trustedDatePolicy: saleDatePolicy,
       }));
+      setProfileCallbacks({
+        ADMIN: createFinanceProfileCallbackFactory({
+          getState: () => stateRef.current,
+          commit,
+          actor: financeDemoActors.admin,
+        }),
+        TEACHER: createFinanceProfileCallbackFactory({
+          getState: () => stateRef.current,
+          commit,
+          actor: financeDemoActors.teacher,
+        }),
+      });
       setReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -180,10 +199,11 @@ export function DemoFinanceProvider({ children }: { children: React.ReactNode })
     catalogCallbacks: ready ? catalogCallbacks : null,
     saleCallbacks: ready ? saleCallbacks : null,
     revenueCallbacks: ready ? revenueCallbacks : null,
+    profileCallbacks: ready ? profileCallbacks : null,
     saleDatePolicy,
     expenseDatePolicy: saleDatePolicy,
     getAccessStudents,
-  }), [callbacks, catalogCallbacks, getAccessStudents, ready, reset, resetEpoch, revenueCallbacks, saleCallbacks, saleDatePolicy, state, today, warning]);
+  }), [callbacks, catalogCallbacks, getAccessStudents, profileCallbacks, ready, reset, resetEpoch, revenueCallbacks, saleCallbacks, saleDatePolicy, state, today, warning]);
 
   return <DemoFinanceContext.Provider value={value}>{children}</DemoFinanceContext.Provider>;
 }

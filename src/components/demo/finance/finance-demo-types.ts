@@ -120,6 +120,9 @@ export type FinancePaymentResult =
 
 export type FinanceTransition = { state: FinanceDemoState; result: FinancePaymentResult };
 
+/** Shared result shape for the profile commands (name, block, exemption, teacher assignment). */
+export type FinanceProfileResult = { success: true } | { success: false; error: string };
+
 /** Optional history is expressly fictional and never mutates the fixture students' base due dates. */
 export type FictionalFinanceSeedPayment = Omit<FinancePayment, "id" | "commandId"> & {
   id?: string;

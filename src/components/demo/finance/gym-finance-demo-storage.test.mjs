@@ -5,7 +5,7 @@ import { createCatalogProduct, registerCatalogSale } from "./catalog-sales-state
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { registerFinanceExpense } from "./expense-demo-state.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
-import { getGymDemoActorToken, GYM_DEMO_ADMIN_ID, GYM_DEMO_PERSONALIZED_STUDENT_ID, GYM_DEMO_PRIMARY_TEACHER_ID, GYM_DEMO_SECONDARY_TEACHER_ID } from "../scenarios/gym-demo-directory.ts";
+import { getGymDemoActorToken, GYM_DEMO_ADMIN_ID, GYM_DEMO_GENERAL_STUDENT_ID, GYM_DEMO_PERSONALIZED_STUDENT_ID, GYM_DEMO_PRIMARY_TEACHER_ID, GYM_DEMO_SECONDARY_TEACHER_ID } from "../scenarios/gym-demo-directory.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
 import { createGymFinanceDemoFixture } from "./gym-finance-demo-fixtures.ts";
 // @ts-expect-error Node's native type-stripping test runner requires explicit extensions.
@@ -388,4 +388,25 @@ test("unavailable, incomplete, read, and quota storage failures are actionable g
 test("invalid trusted anchors fail closed rather than returning an invalid fixture as a successful fallback", () => {
   assert.throws(() => deserializeGymFinanceDemoState(null, "not-a-date"), /Invalid trusted GYM finance fixture configuration/);
   assert.throws(() => deserializeGymFinanceDemoState("{bad", "not-a-date"), /Invalid trusted GYM finance fixture configuration/);
+});
+
+test("a GYM payment authorized through a bridge link, by a teacher canonically unlinked from that student, validates; an unknown recorder is still rejected", () => {
+  const secondaryTeacher = getGymDemoActorToken(GYM_DEMO_SECONDARY_TEACHER_ID);
+  const payment = registerFinancePayment(createGymFinanceDemoFixture(anchor), {
+    id: "gym-bridge-payment",
+    commandId: "gym-bridge-payment-command",
+    actor: secondaryTeacher,
+    studentId: GYM_DEMO_GENERAL_STUDENT_ID,
+    amountInput: "1000,00",
+    paidAt: anchor,
+    nextPaymentDate: "2030-07-03",
+    paymentMethod: "EFECTIVO",
+    confirmedDuplicate: false,
+  }, anchor, [{ teacherId: GYM_DEMO_SECONDARY_TEACHER_ID, studentId: GYM_DEMO_GENERAL_STUDENT_ID }]);
+  assert.equal(payment.result.success, true);
+  assert.equal(isValidGymFinanceDemoState(payment.state), true);
+
+  const unknownRecorder = clone(payment.state);
+  unknownRecorder.payments = unknownRecorder.payments.map((row) => (row.id === "gym-bridge-payment" ? { ...row, recordedById: "not-a-known-recorder" } : row));
+  assert.equal(isValidGymFinanceDemoState(unknownRecorder), false);
 });

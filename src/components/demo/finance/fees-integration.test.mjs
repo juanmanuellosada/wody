@@ -126,8 +126,8 @@ test("root and standalone Cuotas pages use the one safe local adapter", async ()
   assert.equal((navbar.match(/href: "\/demo\/teacher\/pagos", label: "Cuotas"/g) ?? []).length, 1);
   assert.match(layout, /"\/demo\/admin\/pagos"/);
   assert.match(layout, /"\/demo\/teacher\/pagos"/);
-  assert.match(adapter, /disabled title="La edición de perfiles no está disponible/);
-  assert.match(adapter, /Datos ficticios\. Editar, bloquear, eximir y asignar alumnos no están disponibles/);
+  assert.doesNotMatch(adapter, /disabled title="La edición de perfiles no está disponible/);
+  assert.match(adapter, /Datos ficticios\. Podés editar el nombre, bloquear o desbloquear, marcar exenciones de pago y asignar o quitar profes; los cambios quedan solo en esta pestaña y no modifican datos reales\./);
   assert.match(adapter, /gymKind="BOX"/);
   assert.match(studentTypeView, /studentTypeOptions\(gymKind\)/);
 });
