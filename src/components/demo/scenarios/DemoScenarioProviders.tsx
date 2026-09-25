@@ -9,6 +9,7 @@ import { DemoTrainingProvider } from "@/components/demo/training/DemoTrainingPro
 import { DemoGymProvider } from "@/components/demo/gym/DemoGymProvider";
 import { DemoGymProfileProvider } from "@/components/demo/gym/DemoGymProfileProvider";
 import { DemoGymFinanceProvider } from "@/components/demo/gym/DemoGymFinanceProvider";
+import { DemoGymAccessProvider } from "@/components/demo/gym/DemoGymAccessProvider";
 
 export type DemoScenario = "BOX" | "PERSONAL" | "GYM";
 
@@ -41,7 +42,9 @@ export function DemoScenarioProviders({ children, rootPersonalNavigation = false
     return (
       <DemoGymProvider>
         <DemoGymProfileProvider>
-          <DemoGymFinanceProvider><DemoNavbar scenario="GYM" />{children}</DemoGymFinanceProvider>
+          <DemoGymFinanceProvider>
+            <DemoGymAccessProvider><DemoNavbar scenario="GYM" />{children}</DemoGymAccessProvider>
+          </DemoGymFinanceProvider>
         </DemoGymProfileProvider>
       </DemoGymProvider>
     );

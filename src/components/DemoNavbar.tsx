@@ -40,6 +40,7 @@ const gymRoleLinks = {
     { href: "/demo/gym/admin/pagos", label: "Cuotas" },
     { href: "/demo/gym/admin/caja", label: "Caja" },
     { href: "/demo/gym/admin/productos", label: "Productos" },
+    { href: "/demo/gym/admin/ingresos", label: "Ingresos" },
     { href: "/demo/gym/admin/rms", label: "Mis PRs" },
   ],
   teacher: [
@@ -92,8 +93,8 @@ export function DemoNavbar({ supportedRoutes, scenario }: { supportedRoutes?: st
 
   function isActive(href: string) {
     return pathname === href || (
-      href === "/demo/admin/ingresos"
-      && pathname.startsWith("/demo/admin/ingresos/")
+      (href === "/demo/admin/ingresos" && pathname.startsWith("/demo/admin/ingresos/"))
+      || (href === "/demo/gym/admin/ingresos" && pathname.startsWith("/demo/gym/admin/ingresos/"))
     );
   }
 

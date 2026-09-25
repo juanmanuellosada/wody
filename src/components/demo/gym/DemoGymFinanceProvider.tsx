@@ -24,7 +24,7 @@ import {
   persistGymFinanceDemoState,
   type GymFinanceDemoStorage,
 } from "@/components/demo/finance/gym-finance-demo-storage";
-import type { GymFinanceDemoState } from "@/components/demo/finance/finance-demo-types";
+import type { FinanceStudent, GymFinanceDemoState } from "@/components/demo/finance/finance-demo-types";
 import type { SaleDatePolicy } from "@/components/sales/sale-view-contracts";
 import {
   GYM_DEMO_ADMIN_ID,
@@ -50,6 +50,8 @@ export type DemoGymFinanceContextValue = {
   revenueCallbacks: ReadonlyMap<string, GymRevenueDemoCallbacks> | null;
   saleDatePolicy: SaleDatePolicy;
   expenseDatePolicy: SaleDatePolicy;
+  /** A detached, current roster bridge for the isolated GYM access-demo provider (mirrors BOX's DemoFinanceProvider). */
+  getAccessStudents: () => readonly FinanceStudent[];
 };
 
 const DemoGymFinanceContext = createContext<DemoGymFinanceContextValue | null>(null);
@@ -122,6 +124,18 @@ export function DemoGymFinanceProvider({ children }: { children: React.ReactNode
   const saleFactories = useRef(new Map<string, GymSaleDemoCallback>());
   const revenueFactories = useRef(new Map<string, GymRevenueDemoCallbacks>());
   const saleDatePolicy = useMemo<SaleDatePolicy>(() => ({ today: argentinaToday }), []);
+
+  /**
+   * Intentionally a synchronous state-ref bridge, not a cached copy of any foreign state: access
+   * commands can observe a just-committed payment before React renders the next tree. It exposes
+   * detached students only, never finance commands or persistence.
+   */
+  const getAccessStudents = useCallback((): readonly FinanceStudent[] => (
+    stateRef.current.students.map((student) => ({
+      ...student,
+      assignedTeachers: student.assignedTeachers.map((teacher) => ({ ...teacher })),
+    }))
+  ), []);
 
   /** Publish the ref before React state so independently queued factories share one current ledger. */
   const commit = useCallback((next: GymFinanceDemoState) => {
@@ -243,7 +257,8 @@ export function DemoGymFinanceProvider({ children }: { children: React.ReactNode
     revenueCallbacks: ready ? publishedFactories.revenues : null,
     saleDatePolicy,
     expenseDatePolicy: saleDatePolicy,
-  }), [publishedFactories, ready, reset, resetEpoch, saleDatePolicy, state, today, warning]);
+    getAccessStudents,
+  }), [getAccessStudents, publishedFactories, ready, reset, resetEpoch, saleDatePolicy, state, today, warning]);
 
   return <DemoGymFinanceContext.Provider value={value}>{children}</DemoGymFinanceContext.Provider>;
 }

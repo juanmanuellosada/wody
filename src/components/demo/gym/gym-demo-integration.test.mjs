@@ -48,8 +48,8 @@ const financeRoutes = [
 ];
 
 test("GYM adds the bounded twelve-route inventory to root and Preview", async () => {
-  assert.equal(await pageCount("src/app/demo"), 36);
-  assert.equal(await pageCount("preview/landing/app/demo"), 36);
+  assert.equal(await pageCount("src/app/demo"), 38);
+  assert.equal(await pageCount("preview/landing/app/demo"), 38);
   for (const [leaf, key, role, screen] of routes) {
     const [rootPage, previewPage] = await Promise.all([
       source(`src/app/demo/gym/${leaf}`), source(`preview/landing/app/demo/gym/${leaf}`),
@@ -81,6 +81,7 @@ test("trailing-slash hub uses the actual scenario branch and contains the GYM li
   const boxProvider = () => null;
   const gymProvider = () => null;
   const gymProfileProvider = () => null;
+  const gymAccessProvider = () => null;
   const personalProvider = () => null;
   const navbar = () => null;
   const scenarios = await transpiledModule("src/components/demo/scenarios/DemoScenarioProviders.tsx", {
@@ -94,6 +95,7 @@ test("trailing-slash hub uses the actual scenario branch and contains the GYM li
     "@/components/demo/gym/DemoGymProvider": { DemoGymProvider: gymProvider },
     "@/components/demo/gym/DemoGymProfileProvider": { DemoGymProfileProvider: gymProfileProvider },
     "@/components/demo/gym/DemoGymFinanceProvider": { DemoGymFinanceProvider: gymProvider },
+    "@/components/demo/gym/DemoGymAccessProvider": { DemoGymAccessProvider: gymAccessProvider },
   });
   const expected = new Map([
     ["/demo", "BOX"], ["/demo/", "BOX"], ["/demo/admin/", "BOX"], ["/demo/teacher/rms/", "BOX"], ["/demo/student/wod/", "BOX"],
@@ -107,7 +109,8 @@ test("trailing-slash hub uses the actual scenario branch and contains the GYM li
   assert.equal(gymTree.type, gymProvider);
   assert.equal(gymTree.props.children.type, gymProfileProvider);
   assert.equal(gymTree.props.children.props.children.type, gymProvider);
-  assert.equal(gymTree.props.children.props.children.props.children[0].type, navbar);
+  assert.equal(gymTree.props.children.props.children.props.children.type, gymAccessProvider);
+  assert.equal(gymTree.props.children.props.children.props.children.props.children[0].type, navbar);
   pathname = null;
   assert.equal(scenarios.DemoScenarioProviders({ children: "none" }), null);
 
@@ -153,7 +156,7 @@ test("GYM is pathname-gated, has its three ledgers, and preserves other scenario
   assert.match(scenarios, /pathname === "\/demo\/gym" \|\| pathname\.startsWith\("\/demo\/gym\/"\)/);
   assert.match(scenarios, /pathname === "\/demo\/admin"[\s\S]*pathname\.startsWith\("\/demo\/student\/"\)[\s\S]*return "BOX"/);
   assert.match(scenarios, /if \(scenario === null\) return null/);
-  assert.match(scenarios, /<DemoGymProvider>\s*<DemoGymProfileProvider>\s*<DemoGymFinanceProvider><DemoNavbar scenario="GYM" \/>\{children\}<\/DemoGymFinanceProvider>\s*<\/DemoGymProfileProvider>\s*<\/DemoGymProvider>/);
+  assert.match(scenarios, /<DemoGymProvider>\s*<DemoGymProfileProvider>\s*<DemoGymFinanceProvider>\s*<DemoGymAccessProvider><DemoNavbar scenario="GYM" \/>\{children\}<\/DemoGymAccessProvider>\s*<\/DemoGymFinanceProvider>\s*<\/DemoGymProfileProvider>\s*<\/DemoGymProvider>/);
   assert.match(navbar, /gymRoleLinks/);
   assert.match(layout, /"\/demo\/student\/wod"/);
   for (const route of routes) assert.match(layout, new RegExp(`"/demo/gym/${route[0].replace("/page.tsx", "")}"`.replace("/admin/rms", "/admin/rms").replace("/teacher/rms", "/teacher/rms").replace("/student/rms", "/student/rms").replace("/student/wod", "/student/wod").replace("/admin", "/admin").replace("/teacher", "/teacher").replace("/student", "/student")));

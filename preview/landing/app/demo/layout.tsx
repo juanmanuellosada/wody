@@ -30,6 +30,8 @@ const supportedRoutes = [
   "/demo/gym/admin/pagos",
   "/demo/gym/admin/caja",
   "/demo/gym/admin/productos",
+  "/demo/gym/admin/ingresos",
+  "/demo/gym/admin/ingresos/historial",
   "/demo/gym/admin/rms",
   "/demo/gym/teacher",
   "/demo/gym/teacher/pagos",

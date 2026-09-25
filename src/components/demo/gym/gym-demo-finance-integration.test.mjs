@@ -168,7 +168,7 @@ test("GYM finance uses its isolated provider, canonical identity tokens, and no 
     source("src/components/DemoNavbar.tsx"),
     source("preview/landing/app/demo/layout.tsx"),
   ]);
-  assert.match(scenarios, /<DemoGymProvider>\s*<DemoGymProfileProvider>\s*<DemoGymFinanceProvider><DemoNavbar scenario="GYM"/);
+  assert.match(scenarios, /<DemoGymProvider>\s*<DemoGymProfileProvider>\s*<DemoGymFinanceProvider>\s*<DemoGymAccessProvider><DemoNavbar scenario="GYM"/);
   for (const sourceText of [route, fees, cash, products]) {
     assert.match(sourceText, /getGymDemoActorToken/);
     assert.doesNotMatch(sourceText, /DemoFinanceProvider|DemoCashAdapter|DemoFeesAdapter|DemoCatalogAdapter|DemoRevenueAdapter|wody-box-finance/);

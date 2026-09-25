@@ -125,6 +125,6 @@ test("Caja shell keeps production action slots and static exports retain bounded
   for (const page of [rootKiosk, previewKiosk]) assert.match(page, /DemoAccessKiosk/);
   for (const page of [rootHistory, previewHistory]) assert.match(page, /DemoAccessHistory/);
   assert.doesNotMatch(previewLayout, /\/demo\/(teacher|student)\/ingresos/);
-  assert.equal(rootPages, 36, "the existing 19 BOX pages, five PERSONAL student pages, and twelve GYM pages retain the bounded demo inventory");
-  assert.equal(previewPages, 36, "the existing 19 Preview BOX pages, five PERSONAL student pages, and twelve GYM pages retain the bounded demo inventory");
+  assert.equal(rootPages, 38, "the existing 19 BOX pages, five PERSONAL student pages, and fourteen GYM pages retain the bounded demo inventory");
+  assert.equal(previewPages, 38, "the existing 19 Preview BOX pages, five PERSONAL student pages, and fourteen GYM pages retain the bounded demo inventory");
 });
