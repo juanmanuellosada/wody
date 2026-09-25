@@ -474,3 +474,139 @@ test("versioned restore rejects duplicate occurrences and invalid active weekly 
   assert.equal(isValidManagementDemoState(inactiveHistorical), true);
   assert.equal(restoreManagementDemoState(JSON.stringify(inactiveHistorical), "2031-01-01", now).anchorDate, anchor);
 });
+
+test("re-enrolling a slot after cancelling the whole enrollment revives every confirmed booking the enrollment had", () => {
+  let state = asActor(fixture(), "student-full");
+  const originalConfirmed = state.bookings.filter(
+    (booking) => booking.enrollmentId === "enrollment-strength-julia" && booking.status === "CONFIRMED",
+  );
+  assert.equal(originalConfirmed.length, 3);
+
+  const ended = studentCancelEnrollment(state, "student-full", "enrollment-strength-julia", now);
+  assert.equal(ended.result.success, true);
+  assert.equal(
+    ended.state.bookings.filter((booking) => booking.enrollmentId === "enrollment-strength-julia" && booking.status === "CONFIRMED").length,
+    0,
+  );
+  assert.equal(
+    ended.state.bookings.filter((booking) => booking.studentId === "student-full" && booking.status === "CONFIRMED").length,
+    1,
+    "the original SINGLE booking on the first occurrence must remain untouched",
+  );
+
+  const reEnrolled = studentEnrollInSlot(ended.state, "student-full", "slot-strength-wed", now);
+  assert.equal(reEnrolled.result.success, true);
+  assert.equal(reEnrolled.result.enrollmentId, "enrollment-strength-julia");
+  assert.equal(reEnrolled.result.bookingsCreated, 3, "re-enrolling must revive every previously cancelled occurrence");
+  const revivedConfirmed = reEnrolled.state.bookings.filter(
+    (booking) => booking.enrollmentId === "enrollment-strength-julia" && booking.status === "CONFIRMED",
+  );
+  assert.equal(revivedConfirmed.length, 3);
+  assert.deepEqual(
+    revivedConfirmed.map((booking) => booking.sessionId).sort(),
+    originalConfirmed.map((booking) => booking.sessionId).sort(),
+  );
+  assert.equal(
+    reEnrolled.state.bookings.filter((booking) => booking.studentId === "student-full" && booking.status === "CONFIRMED").length,
+    4,
+    "total confirmed bookings must match the original seeded enrollment (1 SINGLE + 3 ENROLLMENT)",
+  );
+});
+
+test("cancelling one enrollment occurrence survives a rolling-window re-materialization", () => {
+  // A slot created through the command (rather than the seeded fixture) gets its session ids from
+  // the same `session-${slot.id}-${date}` scheme the window materializer itself uses, so removing
+  // and re-adding one of its sessions below reproduces exactly what a rolling window does.
+  const created = createManagedActivity(fixture(), weeklyInput, [weeklySlot], now);
+  assert.equal(created.result.success, true);
+  const slotId = created.state.slots.find((slot) => slot.activityId === created.result.activity.id).id;
+  let state = asActor(created.state, "student-ana");
+  const enrolled = studentEnrollInSlot(state, "student-ana", slotId, now);
+  assert.equal(enrolled.result.success, true);
+  state = enrolled.state;
+  const anaBooking = state.bookings.find(
+    (booking) => booking.enrollmentId === enrolled.result.enrollmentId && booking.status === "CONFIRMED",
+  );
+  const cancelled = studentCancelBooking(state, "student-ana", anaBooking.id, now);
+  assert.equal(cancelled.result.success, true);
+  state = cancelled.state;
+  assert.equal(state.bookings.find((booking) => booking.id === anaBooking.id).status, "CANCELLED");
+
+  // Simulate this occurrence not yet being re-materialized (as if the rolling window had not
+  // reached it again), while its cancelled booking row already exists — exactly the shape the
+  // real window materializer must not silently revive.
+  const withoutSession = { ...state, sessions: state.sessions.filter((session) => session.id !== anaBooking.sessionId) };
+  const remade = materializeUpcomingSessions(withoutSession, now);
+  assert.equal(remade.result.success, true);
+  assert.equal(remade.state.sessions.some((session) => session.id === anaBooking.sessionId), true, "the session must be rematerialized");
+  assert.equal(
+    remade.state.bookings.find((booking) => booking.id === anaBooking.id).status,
+    "CANCELLED",
+    "the rolling window must never revive a booking the student deliberately cancelled",
+  );
+  assert.equal(
+    remade.state.bookings.filter(
+      (booking) => booking.sessionId === anaBooking.sessionId && booking.studentId === "student-ana",
+    ).length,
+    1,
+    "no duplicate booking row must be created for this session/student pair",
+  );
+});
+
+test("reviving a cancelled enrollment booking on re-enroll still respects session capacity", () => {
+  let state = asActor(fixture(), "student-full");
+  const ended = studentCancelEnrollment(state, "student-full", "enrollment-strength-julia", now);
+  assert.equal(ended.result.success, true);
+  state = ended.state;
+
+  // Fill one of Julia's three now-cancelled sessions back up to capacity (3) with three other
+  // staff-booked students (that session has no other confirmed booking left after the cancel).
+  const fullSessionId = state.bookings.find(
+    (booking) => booking.enrollmentId === "enrollment-strength-julia" && booking.status === "CANCELLED",
+  ).sessionId;
+  let staffState = asActor(state, "admin-demo");
+  staffState = manuallyBookStudent(staffState, fullSessionId, "student-lite", now).state;
+  staffState = manuallyBookStudent(staffState, fullSessionId, "student-mateo", now).state;
+  staffState = manuallyBookStudent(staffState, fullSessionId, "student-ana", now).state;
+  assert.equal(toManagedSessionRows(staffState, "activity-strength").find((row) => row.id === fullSessionId).bookedCount, 3);
+
+  const reEnrollState = asActor(staffState, "student-full");
+  const reEnrolled = studentEnrollInSlot(reEnrollState, "student-full", "slot-strength-wed", now);
+  assert.equal(reEnrolled.result.success, true);
+  assert.equal(reEnrolled.result.bookingsCreated, 2, "the full session must refuse the revive; the other two occurrences still revive");
+  const juliaBookingOnFullSession = reEnrolled.state.bookings.find(
+    (booking) => booking.sessionId === fullSessionId && booking.studentId === "student-full",
+  );
+  assert.equal(juliaBookingOnFullSession.status, "CANCELLED", "the capacity guard must keep the revive refused");
+});
+
+test("one student enrolling in a slot must not revive another student's deliberately cancelled occurrence on the same slot", () => {
+  let state = asActor(fixture(), "student-full");
+  const juliaBooking = state.bookings.find(
+    (booking) => booking.enrollmentId === "enrollment-strength-julia" && booking.status === "CONFIRMED",
+  );
+  const cancelled = studentCancelBooking(state, "student-full", juliaBooking.id, now);
+  assert.equal(cancelled.result.success, true);
+  state = cancelled.state;
+  assert.equal(state.bookings.find((booking) => booking.id === juliaBooking.id).status, "CANCELLED");
+  const juliaConfirmedBefore = state.bookings.filter(
+    (booking) => booking.studentId === "student-full" && booking.status === "CONFIRMED",
+  ).length;
+
+  const enrollState = asActor(state, "student-mateo");
+  const enrolled = studentEnrollInSlot(enrollState, "student-mateo", "slot-strength-wed", now);
+  assert.equal(enrolled.result.success, true);
+
+  assert.equal(
+    enrolled.state.bookings.find((booking) => booking.id === juliaBooking.id).status,
+    "CANCELLED",
+    "another student's enrollment must never revive Julia's deliberately cancelled occurrence",
+  );
+  assert.equal(
+    enrolled.state.bookings.filter(
+      (booking) => booking.studentId === "student-full" && booking.status === "CONFIRMED",
+    ).length,
+    juliaConfirmedBefore,
+    "Julia's confirmed count must be unchanged by another student's enrollment",
+  );
+});

@@ -4,6 +4,7 @@ import {
   GYM_DEMO_ADMIN_ID,
   GYM_DEMO_GENERAL_STUDENT_ID,
   GYM_DEMO_HISTORICAL_MUSLIB_LITE_STUDENT_ID,
+  GYM_DEMO_MUSLIB_STUDENT_ID,
   GYM_DEMO_PERSONALIZED_STUDENT_ID,
   GYM_DEMO_PRIMARY_TEACHER_ID,
   GYM_DEMO_SECONDARY_TEACHER_ID,
@@ -617,4 +618,139 @@ test("a materialized booking always carries its own row distinct from the enroll
   const singleBooking = state.bookings.find((booking) => booking.id === "booking-spinning-paula-first");
   assert.equal(singleBooking.source, "SINGLE");
   assert.equal(singleBooking.enrollmentId, null);
+});
+
+test("re-enrolling a slot after cancelling the whole enrollment revives every confirmed booking the first enrollment created", () => {
+  let state = asActor(fixture(), GYM_DEMO_MUSLIB_STUDENT_ID);
+  const firstEnroll = studentEnrollGymTurnosSlot(state, GYM_DEMO_MUSLIB_STUDENT_ID, "slot-spinning-wed", now);
+  assert.equal(firstEnroll.result.success, true);
+  assert.equal(firstEnroll.result.bookingsCreated, 3);
+  state = firstEnroll.state;
+  const firstConfirmed = state.bookings.filter(
+    (booking) => booking.enrollmentId === firstEnroll.result.enrollmentId && booking.status === "CONFIRMED",
+  );
+  assert.equal(firstConfirmed.length, 3);
+
+  const ended = studentCancelGymTurnosEnrollment(state, GYM_DEMO_MUSLIB_STUDENT_ID, firstEnroll.result.enrollmentId, now);
+  assert.equal(ended.result.success, true);
+  assert.equal(
+    ended.state.bookings.filter((booking) => booking.enrollmentId === firstEnroll.result.enrollmentId && booking.status === "CONFIRMED").length,
+    0,
+  );
+
+  const reEnroll = studentEnrollGymTurnosSlot(ended.state, GYM_DEMO_MUSLIB_STUDENT_ID, "slot-spinning-wed", now);
+  assert.equal(reEnroll.result.success, true);
+  assert.equal(reEnroll.result.enrollmentId, firstEnroll.result.enrollmentId);
+  assert.equal(reEnroll.result.bookingsCreated, 3, "re-enrolling must revive every previously cancelled occurrence, not just create net-new ones");
+  const revivedConfirmed = reEnroll.state.bookings.filter(
+    (booking) => booking.enrollmentId === firstEnroll.result.enrollmentId && booking.status === "CONFIRMED",
+  );
+  assert.equal(revivedConfirmed.length, 3);
+  assert.deepEqual(
+    revivedConfirmed.map((booking) => booking.sessionId).sort(),
+    firstConfirmed.map((booking) => booking.sessionId).sort(),
+  );
+  assert.equal(reEnroll.state.enrollments.find((enrollment) => enrollment.id === firstEnroll.result.enrollmentId).status, "ACTIVE");
+});
+
+test("cancelling one enrollment occurrence survives a rolling-window re-materialization", () => {
+  // A slot created through the command (rather than the seeded fixture) gets its session ids from
+  // the same `session-${slot.id}-${date}` scheme the window materializer itself uses, so removing
+  // and re-adding one of its sessions below reproduces exactly what a rolling window does.
+  const created = createGymTurnosActivity(fixture(), weeklyInput, [weeklySlot], now);
+  assert.equal(created.result.success, true);
+  const slotId = created.state.slots.find((slot) => slot.activityId === created.result.activity.id).id;
+  let state = asActor(created.state, GYM_DEMO_MUSLIB_STUDENT_ID);
+  const enrolled = studentEnrollGymTurnosSlot(state, GYM_DEMO_MUSLIB_STUDENT_ID, slotId, now);
+  assert.equal(enrolled.result.success, true);
+  state = enrolled.state;
+  const muslibBooking = state.bookings.find(
+    (booking) => booking.enrollmentId === enrolled.result.enrollmentId && booking.status === "CONFIRMED",
+  );
+  const cancelled = studentCancelGymTurnosBooking(state, GYM_DEMO_MUSLIB_STUDENT_ID, muslibBooking.id, now);
+  assert.equal(cancelled.result.success, true);
+  state = cancelled.state;
+  assert.equal(state.bookings.find((booking) => booking.id === muslibBooking.id).status, "CANCELLED");
+
+  // Simulate this occurrence not yet being re-materialized (as if the rolling window had not
+  // reached it again), while its cancelled booking row already exists — exactly the shape the
+  // real window materializer must not silently revive.
+  const withoutSession = { ...state, sessions: state.sessions.filter((session) => session.id !== muslibBooking.sessionId) };
+  const remade = materializeUpcomingGymTurnosSessions(withoutSession, now);
+  assert.equal(remade.result.success, true);
+  assert.equal(remade.state.sessions.some((session) => session.id === muslibBooking.sessionId), true, "the session must be rematerialized");
+  assert.equal(
+    remade.state.bookings.find((booking) => booking.id === muslibBooking.id).status,
+    "CANCELLED",
+    "the rolling window must never revive a booking the student deliberately cancelled",
+  );
+  assert.equal(
+    remade.state.bookings.filter(
+      (booking) => booking.sessionId === muslibBooking.sessionId && booking.studentId === GYM_DEMO_MUSLIB_STUDENT_ID,
+    ).length,
+    1,
+    "no duplicate booking row must be created for this session/student pair",
+  );
+});
+
+test("reviving a cancelled enrollment booking on re-enroll still respects session capacity", () => {
+  let state = asActor(fixture(), GYM_DEMO_MUSLIB_STUDENT_ID);
+  const enrolled = studentEnrollGymTurnosSlot(state, GYM_DEMO_MUSLIB_STUDENT_ID, "slot-spinning-wed", now);
+  assert.equal(enrolled.result.success, true);
+  assert.equal(enrolled.result.bookingsCreated, 3);
+  state = enrolled.state;
+
+  const ended = studentCancelGymTurnosEnrollment(state, GYM_DEMO_MUSLIB_STUDENT_ID, enrolled.result.enrollmentId, now);
+  assert.equal(ended.result.success, true);
+  state = ended.state;
+
+  // Fill one of muslib's three now-cancelled sessions back up to capacity (3) with two staff-booked
+  // students, on top of Paula's still-CONFIRMED enrollment booking there.
+  const fullSessionId = state.bookings.find(
+    (booking) => booking.enrollmentId === "enrollment-spinning-paula" && booking.status === "CONFIRMED",
+  ).sessionId;
+  let staffState = asActor(state, GYM_DEMO_ADMIN_ID);
+  staffState = manuallyBookGymTurnosStudent(staffState, fullSessionId, GYM_DEMO_HISTORICAL_MUSLIB_LITE_STUDENT_ID, now).state;
+  staffState = manuallyBookGymTurnosStudent(staffState, fullSessionId, GYM_DEMO_PERSONALIZED_STUDENT_ID, now).state;
+  assert.equal(toGymTurnosSessionRows(staffState, "activity-spinning").find((row) => row.id === fullSessionId).bookedCount, 3);
+
+  const reEnrollState = asActor(staffState, GYM_DEMO_MUSLIB_STUDENT_ID);
+  const reEnrolled = studentEnrollGymTurnosSlot(reEnrollState, GYM_DEMO_MUSLIB_STUDENT_ID, "slot-spinning-wed", now);
+  assert.equal(reEnrolled.result.success, true);
+  assert.equal(reEnrolled.result.bookingsCreated, 2, "the full session must refuse the revive; the other two occurrences still revive");
+  const muslibBookingOnFullSession = reEnrolled.state.bookings.find(
+    (booking) => booking.sessionId === fullSessionId && booking.studentId === GYM_DEMO_MUSLIB_STUDENT_ID,
+  );
+  assert.equal(muslibBookingOnFullSession.status, "CANCELLED", "the capacity guard must keep the revive refused");
+});
+
+test("one student enrolling in a slot must not revive another student's deliberately cancelled occurrence on the same slot", () => {
+  let state = asActor(fixture(), GYM_DEMO_GENERAL_STUDENT_ID);
+  const paulaBooking = state.bookings.find(
+    (booking) => booking.enrollmentId === "enrollment-spinning-paula" && booking.status === "CONFIRMED",
+  );
+  const cancelled = studentCancelGymTurnosBooking(state, GYM_DEMO_GENERAL_STUDENT_ID, paulaBooking.id, now);
+  assert.equal(cancelled.result.success, true);
+  state = cancelled.state;
+  assert.equal(state.bookings.find((booking) => booking.id === paulaBooking.id).status, "CANCELLED");
+  const paulaConfirmedBefore = state.bookings.filter(
+    (booking) => booking.studentId === GYM_DEMO_GENERAL_STUDENT_ID && booking.status === "CONFIRMED",
+  ).length;
+
+  const enrollState = asActor(state, GYM_DEMO_MUSLIB_STUDENT_ID);
+  const enrolled = studentEnrollGymTurnosSlot(enrollState, GYM_DEMO_MUSLIB_STUDENT_ID, "slot-spinning-wed", now);
+  assert.equal(enrolled.result.success, true);
+
+  assert.equal(
+    enrolled.state.bookings.find((booking) => booking.id === paulaBooking.id).status,
+    "CANCELLED",
+    "another student's enrollment must never revive Paula's deliberately cancelled occurrence",
+  );
+  assert.equal(
+    enrolled.state.bookings.filter(
+      (booking) => booking.studentId === GYM_DEMO_GENERAL_STUDENT_ID && booking.status === "CONFIRMED",
+    ).length,
+    paulaConfirmedBefore,
+    "Paula's confirmed count must be unchanged by another student's enrollment",
+  );
 });

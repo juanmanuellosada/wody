@@ -410,9 +410,13 @@ function datesForSlot(slot: ManagedSlot, activity: { scheduleKind: string; start
   return dates;
 }
 
+// Rolling-window materialization preserves every student's opt-out (any existing booking row,
+// cancelled or not, is left alone); explicit enrollment revives a previously cancelled booking, but
+// only for the enrollment that is being (re-)activated — every other student's opt-out is preserved.
 function materializeEnrollmentBookings(
   state: ManagementDemoState,
   sessionIds: readonly string[],
+  revivingEnrollmentId: string | null,
 ): { state: ManagementDemoState; bookingsCreated: number } {
   let next = state;
   let bookingsCreated = 0;
@@ -420,7 +424,11 @@ function materializeEnrollmentBookings(
     for (const sessionId of sessionIds) {
       const session = sessionById(next, sessionId);
       if (!session || session.cancelled || session.slotId !== enrollment.slotId) continue;
-      if (next.bookings.some((booking) => booking.sessionId === sessionId && booking.studentId === enrollment.studentId)) continue;
+      const existingBooking = next.bookings.find(
+        (booking) => booking.sessionId === sessionId && booking.studentId === enrollment.studentId,
+      );
+      const mayRevive = revivingEnrollmentId !== null && enrollment.id === revivingEnrollmentId;
+      if (existingBooking && (!mayRevive || existingBooking.status !== "CANCELLED")) continue;
       if (session.capacity !== null && bookedCount(next, sessionId) >= session.capacity) continue;
       const booked = upsertBooking(next, sessionId, enrollment.studentId, "ENROLLMENT", enrollment.id, false);
       next = { ...next, bookings: booked.bookings };
@@ -456,7 +464,7 @@ export function materializeUpcomingSessions(
     }
   }
   const withSessions = additions.length === 0 ? state : { ...state, sessions: [...state.sessions, ...additions] };
-  const enrolled = materializeEnrollmentBookings(withSessions, additions.map((session) => session.id));
+  const enrolled = materializeEnrollmentBookings(withSessions, additions.map((session) => session.id), null);
   return transition(enrolled.state, { success: true, sessionsCreated: additions.length, bookingsCreated: enrolled.bookingsCreated });
 }
 
@@ -567,7 +575,7 @@ export function studentEnrollInSlot(
   const futureSessions = next.sessions
     .filter((session) => session.slotId === slotId && !session.cancelled && new Date(session.startsAt).getTime() > now.getTime())
     .map((session) => session.id);
-  const materialized = materializeEnrollmentBookings(next, futureSessions);
+  const materialized = materializeEnrollmentBookings(next, futureSessions, enrollmentId);
   next = materialized.state;
   return transition(next, { success: true, enrollmentId, bookingsCreated: materialized.bookingsCreated });
 }
