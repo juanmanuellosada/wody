@@ -26,8 +26,8 @@ function fixture(overrides = {}) {
   return { callback, commits, get state() { return state; }, set state(value) { state = value; } };
 }
 
-function pay(callback, studentId = "gym-fixed-student-general", amount = "1234,56", nextDate = "2030-07-03", options = registration) {
-  return callback(studentId, amount, nextDate, options);
+function pay(callback, studentId = "gym-fixed-student-general", amount = "1234,56", nextDate = "2030-07-03", options = registration, gymTeacherStudentLinks = undefined) {
+  return callback(studentId, amount, nextDate, options, gymTeacherStudentLinks);
 }
 
 test("GYM staff callbacks preserve actual payment reducer authorization, student eligibility, dates, methods, cents and exemption behavior", async () => {
@@ -218,71 +218,126 @@ test("trusted dependency failures reject without masking, commits, or leaked bus
   await assert.rejects(pay(commitFailure.callback), /COMMIT/);
   assert.equal((await pay(commitFailure.callback, undefined, "invalid")).success, false, "rejected work releases its pending slot rather than reporting busy");
 
-  // getGymTeacherStudentLinks is a trusted dependency exactly like getState/nextId/today/commit
-  // above: it is not defensively validated, so its failure propagates as a rejection (not a
-  // resolved {success:false}), and the generic pending-clear in the callback (not a per-dependency
-  // try/catch) is what releases the slot, same as every other trusted dependency here. Unlike
-  // commit (only reached after input validation succeeds), this accessor is read unconditionally
-  // on every execute(), so a second call with the SAME shape would hit it again and reject either
-  // way; the release proof instead needs a DIFFERENTLY shaped second call: if the slot were stuck,
-  // its mismatched signature would make the callback return a resolved {success:false, error: BUSY}
-  // instead of rejecting, which is exactly what assert.rejects below would catch.
-  const linksThrow = fixture({ getGymTeacherStudentLinks: () => { throw new Error("LINKS"); } });
-  await assert.rejects(pay(linksThrow.callback), /LINKS/);
-  await assert.rejects(
-    pay(linksThrow.callback, "gym-fixed-student-personalized"),
-    /LINKS/,
-    "a differently-shaped call after the accessor throw re-attempts and rejects again, rather than resolving stuck as busy",
-  );
-
-  // A non-array return is a malformed trusted dependency, not untrusted input: it reaches
+  // gymTeacherStudentLinks is a plain call-time argument now, not an injected accessor, so it
+  // cannot itself "throw" — but a malformed value is not defensively validated before it reaches
   // resolveHonoredGymTeacherStudentLinks's array-only operations for an actor whose authorization
-  // actually consults it (a TEACHER, unlike ADMIN which never reads this value), and fails the
-  // same way any other broken trusted dependency does.
-  const linksNonArray = fixture({ gymActorToken: teacher, getGymTeacherStudentLinks: () => "not-an-array" });
-  await assert.rejects(pay(linksNonArray.callback), TypeError);
-  // Same release proof as above: a differently-shaped second call must re-attempt and reject
-  // again, rather than resolving stuck as busy.
-  await assert.rejects(pay(linksNonArray.callback, "gym-fixed-student-personalized"), TypeError);
+  // actually consults it (a TEACHER, unlike ADMIN which never reads this value), so it fails the
+  // same way any other broken trusted dependency does: a rejection, not a resolved {success:false}.
+  // The generic pending-clear in the callback (not a per-dependency try/catch) is what releases the
+  // slot. The release proof needs a DIFFERENTLY shaped second call: if the slot were stuck, its
+  // mismatched signature would make the callback return a resolved {success:false, error: BUSY}
+  // instead of rejecting, which is exactly what assert.rejects below would catch.
+  const linksNonArray = fixture({ gymActorToken: teacher });
+  await assert.rejects(pay(linksNonArray.callback, undefined, undefined, undefined, registration, "not-an-array"), TypeError);
+  await assert.rejects(pay(linksNonArray.callback, "gym-fixed-student-personalized", undefined, undefined, registration, "not-an-array"), TypeError);
 });
 
-test("getGymTeacherStudentLinks threads a bridge link set into the real reducer, both directions", async () => {
-  // The canonically unassigned teacher becomes authorized once the option grants a link.
-  const granted = fixture({
-    gymActorToken: unassignedTeacher,
-    getGymTeacherStudentLinks: () => [{ teacherId: GYM_DEMO_SECONDARY_TEACHER_ID, studentId: "gym-fixed-student-general" }],
-  });
-  assert.equal((await pay(granted.callback)).success, true);
+test("gymTeacherStudentLinks threads a bridge link set into the real reducer, both directions", async () => {
+  // The canonically unassigned teacher becomes authorized once the argument grants a link.
+  const granted = fixture({ gymActorToken: unassignedTeacher });
+  assert.equal(
+    (await pay(granted.callback, undefined, undefined, undefined, registration, [{ teacherId: GYM_DEMO_SECONDARY_TEACHER_ID, studentId: "gym-fixed-student-general" }])).success,
+    true,
+  );
 
-  // The canonically assigned teacher loses authorization once the option supplies a link set
+  // The canonically assigned teacher loses authorization once the argument supplies a link set
   // that omits them, even though the canonical directory would still allow it.
-  const revoked = fixture({ gymActorToken: teacher, getGymTeacherStudentLinks: () => [] });
-  assert.deepEqual(await pay(revoked.callback), { success: false, error: "Este alumno no está asignado a vos." });
+  const revoked = fixture({ gymActorToken: teacher });
+  assert.deepEqual(await pay(revoked.callback, undefined, undefined, undefined, registration, []), { success: false, error: "Este alumno no está asignado a vos." });
 
-  // Omitted entirely: behavior is byte-identical to before this option existed.
+  // Omitted entirely: behavior is byte-identical to before this parameter existed.
   const omitted = fixture({ gymActorToken: teacher });
   assert.equal((await pay(omitted.callback)).success, true);
 });
 
-test("getGymTeacherStudentLinks is read fresh once per execution, not captured once at factory creation", async () => {
-  let links = [];
-  const demo = fixture({ gymActorToken: unassignedTeacher, getGymTeacherStudentLinks: () => links });
-  // At factory-creation time the accessor already returned an empty array; the factory must not
-  // have snapshotted that value, since the very next call reads the mutated closure variable.
-  assert.deepEqual(await pay(demo.callback), { success: false, error: "Este alumno no está asignado a vos." });
-  links = [{ teacherId: GYM_DEMO_SECONDARY_TEACHER_ID, studentId: "gym-fixed-student-personalized" }];
-  assert.equal((await pay(demo.callback, "gym-fixed-student-personalized", "10", "2030-07-03")).success, true, "the same, already-created factory observes the updated link set on its next call");
+/**
+ * The whole point of moving from a provider-held ref to a plain call-time argument: each call
+ * carries only its own snapshot, so nothing is shared between calls for one to leave stale or for
+ * another to "rewind." Proven directly, not by mutating an external accessor's closure (that
+ * technique belonged to the old, now-removed accessor design and no longer represents anything
+ * this factory does): the first and third calls both pass their OWN explicit (revoking) link set;
+ * the second, sandwiched between them, is for a DIFFERENT student and deliberately OMITS the
+ * parameter, falling back to the canonical directory (which does grant that student, unrelated to
+ * the first/third). The third call, identical to the first, must be judged exactly as if the
+ * second call — with its different student and different (canonical-fallback) argument — never
+ * happened. Uses `teacher` (canonically linked to general/personalized/muslib), not
+ * `unassignedTeacher`: a successful payment's recordedById is checked against the CANONICAL
+ * directory by getValidatedGymFinanceDemoState on every later read (finance-demo-storage.ts),
+ * entirely independent of the bridge — a persisted-payment integrity rule, not an authorization
+ * one. A successful commit whose dynamic grant has no canonical counterpart would trip that
+ * unrelated check on the next read, which would falsely look like this test's own mechanism
+ * failing. Using an actor/student pair valid in both keeps this test isolated to the one property
+ * it exists to prove.
+ */
+test("gymTeacherStudentLinks is scoped to each call; no call can leave state behind for another to read or rewind", async () => {
+  const demo = fixture({ gymActorToken: teacher });
+  const revokeGeneral = []; // dynamically revokes teacher's own canonical access to "general".
+
+  assert.deepEqual(
+    await pay(demo.callback, "gym-fixed-student-general", "10", "2030-07-03", registration, revokeGeneral),
+    { success: false, error: "Este alumno no está asignado a vos." },
+    "the explicit empty override denies access the canonical directory alone would have granted",
+  );
+  assert.equal(
+    (await pay(demo.callback, "gym-fixed-student-muslib", "10", "2030-07-04", { ...registration, paymentMethod: "MERCADO_PAGO" })).success,
+    true,
+    "a different call, for a different student, omitting the parameter (falls back to canonical, which does grant this one)",
+  );
+  // Retrying the FIRST student with the SAME revoking override as the first call: the second
+  // call's different (canonical-falling-back) argument must not have leaked into or "rewound"
+  // this authorization check back toward canonical access.
+  assert.deepEqual(
+    await pay(demo.callback, "gym-fixed-student-general", "10", "2030-07-05", registration, revokeGeneral),
+    { success: false, error: "Este alumno no está asignado a vos." },
+  );
 });
 
-test("a getGymTeacherStudentLinks link naming an id other than the acting teacher grants no access through the callback", async () => {
+/**
+ * gymTeacherStudentLinks is an authorization input, not just extra data: the pending/busy dedupe
+ * key (operationSignature) must treat two calls that differ only in links as DIFFERENT operations.
+ * Before this was fixed, a second synchronous call with the same core signature but different
+ * links would coalesce onto the SAME pending promise as the first (the busy check compared only
+ * actor/studentId/amountInput/nextPaymentDate/paidAt/paymentMethod/confirmedDuplicate), so its
+ * caller received a result computed entirely from the FIRST call's links — a wrongful allow
+ * whenever the first call's links were more permissive than the second's own.
+ */
+test("two synchronous calls with the same core signature but different gymTeacherStudentLinks never coalesce onto the same pending slot", async () => {
+  const demo = fixture({ gymActorToken: teacher });
+  // Call A omits the parameter, falling back to the canonical directory (which grants this
+  // teacher access to "general").
+  const allowed = pay(demo.callback, "gym-fixed-student-general", "10", "2030-07-03", registration, undefined);
+  // Call B, fired synchronously right after with the identical core input, carries an explicit
+  // override that REVOKES the same access.
+  const denied = pay(demo.callback, "gym-fixed-student-general", "10", "2030-07-03", registration, []);
+  assert.notEqual(allowed, denied, "different links must not collapse two calls onto the same pending promise");
+  assert.equal((await allowed).success, true, "the first call is judged on its own (canonical-fallback) links");
+  assert.deepEqual(
+    await denied,
+    { success: false, error: "Hay un pago en curso. Esperá un momento." },
+    "a same-signature call with different links is rejected as busy, never silently authorized by the other call's links",
+  );
+  assert.equal(demo.state.payments.length, 1, "only the first call's payment is ever committed");
+});
+
+test("two synchronous calls with the same core signature and equal (but distinctly-referenced) links still coalesce into one pending operation", async () => {
+  const demo = fixture({ gymActorToken: teacher });
+  const linksA = [{ teacherId: GYM_DEMO_PRIMARY_TEACHER_ID, studentId: "gym-fixed-student-general" }];
+  const linksB = [{ teacherId: GYM_DEMO_PRIMARY_TEACHER_ID, studentId: "gym-fixed-student-general" }];
+  const first = pay(demo.callback, "gym-fixed-student-general", "10", "2030-07-03", registration, linksA);
+  const same = pay(demo.callback, "gym-fixed-student-general", "10", "2030-07-03", registration, linksB);
+  assert.equal(first, same, "the same links, in the same order, from a different array reference still coalesce, preserving the original double-click protection");
+  assert.equal((await first).success, true);
+});
+
+test("a link naming an id other than the acting teacher grants no access through the callback", async () => {
   // Redundantly rejected: isActiveGymTeacherOrAdmin excludes "not-a-real-directory-id" first (it
   // does not resolve to an active TEACHER/ADMIN at all), and the downstream `link.teacherId ===
   // actor.id` match would exclude it too (it is not unassignedTeacher's id). This does not isolate
   // or prove either check alone — see the comment on isActiveGymTeacherOrAdmin in
   // finance-demo-policy.ts for why no test in this codebase can isolate it.
-  const demo = fixture({
-    gymActorToken: unassignedTeacher,
-    getGymTeacherStudentLinks: () => [{ teacherId: "not-a-real-directory-id", studentId: "gym-fixed-student-general" }],
-  });
-  assert.deepEqual(await pay(demo.callback), { success: false, error: "Este alumno no está asignado a vos." });
+  const demo = fixture({ gymActorToken: unassignedTeacher });
+  assert.deepEqual(
+    await pay(demo.callback, undefined, undefined, undefined, registration, [{ teacherId: "not-a-real-directory-id", studentId: "gym-fixed-student-general" }]),
+    { success: false, error: "Este alumno no está asignado a vos." },
+  );
 });

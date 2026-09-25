@@ -25,7 +25,7 @@ const primaryTeacher = directory.GYM_DEMO_PRIMARY_TEACHER_ID;
 const secondaryTeacher = directory.GYM_DEMO_SECONDARY_TEACHER_ID;
 const generalStudent = directory.GYM_DEMO_GENERAL_STUDENT_ID;
 
-async function createHarness({ raw = null, getItem, setItem, profileLinks = directory.getGymDemoTeacherStudentLinks() } = {}) {
+async function createHarness({ raw = null, getItem, setItem } = {}) {
   const compiled = ts.transpileModule(await source(), {
     compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
@@ -37,7 +37,6 @@ async function createHarness({ raw = null, getItem, setItem, profileLinks = dire
   const timers = [];
   const reads = [];
   const writes = [];
-  let currentProfileLinks = profileLinks;
   const paymentFactoryOptions = [];
   const Context = { Provider: () => null };
   const react = {
@@ -95,11 +94,6 @@ async function createHarness({ raw = null, getItem, setItem, profileLinks = dire
     "@/components/demo/finance/gym-finance-demo-fixtures": fixtures,
     "@/components/demo/finance/gym-finance-demo-storage": storageModule,
     "@/components/demo/scenarios/gym-demo-directory": directory,
-    // Structural harness patch (same class of gap fixed for gym-demo-provider.test.mjs and
-    // gym-demo-integration.test.mjs): the real module is intentionally not loaded here, so
-    // DemoGymFinanceProvider's useDemoGymProfile() call resolves against this minimal stand-in
-    // instead of the real profile bridge context, which this CJS harness cannot provide.
-    "./DemoGymProfileProvider": { useDemoGymProfile: () => ({ profileState: { links: currentProfileLinks } }) },
   };
   const commonjsModule = { exports: {} };
   const require = (specifier) => { if (!(specifier in mocks)) throw new Error(`Unexpected module: ${specifier}`); return mocks[specifier]; };
@@ -115,7 +109,6 @@ async function createHarness({ raw = null, getItem, setItem, profileLinks = dire
     render,
     runTimers: () => { for (const timer of timers) if (!timer.cancelled) timer.callback(); },
     get published() { return published; },
-    setProfileLinks: (next) => { currentProfileLinks = next; },
     restore: () => { globalThis.window = previousWindow; },
   };
 }
@@ -180,33 +173,27 @@ test("GYM finance provider reads its one key before publishing exactly eight can
   }
 });
 
-test("GYM finance provider threads a live getGymTeacherStudentLinks accessor from the profile bridge into every payment factory", async () => {
-  const injectedLinks = [{ teacherId: primaryTeacher, studentId: generalStudent }];
-  const harness = await createHarness({ profileLinks: injectedLinks });
+/**
+ * DemoGymFinanceProvider no longer caches or threads any profile-bridge link state at all. The
+ * design this candidate replaces held a ref (gymTeacherStudentLinksRef) mirrored from
+ * profileState.links by a useEffect, read through an injected getGymTeacherStudentLinks accessor
+ * passed to the payment factory. Because the effect ran after render, there was a real window,
+ * between a links change committing and that effect flushing, during which a payment could be
+ * evaluated against a stale link set. That window is gone now because there is no shared mutable
+ * link state left to go stale: DemoGymFeesAdapter passes profileState.links as a plain call-time
+ * argument straight to the payment callback (see GymFinancePaymentCallback in
+ * gym-finance-payment-adapters.ts). This test pins the provider's own half of that: it creates
+ * payment factories that take no links-related option at all, and the provider itself has no
+ * reason to depend on the profile bridge any more.
+ */
+test("GYM finance provider passes no links-related option to its payment factories and does not depend on the profile bridge", async () => {
+  const harness = await createHarness();
   try {
     const cleanup = await hydrate(harness);
     assert.equal(harness.paymentFactoryOptions.length, 3, "one options object per payment factory");
     for (const options of harness.paymentFactoryOptions) {
-      assert.equal(typeof options.getGymTeacherStudentLinks, "function");
-      assert.deepEqual(options.getGymTeacherStudentLinks(), injectedLinks, "the provider's accessor must return the current useDemoGymProfile() links, not a canonical default");
+      assert.deepEqual(Object.keys(options).sort(), ["commit", "getState", "gymActorToken", "today"]);
     }
-
-    // The SAME already-created accessor must observe a later profile-bridge change: this is the
-    // provider-level half of freshness (the factory-level half is proven in
-    // gym-finance-payment-adapters.test.mjs). Simulates DemoGymProfileProvider committing a new
-    // links array and this provider's own sync effect reacting to it on the next render.
-    //
-    // Deliberately not indexed (e.g. effects[1]): a future added or reordered effect would make an
-    // index-based lookup silently run the wrong effect. Every effect from this render is run
-    // instead, which stays correct regardless of position or count. Re-running the hydration effect
-    // here is a harmless no-op for this assertion: its own setTimeout is captured but never fired
-    // (harness.runTimers() is not called again), so it neither touches harness.published nor
-    // duplicates any payment/catalog/sale/revenue factory (each registration is itself guarded by
-    // `if (factories.current.has(actorId)) continue;`).
-    const updatedLinks = [{ teacherId: secondaryTeacher, studentId: generalStudent }];
-    harness.setProfileLinks(updatedLinks);
-    for (const effect of harness.render()) effect();
-    assert.deepEqual(harness.paymentFactoryOptions[0].getGymTeacherStudentLinks(), updatedLinks);
     cleanup();
   } finally {
     harness.restore();
@@ -378,4 +365,5 @@ test("GYM finance provider remains unmounted and has no BOX or persona persisten
   assert.match(provider, /readyRef\.current = true;[\s\S]*setPublishedFactories[\s\S]*setReady\(true\)/);
   assert.match(provider, /window\.clearTimeout\(timer\);[\s\S]*cancelAllFactories[\s\S]*aliveRef\.current = false/);
   assert.doesNotMatch(provider, /wody-box-|localStorage|selectedActor|ScenarioProviders/);
+  assert.doesNotMatch(provider, /useDemoGymProfile|profileState|getGymTeacherStudentLinks|gymTeacherStudentLinksRef/, "no profile-bridge dependency and no cached link state left in this provider");
 });

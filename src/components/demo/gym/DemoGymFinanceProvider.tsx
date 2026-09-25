@@ -32,8 +32,6 @@ import {
   GYM_DEMO_SECONDARY_TEACHER_ID,
   getGymDemoActorToken,
 } from "@/components/demo/scenarios/gym-demo-directory";
-import type { GymFinanceTeacherStudentLink } from "@/components/demo/finance/finance-demo-policy";
-import { useDemoGymProfile } from "./DemoGymProfileProvider";
 
 const paymentActorIds = [GYM_DEMO_ADMIN_ID, GYM_DEMO_PRIMARY_TEACHER_ID, GYM_DEMO_SECONDARY_TEACHER_ID] as const;
 const saleActorIds = paymentActorIds;
@@ -102,7 +100,6 @@ function createPublishedLookup<T>(backing: Map<string, T>): ReadonlyMap<string, 
  * callback maps and never persist an actor, token, or role selection here.
  */
 export function DemoGymFinanceProvider({ children }: { children: React.ReactNode }) {
-  const { profileState } = useDemoGymProfile();
   const initialAnchor = argentinaToday();
   const [state, setState] = useState<GymFinanceDemoState>(() => createGymFinanceDemoFixture(initialAnchor));
   const [today, setToday] = useState(initialAnchor);
@@ -125,8 +122,6 @@ export function DemoGymFinanceProvider({ children }: { children: React.ReactNode
   const saleFactories = useRef(new Map<string, GymSaleDemoCallback>());
   const revenueFactories = useRef(new Map<string, GymRevenueDemoCallbacks>());
   const saleDatePolicy = useMemo<SaleDatePolicy>(() => ({ today: argentinaToday }), []);
-  const gymTeacherStudentLinksRef = useRef<readonly GymFinanceTeacherStudentLink[]>(profileState.links);
-  const getGymTeacherStudentLinks = useCallback(() => gymTeacherStudentLinksRef.current, []);
 
   /** Publish the ref before React state so independently queued factories share one current ledger. */
   const commit = useCallback((next: GymFinanceDemoState) => {
@@ -168,7 +163,6 @@ export function DemoGymFinanceProvider({ children }: { children: React.ReactNode
           commit,
           gymActorToken: token,
           today: argentinaToday,
-          getGymTeacherStudentLinks,
         }));
       }
       if (!catalogFactories.current.has(GYM_DEMO_ADMIN_ID)) {
@@ -222,34 +216,7 @@ export function DemoGymFinanceProvider({ children }: { children: React.ReactNode
       storageRef.current = null;
       if (hydrationGenerationRef.current === hydrationGeneration) hydrationGenerationRef.current += 1;
     };
-  }, [commit, getGymTeacherStudentLinks, saleDatePolicy]);
-
-  // This provider does not own the profile bridge's writes (DemoGymProfileProvider does), so it
-  // cannot expose a live ref updated at the write site the way DemoGymProvider's training ref is;
-  // mirroring via an effect is the only lint-clean option available at this ownership boundary.
-  //
-  // This has a real transient window between the bridge's commit and this effect's flush, and it is
-  // NOT symmetric. A REMOVAL is safe: DemoGymFeesAdapter reads profileState.links directly (not
-  // through this ref) for the same-render Cuotas scoping, so a student a link change removes from a
-  // TEACHER's list also loses their "Pagar" affordance in that same render, before this stale ref
-  // could ever be reached. An ADDITION is NOT safe the same way: the newly linked student's row (and
-  // its "Pagar" affordance) can render in that same render too, but this ref — and therefore
-  // registerFinancePayment's authorization — still holds the OLD link set until this effect flushes.
-  // A payment attempted in that window fails closed (denied as unassigned, never wrongly allowed),
-  // but it is a real, observable false rejection, not a cosmetic delay.
-  //
-  // A useLayoutEffect would close this synchronously before paint, but there is no existing
-  // precedent for it anywhere in this codebase, and these GYM routes are server-rendered
-  // (DemoGymFinanceProvider is a "use client" component, but usePathname resolves during SSR, so
-  // this component's first render is not deferred to a client-only mount); React warns when
-  // useLayoutEffect runs during SSR, and this effort's verification bar has been zero unexpected
-  // console output throughout. The window is currently unreachable regardless: DemoGymFeeRowActions
-  // in DemoGymFeesAdapter.tsx exposes no assign/unassign control, so nothing in the mounted UI can
-  // call ASSIGN_TEACHER yet, and this candidate does not add one. Revisit this trade-off, including
-  // useLayoutEffect, once that control exists and the window becomes reachable.
-  useEffect(() => {
-    gymTeacherStudentLinksRef.current = profileState.links;
-  }, [profileState]);
+  }, [commit, saleDatePolicy]);
 
   const reset = useCallback(() => {
     if (!readyRef.current || !aliveRef.current) return;

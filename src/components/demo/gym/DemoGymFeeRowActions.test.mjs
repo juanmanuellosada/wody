@@ -87,7 +87,7 @@ async function createHarness(initialProps) {
  * the callback call itself, exactly like a real callback that throws before ever returning.
  */
 function makeCallbacks(overrides = {}) {
-  const calls = { editStudent: [], setBlocked: [], setPaymentExempt: [] };
+  const calls = { editStudent: [], setBlocked: [], setPaymentExempt: [], assignTeacher: [], unassignTeacher: [] };
   const ok = { success: true };
   function outcome(name, args) {
     calls[name].push(args);
@@ -100,8 +100,8 @@ function makeCallbacks(overrides = {}) {
     setPaymentExempt: (studentId, exempt, reason) => outcome("setPaymentExempt", [studentId, exempt, reason]),
     setType: () => Promise.resolve({ success: true }),
     setOwnRoutines: () => Promise.resolve({ success: true }),
-    assignTeacher: () => Promise.resolve({ success: true }),
-    unassignTeacher: () => Promise.resolve({ success: true }),
+    assignTeacher: (studentId, teacherId) => outcome("assignTeacher", [studentId, teacherId]),
+    unassignTeacher: (studentId, teacherId) => outcome("unassignTeacher", [studentId, teacherId]),
     cancelPending: () => {},
   };
   return { calls, callbacks };
@@ -115,6 +115,8 @@ const baseProps = (callbacks) => ({
   blockedAt: null,
   paymentExempt: false,
   paymentExemptReason: null,
+  assignedTeachers: [{ id: "gym-fixed-teacher-linked", name: "Tomás Ríos" }],
+  availableTeachers: [{ id: "gym-fixed-teacher-unlinked", name: "Nora Vidal" }],
 });
 
 test("Editar opens the editor with the row's own studentId/isAdmin threaded through, and Guardar issues EDIT_STUDENT with the typed name", async () => {
@@ -132,6 +134,60 @@ test("Editar opens the editor with the row's own studentId/isAdmin threaded thro
   assert.deepEqual(calls.editStudent, [["gym-fixed-student-general", "Paula Editada"]]);
   assert.equal(calls.setBlocked.length, 0);
   assert.equal(calls.setPaymentExempt.length, 0);
+  assert.equal(calls.assignTeacher.length, 0);
+  assert.equal(calls.unassignTeacher.length, 0);
+});
+
+test("assigning and unassigning a teacher call ASSIGN_TEACHER/UNASSIGN_TEACHER with (studentId, teacherId), and a successful assign clears the picked id", async () => {
+  const { calls, callbacks } = makeCallbacks();
+  const harness = await createHarness(baseProps(callbacks));
+  buttonLabeled(harness.render(), "Editar").props.onClick();
+
+  let editor = findOne(harness.render(), (n) => n.type === "DemoGymProfileEditorView");
+  editor.props.onUnassignTeacher("gym-fixed-teacher-linked");
+  await flush();
+  assert.deepEqual(calls.unassignTeacher, [["gym-fixed-student-general", "gym-fixed-teacher-linked"]]);
+
+  editor = findOne(harness.render(), (n) => n.type === "DemoGymProfileEditorView");
+  editor.props.onAddTeacherIdChange("gym-fixed-teacher-unlinked");
+  editor = findOne(harness.render(), (n) => n.type === "DemoGymProfileEditorView");
+  assert.equal(editor.props.addTeacherId, "gym-fixed-teacher-unlinked");
+  editor.props.onAssignTeacher();
+  await flush();
+  assert.deepEqual(calls.assignTeacher, [["gym-fixed-student-general", "gym-fixed-teacher-unlinked"]]);
+  editor = findOne(harness.render(), (n) => n.type === "DemoGymProfileEditorView");
+  assert.equal(editor.props.addTeacherId, "", "a successful assign must clear the picked teacher id");
+});
+
+test("a rejected assign keeps the picked teacher id and surfaces the error, instead of clearing it", async () => {
+  const { calls, callbacks } = makeCallbacks({ assignTeacher: { success: false, error: "Ese alumno ya está asignado a ese profe." } });
+  const harness = await createHarness(baseProps(callbacks));
+  buttonLabeled(harness.render(), "Editar").props.onClick();
+
+  let editor = findOne(harness.render(), (n) => n.type === "DemoGymProfileEditorView");
+  editor.props.onAddTeacherIdChange("gym-fixed-teacher-unlinked");
+  editor = findOne(harness.render(), (n) => n.type === "DemoGymProfileEditorView");
+  editor.props.onAssignTeacher();
+  await flush();
+
+  assert.deepEqual(calls.assignTeacher, [["gym-fixed-student-general", "gym-fixed-teacher-unlinked"]]);
+  editor = findOne(harness.render(), (n) => n.type === "DemoGymProfileEditorView");
+  assert.equal(editor.props.addTeacherId, "gym-fixed-teacher-unlinked", "a failed assign must not clear the picked teacher id: the user should not have to pick it again");
+  assert.equal(editor.props.error, "Ese alumno ya está asignado a ese profe.");
+  assert.equal(editor.props.pending, false);
+});
+
+test("calling onAssignTeacher with no teacher id picked issues no command at all", async () => {
+  const { calls, callbacks } = makeCallbacks();
+  const harness = await createHarness(baseProps(callbacks));
+  buttonLabeled(harness.render(), "Editar").props.onClick();
+
+  const editor = findOne(harness.render(), (n) => n.type === "DemoGymProfileEditorView");
+  assert.equal(editor.props.addTeacherId, "", "nothing picked yet");
+  editor.props.onAssignTeacher();
+  await flush();
+
+  assert.equal(calls.assignTeacher.length, 0, "an empty picked id must short-circuit before issuing ASSIGN_TEACHER");
 });
 
 test("toggling exemption sends the opposite of the current paymentExempt prop, with the trimmed reason or null", async () => {

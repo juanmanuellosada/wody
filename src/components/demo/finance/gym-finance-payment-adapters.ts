@@ -1,5 +1,4 @@
 import type {
-  PaymentRegistrationCallback,
   PaymentRegistrationOptions,
   PaymentRegistrationResult,
 } from "@/components/payments/RegisterPaymentDialogView";
@@ -36,17 +35,31 @@ export type GymFinancePaymentCallbackFactoryOptions = {
   today?: () => string;
   /** Test-only deterministic identifier source; reservations remain factory-private. */
   nextId?: (kind: GymPaymentIdKind, state: GymFinanceDemoState) => string;
-  /**
-   * Live profile-bridge link accessor, read fresh once per execution (never
-   * captured at factory creation) so authorization stays in agreement with
-   * whatever link set the Cuotas scoping projection is showing right now.
-   * Omitted, the reducer falls back to the canonical directory link set.
-   */
-  getGymTeacherStudentLinks?: () => readonly GymFinanceTeacherStudentLink[];
 };
 
-/** The dialog keeps this shape while the future GYM provider owns reset/unmount wiring. */
-export type GymFinancePaymentCallback = PaymentRegistrationCallback & {
+/**
+ * The dialog keeps this shape (an optional 5th argument is still assignable everywhere a plain
+ * 4-arg PaymentRegistrationCallback is expected) while the future GYM provider owns reset/unmount
+ * wiring.
+ *
+ * `gymTeacherStudentLinks` is a plain call-time argument, not a stored/injected accessor: the
+ * caller (DemoGymFeesAdapter, which reads profileState.links fresh every render, the same way it
+ * feeds bridgeLinks into the Cuotas scoping projection) passes the CURRENT bridge link set with
+ * each dispatch. This factory is created once at hydration and its internal pending/duplicate/ID
+ * state must persist across renders, so it cannot simply close over profileState.links directly —
+ * but nothing about that requires caching the links themselves in a ref between calls. Each call
+ * carries its own snapshot end to end (captured synchronously in `callback`, before the deferred
+ * `execute()` even runs), so there is no shared mutable link state for one call's data to leak
+ * into, or "rewind" for another to accidentally reuse. Omitted, the reducer falls back to the
+ * canonical directory link set, exactly as before this parameter existed.
+ */
+export type GymFinancePaymentCallback = ((
+  studentId: string,
+  amountInput: string,
+  nextPaymentDate: string,
+  options: PaymentRegistrationOptions,
+  gymTeacherStudentLinks?: readonly GymFinanceTeacherStudentLink[],
+) => Promise<PaymentRegistrationResult>) & {
   cancelPending: () => void;
   cancelPendingDuplicate: () => void;
 };
@@ -82,6 +95,39 @@ function requestSignature(actorId: string, input: PaymentInput): string {
     valuePart(input.paidAt),
     valuePart(input.paymentMethod),
   ].join("|");
+}
+
+/**
+ * Folds gymTeacherStudentLinks into the pending/busy dedupe key (see operationSignature below),
+ * never into requestSignature: the duplicate-confirmation binding it feeds always gets
+ * re-authorized against the CONFIRMING call's own current links inside execute(), so a stale
+ * binding cannot itself authorize anything — only the pending/busy path can, by returning an
+ * EARLIER call's already-settled promise for a LATER call without ever re-running execute() for
+ * it. Without this, two same-signature calls that differ only in links would collide on the same
+ * operationSignature, and the second one would silently resolve to the first one's result computed
+ * against the first one's links — a wrongful allow if the first call's links were more permissive
+ * than the second's. Reading link contents defensively (never throwing here) matters because this
+ * runs synchronously inside `callback`, before any deferred boundary: an unvalidated shape (the
+ * same "not-an-array" case covered in gym-finance-payment-adapters.test.mjs) must still surface as
+ * an async rejection from execute()/registerFinancePayment, not a synchronous throw out of
+ * `callback` itself — the try/catch below is what guarantees that, uniformly for every non-array
+ * shape, so there is no separate typeof/Array.isArray branch to keep in sync with it.
+ *
+ * Deliberately ORDER-SENSITIVE: the same links in a different order produce a different signature.
+ * That is the conservative direction for an authorization key — it can only cost an occasional
+ * extra BUSY rejection, never coalesce two calls whose authorization actually differs.
+ */
+function linksPart(links: unknown): string {
+  try {
+    if (links === undefined) return "links:undefined";
+    const list = links as readonly GymFinanceTeacherStudentLink[];
+    return `links:${list.length}:${list.map((link) => {
+      const record = link && typeof link === "object" ? (link as Record<string, unknown>) : null;
+      return `${valuePart(record?.teacherId)}~${valuePart(record?.studentId)}`;
+    }).join(",")}`;
+  } catch {
+    return "links:opaque";
+  }
 }
 
 function isId(value: unknown): value is string {
@@ -205,7 +251,12 @@ export function createGymFinancePaymentCallbackFactory(
     return options.today ? options.today() : state.anchor;
   }
 
-  function execute(input: PaymentInput, binding: DuplicateBinding | null, operationGeneration: number): PaymentRegistrationResult {
+  function execute(
+    input: PaymentInput,
+    binding: DuplicateBinding | null,
+    operationGeneration: number,
+    gymTeacherStudentLinks: readonly GymFinanceTeacherStudentLink[] | undefined,
+  ): PaymentRegistrationResult {
     if (!isCurrent(operationGeneration)) return failure(CANCELLED);
     const supplied = options.getState();
     // A trusted dependency may synchronously cancel/reset and enqueue new work.
@@ -218,10 +269,9 @@ export function createGymFinancePaymentCallbackFactory(
     // date semantics never consume IDs or accidentally reinterpret `today`.
     const today = resolveToday(state);
     if (!isCurrent(operationGeneration)) return failure(CANCELLED);
-    // Read once per execution and reuse for the probe and the real commit, so a
-    // link change mid-execution cannot make the two calls disagree with each other.
-    const gymTeacherStudentLinks = options.getGymTeacherStudentLinks?.();
-    if (!isCurrent(operationGeneration)) return failure(CANCELLED);
+    // gymTeacherStudentLinks is already this call's own fixed snapshot (a plain parameter, passed
+    // through unchanged from `callback`), so the probe and the real commit below agree with each
+    // other by construction — nothing re-reads a mutable source in between.
     const probeIds = freshProbeIds(state);
     const finalProbe = registerFinancePayment(state, command(input, actorToken, probeIds), today, gymTeacherStudentLinks);
     if (!isCurrent(operationGeneration)) return failure(CANCELLED);
@@ -270,14 +320,17 @@ export function createGymFinancePaymentCallbackFactory(
     return transition.result;
   }
 
-  const callback: GymFinancePaymentCallback = (studentId, amountInput, nextPaymentDate, registrationOptions) => {
+  const callback: GymFinancePaymentCallback = (studentId, amountInput, nextPaymentDate, registrationOptions, gymTeacherStudentLinks) => {
     // Authorization precedes every input getter, state/clock/ID dependency, and queue slot inspection.
     if (!authorizedActor) return Promise.resolve(failure(NO_AUTHORIZATION));
     const input = toInput(studentId, amountInput, nextPaymentDate, registrationOptions);
     if (!input) return Promise.resolve(failure("El pago no es válido."));
     const signature = requestSignature(authorizedActor.id, input);
     const confirming = input.confirmedDuplicate === true;
-    const operationSignature = `${signature}|confirmed:${confirming ? "1" : "0"}`;
+    // Links are part of THIS call's authorization, not just its input shape: two calls that agree
+    // on every other field but disagree on links must never coalesce onto the same pending slot
+    // (see linksPart's doc comment for the wrongful-allow this closes).
+    const operationSignature = `${signature}|confirmed:${confirming ? "1" : "0"}|${linksPart(gymTeacherStudentLinks)}`;
 
     if (!confirming) clearDuplicateBindings();
     let binding: DuplicateBinding | null = null;
@@ -297,7 +350,7 @@ export function createGymFinancePaymentCallbackFactory(
 
     const operationGeneration = generation;
     const entry = {} as PendingPayment;
-    const promise = Promise.resolve().then(() => execute(input, binding, operationGeneration));
+    const promise = Promise.resolve().then(() => execute(input, binding, operationGeneration, gymTeacherStudentLinks));
     entry.signature = operationSignature;
     entry.generation = operationGeneration;
     entry.promise = promise;

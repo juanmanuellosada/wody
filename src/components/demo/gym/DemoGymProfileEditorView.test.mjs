@@ -54,6 +54,12 @@ const baseProps = () => ({
   name: "Paula Méndez",
   onNameChange: () => {},
   onSaveName: () => {},
+  assignedTeachers: [{ id: "t1", name: "Tomás Ríos" }],
+  availableTeachers: [{ id: "t2", name: "Nora Vidal" }],
+  addTeacherId: "",
+  onAddTeacherIdChange: () => {},
+  onAssignTeacher: () => {},
+  onUnassignTeacher: () => {},
   paymentExempt: false,
   paymentExemptReason: "",
   onPaymentExemptReasonChange: () => {},
@@ -63,13 +69,48 @@ const baseProps = () => ({
   onClose: () => {},
 });
 
-test("isAdmin=false hides the exemption section the core would reject for a TEACHER", async () => {
+test("isAdmin=false hides the assignment and exemption sections the core would reject for a TEACHER", async () => {
   const tree = await render({ ...baseProps(), isAdmin: false });
+  assert.equal(buttonLabeled(tree, "Agregar"), null);
   assert.equal(buttonLabeled(tree, "Marcar exento"), null);
   assert.equal(buttonLabeled(tree, "Quitar exención"), null);
+  assert.equal(findAll(tree, (n) => n.type === "select").length, 0);
   assert.equal(findAll(tree, (n) => n.type === "textarea").length, 0);
   // The name field always stays: editing is ADMIN/TEACHER, not ADMIN-only.
   assert.ok(findAll(tree, (n) => n.type === "input" && n.props.value === "Paula Méndez").length === 1);
+});
+
+test("isAdmin=true shows assigned/available teachers and wires assign/unassign to the given callbacks", async () => {
+  const calls = { assign: [], unassign: [], addTeacherIdChange: [] };
+  const tree = await render({
+    ...baseProps(),
+    onAssignTeacher: () => calls.assign.push(true),
+    onUnassignTeacher: (id) => calls.unassign.push(id),
+    onAddTeacherIdChange: (id) => calls.addTeacherIdChange.push(id),
+    addTeacherId: "t2",
+  });
+
+  const removeButton = findOne(tree, (n) => n.type === "button" && n.props.title === "Quitar profe");
+  removeButton.props.onClick();
+  assert.deepEqual(calls.unassign, ["t1"]);
+
+  const select = findOne(tree, (n) => n.type === "select");
+  const options = findAll(select, (n) => n.type === "option").filter((n) => n !== select);
+  assert.deepEqual(options.map((o) => o.props.value), ["", "t2"]);
+  select.props.onChange({ target: { value: "t2" } });
+  assert.deepEqual(calls.addTeacherIdChange, ["t2"]);
+
+  const addButton = buttonLabeled(tree, "Agregar");
+  assert.equal(addButton.props.disabled, false);
+  addButton.props.onClick();
+  assert.equal(calls.assign.length, 1);
+});
+
+test("the assign button stays disabled with no teacher selected, independent of pending", async () => {
+  const treeIdle = await render({ ...baseProps(), addTeacherId: "" });
+  assert.equal(buttonLabeled(treeIdle, "Agregar").props.disabled, true);
+  const treePending = await render({ ...baseProps(), addTeacherId: "t2", pending: true });
+  assert.equal(buttonLabeled(treePending, "Agregar").props.disabled, true);
 });
 
 test("exemption toggle reflects paymentExempt and calls onTogglePaymentExempt; reason edits call onPaymentExemptReasonChange", async () => {

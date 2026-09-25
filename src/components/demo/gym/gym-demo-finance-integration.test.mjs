@@ -199,7 +199,7 @@ test("financial presentation keeps readiness, failures, warnings, empty scope, a
   ]);
   assert.match(fees, /Preparando cuotas de demostración/);
   assert.match(fees, /No tenés alumnos asignados/);
-  assert.match(fees, /editar el nombre, bloquear o desbloquear y marcar exenciones de pago/);
+  assert.match(fees, /editar el nombre, bloquear o desbloquear, marcar exenciones de pago y asignar o quitar profes/);
   assert.match(cash, /Preparando caja de demostración/);
   assert.match(cash, /Datos de demostración guardados solo en esta pestaña/);
   assert.match(products, /Preparando catálogo de demostración/);
@@ -222,7 +222,10 @@ test("financial presentation keeps readiness, failures, warnings, empty scope, a
  * sourcing — can be asserted directly, the same way paymentControlProps()/registerPaymentProps()
  * already expose PaymentControlView's/RegisterPaymentSectionView's props.
  */
-async function feesAdapterHarness({ actorId, profileStudents, financeState, commandCallbacksByActor = null, profileLinks }) {
+// profileLinks defaults to [] (not undefined): the real GymDemoProfileState.links field is a
+// non-optional array by type, so every call site gets a value that satisfies that guarantee unless
+// it deliberately opts into something else.
+async function feesAdapterHarness({ actorId, profileStudents, financeState, commandCallbacksByActor = null, profileLinks = [] }) {
   const compiled = ts.transpileModule(await source("src/components/demo/gym/DemoGymFeesAdapter.tsx"), {
     compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
@@ -237,7 +240,14 @@ async function feesAdapterHarness({ actorId, profileStudents, financeState, comm
   const jsx = (type, props, key) => jsxImpl(type, props, key);
   const actor = directory.getGymDemoProfile(actorId);
   const cancelPendingDuplicate = () => {};
-  const paymentCallbacks = new Map([[actorId, Object.assign(async () => ({ success: true }), { cancelPendingDuplicate })]]);
+  // Records every call the wrapper makes to the raw factory callback, so a caller can inspect
+  // exactly what arguments (including the 5th, gymTeacherStudentLinks) reached it.
+  const rawPaymentCalls = [];
+  const rawPaymentCallback = Object.assign(
+    async (...args) => { rawPaymentCalls.push(args); return { success: true }; },
+    { cancelPendingDuplicate },
+  );
+  const paymentCallbacks = new Map([[actorId, rawPaymentCallback]]);
   const gym = { ready: true, selectedActor: actor };
   const finance = { ready: true, state: financeState, today: "2030-06-03", resetEpoch: 0, warning: null, paymentCallbacks };
   const commandCallbacks = commandCallbacksByActor ? new Map(Object.entries(commandCallbacksByActor)) : null;
@@ -271,6 +281,8 @@ async function feesAdapterHarness({ actorId, profileStudents, financeState, comm
     element,
     paymentControlProps: () => paymentControlProps,
     registerPaymentProps: () => registerPaymentProps,
+    rawPaymentCalls,
+    rawPaymentCallback,
     // Shallow row-actions props keyed by student id, straight from PaymentControlView's own
     // rowActions prop — proves it was actually passed, not dropped.
     rowActionsProps: (studentId) => paymentControlProps?.rowActions?.[studentId]?.props ?? null,
@@ -340,9 +352,13 @@ test("DemoGymFeesAdapter threads the profile bridge's teacher-student links into
   const financeState = createGymFinanceDemoFixture();
   const secondaryTeacher = directory.GYM_DEMO_SECONDARY_TEACHER_ID;
 
-  // Canonically unassigned: an omitted links prop (undefined) must fall back to the canonical
-  // directory, where the secondary teacher has zero students.
-  const withoutLinks = await feesAdapterHarness({ actorId: secondaryTeacher, profileStudents: [], financeState });
+  // Canonically unassigned: an empty bridge link set leaves the secondary teacher with zero
+  // students, same as the canonical directory does for them. (The pure `undefined` ->
+  // canonical-fallback contract this used to lean on is tested directly, without needing the
+  // adapter, in gym-finance-demo-projection.test.mjs's "real adapter-built bridge link snapshot at
+  // first load" test — profileState.links is a non-optional array by type in the real app, so this
+  // adapter never actually omits it.)
+  const withoutLinks = await feesAdapterHarness({ actorId: secondaryTeacher, profileStudents: [], financeState, profileLinks: [] });
   assert.deepEqual(withoutLinks.paymentControlProps()?.rows.map((row) => row.id), []);
   assert.deepEqual(withoutLinks.registerPaymentProps()?.students.map((student) => student.id), []);
 
@@ -425,6 +441,10 @@ test("DemoGymFeesAdapter wires rowActions with the actor-scoped callbacks, the a
   const teacher = await feesAdapterHarness({
     actorId: directory.GYM_DEMO_PRIMARY_TEACHER_ID, profileStudents, financeState,
     commandCallbacksByActor: { [directory.GYM_DEMO_ADMIN_ID]: adminCallbacks, [directory.GYM_DEMO_PRIMARY_TEACHER_ID]: teacherCallbacks },
+    // Unrelated to what this test proves (actor-scoped callbacks/isAdmin), but the row must exist
+    // in this teacher's scope at all: a bridge link is required now that profileLinks defaults to
+    // an empty (not canonical-fallback) set.
+    profileLinks: [{ teacherId: directory.GYM_DEMO_PRIMARY_TEACHER_ID, studentId: directory.GYM_DEMO_GENERAL_STUDENT_ID }],
   });
   const teacherGeneralRow = teacher.rowActionsProps(directory.GYM_DEMO_GENERAL_STUDENT_ID);
   assert.equal(teacherGeneralRow?.callbacks, teacherCallbacks, "a different actor must get that actor's own callbacks object");
@@ -443,7 +463,12 @@ test("DemoGymFeesAdapter wires rowActions with the actor-scoped callbacks, the a
 test("DemoGymFeeRowActions is keyed by the selected actor, so switching actors discards its local edit/error state", async () => {
   const financeState = createGymFinanceDemoFixture();
   const admin = await feesAdapterHarness({ actorId: directory.GYM_DEMO_ADMIN_ID, profileStudents: [], financeState });
-  const teacher = await feesAdapterHarness({ actorId: directory.GYM_DEMO_PRIMARY_TEACHER_ID, profileStudents: [], financeState });
+  // Unrelated to what this test proves (the React key), but the row must exist in this teacher's
+  // scope at all: a bridge link is required now that profileLinks defaults to an empty set.
+  const teacher = await feesAdapterHarness({
+    actorId: directory.GYM_DEMO_PRIMARY_TEACHER_ID, profileStudents: [], financeState,
+    profileLinks: [{ teacherId: directory.GYM_DEMO_PRIMARY_TEACHER_ID, studentId: directory.GYM_DEMO_GENERAL_STUDENT_ID }],
+  });
 
   const studentId = directory.GYM_DEMO_GENERAL_STUDENT_ID;
   const adminKey = admin.rowActionsKey(studentId);
@@ -453,4 +478,119 @@ test("DemoGymFeeRowActions is keyed by the selected actor, so switching actors d
   assert.notEqual(adminKey, teacherKey, "the same student's row must get a different key under a different actor, so a persona switch remounts it and discards local edit/error state");
   assert.equal(adminKey, `${directory.GYM_DEMO_ADMIN_ID}:${studentId}`);
   assert.equal(teacherKey, `${directory.GYM_DEMO_PRIMARY_TEACHER_ID}:${studentId}`);
+});
+
+/**
+ * The assignment pool a row offers must be exactly the active canonical TEACHER/ADMIN profiles —
+ * the same predicate the core (gym-demo-profile-core.ts's activeTeacherIds) and
+ * finance-demo-policy.ts's isActiveGymTeacherOrAdmin already enforce, so the UI never offers an
+ * option the core would reject. This is the row's assignedTeachers/availableTeachers props, not
+ * the source text, and it is the one property of the restored control no other test in this file
+ * checks directly.
+ */
+test("DemoGymFeesAdapter's assignment pool for a row is exactly the active canonical TEACHER/ADMIN profiles, never a STUDENT", async () => {
+  const financeState = createGymFinanceDemoFixture();
+  const admin = await feesAdapterHarness({
+    actorId: directory.GYM_DEMO_ADMIN_ID, profileStudents: [], financeState, profileLinks: [],
+  });
+  const row = admin.rowActionsProps(directory.GYM_DEMO_GENERAL_STUDENT_ID);
+  assert.ok(row, "row must be present for ADMIN");
+  assert.deepEqual(row.assignedTeachers, [], "no links: nobody assigned yet");
+  const availableIds = row.availableTeachers.map((t) => t.id).sort();
+  assert.deepEqual(availableIds, [
+    directory.GYM_DEMO_ADMIN_ID,
+    directory.GYM_DEMO_PRIMARY_TEACHER_ID,
+    directory.GYM_DEMO_SECONDARY_TEACHER_ID,
+  ].sort(), "must be exactly the active canonical TEACHER/ADMIN profiles");
+  assert.ok(!availableIds.includes(directory.GYM_DEMO_GENERAL_STUDENT_ID), "a STUDENT must never appear in the teacher pool");
+});
+
+/**
+ * Proves the adapter half of the redesigned fix: DemoGymFeesAdapter wraps the raw payment
+ * callback so RegisterPaymentSectionView's onRegisterPayment always passes THIS render's
+ * profileState.links as the 5th argument to the real factory call — a plain parameter, not a
+ * separate "remember to sync first" step. The factory-level mechanism (that argument actually
+ * reaching canRecordFinancePayment, and that no call can leak state into or rewind another's) is
+ * pinned separately in gym-finance-payment-adapters.test.mjs; this proves the wiring that makes it
+ * reachable from the UI at all, with the CURRENT render's links, not a stale one.
+ */
+test("DemoGymFeesAdapter's payment dispatch passes THIS render's profileState.links as the 5th argument to the real payment callback", async () => {
+  const financeState = createGymFinanceDemoFixture();
+  const links = [{ teacherId: directory.GYM_DEMO_PRIMARY_TEACHER_ID, studentId: directory.GYM_DEMO_GENERAL_STUDENT_ID }];
+  const harness = await feesAdapterHarness({
+    actorId: directory.GYM_DEMO_ADMIN_ID, profileStudents: [], financeState, profileLinks: links,
+  });
+  const onRegisterPayment = harness.registerPaymentProps()?.onRegisterPayment;
+  assert.equal(typeof onRegisterPayment, "function", "RegisterPaymentSectionView must receive a dispatch function");
+  assert.notEqual(onRegisterPayment, harness.rawPaymentCallback, "must be a wrapper, not the raw factory callback itself");
+
+  const options = { paidAtStr: "2030-06-03", paymentMethod: "EFECTIVO", confirmedDuplicate: false };
+  const result = await onRegisterPayment(directory.GYM_DEMO_GENERAL_STUDENT_ID, "100", "2030-07-03", options);
+
+  assert.deepEqual(result, { success: true });
+  assert.equal(harness.rawPaymentCalls.length, 1);
+  assert.deepEqual(
+    harness.rawPaymentCalls[0],
+    [directory.GYM_DEMO_GENERAL_STUDENT_ID, "100", "2030-07-03", options, links],
+    "the real callback must receive the caller's exact 4 arguments plus this render's own links as the 5th",
+  );
+
+  // cancelPendingDuplicate does not need link-freshness: it must stay the original, unwrapped
+  // reference so cancellation behavior (proven elsewhere) is untouched by this fix.
+  assert.equal(harness.registerPaymentProps()?.onCancelPendingDuplicate, harness.rawPaymentCallback.cancelPendingDuplicate);
+});
+
+/**
+ * The prior link-related tests in this file use profileLinks: [] (empty) or exercise only the
+ * scoping/authorization projection, never DemoGymFeesAdapter's own link-to-row mapping
+ * (assignedTeacherIdsByStudent, staffById, and the availableTeachers exclusion). All three could
+ * regress unobserved: grouping by studentId (a link for the wrong student leaking onto a row),
+ * mapping an assigned id to a staff display name (or falling back to the raw id when the id names
+ * no known staff member — e.g. a stale/unknown teacherId), and excluding already-assigned ids from
+ * the pool a row still offers to assign.
+ */
+test("DemoGymFeesAdapter maps real bridge links into assignedTeachers/availableTeachers per row: grouped by student, named by staff, excluded from the pool, with a raw-id fallback for an unknown teacher", async () => {
+  const financeState = createGymFinanceDemoFixture();
+  const links = [
+    { teacherId: directory.GYM_DEMO_PRIMARY_TEACHER_ID, studentId: directory.GYM_DEMO_GENERAL_STUDENT_ID },
+    { teacherId: directory.GYM_DEMO_SECONDARY_TEACHER_ID, studentId: directory.GYM_DEMO_GENERAL_STUDENT_ID },
+    { teacherId: directory.GYM_DEMO_PRIMARY_TEACHER_ID, studentId: directory.GYM_DEMO_PERSONALIZED_STUDENT_ID },
+    { teacherId: "not-a-real-teacher", studentId: directory.GYM_DEMO_MUSLIB_STUDENT_ID },
+  ];
+  const harness = await feesAdapterHarness({
+    actorId: directory.GYM_DEMO_ADMIN_ID, profileStudents: [], financeState, profileLinks: links,
+  });
+
+  const generalRow = harness.rowActionsProps(directory.GYM_DEMO_GENERAL_STUDENT_ID);
+  assert.ok(generalRow, "row must be present for ADMIN");
+  assert.deepEqual(
+    generalRow.assignedTeachers.map((t) => t.id).sort(),
+    [directory.GYM_DEMO_PRIMARY_TEACHER_ID, directory.GYM_DEMO_SECONDARY_TEACHER_ID].sort(),
+    "grouped correctly: both of this student's own links, not the other student's link",
+  );
+  assert.equal(
+    generalRow.assignedTeachers.find((t) => t.id === directory.GYM_DEMO_PRIMARY_TEACHER_ID)?.name,
+    "Tomás Ríos",
+    "an assigned id must be mapped to its staff display name, not left as a bare id",
+  );
+  const generalAvailableIds = generalRow.availableTeachers.map((t) => t.id);
+  assert.ok(!generalAvailableIds.includes(directory.GYM_DEMO_PRIMARY_TEACHER_ID), "an already-assigned teacher must not also appear in availableTeachers");
+  assert.ok(!generalAvailableIds.includes(directory.GYM_DEMO_SECONDARY_TEACHER_ID));
+  assert.ok(generalAvailableIds.includes(directory.GYM_DEMO_ADMIN_ID), "ADMIN, not assigned to this student, stays available to be assigned");
+
+  const personalizedRow = harness.rowActionsProps(directory.GYM_DEMO_PERSONALIZED_STUDENT_ID);
+  assert.ok(personalizedRow, "row must be present for ADMIN");
+  assert.deepEqual(
+    personalizedRow.assignedTeachers.map((t) => t.id),
+    [directory.GYM_DEMO_PRIMARY_TEACHER_ID],
+    "this student's own single link only, not the general student's second link leaking across rows",
+  );
+
+  const muslibRow = harness.rowActionsProps(directory.GYM_DEMO_MUSLIB_STUDENT_ID);
+  assert.ok(muslibRow, "row must be present for ADMIN");
+  assert.deepEqual(
+    muslibRow.assignedTeachers,
+    [{ id: "not-a-real-teacher", name: "not-a-real-teacher" }],
+    "a teacherId that names no known staff member falls back to using the raw id as its own display name",
+  );
 });
