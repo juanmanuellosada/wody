@@ -32,14 +32,17 @@ const supportedRoutes = [
   "/demo/gym/admin/productos",
   "/demo/gym/admin/ingresos",
   "/demo/gym/admin/ingresos/historial",
+  "/demo/gym/admin/turnos",
   "/demo/gym/admin/rms",
   "/demo/gym/teacher",
   "/demo/gym/teacher/pagos",
   "/demo/gym/teacher/caja",
   "/demo/gym/teacher/rms",
+  "/demo/gym/teacher/turnos",
   "/demo/gym/student",
   "/demo/gym/student/rms",
   "/demo/gym/student/wod",
+  "/demo/gym/student/turnos",
 ];
 
 export default function PreviewDemoLayout({ children }: { children: React.ReactNode }) {

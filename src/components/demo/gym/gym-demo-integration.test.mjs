@@ -48,8 +48,8 @@ const financeRoutes = [
 ];
 
 test("GYM adds the bounded twelve-route inventory to root and Preview", async () => {
-  assert.equal(await pageCount("src/app/demo"), 38);
-  assert.equal(await pageCount("preview/landing/app/demo"), 38);
+  assert.equal(await pageCount("src/app/demo"), 41);
+  assert.equal(await pageCount("preview/landing/app/demo"), 41);
   for (const [leaf, key, role, screen] of routes) {
     const [rootPage, previewPage] = await Promise.all([
       source(`src/app/demo/gym/${leaf}`), source(`preview/landing/app/demo/gym/${leaf}`),
@@ -161,4 +161,37 @@ test("GYM is pathname-gated, has its three ledgers, and preserves other scenario
   assert.match(layout, /"\/demo\/student\/wod"/);
   for (const route of routes) assert.match(layout, new RegExp(`"/demo/gym/${route[0].replace("/page.tsx", "")}"`.replace("/admin/rms", "/admin/rms").replace("/teacher/rms", "/teacher/rms").replace("/student/rms", "/student/rms").replace("/student/wod", "/student/wod").replace("/admin", "/admin").replace("/teacher", "/teacher").replace("/student", "/student")));
   for (const route of financeRoutes) assert.match(layout, new RegExp(`"/demo/gym/${route[0].replace("/page.tsx", "")}"`));
+});
+
+const turnosRoutes = [
+  ["admin", "ADMIN"],
+  ["teacher", "TEACHER"],
+  ["student", "STUDENT"],
+];
+
+test("GYM turnos entries mount GymBookingDemo without an extra navbar or main wrapper", async () => {
+  for (const [role, initialRole] of turnosRoutes) {
+    const [rootPage, previewPage] = await Promise.all([
+      source(`src/app/demo/gym/${role}/turnos/page.tsx`),
+      source(`preview/landing/app/demo/gym/${role}/turnos/page.tsx`),
+    ]);
+    for (const page of [rootPage, previewPage]) {
+      assert.match(page, /export const metadata: Metadata/);
+      assert.match(page, new RegExp(`<GymBookingDemo initialRole="${initialRole}"`));
+      assert.doesNotMatch(page, /DemoNavbar/);
+      assert.doesNotMatch(page, /<main\b/);
+    }
+  }
+});
+
+test("demo navigation has one GYM turnos link for each role, positioned like its BOX and access siblings", async () => {
+  const [navbar, layout] = await Promise.all([
+    source("src/components/DemoNavbar.tsx"),
+    source("preview/landing/app/demo/layout.tsx"),
+  ]);
+  for (const [role] of turnosRoutes) {
+    const href = `href: "/demo/gym/${role}/turnos", label: "Turnos"`;
+    assert.equal(navbar.split(href).length - 1, 1, `${role} has one GYM Turnos entry`);
+    assert.equal((layout.match(new RegExp(`"/demo/gym/${role}/turnos"`, "g")) ?? []).length, 1, `${role} Preview supportedRoutes has one GYM turnos entry`);
+  }
 });
