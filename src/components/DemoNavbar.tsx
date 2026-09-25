@@ -54,6 +54,7 @@ const gymRoleLinks = {
   student: [
     { href: "/demo/gym/student", label: "Mi rutina" },
     { href: "/demo/gym/student/rms", label: "Mis PRs" },
+    { href: "/demo/gym/student/beneficios", label: "Beneficios" },
     { href: "/demo/gym/student/turnos", label: "Turnos" },
   ],
 };

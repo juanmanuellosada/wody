@@ -43,6 +43,7 @@ const supportedRoutes = [
   "/demo/gym/student/rms",
   "/demo/gym/student/wod",
   "/demo/gym/student/turnos",
+  "/demo/gym/student/beneficios",
 ];
 
 export default function PreviewDemoLayout({ children }: { children: React.ReactNode }) {

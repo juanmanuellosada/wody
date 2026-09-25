@@ -48,8 +48,8 @@ const financeRoutes = [
 ];
 
 test("GYM adds the bounded twelve-route inventory to root and Preview", async () => {
-  assert.equal(await pageCount("src/app/demo"), 41);
-  assert.equal(await pageCount("preview/landing/app/demo"), 41);
+  assert.equal(await pageCount("src/app/demo"), 42);
+  assert.equal(await pageCount("preview/landing/app/demo"), 42);
   for (const [leaf, key, role, screen] of routes) {
     const [rootPage, previewPage] = await Promise.all([
       source(`src/app/demo/gym/${leaf}`), source(`preview/landing/app/demo/gym/${leaf}`),
