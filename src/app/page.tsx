@@ -20,6 +20,12 @@ export const metadata: Metadata = {
     description:
       "Rutinas, marcas personales, turnos, acceso con QR y cuotas en una sola app para tu centro.",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Software para gimnasios y boxes de CrossFit | Wody",
+    description:
+      "Rutinas, marcas personales, turnos, acceso con QR y cuotas en una sola app para tu centro.",
+  },
 };
 
 const structuredData = {
@@ -44,9 +50,11 @@ const structuredData = {
       inLanguage: "es-AR",
       publisher: { "@id": `${SITE_URL}/#organization` },
       offers: {
-        "@type": "Offer",
-        price: "40000",
+        "@type": "AggregateOffer",
+        lowPrice: "7000",
+        highPrice: "40000",
         priceCurrency: "ARS",
+        offerCount: "2",
         url: SITE_URL,
         availability: "https://schema.org/InStock",
       },

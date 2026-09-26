@@ -18,4 +18,4 @@ export const SITE_TITLE =
   "Wody — Software de gestión para gimnasios y boxes de CrossFit";
 
 export const SITE_DESCRIPTION =
-  "Plataforma argentina para gestionar rutinas y WODs, RMs, reserva de turnos, control de acceso con QR y cobro de cuotas con Mercado Pago. 7 días de prueba gratis, sin tarjeta.";
+  "Plataforma argentina para gestionar rutinas, RMs, turnos, acceso con QR y cuotas con Mercado Pago. 7 días de prueba gratis, sin tarjeta.";

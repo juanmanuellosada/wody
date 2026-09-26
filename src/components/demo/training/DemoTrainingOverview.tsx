@@ -12,8 +12,9 @@ const modules = [
   { href: "/demo/admin/pagos", label: "Cuotas", description: "Consultá cuotas ficticias como administración o profesorado." },
   { href: "/demo/admin/caja", label: "Caja", description: "Registrá cuotas ficticias en la caja de demostración." },
   { href: "/demo/admin/productos", label: "Productos", description: "Administrá el catálogo ficticio de productos y categorías." },
+  { href: "/demo/admin/ingresos", label: "Accesos", description: "Buscá al socio por número o email y decidí el ingreso con su estado de cuota a la vista." },
   { href: "/demo/personal/student", label: "Wody Personal", description: "Probá tus rutinas, PRs y suscripción simulada como usuario personal." },
-  { href: "/demo/gym/admin", label: "Gimnasio", description: "Probá entrenamiento, rutinas fijas y PRs del gimnasio de demostración." },
+  { href: "/demo/gym/admin", label: "Gimnasio", description: "Probá el gimnasio de demostración completo: rutinas, cuotas, caja, productos, accesos y turnos." },
 ];
 
 /** Shared entry hub used by both demo applications. */
@@ -26,7 +27,7 @@ export function DemoTrainingOverview() {
       >
         &larr; Volver al inicio
       </Link>
-      <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-3">BOX de demostración</p>
+      <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-brand-red mb-3">Demo de BOX, GYM y Personal</p>
       <h1 className="text-3xl sm:text-4xl font-heading font-black uppercase tracking-[0.1em] text-white mb-3 text-center">
         Demo funcional de WODY
       </h1>

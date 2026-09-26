@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, type CSSProperties } from "react";
-import { CalendarCheck, CalendarDays, Building2, QrCode, Share2, Smartphone, Trophy, Wallet, type LucideIcon } from "lucide-react";
+import { CalendarCheck, CalendarDays, Building2, Gift, Package, QrCode, Share2, Smartphone, Trophy, Wallet, type LucideIcon } from "lucide-react";
 import { WhatsAppIcon } from "../icons/WhatsAppIcon";
 import wodyTexto from "../../logos/wody-texto.png";
 import demoPagosDesktop from "./assets/wody-demo-pagos-desktop.webp";
@@ -41,10 +41,12 @@ const features: Array<[LucideIcon, string, string]> = [
   [Trophy, "Records personales", "Registro de mejores marcas con fecha. Editables y compartibles en redes con imagen generada."],
   [CalendarCheck, "Turnos de actividades", "Actividades con horarios semanales o de fecha única, cupo por clase y ventana de cancelación. El alumno se anota desde el celular."],
   [QrCode, "Control de ingresos", "Check-in en la puerta escaneando el QR de recepción. El operador ve el estado de cuota del socio al instante y queda todo en el historial."],
-  [Wallet, "Cuotas y caja", "Estado de cuota de cada alumno, registro de pagos y venta de productos. La recaudación y los gastos quedan detrás de un permiso aparte."],
+  [Wallet, "Cuotas y caja", "Estado de cuota de cada alumno y registro de pagos. La recaudación y los gastos quedan detrás de un permiso aparte."],
+  [Package, "Productos", "Catálogo de productos con stock y precio. Registrá cada venta desde la caja en el momento."],
   [Building2, "Multi-centro", "Cada centro tiene su espacio aislado con datos, usuarios y branding independientes."],
   [Smartphone, "Mobile-first", "Pensado para usar desde el celular en el gimnasio. Responsive y rápido."],
   [Share2, "Compartir logros", "Genera imágenes para Instagram y WhatsApp cuando tu alumno rompe un record."],
+  [Gift, "Beneficios", "Descuentos y regalos de comercios aliados, disponibles para alumnos de cualquier centro."],
 ];
 
 const footerRoutes = [

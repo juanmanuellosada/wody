@@ -3,7 +3,7 @@ import { DemoTrainingOverview } from "@/components/demo/training/DemoTrainingOve
 
 export const metadata: Metadata = {
   title: "WODY — Demo",
-  description: "Explorá WODY con datos ficticios de un BOX de demostración.",
+  description: "Explorá WODY con datos ficticios de escenarios de demostración para BOX, GYM y Wody Personal.",
 };
 
 export default function DemoSelectorPage() {

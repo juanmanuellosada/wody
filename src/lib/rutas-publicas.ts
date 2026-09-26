@@ -25,6 +25,8 @@ export const PAGINAS_PUBLICAS: Array<{
   { path: "/demo/teacher", priority: 0.6, changeFrequency: "monthly" },
   { path: "/demo/admin", priority: 0.6, changeFrequency: "monthly" },
   { path: "/demo/student", priority: 0.6, changeFrequency: "monthly" },
+  { path: "/demo/gym/admin", priority: 0.6, changeFrequency: "monthly" },
+  { path: "/demo/personal/student", priority: 0.6, changeFrequency: "monthly" },
   { path: "/registro-personal", priority: 0.7, changeFrequency: "monthly" },
 ];
 
