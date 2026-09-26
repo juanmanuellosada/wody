@@ -18,12 +18,12 @@
 .personalLink { margin-top: .9rem; color: #d6d6dd; font-size: .94rem; text-decoration-color: #e31414; text-decoration-thickness: 2px; text-underline-offset: .35rem; }
 .trialNote { margin: .8rem 0 0; color: #8de4aa; font-family: var(--font-heading, sans-serif); font-size: .75rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
 .demoFigure { width: min(100%, 62rem); margin: 2rem 0 0; }
-.demoPicture { display: block; aspect-ratio: 390 / 1004; background: #000; }
+.demoPicture { display: block; aspect-ratio: 390 / 1470; background: #000; }
 .demoImage { display: block; width: 100%; height: 100%; object-fit: contain; }
 .demoFigure figcaption { margin-top: .75rem; color: #a5a5af; font-size: .76rem; line-height: 1.5; }
 .demoFigure figcaption a { color: #d6d6dd; text-underline-offset: .22rem; }
 .demoFigure figcaption a:hover { color: #fff; }
-@media (min-width: 700px) { .demoPicture { aspect-ratio: 1440 / 608; } }
+@media (min-width: 700px) { .demoPicture { aspect-ratio: 1440 / 800; } }
 .section { padding: 5rem 0; border-top: 1px solid #27272e; }
 .section > h2, .plan h2 { margin: 0; color: #fff; font-family: var(--font-heading, sans-serif); font-size: clamp(2rem, 5vw, 3rem); font-weight: 900; letter-spacing: -.02em; line-height: .98; text-align: center; text-transform: uppercase; text-wrap: balance; }
 .audienceGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .75rem; margin-top: 2.5rem; }

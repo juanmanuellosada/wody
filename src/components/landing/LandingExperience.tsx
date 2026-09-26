@@ -96,13 +96,13 @@ export function LandingExperience({
           <a className={styles.personalLink} href={appHref("/registro-personal")}>Usalo por tu cuenta</a>
           <figure className={styles.demoFigure}>
             <picture className={styles.demoPicture}>
-              <source media="(min-width: 700px)" srcSet={demoPagosDesktop.src} width={1440} height={608} />
+              <source media="(min-width: 700px)" srcSet={demoPagosDesktop.src} width={1440} height={800} />
               <Image
                 className={styles.demoImage}
                 src={demoPagosMobile}
                 alt="Control de pagos de Wody con estados de pago ficticios."
                 width={390}
-                height={1004}
+                height={1470}
                 sizes="(min-width: 700px) min(100vw - 3rem, 62rem), calc(100vw - 2rem)"
                 unoptimized
               />
