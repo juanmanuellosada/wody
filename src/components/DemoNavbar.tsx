@@ -16,8 +16,6 @@ const roleLinks = {
     { href: "/demo/admin/ingresos", label: "Ingresos" },
     { href: "/demo/admin/turnos", label: "Turnos" },
     { href: "/demo/admin/rms", label: "Mis RMs" },
-    { href: "/demo/teacher", label: "Dashboard Profe" },
-    { href: "/demo/teacher/rms", label: "Mis RMs" },
   ],
   teacher: [
     { href: "/demo/teacher", label: "Mis WODs" },
