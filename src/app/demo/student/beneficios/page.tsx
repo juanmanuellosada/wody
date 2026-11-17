@@ -3,6 +3,9 @@ import { DemoNavbar } from "@/components/DemoNavbar";
 import { DemoBeneficiosView } from "@/components/demo/DemoBeneficiosView";
 import { listCouponsPreview } from "@/actions/coupon";
 
+// Lee cupones de la DB: se renderiza en cada pedido, no en el build.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "WODY — Demo Beneficios",
 };

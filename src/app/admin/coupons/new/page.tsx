@@ -2,6 +2,9 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { CouponForm } from "@/components/admin/CouponForm";
 
+// Lee cupones de la DB: se renderiza en cada pedido, no en el build.
+export const dynamic = "force-dynamic";
+
 export default async function NewCouponPage() {
   const agg = await prisma.coupon.aggregate({ _max: { sortOrder: true } });
   const nextSortOrder = (agg._max.sortOrder ?? 0) + 1;

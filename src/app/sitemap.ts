@@ -6,8 +6,9 @@ import { ARTICULOS } from "@/lib/blog";
 import { PAGINAS_PUBLICAS } from "@/lib/rutas-publicas";
 
 // El listado de gyms sale de la DB, así que cada gym nuevo entra solo al
-// sitemap. Una hora de cache sobra: no damos de alta gyms a ese ritmo.
-export const revalidate = 3600;
+// sitemap. Se arma en cada pedido (no con ISR) porque la DB no está
+// disponible mientras se construye la imagen de Docker.
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
