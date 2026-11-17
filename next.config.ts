@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import createMDX from "@next/mdx";
 
 const nextConfig: NextConfig = {
+  // Servidor autocontenido para la imagen de Docker (ver Dockerfile).
+  output: "standalone",
   // Los artículos del blog son .mdx; el resto de las extensiones son las de siempre.
   pageExtensions: ["js", "jsx", "ts", "tsx", "md", "mdx"],
   async headers() {
