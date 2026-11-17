@@ -1,0 +1,101 @@
+# Local stack to test the Docker image: app + Postgres + S3 storage + mail catcher.
+# Not used in production (Coolify builds the Dockerfile directly).
+#
+#   docker compose up -d --build
+#   DATABASE_URL=postgres://wody:wody@localhost:5435/wody npx prisma migrate deploy
+#
+# App:     http://localhost:3000
+# Mailpit: http://localhost:8025 (every email sent by the app lands here)
+# RustFS:  http://localhost:9001 (console, user/pass: wody / wody-local-secret)
+#
+# All values below are local-only placeholders.
+
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_URL: postgres://wody:wody@db:5432/wody
+      AUTH_SECRET: local-auth-secret-not-for-production-0000
+      APP_URL: http://localhost:3000
+      CRON_SECRET: local-cron-secret
+      CHECKIN_TOKEN_SECRET: local-checkin-secret
+      # S3-compatible storage. The app talks to it over the compose network;
+      # the browser reads public files through the published port.
+      S3_ENDPOINT: http://s3:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: wody
+      S3_ACCESS_KEY_ID: wody
+      S3_SECRET_ACCESS_KEY: wody-local-secret
+      S3_PUBLIC_URL: http://localhost:9000/wody
+      # SMTP: Mailpit accepts anything without auth or TLS.
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      EMAIL_FROM: Wody <noreply@wody.com.ar>
+      EMAIL_QUOTA_ALERT_TO: alertas@wody.local
+    depends_on:
+      db:
+        condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: wody
+      POSTGRES_PASSWORD: wody
+      POSTGRES_DB: wody
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wody -d wody"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  s3:
+    image: rustfs/rustfs:1.0.6
+    environment:
+      RUSTFS_ACCESS_KEY: wody
+      RUSTFS_SECRET_KEY: wody-local-secret
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - s3-data:/data
+
+  # Creates the bucket and makes its objects publicly readable (logos are
+  # served straight from storage). Idempotent: safe on every `up`.
+  s3-init:
+    image: amazon/aws-cli:2.40.4
+    depends_on:
+      - s3
+    environment:
+      AWS_ACCESS_KEY_ID: wody
+      AWS_SECRET_ACCESS_KEY: wody-local-secret
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        S3="aws --endpoint-url http://s3:9000 s3api"
+        for i in $$(seq 1 30); do $$S3 list-buckets >/dev/null 2>&1 && break; sleep 1; done
+        $$S3 head-bucket --bucket wody 2>/dev/null || $$S3 create-bucket --bucket wody
+        $$S3 put-bucket-policy --bucket wody --policy '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::wody/*"]}]}'
+        echo "bucket wody ready"
+
+  mailpit:
+    image: axllent/mailpit:v1.34.0
+    ports:
+      - "127.0.0.1:8025:8025"
+
+volumes:
+  db-data:
+  s3-data:
