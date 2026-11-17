@@ -25,7 +25,7 @@ export function QuotaAlertEmail({ threshold, currentCount, monthlyLimit, monthLa
   return (
     <Html lang="es">
       <Head />
-      <Preview>{`Cuota Resend al ${threshold}% — ${monthLabel}`}</Preview>
+      <Preview>{`Cuota de mails al ${threshold}% — ${monthLabel}`}</Preview>
       <Body
         style={{
           backgroundColor: "#f4f4f5",
@@ -67,7 +67,7 @@ export function QuotaAlertEmail({ threshold, currentCount, monthlyLimit, monthLa
           </Heading>
 
           <Text style={{ fontSize: "15px", color: "#3f3f46", lineHeight: "1.6", margin: "0 0 12px 0" }}>
-            El uso de Resend para {monthLabel} alcanzó el {threshold}% del límite.
+            El envío de mails de {monthLabel} alcanzó el {threshold}% del límite.
           </Text>
 
           <Text style={{ fontSize: "15px", color: "#3f3f46", lineHeight: "1.6", margin: "0 0 12px 0" }}>

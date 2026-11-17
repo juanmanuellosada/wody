@@ -1,7 +1,7 @@
 import { render } from "@react-email/render";
 import type { EmailLogType } from "@prisma/client";
 import React from "react";
-import { getResendClient } from "@/lib/email/client";
+import { getMailer } from "@/lib/email/client";
 import { prisma } from "@/lib/prisma";
 
 interface SendEmailOptions {
@@ -15,11 +15,11 @@ interface SendEmailOptions {
 
 export async function sendEmail(
   options: SendEmailOptions
-): Promise<{ ok: true; resendId: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; messageId: string } | { ok: false; error: string }> {
   const { to, gymId, type, subject, react, replyTo } = options;
 
-  // Validate env vars before touching Resend. If missing: log, no EmailLog row, return failure.
-  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+  // Validate env vars before touching SMTP. If missing: log, no EmailLog row, return failure.
+  if (!process.env.SMTP_HOST || !process.env.EMAIL_FROM) {
     console.error("[email] EMAIL_NOT_CONFIGURED");
     return { ok: false, error: "EMAIL_NOT_CONFIGURED" };
   }
@@ -40,8 +40,7 @@ export async function sendEmail(
   }
 
   try {
-    const client = getResendClient();
-    const result = await client.emails.send({
+    const info = await getMailer().sendMail({
       from,
       to,
       subject,
@@ -50,21 +49,15 @@ export async function sendEmail(
       ...(resolvedReplyTo ? { replyTo: resolvedReplyTo } : {}),
     });
 
-    if (result.error) {
-      const errorMessage = String(result.error.message ?? result.error).slice(0, 500);
-      await prisma.emailLog.create({
-        data: { to, gymId: gymId ?? null, type, resendId: null, status: "FAILED", errorMessage },
-      });
-      return { ok: false, error: errorMessage };
-    }
-
-    const resendId = result.data!.id;
+    // The SMTP Message-ID goes into the `resendId` column (named after the
+    // previous provider; renaming it needs a migration).
+    const messageId = info.messageId;
     await prisma.emailLog.create({
-      data: { to, gymId: gymId ?? null, type, resendId, status: "SENT", errorMessage: null },
+      data: { to, gymId: gymId ?? null, type, resendId: messageId, status: "SENT", errorMessage: null },
     });
-    return { ok: true, resendId };
+    return { ok: true, messageId };
   } catch (err) {
-    // EMAIL_NOT_CONFIGURED re-throws from getResendClient — no EmailLog row.
+    // EMAIL_NOT_CONFIGURED re-throws from getMailer — no EmailLog row.
     if (err instanceof Error && err.message.startsWith("EMAIL_NOT_CONFIGURED")) {
       console.error("[email] EMAIL_NOT_CONFIGURED");
       return { ok: false, error: "EMAIL_NOT_CONFIGURED" };

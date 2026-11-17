@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
   let alertSent: "80" | "95" | null = null;
 
   if (ratio >= 0.95) {
-    // dedupea por SENT, no por cualquier row, para permitir reintento si Resend falló
+    // dedupea por SENT, no por cualquier row, para permitir reintento si el envío falló
     const already = await prisma.emailLog.count({
       where: {
         type: "QUOTA_ALERT_95",
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       alertSent = "95";
     }
   } else if (ratio >= 0.80) {
-    // dedupea por SENT, no por cualquier row, para permitir reintento si Resend falló
+    // dedupea por SENT, no por cualquier row, para permitir reintento si el envío falló
     const already = await prisma.emailLog.count({
       where: {
         type: "QUOTA_ALERT_80",

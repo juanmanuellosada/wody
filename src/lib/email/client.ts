@@ -1,17 +1,32 @@
-import { Resend } from "resend";
+import nodemailer, { type Transporter } from "nodemailer";
 
-const globalForResend = globalThis as unknown as {
-  resend: Resend | undefined;
+const globalForMailer = globalThis as unknown as {
+  mailer: Transporter | undefined;
 };
 
-export function getResendClient(): Resend {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error("EMAIL_NOT_CONFIGURED: RESEND_API_KEY no está configurada");
+/**
+ * Transporte SMTP. En producción apunta al servidor de mail propio; en local,
+ * a Mailpit (docker-compose.yml), que captura los mails sin enviarlos.
+ *
+ * SMTP_SECURE=true usa TLS directo (puerto 465). Si no, se conecta en claro y
+ * sube a TLS con STARTTLS cuando el servidor lo ofrece (puerto 587).
+ */
+export function getMailer(): Transporter {
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE } = process.env;
+
+  if (!SMTP_HOST) {
+    throw new Error("EMAIL_NOT_CONFIGURED: SMTP_HOST no está configurada");
   }
 
-  if (!globalForResend.resend) {
-    globalForResend.resend = new Resend(process.env.RESEND_API_KEY);
+  if (!globalForMailer.mailer) {
+    const secure = SMTP_SECURE === "true";
+    globalForMailer.mailer = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT ? parseInt(SMTP_PORT, 10) : secure ? 465 : 587,
+      secure,
+      ...(SMTP_USER ? { auth: { user: SMTP_USER, pass: SMTP_PASS ?? "" } } : {}),
+    });
   }
 
-  return globalForResend.resend;
+  return globalForMailer.mailer;
 }
