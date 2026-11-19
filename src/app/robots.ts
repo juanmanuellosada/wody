@@ -11,7 +11,12 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        // Las reglas por gym de abajo usan `/*/`, y en robots.txt el comodin
+        // abarca barras: `/*/admin` tambien matchea `/demo/admin` y
+        // `/demo/gym/admin`. Estas dos rutas del demo estan en el sitemap, asi
+        // que necesitan un allow mas largo que ese patron para ganarle por
+        // especificidad.
+        allow: ["/", "/demo/admin", "/demo/gym/admin"],
         disallow: [
           "/api/",
           "/admin",

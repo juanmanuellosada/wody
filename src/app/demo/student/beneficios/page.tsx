@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { DemoNavbar } from "@/components/DemoNavbar";
 import { DemoBeneficiosView } from "@/components/demo/DemoBeneficiosView";
-import { listCouponsPreview } from "@/actions/coupon";
+import { demoBenefitsFixtures } from "@/components/demo/demo-benefits-fixtures";
 
 // Lee cupones de la DB: se renderiza en cada pedido, no en el build.
 export const dynamic = "force-dynamic";
@@ -10,13 +10,12 @@ export const metadata: Metadata = {
   title: "WODY — Demo Beneficios",
 };
 
-export default async function DemoStudentBeneficiosPage() {
-  const coupons = (await listCouponsPreview()).filter((c) => !c.fixedCode);
+export default function DemoStudentBeneficiosPage() {
   return (
     <>
       <DemoNavbar />
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-10">
-        <DemoBeneficiosView coupons={coupons} />
+        <DemoBeneficiosView coupons={demoBenefitsFixtures} />
       </main>
     </>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ContactForm } from "@/components/landing/ContactForm";
+import { ProductionContactForm } from "@/components/landing/ProductionContactForm";
 
 const FEATURES = [
   "Control de cuotas y pagos con vencimientos automáticos",
@@ -67,7 +67,7 @@ export function PricingSection() {
         </div>
       </section>
 
-      {open && <ContactForm onClose={() => setOpen(false)} />}
+      {open && <ProductionContactForm onClose={() => setOpen(false)} />}
     </>
   );
 }

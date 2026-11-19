@@ -74,15 +74,17 @@ function CouponCardDemo({ coupon }: { coupon: AvailableCoupon }) {
           <span>Obtener código</span>
         </button>
 
-        <a
-          href={coupon.instagramUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white border border-edge hover:border-[#3A3A3A] px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors"
-        >
-          <InstagramIcon size={16} />
-          <span>@{coupon.instagramHandle}</span>
-        </a>
+        {coupon.instagramUrl && coupon.instagramHandle && (
+          <a
+            href={coupon.instagramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white border border-edge hover:border-[#3A3A3A] px-6 py-3 min-h-[44px] font-heading font-bold uppercase tracking-[0.15em] text-xs transition-colors"
+          >
+            <InstagramIcon size={16} />
+            <span>@{coupon.instagramHandle}</span>
+          </a>
+        )}
       </div>
     </article>
   );
@@ -103,8 +105,7 @@ export function DemoBeneficiosView({ coupons }: Props) {
           Beneficios
         </h1>
         <p className="text-sm text-gray-500 font-body max-w-xl">
-          Descuentos y regalos para vos. Pedí el código y mostralo al comercio
-          desde su Instagram.
+          Beneficios de demostración; no se generan códigos ni descuentos reales.
         </p>
       </header>
 

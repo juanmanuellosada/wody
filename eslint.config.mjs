@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Standalone landing preview build artifacts.
+    "preview/landing/.next/**",
+    "preview/landing/out/**",
+    "preview/landing/next-env.d.ts",
   ]),
 ]);
 

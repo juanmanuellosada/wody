@@ -1,30 +1,13 @@
 "use client";
 
-import { useTransition } from "react";
-import { Button } from "@/components/ui/Button";
 import { deleteRm } from "@/actions/rm";
+import { DeleteRmButtonView } from "@/components/DeleteRmButtonView";
 
 interface DeleteRmButtonProps {
   rmId: string;
 }
 
+/** Production adapter retaining the existing deletion prop and live action. */
 export function DeleteRmButton({ rmId }: DeleteRmButtonProps) {
-  const [isPending, startTransition] = useTransition();
-
-  function handleDelete() {
-    startTransition(async () => {
-      await deleteRm(rmId);
-    });
-  }
-
-  return (
-    <Button
-      variant="danger"
-      size="sm"
-      loading={isPending}
-      onClick={handleDelete}
-    >
-      Eliminar
-    </Button>
-  );
+  return <DeleteRmButtonView rmId={rmId} onDeleteRm={deleteRm} />;
 }

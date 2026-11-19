@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { RegisterPaymentSectionView } from "@/components/payments/RegisterPaymentSectionView";
 import {
-  RegisterPaymentDialog,
+  registerLivePayment,
   type PaymentStudent,
 } from "@/components/RegisterPaymentDialog";
 
@@ -13,25 +12,17 @@ interface Props {
   size?: "sm" | "md" | "lg";
 }
 
-/**
- * "Registrar pago" button (top of the payments section) + dialog.
- * Rendered as a Client Component inside the Server Component page.
- */
+/** "Registrar pago" button (top of the payments section) + dialog. */
 export function RegisterPaymentButton({ students, demo, size = "sm" }: Props) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <>
-      <Button variant="primary" size={size} onClick={() => setOpen(true)}>
-        Registrar cuota
-      </Button>
-      <RegisterPaymentDialog
-        students={students}
-        open={open}
-        onClose={() => setOpen(false)}
-        demo={demo}
-      />
-    </>
+    <RegisterPaymentSectionView
+      students={students}
+      demo={demo}
+      size={size}
+      variant="primary"
+      label="Registrar cuota"
+      onRegisterPayment={registerLivePayment}
+    />
   );
 }
 
@@ -41,24 +32,16 @@ interface RowProps {
   demo?: boolean;
 }
 
-/**
- * Per-row "Registrar pago" access button — opens the dialog pre-selecting the student.
- */
+/** Per-row "Registrar pago" access button — opens the dialog pre-selecting the student. */
 export function RegisterPaymentRowButton({ students, studentId, demo }: RowProps) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <>
-      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-        Registrar pago
-      </Button>
-      <RegisterPaymentDialog
-        students={students}
-        preSelectedStudentId={studentId}
-        open={open}
-        onClose={() => setOpen(false)}
-        demo={demo}
-      />
-    </>
+    <RegisterPaymentSectionView
+      students={students}
+      preSelectedStudentId={studentId}
+      demo={demo}
+      variant="secondary"
+      label="Registrar pago"
+      onRegisterPayment={registerLivePayment}
+    />
   );
 }

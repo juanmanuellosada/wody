@@ -3,7 +3,7 @@
 // src/lib/activity-schedule.ts, que resuelve la conversión hora local ↔
 // instante absoluto — esto es solo texto para mostrar en la UI.
 
-import type { ActivityScheduleKind } from "@prisma/client";
+import type { ActivityScheduleKind } from "@/components/activity/views/view-models";
 import { formatDateArg } from "@/lib/dates";
 
 export const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];

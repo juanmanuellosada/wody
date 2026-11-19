@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ContactForm } from "@/components/landing/ContactForm";
+import { ProductionContactForm } from "@/components/landing/ProductionContactForm";
 
 const FEATURES = [
   "Armá y organizá tus propias rutinas",
@@ -65,7 +65,7 @@ export function PersonalPricingSection() {
         </div>
       </section>
 
-      {open && <ContactForm onClose={() => setOpen(false)} formType="PERSONAL" />}
+      {open && <ProductionContactForm onClose={() => setOpen(false)} formType="PERSONAL" />}
     </>
   );
 }

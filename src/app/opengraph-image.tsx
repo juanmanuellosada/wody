@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { ImageResponse } from "next/og";
 import { SITE_TITLE } from "@/lib/site";
 
@@ -10,7 +11,14 @@ export const contentType = "image/png";
  * Se genera en build en vez de mantener un PNG a mano: si cambia el mensaje,
  * cambia acá y no hay que reexportar nada desde el diseño.
  */
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+  // Satori does not resolve Next image imports, so the wordmark travels inline as
+  // a data URI. Same file the landing header uses, so the two cannot drift apart.
+  // Resolved against import.meta.url rather than process.cwd() so the bundler traces
+  // it statically and the PNG actually ships with the deployment.
+  const wordmark = await readFile(new URL("../logos/wody-texto.png", import.meta.url));
+  const wordmarkSrc = `data:image/png;base64,${wordmark.toString("base64")}`;
+
   return new ImageResponse(
     (
       <div
@@ -41,18 +49,8 @@ export default function OpengraphImage() {
           }}
         />
 
-        <div
-          style={{
-            display: "flex",
-            fontSize: 150,
-            fontWeight: 800,
-            color: "#FFFFFF",
-            letterSpacing: -6,
-            lineHeight: 1,
-          }}
-        >
-          WODY
-        </div>
+        {/* 480x121 in the source file; kept proportional so the mark never stretches. */}
+        <img src={wordmarkSrc} alt={SITE_TITLE} width={520} height={131} style={{ display: "flex" }} />
 
         <div
           style={{

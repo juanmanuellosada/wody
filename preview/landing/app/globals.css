@@ -1,0 +1,139 @@
+@layer base, utilities;
+
+@import "tailwindcss/theme";
+@import "tailwindcss/utilities" source(none);
+@plugin "@tailwindcss/typography";
+
+@source "../../../src/components/demo/turnos";
+@source "../../../src/components/demo/training";
+@source "../../../src/components/demo/finance";
+@source "../../../src/components/demo/access";
+@source "../../../src/components/demo/personal";
+@source "../../../src/components/timers";
+@source "../../../src/components/demo/gym";
+@source "../../../src/components/access/AccessKioskView.tsx";
+@source "../../../src/components/access/AccessHistoryTable.tsx";
+@source "../../../src/components/caja/CajaShell.tsx";
+@source "../../../src/components/payments/RegisterPaymentSectionView.tsx";
+@source "../../../src/components/payments/RegisterPaymentDialogView.tsx";
+@source "../../../src/components/payments/PaymentControlView.tsx";
+@source "../../../src/components/payments/PaymentHistorySectionView.tsx";
+@source "../../../src/components/sales/NewSaleButtonView.tsx";
+@source "../../../src/components/sales/SaleHistorySectionView.tsx";
+@source "../../../src/components/expenses/RegisterExpenseButtonView.tsx";
+@source "../../../src/components/expenses/RegisterExpenseDialogView.tsx";
+@source "../../../src/components/expenses/ExpenseHistorySectionView.tsx";
+@source "../../../src/components/finance/RevenuePanelView.tsx";
+@source "../../../src/components/finance/PaymentFiltersView.tsx";
+@source "../../../src/components/finance/RevenueFiltersView.tsx";
+@source "../../../src/components/finance/RevenueViewSelectorView.tsx";
+@source "../../../src/components/finance/MixtaHistoryTabsView.tsx";
+@source "../../../src/components/PaymentEvolutionChart.tsx";
+@source "../../../src/components/NetEvolutionChart.tsx";
+@source "../../../src/components/sales/NewSaleDialogView.tsx";
+@source "../../../src/components/products/ProductListView.tsx";
+@source "../../../src/components/products/ProductDialogView.tsx";
+@source "../../../src/components/products/CategoryManagerView.tsx";
+@source "../../../src/components/StudentTypeSelectView.tsx";
+@source "../../../src/components/DemoNavbar.tsx";
+@source "../../../src/components/DemoBanner.tsx";
+@source "../../../src/components/wod/WodManagerView.tsx";
+@source "../../../src/components/wod/WodCard.tsx";
+@source "../../../src/components/wod/WodHistory.tsx";
+@source "../../../src/components/wod/StudentWodDetailView.tsx";
+@source "../../../src/components/wod/StudentWodBadge.tsx";
+@source "../../../src/components/wod/ShareWodButton.tsx";
+@source "../../../src/components/wod/CopyWodDialogView.tsx";
+@source "../../../src/components/wod/TargetSelector.tsx";
+@source "../../../src/components/group/GroupManagerView.tsx";
+@source "../../../src/components/fixed-routine/FixedRoutineManagerView.tsx";
+@source "../../../src/components/fixed-routine/FixedRoutineStudentView.tsx";
+@source "../../../src/components/RmsView.tsx";
+@source "../../../src/components/personal/PersonalBillingPageView.tsx";
+@source "../../../src/components/RmFormView.tsx";
+@source "../../../src/components/DeleteRmButtonView.tsx";
+@source "../../../src/components/ShareRmButton.tsx";
+@source "../../../src/components/ui/Card.tsx";
+@source "../../../src/components/ui/Input.tsx";
+@source "../../../src/components/ui/MarkdownRenderer.tsx";
+@source "../../../src/components/ui/MarkdownEditor.tsx";
+@source "../../../src/components/demo/DemoBeneficiosView.tsx";
+@source "../../../src/components/activity/views";
+@source "../../../src/components/activity/RecurringChoiceDialog.tsx";
+@source "../../../src/components/ui/Button.tsx";
+@source "../../../src/components/ui/ConfirmDialog.tsx";
+@source "../../../src/components/ui/TimePicker.tsx";
+@source "../../../src/components/ui/DatePicker.tsx";
+
+:root {
+  color-scheme: dark;
+  --color-black: #000000;
+  --color-red: #E31414;
+  --color-white: #FFFFFF;
+  --color-grey: #1A1A1A;
+  --color-grey-mid: #2A2A2A;
+  --color-grey-light: #444444;
+  --color-red-dark: #B00F0F;
+  --color-red-hover: #FF1A1A;
+  --color-red-active: #8B0B0B;
+  --color-panel: #0A0A0A;
+  --color-elev: #1A1A1A;
+  --color-hover: #0D0D0D;
+  --color-line: #1A1A1A;
+  --color-edge: #2A2A2A;
+}
+
+@theme inline {
+  --color-brand-black: var(--color-black);
+  --color-brand-red: var(--color-red);
+  --color-brand-white: var(--color-white);
+  --color-brand-grey: var(--color-grey);
+  --color-brand-grey-mid: var(--color-grey-mid);
+  --color-brand-grey-light: var(--color-grey-light);
+  --color-brand-red-dark: var(--color-red-dark);
+  --color-brand-red-hover: var(--color-red-hover);
+  --color-brand-red-active: var(--color-red-active);
+  --color-panel: var(--color-panel);
+  --color-elev: var(--color-elev);
+  --color-hover: var(--color-hover);
+  --color-line: var(--color-line);
+  --color-edge: var(--color-edge);
+}
+
+@utility font-heading {
+  font-family: var(--font-heading);
+}
+
+@utility font-body {
+  font-family: var(--font-body);
+}
+
+@layer base {
+  [data-demo-root] button {
+    background-color: transparent;
+    border: 0 solid;
+  }
+}
+
+* { box-sizing: border-box; }
+html { background: #0a0a0f; scroll-behavior: smooth; }
+body { min-width: 320px; margin: 0; background: #0a0a0f; color: #fff; font-family: var(--font-body, sans-serif); }
+button, input, textarea { font: inherit; }
+:focus-visible { outline: 3px solid #ff6969; outline-offset: 3px; }
+::selection { background: #e31414; color: #fff; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* Scoped editor styles shared with the local training views; landing markup is unaffected. */
+.wody-tiptap .tiptap { color: #E0E0E0; font-size: 14px; line-height: 1.7; caret-color: var(--color-red); }
+.wody-tiptap .tiptap p { margin-bottom: 0.25rem; }
+.wody-tiptap .tiptap h1, .wody-tiptap .tiptap h2 { font-family: var(--font-heading), sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #FFFFFF; margin-top: 0.75rem; margin-bottom: 0.25rem; }
+.wody-tiptap .tiptap h1 { font-size: 1.25rem; }
+.wody-tiptap .tiptap h2 { font-size: 1.1rem; }
+.wody-tiptap .tiptap strong { color: #FFFFFF; font-weight: 700; }
+.wody-tiptap .tiptap em { color: #D0D0D0; }
+.wody-tiptap .tiptap ul { list-style-type: disc; padding-left: 1.25rem; margin: 0.25rem 0; }
+.wody-tiptap .tiptap ol { list-style-type: decimal; padding-left: 1.25rem; margin: 0.25rem 0; }
+.wody-tiptap .tiptap li { margin: 0.1rem 0; }
+.wody-tiptap .tiptap li::marker { color: var(--color-red); }
+.wody-tiptap .tiptap:focus-visible, .wody-tiptap .tiptap:focus, .wody-tiptap .ProseMirror:focus-visible, .wody-tiptap .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
+.wody-tiptap .tiptap p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #444; pointer-events: none; float: left; height: 0; }
